@@ -92,33 +92,6 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
-### Convoy workers read the map during the main-thread sync step (crash family) — priority 1
-
-- Convoy route-finding workers (`convoi_t::threaded_step`, route finding only) run from the end
-  of `karte_t::step` until `await_convoy_threads` part-way through the next step. In that window
-  the main thread mutates the data they read: vehicle hops tear tile object lists
-  (`objlist_t::add/remove/set_capacity` in `sync_step`), `karte_t::new_month` rewrites convoy
-  statistics at the top of the next step (before the await), and objects are deleted while
-  workers still hold pointers to them (freelist `putback_node` races) [CODE; TSan CI run on
-  ae6293989, artifact of run 34630028522: ~250 of 266 warnings, dominated by
-  `objlist_t::remove`/`intern_insert_at`/`objlist_t::bei`/`grund_t::set_flag`/`obj_t::set_flag`].
-- Crash mechanism: torn objlist reads by route finding. Reproduced locally on the demo fixture
-  (intermittent, ~1 in 6 network-harness runs, build of ee26ea8bf+df03b1b60): unhandled C++
-  exception from `__RTDynamicCast` under `grund_t::get_depot` ← `rail_vehicle_t::check_next_tile`
-  ← `route_t::intern_calc_route` ← `convoi_t::threaded_step` on a convoy worker; and separately
-  an access violation at `grund_t::get_weg` (grund.h:656) from the same path (MSVC Debug builds
-  have ASan enabled) [EXECUTION-VERIFIED:2026-09-12].
-- This is forum topic 20994 (2022 headless-server objlist race) and the "convoy threads run
-  across the sync step" code-stated caveat; the load-race fix did NOT cover it.
-- Working hypothesis [UNVERIFIED]: the CI TSan run's post-save SIGABRT (exit 134, zero
-  diagnostics, after a complete valid final.sve) is teardown corruption from this family;
-  re-check after the fix.
-- User decision 2026-09-12: do NOT disable MULTI_THREAD_CONVOYS (its measured share is ~1.7% of
-  frame CPU — [threading](threading.md) performance attribution — but the feature is valued);
-  the fix needs careful design and is deferred to a dedicated planning session. Options sketched:
-  await at the top of step (kills only the `new_month` overlap); harden objlist/tile reads
-  against sync_step churn (large); snapshot/quiescent-point route finding (large).
-
 ### Unbound halt handles in planquadrat haltlists crash early simulation (ex-15) — priority 1
 
 - Loading the bb-10-sep-2023 fixture on ex-15 (pak128.Britain-Ex) crashes with 0xC0000005
@@ -198,7 +171,7 @@ confirms they affect current builds in live games.
 | [All industries lose connections without warning, usually a crash after](https://forum.simutrans.com/index.php/topic,22871.0.html) | 2024 | data loss + crash |
 | [Strange behaviour possibly causing desync](https://forum.simutrans.com/index.php/topic,22405.0.html) | 2024 | desync |
 | [[734f8e3] Desync immediately first time try to join the server](https://forum.simutrans.com/index.php/topic,22203.0.html) | 2024 | desync |
-| [Thread deadlocks](https://forum.simutrans.com/index.php/topic,23021.0.html) | 2024 | threading family; one plausible mechanism (load-time races corrupting private-car barrier accounting, incl. the unlocked suspend-flag read deciding between one and two barrier waits) was eliminated with the load-race fix — if deadlocks persist on the server, next suspect is convoy threads running across sync_step |
+| [Thread deadlocks](https://forum.simutrans.com/index.php/topic,23021.0.html) | 2024 | threading family; two plausible mechanisms eliminated since: load-time races corrupting private-car barrier accounting (load-race fix), and convoy workers racing the sync step (map-reader hardening 2026-09-13) — if deadlocks persist on the server, the barrier-accounting fragility (→ [threading](threading.md) known problems) is the remaining documented suspect |
 | [Game crashes when trying to upgrade Merchant Navy class through replace function](https://forum.simutrans.com/index.php/topic,22385.0.html) | 2024 | |
 | [Listserver unavailability causes online game freezes](https://forum.simutrans.com/index.php/topic,22278.0.html) | 2023 | external-service dependency |
 | [[ex-15] Crash when loading saved game saved with ex-15 branch](https://forum.simutrans.com/index.php/topic,22201.0.html) | 2023 | ex-15 branch |
@@ -207,7 +180,7 @@ confirms they affect current builds in live games.
 | [Crashes when deleting dead-end road](https://forum.simutrans.com/index.php/topic,22037.0.html) | 2022 | |
 | ["Wrong theme loaded" crash at startup](https://forum.simutrans.com/index.php/topic,21907.0.html) | 2022 | likely same family as 24061 |
 | [[ex-15] Hovering over the "move signals" button crashes the game](https://forum.simutrans.com/index.php/topic,21714.0.html) | 2022 | ex-15 branch |
-| [Data race in objlist_t::remove when running headless server](https://forum.simutrans.com/index.php/topic,20994.0.html) | 2022 | convoy threads run across the sync step — detailed entry above; TSan-verified 2026-09-12; fix deferred to a planning session (user decision: keep the feature) |
+
 | [[assert] factorylist_stats_t.cc assert(max_capacity>0)](https://forum.simutrans.com/index.php/topic,21535.0.html) | 2022 | |
 | [Crashes related to road vehicle routing](https://forum.simutrans.com/index.php/topic,21491.0.html) | 2022 | |
 

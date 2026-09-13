@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ e89843ec8
+verified: master @ 07ad4ef13
 ---
 # Sync & determinism: rules for simulation code
 
@@ -85,12 +85,12 @@ Network play is deterministic lockstep: server and every client independently ru
 | 5 | ticker update | 19 | passenger/mail thread await |
 | 6 | display/event/frame work, end of sync_step | 20 | factory stepping |
 | 7 | explicitly zeroed | 21 | power network stepping |
-| 8 | entry to `step()` | 22 | player stepping |
+| 8 | entry to `step()` + convoy threaded-step await (the await is at the head of step, before the month check) | 22 | player stepping |
 | 9 | `new_month()` | 23 | `haltestelle_t::step_all()` |
-| 10 | private-car route-thread start | 24 | periodic path-explorer category refresh |
-| 11 | season/snowline tile loop | 25 | `check_transferring_cargoes()` |
+| 10 | season/snowline tile loop | 24 | periodic path-explorer category refresh |
+| 11 | private-car route-thread start | 25 | `check_transferring_cargoes()` |
 | 12 | `path_explorer_t::step()` | 26 | scenario step, end of `step()` |
-| 13 | convoy threaded-step await | 27–31 | explicitly zeroed, unused |
+| 13 | convoy threaded step (non-`MULTI_THREAD_CONVOYS` builds only) | 27–31 | explicitly zeroed, unused |
 
 The eyecandy lists are stepped under `INTERACTIVE_RANDOM` (not exactly synchronised); the main `sync` list holds the sync-critical moving objects (convoys/vehicles, road traffic, pedestrians) [CODE].
 
@@ -117,7 +117,7 @@ When adding per-step diagnostic aggregates for a new subsystem, use an unused sl
 ## Known problems & caveats (code-stated)
 
 - `debug_sums[2]/[3]` reset comments in simworld.cc contradict the actual feed sites (see table); the feed-site comments in simconvoi.cc are authoritative [CODE].
-- Convoy threads running across the sync step are a TSan-verified race family (CI TSan smoke, 2026-09-12): convoy-worker route finding reads tile object lists/convoy state while the main thread mutates them (vehicle hops, `new_month`) — an actual defect (crash + desync family), so the "uncertain" code comment in simworld.cc is superseded. Details → [known-bugs](known-bugs.md).
+- Convoy route-finding threads run across the sync step by design; worker map reads in that window are protected by the map-reader mechanism (objlist seqlock, reclamation quarantine, step-head await, convoy lifetime awaits) — see [threading](threading.md) "Map-reader protection".
 - Multi-threaded private-car route checking across multiple cities is "not network safe"; cause unresolved in code — hence the one-city-per-step clamp in network mode [CODE comment].
 - `ALWAYS_CACHE_SERVICE_INTERVAL` (simhalt.h): comment says network-safe but its test was not conclusive at the time [CODE comment caveat].
 - A suspected-desync comment sits after the scenario step in `karte_t::step()` ("Loss of synchronisation suspected to be in a block of code ending here") [CODE comment]. The user could neither confirm nor disconfirm the suspicion [RECOLLECTION:2026-09-07].
