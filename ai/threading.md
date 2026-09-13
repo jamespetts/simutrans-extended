@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 07ad4ef13
+verified: master @ f0263252a
 ---
 # Threading
 
@@ -191,11 +191,13 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
 
 ## Per-step choreography (placement only — sync rules in the sync doc)
 
-In `karte_t::step()`: **`await_convoy_threads` FIRST** (before the month check — the workers must
-be parked before `new_month` rewrites convoy state and before any map mutation) → `new_month` →
+In `karte_t::step()`: **`await_convoy_threads` and `await_path_explorer` FIRST** (before the
+month check — the convoy workers must be parked before `new_month` rewrites convoy state and
+before any map mutation; the path explorer must be parked before `new_month`'s factory intransit
+gating reads its progress state) → `new_month` →
 season/snowline tile loop (before any workers start: it recalculates images and may delete
-objects) → queue cities → `start_private_car_threads` → `await_path_explorer` (before
-using its results) → single-threaded `convoi_t::step()` loop → city
+objects) → queue cities → `start_private_car_threads` → `await_path_explorer` (no-op
+safeguard; the explorer was already parked at the head) → single-threaded `convoi_t::step()` loop → city
 stepping → `await_private_car_threads` → `weg_t::apply_travel_time_updates` →
 `start_passengers_and_mail_threads` → citizen accounting → `await_passengers_and_mail_threads` →
 merge thread-created private cars/pedestrians into the world in fixed buffer order → factories,
@@ -217,7 +219,10 @@ The mechanism making this safe has three parts:
    retry while it changes. `optr` is a single tagged word (inline-object bit + pointer) and arrays
    are self-describing (element 0 = capacity), so a speculative mid-mutation read can never go out
    of bounds or form a wild pointer; the seqlock then discards torn results. All shared accesses
-   use atomic accessors (OLIST_ATOMIC_*) so no data race exists. Writer is always the main thread.
+   use atomic accessors (OLIST_ATOMIC_*) so no data race exists. `optr` is additionally the
+   *publication point* for array contents (release-store/acquire-load), which orders the plain
+   fresh-array initialisation writes against reader content accesses. Writer is always the main
+   thread.
 2. **Reclamation quarantine (freelist_t)**: while any map-reader window is open
    (`begin_map_reader_window` in `start_convoy_threads`/`start_private_car_threads`),
    `putback_node` and object deallocation (`obj_t::operator delete` → `deferred_delete`) do not
@@ -253,7 +258,12 @@ the threaded context). Remaining TSan-visible benign value races → Known probl
   `INIT_NODES`/`GET_NODES`/`RELEASE_NODES`/`TERM_NODES`; workers must call `TERM_NODES` before
   exiting — done in their loops), `route_t::MAX_STEP`/`max_used_steps`; the simrandom Mersenne
   state + `random_origin` + `noise_seed` (+`thread_seed` under DEBUG_SIMRAND_CALLS);
-  `path_explorer_t::allow_path_explorer_on_this_thread`.
+  `path_explorer_t::allow_path_explorer_on_this_thread`; the debug-string buffers of
+  `koord3d::get_str/get_fullstr` (koord3d.cc) and `koord::get_str/get_fullstr` (koord.cc —
+  workers reach them via route-search heuristic warnings); `convoy_summary_compute_thread_local`
+  (convoy.cc/h — set around `convoi_t::threaded_step`: while set, the lazy convoy summary getters
+  compute into thread_local temporaries instead of the convoy's shared cache, because the main
+  thread reads/writes that cache concurrently; values are a pure function of the vehicle set).
 - `async_rand_seed` (utils/simrandom.cc) is thread_local: passenger workers' startup
   `setsimrand()` would otherwise write the shared global concurrently (one of the TSan-flagged
   load-time races). It feeds only `sim_async_rand()` (unsynced UI randomness), so per-thread
@@ -273,7 +283,9 @@ the threaded context). Remaining TSan-visible benign value races → Known probl
   Further atomics for legitimate cross-window read/write sharing (all single-writer):
   `karte_t::path_explorer_working` (also written by convoy workers via `await_path_explorer` from
   `drive_to`), `convoi_t::state`, `obj_t::flags` (own byte since the owner nibble split),
-  `grund_t::flags`, `vehicle_base_t::disp_lane`, `haltestelle_t::resort_freight_info`.
+  `grund_t::flags`, `vehicle_base_t::disp_lane`, `haltestelle_t::resort_freight_info`,
+  `leitung_t::net` (std::atomic<powernet_t*> — map-loop workers read/write it under inconsistent
+  mutexes during threaded load; the atomic makes the accessor pair race-free regardless).
 - Simulation aggregates: `karte_t::private_car_route_mutex` (ERRORCHECK type; route queue, city
   road connexions in route.cc, city-queue bookkeeping in `karte_t::step`/`pause_step`), `karte_t::step_passengers_and_mail_mutex` (also
   held around rdwr of `next_step_passenger`/`next_step_mail`), `path_explorer_await_mutex`
@@ -303,18 +315,18 @@ the threaded context). Remaining TSan-visible benign value races → Known probl
 - MSVC "single threaded" configurations compile MT code (Build configuration) — user decision
   2026-09-07: very low priority, leave for now; fix-or-delete undecided
   (→ [known-bugs](known-bugs.md) P4).
-- TSan still flags value-benign races that cannot crash (they keep the TSan CI log non-empty):
-  the convoy lazy summary caches (`convoy.h` `validate_*_summary`/`is_valid` bitmask — idempotent
-  recomputes written by workers, read by main; the convoy's vehicle set cannot change mid-window),
-  and the leitung2 load-time family (`leitung_t::set_net` vs `get_net` guarded by *different*
-  mutexes, between map-loop workers during load). The factory intransit/path-explorer category
-  read is open (→ [known-bugs](known-bugs.md) P2).
+- Packed-struct atomics: atomic builtins on members of a `GCC_PACKED` struct are tracked as
+  alignment 1, so GCC/clang emit libatomic calls (`__atomic_load_8`/`__atomic_store_8`) for
+  word-sized accesses — unlinked (no `-latomic`) and slow. Route word-sized atomic accesses to
+  packed-struct members through inline helper functions whose parameters carry natural alignment
+  (precedent: `olist_atomic_load_word`/`olist_atomic_store_word` in dataobj/objlist.h).
 - Sync-critical caveats (multi-city private-car threading) →
   [sync-and-determinism](sync-and-determinism.md).
 
 ## Provenance
 
-Verified against master @ 07ad4ef13 (which includes: the map-reader hardening — objlist seqlock,
+Verified against master @ f0263252a [CODE; CI verified green for the TSan and ASan smoke jobs at
+that sha, 2026-09-13]. Earlier base: master @ 07ad4ef13 (which includes: the map-reader hardening — objlist seqlock,
 freelist reclamation quarantine, step-head `await_convoy_threads`, season-loop reorder, convoy
 lifetime awaits, atomic `state`/flags/`disp_lane`/`path_explorer_working`, verified by 26
 crash-free byte-identical network smoke runs on the demo fixture where the prior local crash rate
