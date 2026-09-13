@@ -5029,6 +5029,19 @@ void karte_t::step()
 	await_convoy_threads();
 #endif
 
+#ifdef MULTI_THREAD_PATH_EXPLORER
+	// Park the path explorer before new_month: new_month's factory intransit gating
+	// (fabrik_t::calc_max_intransit_percentages) reads the explorer's live progress
+	// state (current_compartment_category, compartment path availability), which the
+	// explorer thread is still mutating. Reading it mid-run both raced (TSan) and made
+	// the gate result dependent on thread scheduling - a desync vector, because the
+	// result feeds saved factory state (max_transit). After this await, the explorer
+	// state reflects exactly the previous step's network-negotiated work quantum,
+	// identical on all peers. The await below (before the results are otherwise used)
+	// then becomes a no-op.
+	await_path_explorer();
+#endif
+
 	// calculate delta_t before handling overflow in ticks
 	const sint32 delta_t = (sint32)(ticks-last_step_ticks);
 
@@ -5207,6 +5220,8 @@ void karte_t::step()
 
 #ifdef MULTI_THREAD_PATH_EXPLORER
 	// Stop the path explorer before we use its results.
+	// (No-op: the explorer was already parked at the head of this step, before
+	// new_month; kept as a safeguard should the step-head await move.)
 	await_path_explorer();
 #else
 	// Knightly : calling global path explorer
