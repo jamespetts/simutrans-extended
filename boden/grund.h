@@ -7,6 +7,8 @@
 #define BODEN_GRUND_H
 
 
+#include <atomic>
+
 #include "../halthandle_t.h"
 #include "../display/simimg.h"
 #include "../simcolor.h"
@@ -212,9 +214,13 @@ protected:
 	sint8 back_imageid;
 
 	/**
-	 * Flags to indicate existence of halts, ways, to mark dirty
+	 * Flags to indicate existence of halts, ways, to mark dirty.
+	 * Atomic: simulation worker threads read these (e.g. get_weg_nr reads the
+	 * has_way bits during route finding) while the main thread or display
+	 * threads may write them. Writers are never concurrent with each other,
+	 * so plain load/modify/store on the atomic is sufficient.
 	 */
-	uint8 flags;
+	std::atomic<uint8> flags;
 
 
 public:
@@ -273,10 +279,10 @@ public:
 	/**
 	* Set Flags for the newly drawn changed ground
 	*/
-	inline void set_flag(flag_values flag) {flags |= flag;}
+	inline void set_flag(flag_values flag) {flags.store(flags.load(std::memory_order_relaxed) | flag, std::memory_order_relaxed);}
 
-	inline void clear_flag(flag_values flag) {flags &= ~flag;}
-	inline bool get_flag(flag_values flag) const {return (flags & flag) != 0;}
+	inline void clear_flag(flag_values flag) {flags.store(flags.load(std::memory_order_relaxed) & ~flag, std::memory_order_relaxed);}
+	inline bool get_flag(flag_values flag) const {return (flags.load(std::memory_order_relaxed) & flag) != 0;}
 
 	/**
 	* Updates snowline dependent grund_t (and derivatives) - none are season dependent

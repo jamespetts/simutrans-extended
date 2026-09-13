@@ -13,6 +13,8 @@
 #else
 #endif
 
+#include <atomic>
+
 #include "../simtypes.h"
 #include "../display/clip_num.h"
 #include "../display/simimg.h"
@@ -68,13 +70,22 @@ private:
 
 	/**
 	 * Owner of the object (1 - public player, 15 - unowned)
+	 *
+	 * Note: owner_n and flags occupy separate bytes (they were once packed into
+	 * one byte as 4-bit bitfields): the main thread writes flags during
+	 * sync_step while simulation worker threads read the owner (check_access),
+	 * which raced on the shared byte.
 	 */
-	uint8 owner_n:4;
+	uint8 owner_n;
 
 	/**
 	 * @see flag_values
+	 * Atomic: written by the main thread (e.g. dirty marking on vehicle hops)
+	 * and by display threads (dirty clearing) while simulation workers may read
+	 * the owning object. Writers are never concurrent with each other, so plain
+	 * load/modify/store on the atomic is sufficient.
 	 */
-	uint8 flags:4;
+	std::atomic<uint8> flags;
 
 private:
 	/**
@@ -115,10 +126,19 @@ public:
 
 	/**
 	 * routines to set, clear, get bit flags
+	 * (relaxed atomics: writers never run concurrently, readers may)
 	 */
-	inline void set_flag(flag_values flag) {flags |= flag;}
-	inline void clear_flag(flag_values flag) {flags &= ~flag;}
-	inline bool get_flag(flag_values flag) const {return ((flags & flag) != 0);}
+	inline void set_flag(flag_values flag) {flags.store(flags.load(std::memory_order_relaxed) | flag, std::memory_order_relaxed);}
+	inline void clear_flag(flag_values flag) {flags.store(flags.load(std::memory_order_relaxed) & ~flag, std::memory_order_relaxed);}
+	inline bool get_flag(flag_values flag) const {return ((flags.load(std::memory_order_relaxed) & flag) != 0);}
+
+	/**
+	 * Deletion of map objects is deferred while simulation worker threads may
+	 * be reading the map (freelist_t quarantine), so that a worker can never
+	 * observe recycled memory. Destructor behaviour is unchanged.
+	 */
+	static void operator delete(void* p);
+	static void operator delete(void* p, size_t);
 
 	/// all the different types of objects
 	// NOTE: These numbers are loaded/saved as an sint8.

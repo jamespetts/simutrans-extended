@@ -52,8 +52,8 @@
 /* All things including ways are stored in this structure.
  * The entries are packed, i.e. the first free entry is at the top.
  * To save memory, a single element (like in the case for houses or a single tree)
- * is stored directly (obj.one) and capacity==1. Otherwise obj.some points to an
- * array.
+ * is stored directly (inline in the tagged optr word) and capacity==1.
+ * Otherwise optr points to an array with a capacity header (see objlist.h).
  * The objects are sorted according to their drawing order.
  * ways are always first.
  */
@@ -135,52 +135,51 @@ static uint8 type_to_pri[256]=
 };
 
 
-static void dl_free(obj_t** p, uint8 size)
+// Arrays have one extra slot: element 0 is the capacity header (see objlist.h).
+// dl_free routes through the freelist quarantine: while a simulation worker
+// window is open the array is not recycled (a concurrent reader may still hold
+// a pointer to it); otherwise it is recycled/freed immediately.
+static void dl_free(obj_t** p, uint8 slots)
 {
-	assert(size > 1);
-	if (size <= 16) {
-		freelist_t::putback_node(sizeof(*p) * size, p);
-	}
-	else {
-		free(p);
-	}
+	assert(slots > 2);
+	freelist_t::putback_node(sizeof(*p) * slots, p);
 }
 
 
-static obj_t** dl_alloc(uint8 size)
+static obj_t** dl_alloc(uint8 slots)
 {
-	assert(size > 1);
+	assert(slots > 2);
 	obj_t** p;
-	if (size <= 16) {
-		p = static_cast<obj_t**>(freelist_t::gimme_node(sizeof(*p) * size ));
+	if (slots <= 16) {
+		p = static_cast<obj_t**>(freelist_t::gimme_node(sizeof(*p) * slots ));
 	}
 	else {
-		p = MALLOCN(obj_t*, size);
+		p = MALLOCN(obj_t*, slots);
 	}
 	return p;
 }
 
 
 objlist_t::objlist_t()
+	: optr(INLINE_TAG), capacity(0), top(0), mutation_version(0)
 {
-	obj.one = NULL;
-	capacity = 0;
-	top = 0;
 }
 
 
 objlist_t::~objlist_t()
 {
 	if(  capacity == 1  ) {
-		obj.one->set_flag(obj_t::not_on_map);
+		obj_t *const single = read_single();
+		single->set_flag(obj_t::not_on_map);
 
-		if(!obj.one->has_managed_lifecycle()) {
-			delete obj.one;
+		if(!single->has_managed_lifecycle()) {
+			delete single;
 		}
 	}
 	else {
+		obj_t **a = write_array();
 		for(  uint8 i=0;  i<top;  i++  ) {
-			obj_t* const object = obj.some[i];
+			obj_t* const object = array_read(a, i);
 			object->set_flag(obj_t::not_on_map);
 
 			if(!object->has_managed_lifecycle()) {
@@ -190,9 +189,9 @@ objlist_t::~objlist_t()
 	}
 
 	if(capacity>1) {
-		dl_free(obj.some, capacity);
+		dl_free(write_array(), capacity+1);
 	}
-	obj.some = NULL;
+	optr = INLINE_TAG;
 	capacity = top = 0;
 }
 
@@ -206,32 +205,35 @@ void objlist_t::set_capacity(uint16 req_cap)
 	// a single object is stored differentially
 	if(new_cap==0) {
 		if(capacity>1) {
-			dl_free( obj.some, capacity );
+			obj_t **old = write_array();
+			store_single(NULL);
+			dl_free( old, capacity+1 );
 		}
-		obj.one = NULL;
 		capacity = 0;
-		top = 0;
+		OLIST_ATOMIC_STORE(&top, 0);
 	}
 	else if(new_cap==1) {
 		if(capacity>1) {
-			obj_t *tmp=NULL;
 			// we have an obj to save into the list
-			tmp = obj.some[0];
-			dl_free( obj.some, capacity );
-			obj.one = tmp;
+			obj_t **old = write_array();
+			obj_t *tmp = array_read(old, 0);
 			assert(top<2);
+			store_single(tmp);
+			dl_free( old, capacity+1 );
 		}
 		else if(top==0) {
-			obj.one = NULL;
+			store_single(NULL);
 		}
 		capacity = top;
 	}
 	else if(capacity<=1) {
 		// this means we extend from 0 or 1 elements to more than 1
-		obj_t *tmp=obj.one;
-		obj.some = dl_alloc(new_cap);
-		MEMZERON(obj.some, new_cap);
-		obj.some[0] = tmp;
+		obj_t *tmp = read_single();
+		obj_t **a = dl_alloc(new_cap+1);
+		MEMZERON(a, new_cap+1);
+		a[0] = (obj_t *)(uintptr_t)new_cap;
+		a[1] = tmp;
+		store_array(a);
 		capacity = new_cap;
 		assert(top<=1);
 	}
@@ -240,14 +242,22 @@ void objlist_t::set_capacity(uint16 req_cap)
 		assert(  top<=new_cap  );
 
 		// get memory
-		obj_t **tmp = dl_alloc(new_cap);
+		obj_t **a = dl_alloc(new_cap+1);
+		MEMZERON(a, new_cap+1);
+		a[0] = (obj_t *)(uintptr_t)new_cap;
 
-		// free old memory
-		if(obj.some) {
-			memcpy( tmp, obj.some, sizeof(obj_t *)*top );
-			dl_free(obj.some, capacity);
+		// free old memory (deferred while workers may be reading it)
+		obj_t **old = write_array();
+		if(old) {
+			for(  uint8 i=0;  i<top;  i++  ) {
+				a[1+i] = array_read(old, i);
+			}
+			store_array(a);
+			dl_free(old, capacity+1);
 		}
-		obj.some = tmp;
+		else {
+			store_array(a);
+		}
 		capacity = new_cap;
 	}
 }
@@ -287,22 +297,23 @@ void objlist_t::shrink_capacity(uint8 o_top)
 
 inline void objlist_t::intern_insert_at(obj_t* new_obj, uint8 pri)
 {
-	// we have more than one object here, thus we can use obj.some exclusively!
+	// we have more than one object here, thus we can use the array exclusively!
+	obj_t **a = write_array();
 	for(  uint8 i=top;  i>pri;  i--  ) {
-		obj.some[i] = obj.some[i-1];
+		array_write(a, i, array_read(a, i-1));
 	}
-	obj.some[pri] = new_obj;
-	top++;
+	array_write(a, pri, new_obj);
+	OLIST_ATOMIC_STORE(&top, top+1);
 }
 
 
 // only used internal for loading. DO NOT USE OTHERWISE!
-bool objlist_t::append(obj_t *new_obj)
+bool objlist_t::append_intern(obj_t *new_obj)
 {
 	if(capacity==0) {
 		// the first one save direct
-		obj.one = new_obj;
-		top = 1;
+		store_single(new_obj);
+		OLIST_ATOMIC_STORE(&top, 1);
 		capacity = 1;
 		return true;
 	}
@@ -320,10 +331,12 @@ bool objlist_t::append(obj_t *new_obj)
 // this will automatically give the right order for citycars and the like ...
 bool objlist_t::intern_add_moving(obj_t* new_obj)
 {
-	// we are more than one object, thus we exclusively use obj.some here!
+	// we are more than one object, thus we exclusively use the array here!
 	// it would be nice, if also the objects are inserted according to their priorities as
 	// vehicles types (number returned by get_typ()). However, this would increase
 	// the calculation even further. :(
+
+	obj_t **a = write_array();
 
 	// insert at this lane
 	uint8 lane = ((vehicle_base_t*)new_obj)->get_disp_lane();
@@ -331,11 +344,11 @@ bool objlist_t::intern_add_moving(obj_t* new_obj)
 	// find out about the first car etc. moving thing.
 	// We can start to insert between (start) and (end)
 	uint8 start=0;
-	while(start<top  &&  (!obj.some[start]->is_moving()  ||  ((vehicle_base_t*)obj.some[start])->get_disp_lane() < lane) ) {
+	while(start<top  &&  (!array_read(a, start)->is_moving()  ||  ((vehicle_base_t*)array_read(a, start))->get_disp_lane() < lane) ) {
 		start ++;
 	}
 	uint8 end = top;
-	while(  end>start  &&  (!obj.some[end-1]->is_moving()  ||  ((vehicle_base_t*)obj.some[end-1])->get_disp_lane() > lane) ) {
+	while(  end>start  &&  (!array_read(a, end-1)->is_moving()  ||  ((vehicle_base_t*)array_read(a, end-1))->get_disp_lane() > lane) ) {
 		end--;
 	}
 	if(start==end) {
@@ -393,20 +406,22 @@ bool compare_trees(const obj_t *tree1, const obj_t *tree2)
 }
 
 
-void objlist_t::sort_trees(uint8 index, uint8 count)
+void objlist_t::sort_trees_intern(uint8 index, uint8 count)
 {
+	// note: plain element swaps; not called while worker threads run
 	if(top>=index+count) {
-		std::sort(&obj.some[index], &obj.some[index+count], compare_trees);
+		obj_t **a = write_array();
+		std::sort(&a[1+index], &a[1+index+count], compare_trees);
 	}
 }
 
 
-bool objlist_t::add(obj_t* new_obj)
+bool objlist_t::add_intern(obj_t* new_obj)
 {
 	if(capacity==0) {
 		// the first one save direct
-		obj.one = new_obj;
-		top = 1;
+		store_single(new_obj);
+		OLIST_ATOMIC_STORE(&top, 1);
 		capacity = 1;
 		return true;
 	}
@@ -429,22 +444,24 @@ bool objlist_t::add(obj_t* new_obj)
 		return intern_add_moving(new_obj);
 	}
 
+	obj_t **a = write_array();
+
 	// roads must be first!
 	if(pri==0) {
 		// check for other ways to keep order! (maximum is two ways per tile at the moment)
-		weg_t const* const w   = obj_cast<weg_t>(obj.some[0]);
+		weg_t const* const w   = obj_cast<weg_t>(array_read(a, 0));
 		uint8        const pos = w  &&  w->get_waytype() < static_cast<weg_t*>(new_obj)->get_waytype() ? 1 : 0;
 		intern_insert_at(new_obj, pos);
 		return true;
 	}
 
 	uint8 i;
-	for(  i=0;  i<top  &&  pri>type_to_pri[(uint8)obj.some[i]->get_typ()];  i++  )
+	for(  i=0;  i<top  &&  pri>type_to_pri[(uint8)array_read(a, i)->get_typ()];  i++  )
 		;
 	// now i contains the position, where we either insert of just add ...
 	if(i==top) {
-		obj.some[top] = new_obj;
-		top++;
+		array_write(a, top, new_obj);
+		OLIST_ATOMIC_STORE(&top, top+1);
 	}
 	else {
 		if(pri==baum_pri) {
@@ -452,7 +469,7 @@ bool objlist_t::add(obj_t* new_obj)
 			 * therefore the y-order must be correct!
 			 */
 			for(  ;  i<top;  i++) {
-				baum_t const* const tree = obj_cast<baum_t>(obj.some[i]);
+				baum_t const* const tree = obj_cast<baum_t>(array_read(a, i));
 				if (!tree  ||  compare_trees(new_obj, tree)) {
 					break;
 				}
@@ -461,14 +478,14 @@ bool objlist_t::add(obj_t* new_obj)
 		else if (pri == pillar_pri) {
 			// pillars have to be sorted wrt their y-offset, too.
 			for(  ;  i<top;  i++) {
-				pillar_t const* const pillar = obj_cast<pillar_t>(obj.some[i]);
+				pillar_t const* const pillar = obj_cast<pillar_t>(array_read(a, i));
 				if (!pillar  ||  new_obj->get_yoff()  > pillar->get_yoff() ) {
 					break;
 				}
 			}
 		}
-		else if(  pri == wayobj_pri  &&  obj.some[i]->get_typ()==obj_t::wayobj  ) {
-			wayobj_t const* const wo = obj_cast<wayobj_t>(obj.some[i]);
+		else if(  pri == wayobj_pri  &&  array_read(a, i)->get_typ()==obj_t::wayobj  ) {
+			wayobj_t const* const wo = obj_cast<wayobj_t>(array_read(a, i));
 			if(  wo  &&  wo->get_waytype() < obj_cast<wayobj_t>(new_obj)->get_waytype() ) {
 				// insert after a lower waytype
 				i += 1;
@@ -484,53 +501,56 @@ bool objlist_t::add(obj_t* new_obj)
 // take the thing out from the list
 // use this only for temporary removing
 // since it does not shrink list or checks for ownership
-obj_t *objlist_t::remove_last()
+obj_t *objlist_t::remove_last_intern()
 {
 	obj_t *last_obj=NULL;
 	if(capacity==0) {
 		// nothing
 	}
 	else if(capacity==1) {
-		last_obj = obj.one;
-		obj.one = NULL;
-		capacity = top = 0;
+		last_obj = read_single();
+		store_single(NULL);
+		capacity = 0;
+		OLIST_ATOMIC_STORE(&top, 0);
 	}
 	else {
 		if(top>0) {
-			top --;
-			last_obj = obj.some[top];
-			obj.some[top] = NULL;
+			obj_t **a = write_array();
+			OLIST_ATOMIC_STORE(&top, top-1);
+			last_obj = array_read(a, top);
+			array_write(a, top, NULL);
 		}
 	}
 	return last_obj;
 }
 
 
-bool objlist_t::remove(const obj_t* remove_obj)
+bool objlist_t::remove_intern(const obj_t* remove_obj)
 {
 	if(  capacity == 0  ) {
 		return false;
 	}
 	else if(  capacity == 1  ) {
-		if(  obj.one == remove_obj  ) {
-			obj.one = NULL;
+		if(  read_single() == remove_obj  ) {
+			store_single(NULL);
 			capacity = 0;
-			top = 0;
+			OLIST_ATOMIC_STORE(&top, 0);
 			return true;
 		}
 		return false;
 	}
 
 	// we keep the array dense!
+	obj_t **a = write_array();
 	for(  uint8 i=0;  i<top;  i++  ) {
-		if(  obj.some[i] == remove_obj  ) {
+		if(  array_read(a, i) == remove_obj  ) {
 			// found it!
-			top--;
+			OLIST_ATOMIC_STORE(&top, top-1);
 			while(  i < top  ) {
-				obj.some[i] = obj.some[i+1];
+				array_write(a, i, array_read(a, i+1));
 				i++;
 			}
-			obj.some[top] = NULL;
+			array_write(a, top, NULL);
 			return true;
 		}
 	}
@@ -561,7 +581,7 @@ static void local_delete_object(obj_t *remove_obj, player_t *player)
 }
 
 
-bool objlist_t::loesche_alle(player_t *player, uint8 offset)
+bool objlist_t::loesche_alle_intern(player_t *player, uint8 offset)
 {
 	if(top<=offset) {
 		return false;
@@ -571,19 +591,21 @@ bool objlist_t::loesche_alle(player_t *player, uint8 offset)
 	bool ok=false;
 
 	if(capacity>1) {
+		obj_t **a = write_array();
 		while(  top>offset  ) {
-			top --;
-			local_delete_object(obj.some[top], player);
-			obj.some[top] = NULL;
+			OLIST_ATOMIC_STORE(&top, top-1);
+			local_delete_object(array_read(a, top), player);
+			array_write(a, top, NULL);
 			ok = true;
 		}
 	}
 	else {
 		if(capacity==1) {
-			local_delete_object(obj.one, player);
+			local_delete_object(read_single(), player);
 			ok = true;
-			obj.one = NULL;
-			capacity = top = 0;
+			store_single(NULL);
+			capacity = 0;
+			OLIST_ATOMIC_STORE(&top, 0);
 		}
 	}
 	shrink_capacity(top);
@@ -600,13 +622,14 @@ const char *objlist_t::kann_alle_entfernen(const player_t *player, uint8 offset)
 	}
 
 	if(capacity==1) {
-		return obj.one->is_deletable(player);
+		return read_single()->is_deletable(player);
 	}
 	else {
 		const char * msg = NULL;
+		obj_t *const *a = read_array();
 
 		for(uint8 i=offset; i<top; i++) {
-			msg = obj.some[i]->is_deletable(player);
+			msg = array_read(a, i)->is_deletable(player);
 			if(msg != NULL) {
 				return msg;
 			}
@@ -624,11 +647,12 @@ void objlist_t::calc_image()
 		// nothing
 	}
 	else if(capacity==1) {
-		obj.one->calc_image();
+		read_single()->calc_image();
 	}
 	else {
+		obj_t *const *a = read_array();
 		for(uint8 i=0; i<top; i++) {
-			obj.some[i]->calc_image();
+			array_read(a, i)->calc_image();
 		}
 	}
 }
@@ -640,11 +664,12 @@ void objlist_t::set_all_dirty()
 		// nothing
 	}
 	else if(  capacity == 1  ) {
-		obj.one->set_flag( obj_t::dirty );
+		read_single()->set_flag( obj_t::dirty );
 	}
 	else {
+		obj_t *const *a = read_array();
 		for(  uint8 i = 0;  i < top;  i++  ) {
-			obj.some[i]->set_flag( obj_t::dirty );
+			array_read(a, i)->set_flag( obj_t::dirty );
 		}
 	}
 }
@@ -653,93 +678,137 @@ void objlist_t::set_all_dirty()
 /* check for obj */
 bool objlist_t::ist_da(const obj_t* test_obj) const
 {
-	if(capacity<=1) {
-		return obj.one==test_obj;
-	}
-	else {
-		for(uint8 i=0; i<top; i++) {
-			if(obj.some[i]==test_obj) {
-				return true;
+	for(  ;;  ) {
+		const uint8 v0 = read_version_begin();
+		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		std::atomic_thread_fence(std::memory_order_acquire);
+		const uint8 t = OLIST_ATOMIC_LOAD(&top);
+		bool found = false;
+		if(  w & INLINE_TAG  ) {
+			found = (t != 0  &&  (obj_t *)(w & ~(uintptr_t)TAG_MASK) == test_obj);
+		}
+		else {
+			obj_t *const *a = (obj_t *const *)w;
+			const uint8 end = min(t, array_capacity(a));
+			for(uint8 i=0; i<end; i++) {
+				if(array_read(a, i)==test_obj) {
+					found = true;
+					break;
+				}
 			}
 		}
+		if(  read_version_ok(v0)  ) {
+			return found;
+		}
 	}
-	return false;
 }
 
 
 obj_t *objlist_t::suche(obj_t::typ typ,uint8 start) const
 {
-	if(  start >= top  ) {
-		// start==0 and top==0 is already covered by this too
-		return NULL;
-	}
-
-	if(  capacity <= 1  ) {
-		// it will crash on capacity==1 and top==0, but this should never happen!
-		// this is only reached for top==1 and start==0
-		return obj.one->get_typ()!=typ ? NULL : obj.one;
-	}
-	else {
-		// else we have to search the list
-		for(uint8 i=start; i<top; i++) {
-			obj_t * tmp = obj.some[i];
-			if(tmp->get_typ()==typ) {
-				return tmp;
+	for(  ;;  ) {
+		const uint8 v0 = read_version_begin();
+		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		std::atomic_thread_fence(std::memory_order_acquire);
+		const uint8 t = OLIST_ATOMIC_LOAD(&top);
+		obj_t *result = NULL;
+		if(  start < t  ) {
+			if(  w & INLINE_TAG  ) {
+				obj_t *const single = (obj_t *)(w & ~(uintptr_t)TAG_MASK);
+				if(  single  &&  single->get_typ() == typ  ) {
+					result = single;
+				}
+			}
+			else {
+				// else we have to search the list
+				obj_t *const *a = (obj_t *const *)w;
+				const uint8 end = min(t, array_capacity(a));
+				for(uint8 i=start; i<end; i++) {
+					obj_t *const tmp = array_read(a, i);
+					if(  tmp  &&  tmp->get_typ()==typ  ) {
+						result = tmp;
+						break;
+					}
+				}
 			}
 		}
+		if(  read_version_ok(v0)  ) {
+			return result;
+		}
 	}
-	return NULL;
 }
 
 
 obj_t *objlist_t::get_leitung() const
 {
-	if(  top == 0  ) {
-		return NULL;
-	}
-
-	if(  capacity <= 1  ) {
-		// it will crash on capacity==1 and top==0, but this should never happen!
-		if(  obj.one->get_typ() >= obj_t::leitung  &&  obj.one->get_typ() <= obj_t::senke  ) {
-			return obj.one;
-		}
-	}
-	else {
-		// else we have to search the list
-		for(  uint8 i=0;  i<top;  i++  ) {
-			uint8 typ = obj.some[i]->get_typ();
-			if(  typ >= obj_t::leitung  &&  typ <= obj_t::senke  ) {
-				return obj.some[i];
+	for(  ;;  ) {
+		const uint8 v0 = read_version_begin();
+		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		std::atomic_thread_fence(std::memory_order_acquire);
+		const uint8 t = OLIST_ATOMIC_LOAD(&top);
+		obj_t *result = NULL;
+		if(  t != 0  ) {
+			if(  w & INLINE_TAG  ) {
+				obj_t *const single = (obj_t *)(w & ~(uintptr_t)TAG_MASK);
+				if(  single  &&  single->get_typ() >= obj_t::leitung  &&  single->get_typ() <= obj_t::senke  ) {
+					result = single;
+				}
+			}
+			else {
+				// else we have to search the list
+				obj_t *const *a = (obj_t *const *)w;
+				const uint8 end = min(t, array_capacity(a));
+				for(  uint8 i=0;  i<end;  i++  ) {
+					obj_t *const tmp = array_read(a, i);
+					const uint8 typ = tmp ? tmp->get_typ() : 0;
+					if(  tmp  &&  typ >= obj_t::leitung  &&  typ <= obj_t::senke  ) {
+						result = tmp;
+						break;
+					}
+				}
 			}
 		}
+		if(  read_version_ok(v0)  ) {
+			return result;
+		}
 	}
-	return NULL;
 }
 
 
 obj_t *objlist_t::get_convoi_vehicle() const
 {
-	if(  top == 0  ) {
-		return NULL;
-	}
-
-	if(  capacity <= 1  ) {
-		// it will crash on capacity==1 and top==0, but this should never happen!
-		// only ships and aircraft can go on tiles without ways => only test for those
-		uint8 t = obj.one->get_typ();
-		if(  t == obj_t::air_vehicle  ||  t == obj_t::water_vehicle  ) {
-			return obj.one;
-		}
-	}
-	else {
-		for(  uint8 i=0;  i < top;  i++  ) {
-			uint8 typ = obj.some[i]->get_typ();
-			if(  typ >= obj_t::road_vehicle  &&  typ <= obj_t::air_vehicle  ) {
-				return obj.some[i];
+	for(  ;;  ) {
+		const uint8 v0 = read_version_begin();
+		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		std::atomic_thread_fence(std::memory_order_acquire);
+		const uint8 t = OLIST_ATOMIC_LOAD(&top);
+		obj_t *result = NULL;
+		if(  t != 0  ) {
+			if(  w & INLINE_TAG  ) {
+				// only ships and aircraft can go on tiles without ways => only test for those
+				obj_t *const single = (obj_t *)(w & ~(uintptr_t)TAG_MASK);
+				const uint8 st = single ? single->get_typ() : 0;
+				if(  st == obj_t::air_vehicle  ||  st == obj_t::water_vehicle  ) {
+					result = single;
+				}
+			}
+			else {
+				obj_t *const *a = (obj_t *const *)w;
+				const uint8 end = min(t, array_capacity(a));
+				for(  uint8 i=0;  i < end;  i++  ) {
+					obj_t *const tmp = array_read(a, i);
+					const uint8 typ = tmp ? tmp->get_typ() : 0;
+					if(  tmp  &&  typ >= obj_t::road_vehicle  &&  typ <= obj_t::air_vehicle  ) {
+						result = tmp;
+						break;
+					}
+				}
 			}
 		}
+		if(  read_version_ok(v0)  ) {
+			return result;
+		}
 	}
-	return NULL;
 }
 
 
@@ -1105,34 +1174,36 @@ void objlist_t::display_obj_quick_and_dirty( const sint16 xpos, const sint16 ypo
 		return;
 	}
 	else if(capacity==1) {
+		obj_t *const single = read_single();
 		if(start_offset==0) {
 			// only draw background on request
-			obj.one->display( xpos, ypos  CLIP_NUM_PAR);
+			single->display( xpos, ypos  CLIP_NUM_PAR);
 		}
 		// foreground need to be drawn in any case
 #ifdef MULTI_THREAD
-		obj.one->display_after(xpos, ypos, clip_num );
+		single->display_after(xpos, ypos, clip_num );
 #else
-		obj.one->display_after( xpos, ypos, is_global );
+		single->display_after( xpos, ypos, is_global );
 		if(  is_global  ) {
-			obj.one->clear_flag( obj_t::dirty );
+			single->clear_flag( obj_t::dirty );
 		}
 #endif
 		return;
 	}
 
+	obj_t *const *a = read_array();
 	for(  uint8 n = start_offset;  n < top;  n++  ) {
 		// is there an object ?
-		obj.some[n]->display( xpos, ypos  CLIP_NUM_PAR);
+		array_read(a, n)->display( xpos, ypos  CLIP_NUM_PAR);
 	}
 	// foreground (needs to be done backwards!
 	for(  size_t n = top;  n-- != 0;    ) {
 #ifdef MULTI_THREAD
-		obj.some[n]->display_after( xpos, ypos, clip_num );
+		array_read(a, n)->display_after( xpos, ypos, clip_num );
 #else
-		obj.some[n]->display_after( xpos, ypos, is_global );
+		array_read(a, n)->display_after( xpos, ypos, is_global );
 		if(  is_global  ) {
-			obj.some[n]->clear_flag( obj_t::dirty );
+			array_read(a, n)->clear_flag( obj_t::dirty );
 		}
 #endif
 	}
@@ -1163,11 +1234,12 @@ uint8 objlist_t::display_obj_bg( const sint16 xpos, const sint16 ypos, const uin
 	}
 
 	if(  capacity == 1  ) {
-		return local_display_obj_bg( obj.one, xpos, ypos  CLIP_NUM_PAR);
+		return local_display_obj_bg( read_single(), xpos, ypos  CLIP_NUM_PAR);
 	}
 
+	obj_t *const *a = read_array();
 	for(  uint8 n = start_offset;  n < top;  n++  ) {
-		if(  !local_display_obj_bg( obj.some[n], xpos, ypos  CLIP_NUM_PAR)  ) {
+		if(  !local_display_obj_bg( array_read(a, n), xpos, ypos  CLIP_NUM_PAR)  ) {
 			return n;
 		}
 	}
@@ -1213,14 +1285,15 @@ uint8 objlist_t::display_obj_vh( const sint16 xpos, const sint16 ypos, const uin
 	}
 
 	if(  capacity <= 1  ) {
-		uint8 i = local_display_obj_vh( obj.one, xpos, ypos, ribi, ontile  CLIP_NUM_PAR);
+		uint8 i = local_display_obj_vh( read_single(), xpos, ypos, ribi, ontile  CLIP_NUM_PAR);
 		activate_ribi_clip( ribi_t::all  CLIP_NUM_PAR);
 		return i;
 	}
 
+	obj_t *const *a = read_array();
 	uint8 nr_v = start_offset;
 	for(  uint8 n = start_offset;  n < top;  n++  ) {
-		if(  local_display_obj_vh( obj.some[n], xpos, ypos, ribi, ontile  CLIP_NUM_PAR)  ) {
+		if(  local_display_obj_vh( array_read(a, n), xpos, ypos, ribi, ontile  CLIP_NUM_PAR)  ) {
 			nr_v = n;
 		}
 		else {
@@ -1250,31 +1323,33 @@ void objlist_t::display_obj_fg( const sint16 xpos, const sint16 ypos, const uint
 
 	// now draw start_offset background and all foreground!
 	if(  capacity == 1  ) {
+		obj_t *const single = read_single();
 		if(  start_offset == 0  ) {
-			obj.one->display( xpos, ypos  CLIP_NUM_PAR);
+			single->display( xpos, ypos  CLIP_NUM_PAR);
 		}
 #ifdef MULTI_THREAD
-		obj.one->display_after( xpos, ypos, clip_num );
+		single->display_after( xpos, ypos, clip_num );
 #else
-		obj.one->display_after( xpos, ypos, is_global );
+		single->display_after( xpos, ypos, is_global );
 		if(  is_global  ) {
-			obj.one->clear_flag(obj_t::dirty);
+			single->clear_flag(obj_t::dirty);
 		}
 #endif
 		return;
 	}
 
+	obj_t *const *a = read_array();
 	for(  uint8 n = start_offset;  n < top;  n++  ) {
-		obj.some[n]->display( xpos, ypos  CLIP_NUM_PAR);
+		array_read(a, n)->display( xpos, ypos  CLIP_NUM_PAR);
 	}
 	// foreground (needs to be done backwards!)
 	for(  size_t n = top;  n-- != 0;    ) {
 #ifdef MULTI_THREAD
-		obj.some[n]->display_after( xpos, ypos, clip_num );
+		array_read(a, n)->display_after( xpos, ypos, clip_num );
 #else
-		obj.some[n]->display_after( xpos, ypos, is_global );
+		array_read(a, n)->display_after( xpos, ypos, is_global );
 		if(  is_global  ) {
-			obj.some[n]->clear_flag( obj_t::dirty );
+			array_read(a, n)->clear_flag( obj_t::dirty );
 		}
 #endif
 	}
@@ -1290,13 +1365,15 @@ void objlist_t::display_obj_overlay(const sint16 xpos, const sint16 ypos) const
 	}
 
 	if(  capacity == 1  ) {
-		obj.one->display_overlay( xpos, ypos );
-		obj.one->clear_flag( obj_t::dirty );
+		obj_t *const single = read_single();
+		single->display_overlay( xpos, ypos );
+		single->clear_flag( obj_t::dirty );
 	}
 	else {
+		obj_t *const *a = read_array();
 		for(  size_t n = top;  n-- != 0;    ) {
-			obj.some[n]->display_overlay( xpos, ypos );
-			obj.some[n]->clear_flag( obj_t::dirty );
+			array_read(a, n)->display_overlay( xpos, ypos );
+			array_read(a, n)->clear_flag( obj_t::dirty );
 		}
 	}
 }
@@ -1314,7 +1391,7 @@ void objlist_t::check_season(const bool calc_only_season_change)
 		if(  top != capacity  ) {
 			dbg->fatal( "objlist_t::check_season()", "top not matching!" );
 		}
-		obj_t *check_obj = obj.one;
+		obj_t *check_obj = read_single();
 		if(  !check_obj->check_season( calc_only_season_change )  ) {
 			delete check_obj;
 		}
@@ -1323,8 +1400,9 @@ void objlist_t::check_season(const bool calc_only_season_change)
 		// copy object pointers to check them
 		vector_tpl<obj_t*> list;
 
+		obj_t *const *a = read_array();
 		for(  uint8 i = 0;  i < top;  i++  ) {
-			list.append(obj.some[i]);
+			list.append(array_read(a, i));
 		}
 		// now work on the copied list
 		// check_season may change this list (by planting new trees)

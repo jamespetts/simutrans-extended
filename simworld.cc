@@ -87,6 +87,7 @@
 #include "dataobj/scenario.h"
 #include "dataobj/settings.h"
 #include "dataobj/environment.h"
+#include "dataobj/freelist.h"
 #include "dataobj/powernet.h"
 #include "dataobj/marker.h"
 
@@ -1920,6 +1921,10 @@ void* step_individual_convoy_threaded(void* args)
 
 void karte_t::start_convoy_threads()
 {
+	// Open a map-reader window before releasing the workers: from here until
+	// the matching await, freed map memory is quarantined (freelist_t) so that
+	// workers can never observe recycled memory while reading tile object lists.
+	freelist_t::begin_map_reader_window();
 	simthread_barrier_wait(&step_convoys_barrier_external);
 	convoy_threads_working = true;
 }
@@ -1932,6 +1937,9 @@ void karte_t::await_convoy_threads()
 	{
 		simthread_barrier_wait(&step_convoys_barrier_external);
 		convoy_threads_working = false;
+		// Workers are parked now; if this was the last open map-reader window,
+		// the memory quarantine is flushed here (quiescent point).
+		freelist_t::end_map_reader_window();
 	}
 #endif
 }
@@ -1942,6 +1950,9 @@ void karte_t::start_private_car_threads(bool override_suspend)
 {
 	if (!private_car_threads_working && (override_suspend || !route_t::suspend_private_car_routing))
 	{
+		// Private-car workers also read tile object lists: open a map-reader
+		// window (see start_convoy_threads / freelist_t).
+		freelist_t::begin_map_reader_window();
 		simthread_barrier_wait(&private_car_barrier);
 		private_car_threads_working = true;
 	}
@@ -1953,6 +1964,7 @@ void karte_t::await_private_car_threads(bool override_suspend)
 	{
 		simthread_barrier_wait(&private_car_barrier);
 		private_car_threads_working = false;
+		freelist_t::end_map_reader_window();
 	}
 }
 
@@ -5008,6 +5020,15 @@ void karte_t::step()
 	DBG_DEBUG4("karte_t::step", "start step");
 	uint32 time = dr_time();
 
+#ifdef MULTI_THREAD_CONVOYS
+	// Finish the threaded part of the convoys' steps FIRST: this is mainly route searches.
+	// The workers read the map (tile object lists) and convoy state; everything after this
+	// point in the step mutates that data (starting with new_month, which rewrites convoy
+	// statistics and can even liquidate convoys), so the workers must be parked before any
+	// of it runs.
+	await_convoy_threads();
+#endif
+
 	// calculate delta_t before handling overflow in ticks
 	const sint32 delta_t = (sint32)(ticks-last_step_ticks);
 
@@ -5087,6 +5108,38 @@ void karte_t::step()
 
 	/** THREADING CAN START HERE **/
 
+	// check for pending seasons change
+	// This is not very computationally intensive.
+	// NOTE: this loop must run BEFORE start_private_car_threads() below: it
+	// recalculates tile images (and may delete objects), which the private-car
+	// (and any other) workers must not observe mid-mutation.
+	const bool season_change = pending_season_change > 0;
+	const bool snowline_change = pending_snowline_change > 0;
+	if(  season_change  ||  snowline_change  ) {
+		DBG_DEBUG4("karte_t::step", "pending_season_change");
+		// process
+		const uint32 end_count = min( cached_grid_size.x * cached_grid_size.y,  tile_counter + max( 16384, cached_grid_size.x * cached_grid_size.y / 16 ) );
+		while(  tile_counter < end_count  ) {
+			plan[tile_counter].check_season_snowline( season_change, snowline_change );
+			tile_counter++;
+			if(  (tile_counter & 0x3FF) == 0  ) {
+				INT_CHECK("karte_t::step 1");
+			}
+		}
+
+		if(  tile_counter >= (uint32)cached_grid_size.x * (uint32)cached_grid_size.y  ) {
+			if(  season_change ) {
+				pending_season_change--;
+			}
+			if(  snowline_change ) {
+				pending_snowline_change--;
+			}
+			tile_counter = 0;
+		}
+	}
+
+	rands[10] = get_random_seed();
+
 	// Check the private car routes. In multi-threaded mode, this can be running in the background whilst a number of other steps are processed.
 	// This is computationally intensive, but intermittently. The computational intensity increases exponentially with the size of the map.
 	//const uint32 check_frequency = max(cities.get_count() / 6, 1);
@@ -5147,35 +5200,6 @@ void karte_t::step()
 #endif
 	}
 
-	rands[10] = get_random_seed();
-
-	// check for pending seasons change
-	// This is not very computationally intensive.
-	const bool season_change = pending_season_change > 0;
-	const bool snowline_change = pending_snowline_change > 0;
-	if(  season_change  ||  snowline_change  ) {
-		DBG_DEBUG4("karte_t::step", "pending_season_change");
-		// process
-		const uint32 end_count = min( cached_grid_size.x * cached_grid_size.y,  tile_counter + max( 16384, cached_grid_size.x * cached_grid_size.y / 16 ) );
-		while(  tile_counter < end_count  ) {
-			plan[tile_counter].check_season_snowline( season_change, snowline_change );
-			tile_counter++;
-			if(  (tile_counter & 0x3FF) == 0  ) {
-				INT_CHECK("karte_t::step 1");
-			}
-		}
-
-		if(  tile_counter >= (uint32)cached_grid_size.x * (uint32)cached_grid_size.y  ) {
-			if(  season_change ) {
-				pending_season_change--;
-			}
-			if(  snowline_change  ) {
-				pending_snowline_change--;
-			}
-			tile_counter = 0;
-		}
-	}
-
 	rands[11] = get_random_seed();
 
 	// to make sure the tick counter will be updated
@@ -5192,10 +5216,9 @@ void karte_t::step()
 
 	INT_CHECK("karte_t::step 2");
 
-#ifdef MULTI_THREAD_CONVOYS
-	// Finish the threaded part of the convoys' steps: this is mainly route searches. Block reservation, etc., is in the single threaded part.
-	await_convoy_threads();
-#else
+	// The convoy route-finding workers were already awaited at the top of this
+	// step (they must be parked before new_month and before any map mutation).
+#ifndef MULTI_THREAD_CONVOYS
 	for (uint32 i = convoi_array.get_count(); i-- != 0;)
 	{
 		convoihandle_t cnv = convoi_array[i];
@@ -5487,9 +5510,12 @@ void karte_t::step()
 
 #ifdef MULTI_THREAD_CONVOYS
 	// Start the convoys' route finding as soon as possible after the convoys have been stepped: this maximises efficiency and concurrency.
-	// Since it is mostly route finding in the multi-threaded convoy step, it is safe to have this concurrent with everything but the single-
-	// threaded convoy step, and anything that modifies potential routes. It is also potentially a problem to have this running during a
-	// sync step: see here: https://forum.simutrans.com/index.php/topic,20994.0.html. However, this is uncertain.
+	// The workers read the map while the main thread mutates it (sync_step vehicle hops etc.);
+	// this is safe only because of the map-reader protection: the objlist seqlock (objlist.h),
+	// the freelist reclamation quarantine (opened/closed by the start/await helpers), the
+	// await_convoy_threads() calls in convoi_t::destroy()/ctor, and the step-head await before
+	// new_month. Anything ELSE that modifies potential routes must still await the workers first
+	// (see the precedents in weg.cc, roadsign.cc, grund.cc, simdepot.cc, simtool.cc).
 	// This also (probably) needs to start after the path explorer, as it can modify the reversing flag of schedules/lines. Starting before
 	// the path explorer would thus lead to a race condition.
 	start_convoy_threads();

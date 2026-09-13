@@ -258,6 +258,11 @@ convoi_t::convoi_t(loadsave_t* file) :
 
 convoi_t::convoi_t(player_t* player) : vehicle(max_vehicle, NULL)
 {
+	// Creating a convoy may reallocate the quickstone table and appends to
+	// convoi_array; convoy worker threads read both while route finding,
+	// so park them first (no-op when they are not running).
+	welt->await_convoy_threads();
+
 	self = convoihandle_t(this);
 	init(player);
 	set_name( "Unnamed" );
@@ -1378,7 +1383,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 			break; // DRIVING
 
 		default:
-			dbg->fatal("convoi_t::sync_step()", "Wrong state %d!\n", state);
+			dbg->fatal("convoi_t::sync_step()", "Wrong state %d!\n", (int)state.load());
 	}
 
 	// Debug sums:
@@ -4028,7 +4033,10 @@ void convoi_t::rdwr(loadsave_t *file)
 	sint32 akt_speed_soll = 0; // Former variable now unused
 	file->rdwr_long(akt_speed_soll);
 	file->rdwr_long(sp_soll);
-	file->rdwr_enum(state);
+	// state is std::atomic (worker threads read it during route finding)
+	states state_plain = state.load();
+	file->rdwr_enum(state_plain);
+	state.store(state_plain);
 	file->rdwr_enum(alte_direction);
 
 	// read the yearly income (which has since then become a 64 bit value)
@@ -4147,12 +4155,12 @@ void convoi_t::rdwr(loadsave_t *file)
 				if(!gr) {
 					gr = welt->lookup_kartenboden(v->get_pos().get_2d());
 					if(gr) {
-						dbg->error("convoi_t::rdwr()", "invalid position %s for vehicle %s in state %d (setting to %i,%i,%i)", v->get_pos().get_str(), v->get_name(), state, gr->get_pos().x, gr->get_pos().y, gr->get_pos().z );
-						v->set_pos( gr->get_pos() );
-					}
-					else {
-						dbg->fatal("convoi_t::rdwr()", "invalid position %s for vehicle %s in state %d", v->get_pos().get_str(), v->get_name(), state);
-					}
+					dbg->error("convoi_t::rdwr()", "invalid position %s for vehicle %s in state %d (setting to %i,%i,%i)", v->get_pos().get_str(), v->get_name(), (int)state.load(), gr->get_pos().x, gr->get_pos().y, gr->get_pos().z );
+					v->set_pos( gr->get_pos() );
+				}
+				else {
+					dbg->fatal("convoi_t::rdwr()", "invalid position %s for vehicle %s in state %d", v->get_pos().get_str(), v->get_name(), (int)state.load());
+				}
 					state = INITIAL;
 				}
 				// add to reservation
@@ -6269,6 +6277,11 @@ void convoi_t::self_destruct()
  */
 void convoi_t::destroy()
 {
+	// Convoy worker threads may hold a handle to this convoy while route
+	// finding; park them before freeing anything (no-op when they are not
+	// running, e.g. inside the single-threaded step loop or during teardown).
+	world()->await_convoy_threads();
+
 	// can be only done here, with a valid convoihandle ...
 	if(front()) {
 		owner->book_convoi_number(-1, front()->get_waytype());

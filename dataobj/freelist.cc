@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <new>
 
 #include "../simtypes.h"
 #include "../simmem.h"
@@ -29,7 +30,46 @@ struct nodelist_node_t
 
 #ifdef MULTI_THREAD
 #include "../utils/simthread.h"
+#include "../tpl/vector_tpl.h"
+#include <atomic>
 static pthread_mutex_t freelist_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Reclamation quarantine (see freelist.h): while simulation worker windows are
+// open, freed memory is parked here instead of being recycled, and flushed when
+// the last window closes (all workers parked).
+std::atomic<unsigned> freelist_t::map_reader_window_depth(0);
+struct quarantined_node_t
+{
+	quarantined_node_t() : size( 0 ), p( NULL ) {}
+	quarantined_node_t( size_t size_, void *p_ ) : size( size_ ), p( p_ ) {}
+	size_t size;
+	void *p;
+};
+static vector_tpl<quarantined_node_t> quarantined_nodes;
+static vector_tpl<void *> quarantined_objects;
+
+// Must only be called when the quarantine depth has just reached zero.
+static void flush_quarantine()
+{
+	vector_tpl<quarantined_node_t> nodes;
+	vector_tpl<void *> objects;
+	int error = pthread_mutex_lock( &freelist_mutex );
+	assert(error == 0);
+	nodes = quarantined_nodes;
+	objects = quarantined_objects;
+	quarantined_nodes.clear();
+	quarantined_objects.clear();
+	error = pthread_mutex_unlock( &freelist_mutex );
+	assert(error == 0);
+	(void)error;
+	for(  uint32 i = 0;  i < nodes.get_count();  i++  ) {
+		// depth is zero, so this takes the immediate path
+		freelist_t::putback_node( nodes[i].size, nodes[i].p );
+	}
+	for(  uint32 i = 0;  i < objects.get_count();  i++  ) {
+		::operator delete( objects[i] );
+	}
+}
 #endif
 
 // list of all allocated memory
@@ -180,6 +220,32 @@ void freelist_t::putback_node( size_t size, void *p )
 		return;
 	}
 
+#ifdef MULTI_THREAD
+	if(  map_reader_window_depth.load( std::memory_order_acquire ) != 0  ) {
+		// Simulation workers may still hold pointers into this memory:
+		// quarantine it until the last map-reader window closes.
+		// NOTE: this is before size normalisation on purpose — the entry stores
+		// the caller's original size and flush_quarantine() re-enters this
+		// function with it, which must normalise it exactly once.
+		int qerror = pthread_mutex_lock( &freelist_mutex );
+		assert(qerror == 0);
+		(void)qerror;
+		if(  map_reader_window_depth.load( std::memory_order_acquire ) != 0  ) {
+			quarantined_nodes.append( quarantined_node_t( size, p ) );
+			qerror = pthread_mutex_unlock( &freelist_mutex );
+			assert(qerror == 0);
+			return;
+		}
+		// The last window closed in between: fall through to the immediate path.
+		qerror = pthread_mutex_unlock( &freelist_mutex );
+		assert(qerror == 0);
+	}
+
+	int error = pthread_mutex_lock( &freelist_mutex );
+	assert(error == 0);
+	(void)error;
+#endif
+
 	// all sizes should be dividable by the pointer size (see gimme_node)
 #ifdef DEBUG_FREELIST
 	size = max( min_size, size + min_size );
@@ -188,11 +254,6 @@ void freelist_t::putback_node( size_t size, void *p )
 #endif
 	size = (size + (min_size - 1)) & ~(min_size - 1);
 
-#ifdef MULTI_THREAD
-	int error = pthread_mutex_lock( &freelist_mutex );
-	assert(error == 0);
-	(void)error;
-#endif
 
 	if(  size > MAX_LIST_INDEX  ) {
 		free(p);
@@ -227,6 +288,53 @@ void freelist_t::putback_node( size_t size, void *p )
 	error = pthread_mutex_unlock( &freelist_mutex );
 	assert(error == 0);
 #endif
+}
+
+
+void freelist_t::begin_map_reader_window()
+{
+#ifdef MULTI_THREAD
+	map_reader_window_depth.fetch_add( 1, std::memory_order_acq_rel );
+#endif
+}
+
+
+void freelist_t::end_map_reader_window()
+{
+#ifdef MULTI_THREAD
+	// Main thread only (called from the karte_t start_/await_ helpers).
+	if(  map_reader_window_depth.fetch_sub( 1, std::memory_order_acq_rel ) == 1  ) {
+		// Last window closed: all simulation workers are parked at barriers,
+		// so no worker can hold a pointer to quarantined memory any more.
+		flush_quarantine();
+	}
+#endif
+}
+
+
+void freelist_t::deferred_delete( void *p )
+{
+	if(  p == NULL  ) {
+		return;
+	}
+#ifdef MULTI_THREAD
+	if(  map_reader_window_depth.load( std::memory_order_acquire ) != 0  ) {
+		int error = pthread_mutex_lock( &freelist_mutex );
+		assert(error == 0);
+		(void)error;
+		// Re-check under the lock: the last window may have closed meanwhile,
+		// in which case the quarantine has just been flushed.
+		if(  map_reader_window_depth.load( std::memory_order_acquire ) != 0  ) {
+			quarantined_objects.append( p );
+			error = pthread_mutex_unlock( &freelist_mutex );
+			assert(error == 0);
+			return;
+		}
+		error = pthread_mutex_unlock( &freelist_mutex );
+		assert(error == 0);
+	}
+#endif
+	::operator delete( p );
 }
 
 
