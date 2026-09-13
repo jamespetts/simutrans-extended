@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ e89843ec8
+verified: master @ 07ad4ef13
 ---
 # Threading
 
@@ -35,7 +35,12 @@ never duplicated here. Platform/build topics → [build-and-toolchain](build-and
    before saving (`karte_t::save`) and map rotation (`karte_t::rotate90`); world teardown goes
    through `destroy_threads()` directly. Existing precedents: way/signal modification (weg.cc, roadsign.cc,
    `grund_t::weg_entfernen`), halt/depot/tool changes visible to the path explorer (simhalt.cc,
-   simdepot.cc, simtool.cc), GUI reads of route data (gui/settings_stats.cc).
+   simdepot.cc, simtool.cc), GUI reads of route data (gui/settings_stats.cc), and centrally for
+   convoy lifetime: `convoi_t::destroy()` and the `convoi_t(player_t*)` constructor (quickstone
+   table reallocation + `convoi_array` mutation). Exception: while a convoy or private-car window
+   is open, vehicle hops and object deletions in `sync_step` do not need this await for tile
+   object lists — the map-reader protection below makes those reads safe. Structural changes to
+   ways, signs, depots, halts and tiles still always require the await.
 4. Do not invent new thread lifecycles. Simulation workers are created once by
    `karte_t::init_threads()`, park on barriers, are released/awaited by matched barrier waits,
    and are only ever torn down by `karte_t::destroy_threads()`. New threaded simulation work
@@ -91,7 +96,7 @@ participant counts are set in `init_threads` (comments explain the +1/+2 variant
 | `check_road_connexions_threaded` | po | city private-car route checks (`stadt_t::check_all_private_car_routes`), dequeued from `cities_awaiting_private_car_route_check` | `private_car_barrier` (po+1); `private_car_route_mutex` (queue, city road connexions, suspend flag) |
 | `unreserve_route_threaded` | po+1 | `convoi_t::unreserve_route_range` over slices of the global way list, on demand | `unreserve_route_barrier` (po+2) |
 | `step_passengers_and_mail_threaded` | po+1 | passenger/mail generation, quota-split; per-thread seed `setsimrand(325651 + random_counter·thread_number)`; thread numbers 1..po+1 (0 = main thread, which does not generate) | `step_passengers_and_mail_barrier` (po+2); `step_passengers_and_mail_mutex` |
-| `step_individual_convoy_threaded` | po | `convoi_t::threaded_step()` — route finding only, only in state `ROUTING_2` (set only by the single-threaded `convoi_t::step()`); strides over `convoys_next_step` | `step_convoys_barrier_internal` (po+1) |
+| `step_individual_convoy_threaded` | po | `convoi_t::threaded_step()` — route finding only, only in state `ROUTING_2` (set only by the single-threaded `convoi_t::step()`); strides over `convoys_next_step`; map reads protected by the map-reader mechanism (below) | `step_convoys_barrier_internal` (po+1) |
 | `step_convoys_threaded` (master) | 1 | fills `convoys_next_step` (backwards convoy order) | `step_convoys_barrier_external` (2: master+main), internal barrier |
 | `path_explorer_threaded` | 1 | `path_explorer_t::step()`; gated by thread_local `allow_path_explorer_on_this_thread` | `path_explorer_barrier` (2); `path_explorer_await_mutex` (protects concurrent awaiters) |
 
@@ -149,7 +154,7 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
 - Private-car workers: `stadt_t::connected_cities/industries/attractions` (private_car_route_mutex; via `add_road_connexion` in `route_t::find_route` checker mode); `stadt_t::private_car_route_finding_in_progress` (✗; no reader found — Known problems); `weg_t::private_car_routes` writing element + backtrace statics (route_map_mtx); `karte_t::cities_to_process`/`cities_awaiting_private_car_route_check` (the workers under the mutex; the main thread's step-head queue bookkeeping — the refresh decision and the `cities_to_process` write — takes the same mutex). `connected_*` READERS (`stadt_t::check_road_connexion_to`, called from passenger generation) hold no lock — safety rests on the await placement before passenger generation plus the mid-search suspend mechanism, not on the mutex.
 - Route-unreservation workers: `schiene_t::reserved` cleared (✗; main thread blocked on the barrier meanwhile); `obj_t::dirty` when `show_reservations`.
 - Passenger/mail workers (under step_passengers_and_mail_mutex in `karte_t::generate_passengers_or_mail`): city history counters, gebaeude statistics, halt unhappy/no-route counters (`add_pax_unhappy` also books finance + `recalc_status` when not networked), fabrik mail-departed stats, checklist-fed `add_to_debug_sums`; `next_step_passenger/mail` after the barrier. `haltestelle_t::resort_freight_info` (`add_to_waiting_list`) is set from workers outside any mutex but is `std::atomic<bool>` — a result-benign latch (always set true; only ever reset by the main-thread re-sort).
-- Convoy workers (under step_convois_mutex, via `threaded_step`→`drive_to`): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags, `simlinemgmt_t::update_line` (after `await_path_explorer`), `simline_t::set_state`, message system via `report_vehicle_problem`; plus `convoys_next_step` (master worker).
+- Convoy workers (under step_convois_mutex, via `threaded_step`→`drive_to`): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags, `simlinemgmt_t::update_line` (after `await_path_explorer`), `simline_t::set_state`, message system via `report_vehicle_problem`; plus `convoys_next_step` (master worker). Their map READS (objlists, ways, signs, depots, ownership) are protected by the map-reader mechanism (below), not by a mutex.
 - Path-explorer worker (✗ throughout): halt cargo lists, connexion swaps + resort flags, schedule counts, reroute flags (`prepare_goods_list`/`swap_connexions`/`set_schedule_count`/`set_reroute_goods_next_step`); line/convoy average-journey-time entry removal; path_explorer_t statics incl. limit_set_t `local_*` copies (read by `process_network_commands` → `nwc_routesearch_t`).
 - Map-loop workers (main thread blocked inside the loop; simulation not stepping): plan/ground/object state via callbacks — `plans_finish_rd` (load; object finish_rd into global lists under the gebaeude/label/leitung2 mutexes; player-finance way maintenance/length booking under load_mutex; heights under height_mutex), `perlin_hoehe_loop`, `recalc_transitions_loop`, `rotate90_plans`, `update_map_intern`.
 - Display workers (display barriers; may overlap convoy/path-explorer workers, never main-thread simulation code): simgraph16 shared image cache, `grund_t::dirty` (smart cursor), hide/pause state (hide_mutex), framebuffer.
@@ -186,8 +191,11 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
 
 ## Per-step choreography (placement only — sync rules in the sync doc)
 
-In `karte_t::step()`: queue cities → `start_private_car_threads` → `await_path_explorer` (before
-using its results) → `await_convoy_threads` → single-threaded `convoi_t::step()` loop → city
+In `karte_t::step()`: **`await_convoy_threads` FIRST** (before the month check — the workers must
+be parked before `new_month` rewrites convoy state and before any map mutation) → `new_month` →
+season/snowline tile loop (before any workers start: it recalculates images and may delete
+objects) → queue cities → `start_private_car_threads` → `await_path_explorer` (before
+using its results) → single-threaded `convoi_t::step()` loop → city
 stepping → `await_private_car_threads` → `weg_t::apply_travel_time_updates` →
 `start_passengers_and_mail_threads` → citizen accounting → `await_passengers_and_mail_threads` →
 merge thread-created private cars/pedestrians into the world in fixed buffer order → factories,
@@ -195,8 +203,42 @@ power, players, halts → periodic path-explorer category refresh → `check_tra
 `start_path_explorer` → `start_convoy_threads` (last; "END OF THREADABLE AREA" follows).
 `karte_t::pause_step()` (paused background server) runs a reduced version of the same cycle.
 Convoy threads therefore run across the following `sync_step()`/display until the next step's
-await — the code-stated caveat (forum topic 20994) → [known-bugs](known-bugs.md). Checkpoint and
+await — this window is safe only because of the map-reader protection below. Checkpoint and
 debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-determinism.md).
+
+## Map-reader protection (convoy/private-car windows)
+
+Convoy route-finding and private-car workers read tile object lists (`objlist_t`) and the objects
+they point to while the main thread mutates them (`sync_step` vehicle hops, object deletion).
+The mechanism making this safe has three parts:
+
+1. **Seqlock on `objlist_t`** (dataobj/objlist.h): a `mutation_version` counter bumped around
+   every structural mutation; readers (`bei`/`suche`/`ist_da`/`get_leitung`/`get_convoi_vehicle`)
+   retry while it changes. `optr` is a single tagged word (inline-object bit + pointer) and arrays
+   are self-describing (element 0 = capacity), so a speculative mid-mutation read can never go out
+   of bounds or form a wild pointer; the seqlock then discards torn results. All shared accesses
+   use atomic accessors (OLIST_ATOMIC_*) so no data race exists. Writer is always the main thread.
+2. **Reclamation quarantine (freelist_t)**: while any map-reader window is open
+   (`begin_map_reader_window` in `start_convoy_threads`/`start_private_car_threads`),
+   `putback_node` and object deallocation (`obj_t::operator delete` → `deferred_delete`) do not
+   recycle memory but park it; `end_map_reader_window` flushes when the last window closes
+   (quiescent point: all simulation workers parked). A stale worker pointer therefore always refers
+   to valid memory for the rest of the window. NOTE: the quarantine intercepts `putback_node`
+   BEFORE its size normalisation — the stored size must be the caller's original, because the
+   flush re-enters `putback_node` and it must normalise exactly once.
+3. **Convoy lifetime**: `convoi_t::destroy()` and the `convoi_t(player_t*)` constructor call
+   `await_convoy_threads()` first (no-op when workers are parked), so a convoy can never be freed
+   or its handle-table reallocated mid-window (liquidation, `remove_player`, depot tools).
+   `convoi_t::state`, `obj_t::flags`, `grund_t::flags`, `vehicle_base_t::disp_lane` and
+   `karte_t::path_explorer_working` are `std::atomic` because they are legitimately read by
+   workers while written by the main thread (single-writer each).
+
+What is NOT covered by this: value-level staleness of advisory reads is accepted (route finding may
+use a just-hopped vehicle's stale tile position); reservation-dependent *choose-signal* searches
+cannot run threaded at all (the
+`is_choosing` flag and the waiting states are only ever active in the single-threaded parts, and
+`ROUTING_2` is mutually exclusive with them, so `check_next_tile`'s `can_reserve` reads are dead in
+the threaded context). Remaining TSan-visible benign value races → Known problems.
 
 ## Per-thread state & buffers
 
@@ -228,13 +270,17 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
   `karte_t::terminating_threads` (top-of-loop reads in `check_road_connexions_threaded` vs the
   write in `destroy_threads()`) and `route_t::suspend_private_car_routing` (else-branch and
   mid-search-yield reads vs the under-mutex writes in `suspend_private_car_threads()`).
+  Further atomics for legitimate cross-window read/write sharing (all single-writer):
+  `karte_t::path_explorer_working` (also written by convoy workers via `await_path_explorer` from
+  `drive_to`), `convoi_t::state`, `obj_t::flags` (own byte since the owner nibble split),
+  `grund_t::flags`, `vehicle_base_t::disp_lane`, `haltestelle_t::resort_freight_info`.
 - Simulation aggregates: `karte_t::private_car_route_mutex` (ERRORCHECK type; route queue, city
   road connexions in route.cc, city-queue bookkeeping in `karte_t::step`/`pause_step`), `karte_t::step_passengers_and_mail_mutex` (also
   held around rdwr of `next_step_passenger`/`next_step_mail`), `path_explorer_await_mutex`
   (file-static), `step_convois_mutex` (simconvoi.cc; schedule/reverse-flag updates from
   `threaded_step` contexts), `weg_t::private_car_route_map::route_map_mtx`, `netlist_mutex`
   (powernet.cc), `load_mutex` (player/simplay.cc, `book_maintenance` and `book_way_length` — both reached from `finish_rd` during the threaded `plans_finish_rd`), `freelist_mutex`
-  (dataobj/freelist.cc — every freelist alloc/free; tpl/freelist_tpl.h's own mutex code sits
+  (dataobj/freelist.cc — every freelist alloc/free, and the map-reader quarantine vectors; tpl/freelist_tpl.h's own mutex code sits
   under a never-defined `MULTI_THREADx` guard and is dead).
 - Display/image: simgraph16 `rezoom_img_mutex[MAX_THREADS]` + `recode_img_mutex`; recursive
   `calc_image` mutexes (weg, wayobj, tunnel, bruecke, crossing, leitung2); `height_mutex`
@@ -257,12 +303,22 @@ debug-sum placement (rands[]/debug_sums[]) → [sync-and-determinism](sync-and-d
 - MSVC "single threaded" configurations compile MT code (Build configuration) — user decision
   2026-09-07: very low priority, leave for now; fix-or-delete undecided
   (→ [known-bugs](known-bugs.md) P4).
-- Sync-critical caveats (convoy threads during sync step, multi-city private-car threading) →
+- TSan still flags value-benign races that cannot crash (they keep the TSan CI log non-empty):
+  the convoy lazy summary caches (`convoy.h` `validate_*_summary`/`is_valid` bitmask — idempotent
+  recomputes written by workers, read by main; the convoy's vehicle set cannot change mid-window),
+  and the leitung2 load-time family (`leitung_t::set_net` vs `get_net` guarded by *different*
+  mutexes, between map-loop workers during load). The factory intransit/path-explorer category
+  read is open (→ [known-bugs](known-bugs.md) P2).
+- Sync-critical caveats (multi-city private-car threading) →
   [sync-and-determinism](sync-and-determinism.md).
 
 ## Provenance
 
-Verified against master @ e89843ec8 (which includes the load-threading fix: workers created at
+Verified against master @ 07ad4ef13 (which includes: the map-reader hardening — objlist seqlock,
+freelist reclamation quarantine, step-head `await_convoy_threads`, season-loop reorder, convoy
+lifetime awaits, atomic `state`/flags/`disp_lane`/`path_explorer_working`, verified by 26
+crash-free byte-identical network smoke runs on the demo fixture where the prior local crash rate
+was ~1 in 6; and the load-threading fix — workers created at
 the end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
 thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback; stray-unlock removal;
 the `book_way_length` `load_mutex` fix; the step-head city-queue mutex; atomic

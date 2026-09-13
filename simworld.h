@@ -965,7 +965,9 @@ private:
 #ifdef MULTI_THREAD
 	bool passengers_and_mail_threads_working;
 	bool convoy_threads_working;
-	bool path_explorer_working;
+	// atomic: also written by convoy worker threads (via await_path_explorer
+	// from convoi_t::drive_to) while the main thread reads it
+	std::atomic<bool> path_explorer_working;
 	bool private_car_threads_working;
 public:
 	static simthread_barrier_t step_convoys_barrier_external;

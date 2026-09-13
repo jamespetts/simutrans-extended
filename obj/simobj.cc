@@ -8,6 +8,7 @@
 #include "baum.h"
 
 #include "../boden/grund.h"
+#include "../dataobj/freelist.h"
 #include "../dataobj/loadsave.h"
 #include "../dataobj/translator.h"
 #include "../display/simgraph.h"
@@ -35,6 +36,19 @@
 karte_ptr_t obj_t::welt;
 
 bool obj_t::show_owner = false;
+
+
+void obj_t::operator delete(void* p)
+{
+	// Defers the actual deallocation while simulation worker threads may be
+	// reading the map; immediate deallocation otherwise.
+	freelist_t::deferred_delete(p);
+}
+
+void obj_t::operator delete(void* p, size_t)
+{
+	freelist_t::deferred_delete(p);
+}
 
 
 void obj_t::init()

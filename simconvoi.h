@@ -7,6 +7,8 @@
 #define SIMCONVOI_H
 
 
+#include <atomic>
+
 #include "simtypes.h"
 #include "simunits.h"
 #include "simcolor.h"
@@ -464,7 +466,9 @@ private:
 
 	uint32 next_wolke;	// time to next smoke
 
-	states state;
+	// Atomic: convoy worker threads read this (the threaded_step gate) while the
+	// main thread may write it (sync_step state transitions, new_month).
+	std::atomic<states> state;
 
 	ribi_t::ribi alte_direction; //"Old direction" (Google)
 

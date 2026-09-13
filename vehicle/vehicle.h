@@ -9,6 +9,7 @@
 
 #include <limits>
 #include <string>
+#include <atomic>
 #include "../simtypes.h"
 #include "../simworld.h"
 #include "../obj/simobj.h"
@@ -123,8 +124,13 @@ protected:
 	* 3 - road     (going on the right side to se/e/../nw)
 	* 4 - sidewalk (going on the right side to se/e/../nw)
 	* (Front)
+	*
+	* Atomic and a whole byte (was a 3-bit bitfield sharing a byte with the
+	* neighbouring bitfields): convoy worker threads rewrite this
+	* (calc_disp_lane from road_vehicle_t::calc_route) while the main thread
+	* reads it (objlist_t::intern_add_moving).
 	*/
-	uint8 disp_lane : 3;
+	std::atomic<uint8> disp_lane;
 
 	sint8 dx, dy;
 

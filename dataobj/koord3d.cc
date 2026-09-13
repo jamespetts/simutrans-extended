@@ -60,7 +60,8 @@ void koord3d::rdwr(loadsave_t *file)
 // for debug messages...
 const char *koord3d::get_str() const
 {
-	static char pos_str[32];
+	// thread_local: called from worker threads (route finding debug output)
+	static thread_local char pos_str[32];
 	if(x==-1  &&  y==-1  &&  z==-1) {
 		return "koord3d invalid";
 	}
@@ -72,7 +73,8 @@ const char *koord3d::get_str() const
 // for debug messages...
 const char *koord3d::get_fullstr() const
 {
-	static char pos_str[32];
+	// thread_local: called from worker threads (route finding debug output)
+	static thread_local char pos_str[32];
 	if(x==-1  &&  y==-1  &&  z==-1) {
 		return "koord3d invalid";
 	}

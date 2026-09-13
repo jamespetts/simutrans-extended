@@ -7,38 +7,176 @@
 #define DATAOBJ_OBJLIST_H
 
 
+#include <atomic>
+#include <stdint.h>
+
 #include "../simtypes.h"
 #include "../obj/simobj.h"
+
+
+/*
+ * Concurrent-reader protocol (single writer, multiple readers).
+ *
+ * Convoy route-finding and private-car worker threads read tile object lists
+ * while the main thread mutates them (vehicle hops and object deletion in
+ * sync_step). The writer is always the main thread; readers are the workers
+ * (and display threads, which never run concurrently with the writer).
+ *
+ * To keep this lock-free and race-free:
+ *  - All accesses to the shared words (optr, top, array elements) go through
+ *    the OLIST_ATOMIC_* accessors, so no data race can occur.
+ *  - optr is a single word holding both the inline/array discriminator and the
+ *    pointer, so a reader always sees a consistent pair.
+ *  - Arrays are self-describing: element 0 holds the array capacity, so the
+ *    capacity a reader uses is always the one belonging to the array it read,
+ *    and speculative in-flight reads can never index out of bounds.
+ *  - mutation_version is a seqlock: the writer bumps it (odd) before and (even)
+ *    after every structural mutation; readers retry if it changed or was odd.
+ *    This gives each individual read a consistent point-in-time view.
+ *  - Freed arrays and deleted objects are never recycled while a worker window
+ *    is open (freelist_t quarantine), so a stale pointer always refers to valid
+ *    memory for the duration of the window.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#	define OLIST_ATOMIC_LOAD(p) __atomic_load_n((p), __ATOMIC_RELAXED)
+#	define OLIST_ATOMIC_STORE(p, v) __atomic_store_n((p), (v), __ATOMIC_RELAXED)
+#else
+	/* MSVC targets (x64/ARM64): naturally aligned word-sized and byte accesses
+	 * are atomic; the atomics/fences of the seqlock protocol provide ordering. */
+#	define OLIST_ATOMIC_LOAD(p) (*(p))
+#	define OLIST_ATOMIC_STORE(p, v) ((void)(*(p) = (v)))
+#endif
+
+/* Taking the address of members of this packed struct (for the atomic
+ * accessors) triggers -Waddress-of-packed-member on GCC/clang. The addresses
+ * are safe: objlist_t is only ever instantiated as the first data member of
+ * grund_t (offset 8 after the vptr) and grund_t allocations are always at
+ * least 8-aligned (freelist alignment), so optr is always naturally aligned. */
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#endif
 
 
 /**
  * All things including ways are stored in this structure.
  * The entries are packed, i.e. the first free entry is at the top.
  * To save memory, a single element (like in the case for houses or a single tree)
- * is stored directly (obj.one) and capacity==1. Otherwise obj.some points to an
- * array.
+ * is stored directly (inline in optr). Otherwise optr points to an array whose
+ * element 0 is the array capacity header and elements 1..capacity are the objects.
  * The objects are sorted according to their drawing order.
  * ways are always first.
  */
 class objlist_t
 {
 private:
-	union {
-		obj_t **some;    // valid if capacity > 1
-		obj_t *one;      // valid if capacity == 1 (and NULL if top or capacity==0!)
-	} obj;
+	/**
+	 * Tagged pointer word holding the list contents; accessed atomically:
+	 *  - bit 0 set: zero or one object, stored inline; the object pointer is
+	 *    (optr & ~TAG_MASK), or empty when that is NULL.
+	 *  - bit 0 clear: optr points to an obj_t* array (8-aligned); element 0 is
+	 *    the capacity header (a small integer stored as a misaligned obj_t*),
+	 *    elements 1..capacity are the objects.
+	 */
+	uintptr_t optr;
+
+	enum { INLINE_TAG = 1, TAG_MASK = 7 };
 
 	/**
 	 * Number of items which can be stored without expanding
-	 * zero indicates empty list
+	 * zero indicates empty list.
+	 * Only the (single-threaded) writer uses this; concurrent readers derive
+	 * the capacity from the array header, which is always consistent with the
+	 * array they are reading.
 	 */
 	uint8 capacity;
 
 	/**
 	 * 0-based index of the next free entry after the last element
-	 * therefore also the count of number of items which are stored
+	 * therefore also the count of number of items which are stored.
+	 * Accessed atomically (concurrent readers).
 	 */
 	uint8 top;
+
+	/**
+	 * Seqlock version: bumped before (becomes odd) and after (becomes even)
+	 * every structural mutation. Readers retry while it is odd or changed.
+	 * Accessed atomically via the OLIST_ATOMIC_* macros (a plain uint8 rather
+	 * than std::atomic because this struct is GCC_PACKED).
+	 */
+	uint8 mutation_version;
+
+	// --- seqlock writer protocol (the writer is always the main thread) ---
+	void mutation_begin()
+	{
+		OLIST_ATOMIC_STORE(&mutation_version, (uint8)(OLIST_ATOMIC_LOAD(&mutation_version) + 1));
+		std::atomic_thread_fence(std::memory_order_release);
+	}
+	void mutation_end()
+	{
+		std::atomic_thread_fence(std::memory_order_release);
+		OLIST_ATOMIC_STORE(&mutation_version, (uint8)(OLIST_ATOMIC_LOAD(&mutation_version) + 1));
+	}
+
+	// --- seqlock reader protocol ---
+	uint8 read_version_begin() const
+	{
+		const uint8 v = OLIST_ATOMIC_LOAD(&mutation_version);
+		std::atomic_thread_fence(std::memory_order_acquire);
+		return v;
+	}
+	bool read_version_ok(uint8 v0) const
+	{
+		std::atomic_thread_fence(std::memory_order_acq_rel);
+		return (v0 & 1) == 0  &&  OLIST_ATOMIC_LOAD(&mutation_version) == v0;
+	}
+
+	// --- contents accessors (safe for concurrent use) ---
+
+	// The inline-stored object, or NULL when empty or when an array is used.
+	obj_t *read_single() const
+	{
+		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		return (w & INLINE_TAG) ? (obj_t *)(w & ~(uintptr_t)TAG_MASK) : NULL;
+	}
+
+	// The object array (element 0 = capacity header), or NULL when inline/empty.
+	obj_t *const *read_array() const
+	{
+		const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+		std::atomic_thread_fence(std::memory_order_acquire);
+		return (w & INLINE_TAG) ? NULL : (obj_t *const *)w;
+	}
+	obj_t **write_array() const
+	{
+		// writer-only variant without the fence
+		return (optr & INLINE_TAG) ? NULL : (obj_t **)optr;
+	}
+
+	static uint8 array_capacity(obj_t *const *a)
+	{
+		return (uint8)(uintptr_t)OLIST_ATOMIC_LOAD(&a[0]);
+	}
+	static obj_t *array_read(obj_t *const *a, uint8 index)
+	{
+		return OLIST_ATOMIC_LOAD(&a[1 + index]);
+	}
+	static void array_write(obj_t **a, uint8 index, obj_t *o)
+	{
+		OLIST_ATOMIC_STORE(&a[1 + index], o);
+	}
+
+	// --- writer-side state transitions (call within mutation_begin/end) ---
+	void store_single(obj_t *o) // NULL = empty
+	{
+		std::atomic_thread_fence(std::memory_order_release);
+		OLIST_ATOMIC_STORE(&optr, ((uintptr_t)o) | INLINE_TAG);
+	}
+	void store_array(obj_t **a) // a != NULL
+	{
+		std::atomic_thread_fence(std::memory_order_release);
+		OLIST_ATOMIC_STORE(&optr, (uintptr_t)a);
+	}
 
 	void set_capacity(uint16 new_cap);
 
@@ -49,10 +187,16 @@ private:
 	inline void intern_insert_at(obj_t* new_obj, uint8 pri);
 
 	// only used internal for loading. DO NOT USE OTHERWISE! Use add instead!
-	bool append(obj_t *obj);
+	bool append_intern(obj_t *obj);
 
 	// this will automatically give the right order for citycars and the like ...
 	bool intern_add_moving(obj_t* new_obj);
+
+	bool add_intern(obj_t* new_obj);
+	bool remove_intern(const obj_t* obj);
+	obj_t *remove_last_intern();
+	bool loesche_alle_intern(player_t *player, uint8 offset);
+	void sort_trees_intern(uint8 index, uint8 count);
 
 	objlist_t(objlist_t const&);
 	objlist_t& operator=(objlist_t const&);
@@ -75,32 +219,96 @@ public:
 	*/
 	inline obj_t * bei(uint8 n) const
 	{
-		if(  n >= top  ) {
-			return NULL;
+		for(  ;;  ) {
+			const uint8 v0 = read_version_begin();
+			const uintptr_t w = OLIST_ATOMIC_LOAD(&optr);
+			std::atomic_thread_fence(std::memory_order_acquire);
+			const uint8 t = OLIST_ATOMIC_LOAD(&top);
+			obj_t *result = NULL;
+			if(  n < t  ) {
+				if(  w & INLINE_TAG  ) {
+					if(  n == 0  ) {
+						result = (obj_t *)(w & ~(uintptr_t)TAG_MASK);
+					}
+				}
+				else {
+					obj_t *const *a = (obj_t *const *)w;
+					// The capacity header always matches this array, so the
+					// index is in bounds even if the snapshot is torn (the
+					// seqlock check below then fails and we retry).
+					const uint8 acap = array_capacity(a);
+					if(  n < acap  ) {
+						result = array_read(a, n);
+					}
+				}
+			}
+			if(  read_version_ok(v0)  ) {
+				return result;
+			}
 		}
-		return (capacity<=1) ? obj.one : obj.some[n];
 	}
 
 	// usually used only for copying by grund_t
-	obj_t *remove_last();
+	obj_t *remove_last()
+	{
+		mutation_begin();
+		obj_t *r = remove_last_intern();
+		mutation_end();
+		return r;
+	}
 
 	/// This routine will automatically obey the correct order of things during insertion.
-	bool add(obj_t *obj);
-	bool remove(const obj_t* obj);
-	bool loesche_alle(player_t *player,uint8 offset);
+	bool add(obj_t *obj)
+	{
+		mutation_begin();
+		const bool r = add_intern(obj);
+		mutation_end();
+		return r;
+	}
+
+	bool remove(const obj_t* obj)
+	{
+		mutation_begin();
+		const bool r = remove_intern(obj);
+		mutation_end();
+		return r;
+	}
+
+	bool loesche_alle(player_t *player, uint8 offset)
+	{
+		mutation_begin();
+		const bool r = loesche_alle_intern(player, offset);
+		mutation_end();
+		return r;
+	}
+
+	// only used internal for loading. DO NOT USE OTHERWISE! Use add instead!
+	bool append(obj_t *obj)
+	{
+		mutation_begin();
+		const bool r = append_intern(obj);
+		mutation_end();
+		return r;
+	}
+
 	bool ist_da(const obj_t* obj) const;
 
-	inline uint8 get_top() const {return top;}
+	inline uint8 get_top() const {return OLIST_ATOMIC_LOAD(&top);}
 
 	/**
-	 * sorts the trees according to their offsets
-	 */
-	void sort_trees(uint8 index, uint8 count);
+	* sorts the trees according to their offsets
+	*/
+	void sort_trees(uint8 index, uint8 count)
+	{
+		mutation_begin();
+		sort_trees_intern(index, count);
+		mutation_end();
+	}
 
 	/**
 	* @return NULL when OK, or message, why not?
 	*/
-	const char * kann_alle_entfernen(const player_t *, uint8 ) const;
+	const char * kann_alle_entfernen(const player_t *,uint8 ) const;
 
 	/** recalcs all objects on this tile
 	*/
@@ -138,5 +346,9 @@ public:
 	void display_obj_fg(const sint16 xpos, const sint16 ypos, const uint8 start_offset, const bool is_global ) const;
 #endif
 } GCC_PACKED;
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 #endif
