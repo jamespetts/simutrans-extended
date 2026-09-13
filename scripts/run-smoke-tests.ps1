@@ -29,6 +29,7 @@ param(
   [string]$SaveFormat = "zipped",
   [string]$Mode = "network",
   [int]$FastNetworkSync = 100,
+  [int]$Threads = 0,
   [int]$ServerPort = 13353,
   [string[]]$Markers = @("FATAL ERROR", "AddressSanitizer", "runtime error"),
   [switch]$SkipRoundtrip,
@@ -124,6 +125,7 @@ $simuconfLines = @(
   "frames_per_second = 100"
   "fast_forward_frames_per_second = 100"
 )
+if ($Threads -gt 0) { $simuconfLines += "threads = $Threads" }
 if ($Mode -eq "network") {
   $simuconfLines += @(
     "autosave = 0"
