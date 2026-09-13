@@ -15,7 +15,20 @@
 struct schedule_entry_t
 {
 public:
-	schedule_entry_t() {}
+	schedule_entry_t() :
+		pos(koord3d::invalid),
+		minimum_loading(0),
+		spacing_shift(0),
+		unique_entry_id(0),
+		condition_bitfield_broadcaster(0),
+		condition_bitfield_receiver(0),
+		target_id_condition_trigger(0),
+		target_id_couple(0),
+		target_id_uncouple(0),
+		target_unique_entry_uncouple(0),
+		waiting_time_shift(0),
+		reverse(-1)
+	{}
 
 	schedule_entry_t(koord3d const& pos,
 		uint16 const minimum_loading,

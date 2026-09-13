@@ -1350,6 +1350,7 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	vehicle_base_t(pos)
 #endif
 	, purchase_time(welt->get_current_month())
+	, overhaul_time(welt->get_current_month())
 	, sum_weight(desc->get_weight())
 	, direction_steps(16)
 	, hill_up(0)
@@ -1410,6 +1411,7 @@ vehicle_t::vehicle_t() :
 	vehicle_base_t()
 #endif
 	, purchase_time(welt->get_current_month())
+	, overhaul_time(welt->get_current_month())
 	, sum_weight(10000UL)
 	, direction_steps(16)
 	, hill_up(0)
@@ -2974,6 +2976,7 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 		last_maintenance_time = welt->get_ticks();
 		last_maintenance_month = welt->get_current_month();
 		last_overhaul_month = welt->get_current_month();
+		overhaul_time = welt->get_current_month();
 		do_not_overhaul = false;
 		do_not_auto_upgrade = false;
 		is_mothballed = false;
