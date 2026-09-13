@@ -31,6 +31,11 @@ const float32e8_t BR_MAGLEV = float32e8_t(12, 10);
 const float32e8_t BR_ROAD = float32e8_t(4, 1);
 const float32e8_t BR_DEFAULT = float32e8_t(1, 1);
 
+#ifdef MULTI_THREAD
+// See convoy.h. convoi_t::threaded_step() sets this on convoy worker threads.
+thread_local bool convoy_summary_compute_thread_local = false;
+#endif
+
 // helps to calculate roots. pow fails to calculate roots of negative bases.
 inline const float32e8_t signed_power(const float32e8_t &base, const float32e8_t &expo)
 {
@@ -271,9 +276,9 @@ static const float32e8_t fl_max_seconds_til_vsoll(1800);
 
 float32e8_t convoy_t::calc_min_braking_distance(const weight_summary_t &weight, const float32e8_t &v)
 {
-	// breaking distance: x = 1/2 at².
-	// with a = v/t, v = at, and v² = a²t² --> x = 1/2 v²/a.
-	// with F = ma, a = F/m --> x = 1/2 v²m/F.
+	// breaking distance: x = 1/2 atï¿½.
+	// with a = v/t, v = at, and vï¿½ = aï¿½tï¿½ --> x = 1/2 vï¿½/a.
+	// with F = ma, a = F/m --> x = 1/2 vï¿½m/F.
 	// This equation is a rough estimation:
 	// - it does not take into account, that Ff depends on v (getting a differential equation).
 	// - Frs depends on the inclination of the way. The above Frs is asnapshot of the current position only.
@@ -550,7 +555,7 @@ float32e8_t potential_convoy_t::get_brake_summary(/*const float32e8_t &speed*/ /
 		}
 		else
 		{
-			// Usual brake deceleration is about -0.5 .. -1.5 m/s² depending on vehicle and ground.
+			// Usual brake deceleration is about -0.5 .. -1.5 m/sï¿½ depending on vehicle and ground.
 			// With F=ma, a = F/m follows that brake force in N is ~= 1/2 weight in kg
 			force += get_adverse_summary().br * b.get_weight();
 		}
@@ -672,7 +677,7 @@ float32e8_t existing_convoy_t::get_brake_summary(/*const float32e8_t &speed*/ /*
 		}
 		else
 		{
-			// Usual brake deceleration is about -0.5 .. -1.5 m/s² depending on vehicle and ground.
+			// Usual brake deceleration is about -0.5 .. -1.5 m/sï¿½ depending on vehicle and ground.
 			// With F=ma, a = F/m follows that brake force in N is ~= 1/2 weight in kg
 			force += get_adverse_summary().br * v.get_total_weight();
 		}

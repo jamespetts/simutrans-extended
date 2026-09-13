@@ -256,6 +256,15 @@ public:
 
 	// weight_summary needs recaching only, if it is going to be used.
 	inline const weight_summary_t &get_weight_summary() {
+#ifdef MULTI_THREAD
+		if(  convoy_summary_compute_thread_local  ) {
+			// Convoy worker thread: do not write the shared cache
+			// (convoy.h: the main thread reads/writes it concurrently).
+			static thread_local weight_summary_t thread_weight;
+			update_weight_summary(thread_weight);
+			return thread_weight;
+		}
+#endif
 		validate_weight_summary();
 		return weight;
 	}
