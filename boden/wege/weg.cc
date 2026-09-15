@@ -1660,8 +1660,27 @@ bool weg_t::private_car_route_map::insert_unique(koord elem, private_car_route_m
 		if(link_mode==link_dir
 				&& link_to->link_mode!=link_mode_NULL
 				&& link_to->link_mode!=link_mode_single){
-			idx=link_to->idx;
-			return false;
+			// Re-pointing this slot at the next tile's list is only valid if that
+			// list already covers every destination in this slot's current list
+			// plus the new destination; overwriting idx unconditionally here used
+			// to discard any entries present in the current list but not (yet) in
+			// the target list, silently losing recorded routes. In multi-threaded
+			// route checking that loss also depended on the order in which
+			// concurrent workers' writes interleaved.
+			const ordered_vector_tpl<koord,uint32>& current = route_maps[route_map_elem][idx];
+			const ordered_vector_tpl<koord,uint32>& target = route_maps[route_map_elem][link_to->idx];
+			bool covers = target.get_count() >= current.get_count() && target.contains(elem);
+			for (uint32 i = 0; covers && i < current.get_count(); i++)
+			{
+				covers = target.contains(current[i]);
+			}
+			if (covers)
+			{
+				idx=link_to->idx;
+				return false;
+			}
+			// Otherwise fall through to the copy-and-union path below, which
+			// preserves the current list's contents.
 		}
 		route_maps[route_map_elem].append(ordered_vector_tpl<koord,uint32>(route_maps[route_map_elem][idx]));
 		uint32 new_idx=route_maps[route_map_elem].get_count()-1;
