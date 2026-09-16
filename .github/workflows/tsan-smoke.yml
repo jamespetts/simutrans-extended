@@ -14,11 +14,8 @@
 #
 name: TSan smoke
 on:
-  # TEMPORARY (private-car-mt-network branch): this branch added so that the TSan
-  # smoke runs on pushes while the private-car multithreading work is validated;
-  # remove it from this list again when the branch is merged.
   push:
-    branches: [master, ex-15, private-car-mt-network]
+    branches: [master, ex-15]
   pull_request:
     branches: [master, ex-15]
   workflow_dispatch:
