@@ -128,11 +128,10 @@ void road_vehicle_t::calc_disp_lane()
 
 
 // need to reset halt reservation (if there was one)
-route_t::route_result_t road_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route)
+// Main thread only: halt reservation slots are read by the main thread
+// without synchronisation while convoy worker threads run route finding.
+void road_vehicle_t::release_target_reservations()
 {
-	assert(cnv);
-	// free target reservation
-	drives_on_left = welt->get_settings().is_drive_left();	// reset driving settings
 	if(leading   &&  previous_direction!=ribi_t::none  &&  cnv  &&  target_halt.is_bound() ) {
 		// now reserve our choice (beware: might be longer than one tile!)
 		for(  uint32 length=0;  length<cnv->get_tile_length()  &&  length+1<cnv->get_route()->get_count();  length++  ) {
@@ -140,12 +139,22 @@ route_t::route_result_t road_vehicle_t::calc_route(koord3d start, koord3d ziel, 
 		}
 	}
 	target_halt = halthandle_t(); // no block reserved
+}
+
+
+route_t::route_result_t road_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route)
+{
+	assert(cnv);
+	// The target halt reservation must already have been released on the main
+	// thread (convoi_t::prepare_for_routing/finish_rd or the caller of this
+	// function): this may run on a convoy worker thread, which must not write
+	// reservation state.
+	drives_on_left = welt->get_settings().is_drive_left();	// reset driving settings
 	const uint32 routing_weight = cnv != NULL ? cnv->get_highest_axle_load() : ((get_sum_weight() + 499) / 1000);
 	route_t::route_result_t r = route->calc_route(welt, start, ziel, this, max_speed, routing_weight, is_tall, cnv->get_tile_length(), SINT64_MAX_VALUE, cnv->get_weight_summary().weight / 1000 );
 	if(  r == route_t::valid_route_halt_too_short  ) {
-		cbuffer_t buf;
-		buf.printf( translator::translate("Vehicle %s cannot choose because stop too short!"), cnv->get_name());
-		welt->get_message()->add_message( (const char *)buf, ziel.get_2d(), message_t::traffic_jams, PLAYER_FLAG | cnv->get_owner()->get_player_nr(), cnv->front()->get_base_image() );
+		// The message system is main-thread only: defer it to convoi_t::step().
+		cnv->defer_message(convoi_t::defer_halt_too_short, ziel);
 	}
 	return r;
 }

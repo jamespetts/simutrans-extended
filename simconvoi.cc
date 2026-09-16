@@ -170,6 +170,8 @@ void convoi_t::init(player_t *player)
 	steps_driven = -1;
 	wait_lock = 0;
 	wait_lock_next_step = 0;
+	deferred_message = defer_none;
+	deferred_message_pos = koord3d::invalid;
 	go_on_ticks = WAIT_INFINITE;
 
 	requested_change_lane = false;
@@ -666,6 +668,14 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 			wait_lock = 30000; // milliseconds to drive on, if the client in question had left
 		}
 		schedule->finish_editing();
+	}
+	if(  state == ROUTING_2  &&  vehicle_count > 0  )
+	{
+		// A convoy loaded in ROUTING_2 will have its route recalculated by a
+		// convoy worker thread without passing through prepare_for_routing()
+		// first; release its target reservations here, on the main thread,
+		// before the workers are created (see prepare_for_routing()).
+		front()->release_target_reservations();
 	}
 	// remove wrong freight
 	check_freight();
@@ -1490,6 +1500,15 @@ bool convoi_t::prepare_for_routing()
 			// Sea and road waytypes do not have any sort of reserveation, and calls to unreserve_route() are expensive.
 			unreserve_route();
 		}*/
+
+		// Route finding runs on convoy worker threads (threaded_step), and
+		// halt position and way reservations are main-thread-only state (read
+		// during sync_step without synchronisation): release any reservations
+		// held for the current target here, deterministically, rather than
+		// letting the worker's calc_route do it (a TSan data race against
+		// main-thread reservation readers, e.g. haltestelle_t::is_reservable
+		// from road_vehicle_t::choose_route, and a determinism hazard).
+		front()->release_target_reservations();
 	}
 
 	return true;
@@ -1589,15 +1608,8 @@ bool convoi_t::drive_to()
 			if (line.is_bound()) {
 				line->set_state(simline_t::line_has_stuck_convoy);
 			}
-#ifdef MULTI_THREAD
-			pthread_mutex_lock(&step_convois_mutex);
-#endif
-			get_owner()->report_vehicle_problem(self, ziel);
-#ifdef MULTI_THREAD
-			int error = pthread_mutex_unlock(&step_convois_mutex);
-			assert(error == 0);
-			(void)error;
-#endif
+			// The message system is main-thread only: defer it to step().
+			defer_message(defer_no_route, ziel);
 		}
 		// wait before next attempt for a normal no route.
 		// For a "too complex" no route, wait much, much longer, as this can cause serious lag
@@ -1664,15 +1676,8 @@ bool convoi_t::drive_to()
 					if(state != NO_ROUTE && state != NO_ROUTE_TOO_COMPLEX)
 					{
 						state = result == route_t::route_too_complex ? NO_ROUTE_TOO_COMPLEX : NO_ROUTE;
-#ifdef MULTI_THREAD
-						pthread_mutex_lock(&step_convois_mutex);
-#endif
-						get_owner()->report_vehicle_problem( self, ziel );
-#ifdef MULTI_THREAD
-						int error = pthread_mutex_unlock(&step_convois_mutex);
-						assert(error == 0);
-						(void)error;
-#endif
+						// The message system is main-thread only: defer it to step().
+						defer_message(defer_no_route, ziel);
 					}
 					// wait 25s before next attempt
 					wait_lock_next_step = 25000;
@@ -1796,6 +1801,26 @@ void convoi_t::threaded_step()
  */
 void convoi_t::step()
 {
+	if(  deferred_message != defer_none  )
+	{
+		// A convoy worker thread recorded this during route finding; the
+		// message system may only be touched by the main thread. Post before
+		// the wait_lock checks so that the message is not delayed by them.
+		const deferred_message_kind kind = deferred_message;
+		const koord3d pos = deferred_message_pos;
+		deferred_message = defer_none;
+		if(  kind == defer_halt_too_short  )
+		{
+			cbuffer_t buf;
+			buf.printf( translator::translate("Vehicle %s cannot choose because stop too short!"), get_name());
+			welt->get_message()->add_message( (const char *)buf, pos.get_2d(), front()->get_waytype() == road_wt ? message_t::traffic_jams : message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), front()->get_base_image() );
+		}
+		else
+		{
+			get_owner()->report_vehicle_problem(self, pos);
+		}
+	}
+
 	if(wait_lock !=0)
 	{
 		return;
@@ -7129,6 +7154,9 @@ DBG_MESSAGE("convoi_t::go_to_depot()","convoi state %i => cannot change schedule
 	if(aircraft && (!aircraft->is_on_ground() || use_home_depot) && home_depot_valid)
 	{
 		// Flying aircraft cannot find a route using the normal means: send to their home depot instead.
+		// calc_route no longer releases reservations itself (reservation state
+		// is main-thread only): release them here first.
+		aircraft->release_target_reservations();
 		aircraft->calc_route(get_pos(), home_depot, speed_to_kmh(get_min_top_speed()), has_tall_vehicles(), &route);
 		if(!route.empty())
 		{

@@ -628,6 +628,10 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 			convoy_unpowered = !(power && speed);
 		}
 
+		// calc_route no longer releases target reservations itself (reservation
+		// state is main-thread only, released ahead of route finding): do it here.
+		cnv->front()->release_target_reservations();
+
 		// check if convoy is complete
 		if(convoy_unpowered || !cnv->pruefe_alle())
 		{

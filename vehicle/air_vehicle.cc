@@ -267,9 +267,11 @@ DBG_MESSAGE("air_vehicle_t::find_route_to_stop_position()","found no route to fr
 }
 
 
-// main routine: searches the new route in up to three steps
-// must also take care of stops under traveling and the like
-route_t::route_result_t air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool /*is_tall*/, route_t* route)
+// Releases the target halt position and runway reservations.
+// Main thread only: halt reservation slots and way reservations are read by
+// the main thread without synchronisation while convoy worker threads run
+// route finding.
+void air_vehicle_t::release_target_reservations()
 {
 	if(leading) {
 		// free target reservation
@@ -287,7 +289,17 @@ route_t::route_result_t air_vehicle_t::calc_route(koord3d start, koord3d ziel, s
 		}
 	}
 	target_halt = halthandle_t(); // no block reserved
+}
 
+
+// main routine: searches the new route in up to three steps
+// must also take care of stops under traveling and the like
+route_t::route_result_t air_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool /*is_tall*/, route_t* route)
+{
+	// Reservations must already have been released on the main thread
+	// (convoi_t::prepare_for_routing/finish_rd or the caller of this
+	// function): this may run on a convoy worker thread, which must not
+	// read or write reservation state.
 	takeoff = touchdown = search_for_stop = INVALID_INDEX;
 	const route_t::route_result_t result = calc_route_internal(welt, start, ziel, max_speed, cnv->get_highest_axle_load(), state, flying_height, target_height, runway_too_short, airport_too_close_to_the_edge, takeoff, touchdown, search_for_stop, *route);
 	cnv->set_next_stop_index(INVALID_INDEX);

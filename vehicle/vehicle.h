@@ -434,6 +434,25 @@ public:
 	void get_smoke(bool yesno ) { smoke = yesno;}
 
 	virtual route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed_kmh, bool is_tall, route_t* route);
+
+	/**
+	 * Releases any reservations held by this vehicle's convoy ahead of
+	 * re-routing: the target halt position reservation (road, air) and any
+	 * block or runway reservations held along the current route (rail, air).
+	 *
+	 * Main thread only. Halt reservation slots and way reservations are
+	 * read by the main thread (e.g. road_vehicle_t::choose_route via
+	 * haltestelle_t::is_reservable) without any synchronisation while convoy
+	 * worker threads are running route finding, so workers must never write
+	 * them (a TSan data race and a network determinism hazard: values read
+	 * must not depend on worker timing). Route finding always needs the old
+	 * reservations released first, so this is called on the main thread
+	 * before any worker route finding: from convoi_t::prepare_for_routing()
+	 * and convoi_t::finish_rd(), and at the remaining main-thread calc_route
+	 * call sites.
+	 */
+	virtual void release_target_reservations() {}
+
 	uint16 get_route_index() const {return route_index;}
 	void set_route_index(uint16 value) { route_index = value; }
 	const koord3d get_pos_prev() const {return pos_prev;}

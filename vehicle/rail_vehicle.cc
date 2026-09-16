@@ -197,7 +197,11 @@ void rail_vehicle_t::set_convoi(convoi_t *c)
 
 
 // need to reset halt reservation (if there was one)
-route_t::route_result_t rail_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route)
+// Main thread only: way reservations are read by the main thread without
+// synchronisation while convoy worker threads run route finding. Note that
+// unreserve_route() itself must stay main-thread-only: it releases the
+// unreserve worker pool via a barrier that expects main-thread participation.
+void rail_vehicle_t::release_target_reservations()
 {
 	if(leading  &&  route_index<cnv->get_route()->get_count()) {
 		// free all reserved blocks
@@ -214,17 +218,25 @@ route_t::route_result_t rail_vehicle_t::calc_route(koord3d start, koord3d ziel, 
 			block_reserver(cnv->get_route(), cnv->back()->get_route_index(), dummy, dummy, target_halt.is_bound() ? 100000 : 1, false, true);
 		}
 	}
-	cnv->set_next_reservation_index( 0 ); // nothing to reserve
 	target_halt = halthandle_t(); // no block reserved
+}
+
+
+route_t::route_result_t rail_vehicle_t::calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route)
+{
+	// Reservations must already have been released on the main thread
+	// (convoi_t::prepare_for_routing/finish_rd or the caller of this
+	// function): this may run on a convoy worker thread, which must not
+	// read or write reservation state.
+	cnv->set_next_reservation_index( 0 ); // nothing to reserve
 	// use length > 8888 tiles to advance to the end of terminus stations
 	const sint16 tile_length = (cnv->get_schedule()->get_current_entry().reverse == 1 ? 8888 : 0) + cnv->get_true_tile_length();
 	route_t::route_result_t r = route->calc_route(welt, start, ziel, this, max_speed, cnv != NULL ? cnv->get_highest_axle_load() : ((get_sum_weight() + 499) / 1000), is_tall, tile_length, SINT64_MAX_VALUE, cnv ? cnv->get_weight_summary().weight / 1000 : get_total_weight());
 	cnv->set_next_stop_index(0);
  	if(r == route_t::valid_route_halt_too_short)
 	{
-		cbuffer_t buf;
-		buf.printf( translator::translate("Vehicle %s cannot choose because stop too short!"), cnv ? cnv->get_name() : "Invalid convoy");
-		world()->get_message()->add_message( (const char *)buf, ziel.get_2d(), message_t::warnings, PLAYER_FLAG | cnv->get_owner()->get_player_nr(), cnv->front()->get_base_image() );
+		// The message system is main-thread only: defer it to convoi_t::step().
+		cnv->defer_message(convoi_t::defer_halt_too_short, ziel);
 	}
 	return r;
 }
