@@ -52,24 +52,6 @@ Rank on discovery; re-rank on triage.
 
 ## Detailed entries
 
-### ex-15: TSan data race in `quickstone_tpl<convoi_t>::operator==` — priority 1
-
-- The TSan smoke CI job has failed on ex-15 since push run 34782001515 (2026-09-13 evening;
-  last green run 34773576831 earlier that day): `WARNING: ThreadSanitizer: data race` with
-  `SUMMARY: ThreadSanitizer: data race .../tpl/quickstone_tpl.h:283:66 in
-  quickstone_tpl<convoi_t>::operator==(quickstone_tpl<convoi_t> const&) const`
-  [EXECUTION-VERIFIED:2026-09-13/16 from CI logs; reproduced again on ex-15 @ f6367266f,
-  2026-09-16, CI run 35151155074]. The 2026-09-13 run also had `runA` exit with code 134
-  (SIGABRT); the 2026-09-16 run passed determinism and failed on the marker only.
-- NOT caused by the 2026-09-16 private-car multithreading merge — the failure predates it.
-  Suspect window: the pushes between the two 2026-09-13 runs, which include the haltlist
-  unbind fix (master 5f3461d40, merged as 10abed0fb) and the private-car link re-point fix
-  (789359fc3). quickstone_tpl.h:283 reads the quickstone entry during a handle equality
-  comparison; the concurrent writer is unidentified.
-- To investigate: whether a convoi_t handle comparison now runs off the main thread during
-  load or stepping in one of those changes; reproduce locally with a TSan build (Linux/WSL)
-  on the demo fixture to get the full two-thread report.
-
 ### Await gaps around map operations — priority 2
 
 - `karte_t::enlarge_map`'s live path (gui/enlarge_map_frame_t.cc) disables interrupts and awaits
