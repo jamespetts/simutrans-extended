@@ -67,6 +67,26 @@ Rank on discovery; re-rank on triage.
   (→ [sync-and-determinism](sync-and-determinism.md)); single-player exposure is a
   crash/corruption risk. Re-rank 1 if triage shows a sync-critical or live crash path.
 
+### `recheck_road_connexions` flag is written but never read — priority 3
+
+- Every road-building/removal tool path (`wegbauer.cc`, `tunnelbauer.cc`, `brueckenbauer.cc`,
+  several sites in `simtool.cc`, one in `simcity.cc`) calls
+  `karte_t::set_recheck_road_connexions()`, but nothing ever reads the flag: its only other
+  occurrences are the clear in `new_month()` and its (unconditional) rdwr in simworld.cc.
+  The intended "re-check private car routes
+  promptly after the road network changes" trigger therefore never fires; recorded private
+  car route data instead persists until the natural refresh cycle completes
+  [CODE private-car-mt-network working tree @ 7d459990a+, found 2026-09-15 during the
+  private-car route-recording redesign review; the flag sites are identical on master].
+- Consequence: after road construction or removal, stale private-car route entries persist
+  until the current refresh cycle finishes (up to a full cycle, or two for complete purging).
+  Moving cars detect deleted ways at drive time and fall back to wandering, so the visible
+  impact is limited to delayed route availability — hence priority 3.
+- To investigate: whether the flag was meant to force `refresh_private_car_routes()` early
+  (and whether reviving that is desirable now that refresh cycles run continuously), or
+  whether the flag and its rdwr should be removed as dead code. Any rdwr removal is
+  version-conditional — see [savegame-versioning](savegame-versioning.md).
+
 ### threads = 1 crashes multi-threaded builds (divide by zero) — priority 2
 
 - With simuconf `threads = 1` on a MULTI_THREAD build, `karte_t::get_parallel_operations()`

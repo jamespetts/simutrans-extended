@@ -43,7 +43,7 @@
 #include "../sys/simsys.h"
 #endif
 
-std::atomic<bool> route_t::suspend_private_car_routing(false);
+bool route_t::suspend_private_car_routing(false);
 
 
 void route_t::append(const route_t *r)
@@ -465,6 +465,10 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 	const grund_t* gr = NULL;
 	sint32 bridge_tile_count = 0;
 
+	// Used only for the truncated-search warning for private car route checking below.
+	uint32 private_car_peak_frontier = 0;
+	uint32 private_car_explored_radius = 0;
+
 	fabrik_t* destination_industry = NULL;
 	const gebaeude_t* destination_attraction = NULL;
 	const stadt_t* destination_city = NULL;
@@ -707,10 +711,10 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 				weg_t* w;
 				if(fresh_destination && tmp != NULL){
 					weg_t::private_car_backtrace_begin();
-					while (fresh_destination && tmp != NULL)
-					{
-						private_car_route_step_counter++;
-						w = tmp->gr->get_weg(road_wt);
+				while (fresh_destination && tmp != NULL)
+				{
+					private_car_route_step_counter++;
+					w = tmp->gr->get_weg(road_wt);
 
 						if (w)
 						{
@@ -729,12 +733,11 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 								w->private_car_backtrace_add(attraction_destination_pos, previous);
 							}
 
-							if (city_destination_pos != koord::invalid)
-							{
-								w->private_car_backtrace_add(city_destination_pos, previous);
-							}
-							w->private_car_backtrace_inc(previous);
+						if (city_destination_pos != koord::invalid)
+						{
+							w->private_car_backtrace_add(city_destination_pos, previous);
 						}
+					}
 
 						// Old route storage - we probably no longer need this.
 						//route.store_at(tmp->count, tmp->gr->get_pos());
@@ -755,17 +758,13 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 					max_steps = welt->get_settings().get_max_route_tiles_to_process_in_a_step();
 				}
 
-				if (max_steps && !suspend_private_car_routing && private_car_route_step_counter >= max_steps)
+				if (max_steps && private_car_route_step_counter >= max_steps)
 				{
 					// Halt this mid step if there are too many routes being calculated so as not to make the game unresponsive.
 					// On a Ryzen 3900x, calculating all routes from one city on a 600 city map can take ~4 seconds.
-
-					// It is intentional to have two barriers here.
-					simthread_barrier_wait(&karte_t::private_car_barrier);
-					if (!suspend_private_car_routing)
-					{
-						simthread_barrier_wait(&karte_t::private_car_barrier);
-					}
+					// The search parks here and resumes at the next step's start_private_car_threads();
+					// if routing is being suspended (save/refresh/destroy) it runs to completion instead.
+					karte_t::private_car_suspend_point();
 					private_car_route_step_counter = 0;
 				}
 #endif
@@ -898,6 +897,14 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 
 				// insert here
 				queue.insert(k);
+
+				if (flags == private_car_checker)
+				{
+					// For the truncated-search warning below only.
+					const uint32 dist = koord_distance(start, to->get_pos());
+					if (dist > private_car_explored_radius) private_car_explored_radius = dist;
+					if (queue.get_count() > private_car_peak_frontier) private_car_peak_frontier = queue.get_count();
+				}
 			}
 		}
 
@@ -905,6 +912,19 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 		start_dir = ribi_t::all;
 
 	} while(  !queue.empty()  &&  step < MAX_STEP  &&  queue.get_count() < max_depth  );
+
+	// A private car route check normally ends only by exhausting its frontier (the whole
+	// reachable road network explored). Ending with a non-empty frontier means that the
+	// search was truncated by the node budget (max_route_steps) or the frontier/radius
+	// limit (max_road_check_depth), so the recorded private car routes are silently
+	// incomplete. Measurements on a large real map (2026-09-15, 496 searches) show this
+	// never occurring with default settings; log it if it ever does, both to explain the
+	// missing routes and because it is a desynchronisation suspect in network games.
+	if (flags == private_car_checker && !queue.empty())
+	{
+		dbg->warning("route_t::find_route()", "Private car route search from %s was truncated by a search limit (nodes %u of budget %u, frontier %u vs limit %u, explored radius %u tiles): recorded private car routes will be incomplete. Do not reduce max_route_steps; if this message appears with default settings, please report it.",
+			origin_city ? origin_city->get_name() : "(unknown city)", step, MAX_STEP, queue.get_count(), max_depth, private_car_explored_radius);
+	}
 
 	// target reached?
 	if(!tdriver->is_target(gr, tmp->parent == NULL ? NULL : tmp->parent->gr)  ||  step >= MAX_STEP) {

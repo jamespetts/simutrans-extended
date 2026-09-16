@@ -98,11 +98,11 @@ public:
 	static void RELEASE_NODES(uint8 nodes_index);
 	static void TERM_NODES(void* args = NULL);
 
-	// Atomic because the private car worker threads read this outside the
-	// private_car_route_mutex (the else-branch of check_road_connexions_threaded
-	// and the mid-search yield in route_t::find_route) while the main thread
-	// writes it in karte_t::suspend_private_car_threads().
-	static std::atomic<bool> suspend_private_car_routing;
+	// Parks the private-car workers until the next karte_t::start_private_car_threads()
+	// (which clears it). Set by karte_t::suspend_private_car_threads() and before
+	// thread creation at the end of karte_t::load. All accesses are either under
+	// private_car_route_mutex or by the main thread only, so this need not be atomic.
+	static bool suspend_private_car_routing;
 
 	const koord3d_vector_t &get_route() const { return route; }
 

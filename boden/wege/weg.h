@@ -263,7 +263,14 @@ public:
 		void pre_reset();
 
 		bool contains(koord elem) const;
-		bool insert_unique(koord elem, private_car_route_map* link_to = NULL, uint8 link_dir=0);
+
+		// Adds elem to this slot's own destination set. Never reads or links to
+		// another slot's list, so concurrent workers' inserts commute and the result
+		// is independent of thread timing (network determinism). If this slot's list
+		// is shared with other slots (after a duplicate merge, or linked in a loaded
+		// savegame), the list is copied first (copy-on-write); sharing is only ever
+		// (re)created single-threaded by merge_duplicate_destination_lists().
+		bool insert_unique(koord elem);
 
 		koord& get_by_index(uint32_t i);
 		const koord& get_by_index(uint32_t i) const;
@@ -278,6 +285,25 @@ public:
 		void resize(uint32 new_size);
 
 		static void reset(uint8 map_elem);
+
+		// Merges destination lists with identical contents in the writing element so
+		// that they share one stored list, processing only the slots written since the
+		// last call. Runs single-threaded at a fixed point in the step (after the
+		// private car workers are awaited); the list of written slots is sorted by tile
+		// before processing so that the result is identical on every network peer.
+		// Called every step; the merge itself runs only every few calls (the per-step
+		// recording budget bounds how much unshared data can accumulate in between)
+		// and always when force is set (at a refresh, before the element swap).
+		static void merge_duplicate_destination_lists(bool force = false);
+
+		// After loading a savegame: flags every writing-element list referenced by a
+		// linked slot as shared, so that copy-on-write protects it from in-place writes.
+		static void flag_shared_lists_loaded();
+
+		// Clears all stored lists and merge bookkeeping for both elements. Must be
+		// called when the world is destroyed: the written-slots list holds way
+		// pointers, which dangle once the world's ways are deleted.
+		static void clear_transient_state();
 
 		//backwards compatible saving
 		void rdwr(loadsave_t *file);
@@ -295,7 +321,25 @@ public:
 			link_mode_master=5
 		};
 
-		static vector_tpl<ordered_vector_tpl<koord,uint32> > route_maps[2];
+		// One stored destination list. shared == true means that another slot also
+		// referenced this list at the last duplicate merge (or that it was shared when
+		// loaded from a savegame); such lists must never be written in place
+		// (copy-on-write in insert_unique). The flag may overestimate sharing (it is
+		// only ever set, never cleared, between refreshes); that costs only an
+		// occasional unnecessary copy. Lists are never removed from the vector between
+		// refreshes, so slots' indices stay valid when their owning way is deleted.
+		struct list_t {
+			ordered_vector_tpl<koord,uint32> destinations;
+			bool shared;
+			list_t() : shared(false) {}
+		};
+
+		static vector_tpl<list_t> route_maps[2];
+
+		// Returns the index of a cleared list available for reuse, or appends a new
+		// one. Called under route_map_mtx (from insert_unique during backtraces) or
+		// from the single-threaded merge.
+		static uint32 new_list_index(uint8 elem);
 public:
 
 		inline sint32 get_idx() const {if(link_mode==link_mode_NULL || link_mode==link_mode_single) return -1; return idx;}
@@ -338,10 +382,6 @@ public:
 	static void private_car_backtrace_begin();
 	static void private_car_backtrace_end();
 	void private_car_backtrace_add(koord destination, koord3d next_tile);
-	void private_car_backtrace_inc(koord3d next_tile);
-
-	static private_car_route_map* private_car_backtrace_last_route_map;
-	static uint8 private_car_backtrace_last_idx;
 
 	void add_private_car_route(koord dest, koord3d next_tile);
 	bool has_private_car_route(koord dest) const;

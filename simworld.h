@@ -972,14 +972,45 @@ private:
 public:
 	static simthread_barrier_t step_convoys_barrier_external;
 	static simthread_barrier_t unreserve_route_barrier;
-	static simthread_barrier_t private_car_barrier;
 	static pthread_mutex_t step_passengers_and_mail_mutex;
 	static bool private_car_route_mutex_initialised;
 	static pthread_mutex_t private_car_route_mutex;
+	// Private-car worker rendezvous (all under private_car_route_mutex): the main
+	// thread publishes cities for a step (cities_to_process and
+	// private_car_cycle_claims_remaining) and signals private_car_start_cond;
+	// workers claim cities atomically and signal private_car_done_cond on each
+	// completion or mid-search suspension. await_private_car_threads() returns
+	// only when every published city is either completed or parked mid-search
+	// (suspended at its per-step budget limit, to be resumed next step).
+	// This explicit rendezvous replaced the former private_car_barrier
+	// trip-count protocol, which released the await early whenever the barrier
+	// arrivals from different logical phases cross-wired.
+	static pthread_cond_t private_car_start_cond;
+	static pthread_cond_t private_car_done_cond;
+	static sint32 private_car_cycle_claims_remaining;
+	// Claimed cities currently being searched vs parked mid-search (both under
+	// private_car_route_mutex); private_car_generation is incremented by each
+	// start_private_car_threads() so that parked searches can tell a new step apart.
+	static sint32 private_car_cities_running;
+	static sint32 private_car_cities_suspended;
+	static uint32 private_car_generation;
+	// Work available to do this step: cities published plus cities resumed from
+	// mid-search parking, set by start_private_car_threads() and decremented by a
+	// worker on each completion or re-park. await_private_car_threads() waits for
+	// zero. This must NOT be derived from the live suspended counter: resumed
+	// workers update that asynchronously, so the await could otherwise read a
+	// stale "all parked" state and release the step while the resumed searches
+	// were still running (observed 2026-09-16 in loopback network tests).
+	static sint32 private_car_step_outstanding;
+	// Called by a private-car worker from route_t::find_route when the per-step
+	// route-tile budget is exhausted: parks the search until the next step, or
+	// returns immediately if suspend_private_car_routing is set (in which case
+	// the search runs to completion so that save/refresh/destroy see a quiescent state).
+	static void private_car_suspend_point();
 	void start_passengers_and_mail_threads();
 	void start_convoy_threads();
 	void start_path_explorer();
-	void start_private_car_threads(bool override_suspend = false);
+	void start_private_car_threads();
 #else
 public:
 #endif
@@ -987,7 +1018,7 @@ public:
 	void await_passengers_and_mail_threads();
 	void await_convoy_threads();
 	void await_path_explorer();
-	void await_private_car_threads(bool override_suspend = false);
+	void await_private_car_threads();
 	void suspend_private_car_threads();
 	void await_all_threads();
 
