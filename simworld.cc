@@ -15,6 +15,7 @@
 
 #include "path_explorer.h"
 
+#include "dataobj/route.h"
 #include "simcity.h"
 #include "simcolor.h"
 #include "simconvoi.h"
@@ -150,7 +151,13 @@ bool karte_t::private_car_route_mutex_initialised;
 pthread_mutex_t karte_t::step_passengers_and_mail_mutex;
 static pthread_mutex_t path_explorer_await_mutex;
 
-simthread_barrier_t karte_t::private_car_barrier;
+pthread_cond_t karte_t::private_car_start_cond;
+pthread_cond_t karte_t::private_car_done_cond;
+sint32 karte_t::private_car_cycle_claims_remaining = 0;
+sint32 karte_t::private_car_cities_running = 0;
+sint32 karte_t::private_car_cities_suspended = 0;
+uint32 karte_t::private_car_generation = 0;
+sint32 karte_t::private_car_step_outstanding = 0;
 simthread_barrier_t karte_t::unreserve_route_barrier;
 static simthread_barrier_t step_passengers_and_mail_barrier;
 static simthread_barrier_t path_explorer_barrier;
@@ -622,6 +629,10 @@ void karte_t::destroy()
 
 	weg_t::clear_travel_time_updates();
 	weg_t::clear_list_of__ways();
+	// The private car route maps' merge bookkeeping references way objects; it must
+	// not survive the world (a server reloads its world in-process when a client
+	// joins, and a stale entry here caused a use-after-free in the merge).
+	weg_t::private_car_route_map::clear_transient_state();
 	DBG_MESSAGE("karte_t::destroy()", "way list destroyed");
 
 	delete scenario;
@@ -646,6 +657,10 @@ void karte_t::destroy()
 	destroying = false;
 #ifdef MULTI_THREAD
 	cities_to_process = 0;
+	private_car_cycle_claims_remaining = 0;
+	private_car_cities_running = 0;
+	private_car_cities_suspended = 0;
+	private_car_step_outstanding = 0;
 	terminating_threads = false;
 #endif
 }
@@ -1599,6 +1614,33 @@ void karte_t::recalc_passenger_destination_weights()
 }
 
 #ifdef MULTI_THREAD
+// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge)
+struct pcar_trace_entry_t { uint32 step; uint32 gen; char event; sint32 ctp; sint32 susp; sint32 running; sint32 claims; sint32 outst; };
+static pcar_trace_entry_t pcar_trace[128];
+static uint32 pcar_trace_pos = 0;
+
+void karte_t::trace_private_car_event(char event)
+{
+	karte_t* const w = world; // static member pointer, not the global world() function
+
+	pcar_trace_entry_t& e = pcar_trace[pcar_trace_pos];
+	e.step = w ? w->steps : 0; e.gen = private_car_generation; e.event = event;
+	e.ctp = cities_to_process; e.susp = private_car_cities_suspended;
+	e.running = private_car_cities_running; e.claims = private_car_cycle_claims_remaining;
+	e.outst = private_car_step_outstanding;
+	pcar_trace_pos = (pcar_trace_pos + 1) % 128;
+}
+
+void karte_t::dump_private_car_trace()
+{
+	dbg->warning("karte_t", "EXPERIMENT: private-car rendezvous trace (oldest first, step:gen:event ctp/susp/running/claims/queue):");
+	for (uint32 i = 0; i < 64; i++)
+	{
+		const pcar_trace_entry_t& e = pcar_trace[(pcar_trace_pos + 64 + i) % 128];
+		dbg->warning("pcar-trace", "%u:%u:%c ctp=%d susp=%d run=%d claims=%d outst=%d", e.step, e.gen, e.event, e.ctp, e.susp, e.running, e.claims, e.outst);
+	}
+}
+
 void *check_road_connexions_threaded(void *args)
 {
 	const uint32* thread_number_ptr = (const uint32*)args;
@@ -1607,53 +1649,60 @@ void *check_road_connexions_threaded(void *args)
 
 	karte_t::marker_index = thread_number + world()->get_parallel_operations();
 
-	do
+	// Explicit completion-rendezvous protocol (all shared state under
+	// private_car_route_mutex): the main thread publishes a batch of cities per
+	// step (cities_to_process and private_car_cycle_claims_remaining) and signals
+	// private_car_start_cond; workers claim cities one at a time until the batch
+	// is exhausted and signal private_car_done_cond on every completion, so that
+	// await_private_car_threads() returns only once every published city has been
+	// fully processed or parked mid-search. A long search parks mid-step via
+	// karte_t::private_car_suspend_point() (see route.cc) so that it does not
+	// block the frame; it resumes at the next step's start_private_car_threads().
+	int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
+	while (true)
 	{
+		while (!world()->is_terminating_threads()
+			&& (route_t::suspend_private_car_routing
+				|| karte_t::private_car_cycle_claims_remaining <= 0
+				|| world()->cities_awaiting_private_car_route_check.empty()))
+		{
+			pthread_cond_wait(&karte_t::private_car_start_cond, &karte_t::private_car_route_mutex);
+		}
 		if (world()->is_terminating_threads())
 		{
 			break;
 		}
-		int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+
+		stadt_t* city = world()->cities_awaiting_private_car_route_check.remove_first();
+		karte_t::private_car_cycle_claims_remaining--;
+		karte_t::private_car_cities_running++;
+		karte_t::trace_private_car_event('C');
+		error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
 		assert(error == 0);
 		(void)error;
 
-		if (karte_t::cities_to_process > 0 && karte_t::cities_to_process >= thread_number + 1 && route_t::suspend_private_car_routing == false && !world()->cities_awaiting_private_car_route_check.empty())
+		if (!world()->get_settings().get_assume_everywhere_connected_by_road())
 		{
-			stadt_t* city;
-			city = world()->cities_awaiting_private_car_route_check.remove_first();
-
-			int error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
-			assert(error == 0);
-			(void)error;
-
-			if (!city || world()->get_settings().get_assume_everywhere_connected_by_road())
-			{
-				continue;
-			}
-
 			city->check_all_private_car_routes();
-
-			error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
-			karte_t::cities_to_process--;
-			error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
-
-			simthread_barrier_wait(&karte_t::private_car_barrier);
-		}
-		else
-		{
-			int error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
-			assert(error == 0);
-			(void)error;
-
-			if (!world()->is_terminating_threads() && route_t::suspend_private_car_routing)
-			{
-				simthread_barrier_wait(&karte_t::private_car_barrier);
-			}
 		}
 
-		// Having two barrier waits here is intentional.
-		simthread_barrier_wait(&karte_t::private_car_barrier);
-	} while (!world()->is_terminating_threads());
+		error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
+		karte_t::cities_to_process--;
+		karte_t::private_car_cities_running--;
+		karte_t::private_car_step_outstanding--;
+		karte_t::trace_private_car_event('D');
+		// Broadcast on every completion: the main thread's await condition
+		// (every published city completed or parked mid-search) and the suspend
+		// condition (no city unfinished) can become true on any completion.
+		pthread_cond_broadcast(&karte_t::private_car_done_cond);
+	}
+	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
 
 	// New thread local nodes are created on the heap automatically when this is used,
 	// so this must be released explicitly when this thread is terminated.
@@ -1946,23 +1995,66 @@ void karte_t::await_convoy_threads()
 
 #ifdef MULTI_THREAD
 
-void karte_t::start_private_car_threads(bool override_suspend)
+void karte_t::start_private_car_threads()
 {
-	if (!private_car_threads_working && (override_suspend || !route_t::suspend_private_car_routing))
+	if (!private_car_threads_working)
 	{
 		// Private-car workers also read tile object lists: open a map-reader
 		// window (see start_convoy_threads / freelist_t).
 		freelist_t::begin_map_reader_window();
-		simthread_barrier_wait(&private_car_barrier);
+		int error = pthread_mutex_lock(&private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
+		// Lift any suspension and release the parked workers. The cities for this
+		// cycle must already have been published (cities_to_process and
+		// private_car_cycle_claims_remaining) by the caller under the same mutex.
+		// The generation increment wakes searches parked mid-step by
+		// private_car_suspend_point() and resumes them for this step.
+		// Cities resuming from parking are moved to the running count HERE, on the
+		// main thread: the workers update the counters only when they actually wake,
+		// which is too late for this step's await (it must wait for the resumed
+		// searches to complete or re-park, via private_car_step_outstanding).
+		route_t::suspend_private_car_routing = false;
+		private_car_step_outstanding = private_car_cycle_claims_remaining + private_car_cities_suspended;
+		private_car_cities_running += private_car_cities_suspended;
+		private_car_cities_suspended = 0;
+		private_car_generation++;
+		pthread_cond_broadcast(&private_car_start_cond);
+		trace_private_car_event('S');
+		error = pthread_mutex_unlock(&private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
 		private_car_threads_working = true;
 	}
 }
 
-void karte_t::await_private_car_threads(bool override_suspend)
+void karte_t::await_private_car_threads()
 {
-	if (private_car_threads_working && (override_suspend || !route_t::suspend_private_car_routing))
+	if (private_car_threads_working)
 	{
-		simthread_barrier_wait(&private_car_barrier);
+		int error = pthread_mutex_lock(&private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
+		// Explicit completion rendezvous: return only once every city available
+		// to run this step has been processed to completion or parked mid-search
+		// by a worker (parked cities are resumed by the next
+		// start_private_car_threads()).
+		while (private_car_step_outstanding > 0)
+		{
+			pthread_cond_wait(&private_car_done_cond, &private_car_route_mutex);
+		}
+		trace_private_car_event('A');
+		// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
+		// capture the release state atomically with the release, and flag if any
+		// worker is still running at that moment (the post-hoc check in step()
+		// races with worker count updates and cannot be trusted on its own).
+		if (private_car_cities_running != 0)
+		{
+			dbg->warning("karte_t::await_private_car_threads", "EXPERIMENT: release state has running workers: ctp=%d, suspended=%d, running=%d, queue=%u, generation=%u, suspend_flag=%d, step=%u", cities_to_process, private_car_cities_suspended, private_car_cities_running, cities_awaiting_private_car_route_check.get_count(), private_car_generation, (int)route_t::suspend_private_car_routing, steps);
+		}
+		error = pthread_mutex_unlock(&private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
 		private_car_threads_working = false;
 		freelist_t::end_map_reader_window();
 	}
@@ -1977,18 +2069,80 @@ void karte_t::suspend_private_car_threads()
 
 	await_private_car_threads();
 
+	// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge)
+	dbg->warning("karte_t::suspend_private_car_threads", "EXPERIMENT: suspending at step %u (ctp=%d, suspended=%d, running=%d)", steps, cities_to_process, private_car_cities_suspended, private_car_cities_running);
+
 	int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
 	assert(error == 0 || error == EINVAL);
+	// Park the workers: the flag remains set until the next
+	// start_private_car_threads() clears it, so no worker can begin a search
+	// until then. Workers parked mid-search resume immediately (the flag makes
+	// private_car_suspend_point() return without parking), so every published
+	// city runs to completion here: wait until none is unfinished.
+	// Move parked cities to the running count on this thread, as their workers
+	// will resume asynchronously and their completions decrement the running count.
+	private_car_cities_running += private_car_cities_suspended;
+	private_car_cities_suspended = 0;
 	route_t::suspend_private_car_routing = true;
+	pthread_cond_broadcast(&karte_t::private_car_start_cond);
+	trace_private_car_event('s');
+	while (cities_to_process > 0)
+	{
+		pthread_cond_wait(&private_car_done_cond, &private_car_route_mutex);
+	}
 	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
 	assert(error == 0 || error == EINVAL);
-	start_private_car_threads(true);
-	await_private_car_threads(true);
-	error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
-	assert(error == 0 || error == EINVAL);
-	route_t::suspend_private_car_routing = false;
-	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
-	assert(error == 0 || error == EINVAL);
+	(void)error;
+}
+
+void karte_t::private_car_suspend_point()
+{
+	// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
+	// prove that mid-search suspensions actually fire on the test fixture,
+	// otherwise a determinism PASS does not cover the suspend/resume path.
+	static bool suspension_logged = false;
+	if (!suspension_logged)
+	{
+		suspension_logged = true;
+		dbg->warning("karte_t::private_car_suspend_point", "EXPERIMENT: first mid-search suspension at step %u", world->steps);
+	}
+	int error = pthread_mutex_lock(&private_car_route_mutex);
+	assert(error == 0);
+	(void)error;
+	if (route_t::suspend_private_car_routing)
+	{
+		// Routing is being suspended for a disruptive operation (save, refresh,
+		// destroy): this search must run to completion now, so do not park and do
+		// not touch the counters (the city continues to count as running).
+		pthread_mutex_unlock(&private_car_route_mutex);
+		return;
+	}
+	// Mark this worker's city as parked mid-search rather than running, so that
+	// await_private_car_threads() can release this step; signal in case the main
+	// thread is waiting.
+	private_car_cities_running--;
+	private_car_cities_suspended++;
+	private_car_step_outstanding--;
+	pthread_cond_broadcast(&private_car_done_cond);
+	trace_private_car_event('P');
+	{
+		// Park until the next step's start_private_car_threads() (which
+		// increments the generation) or until routing is suspended for a
+		// disruptive operation (save/refresh/destroy), in which case the search
+		// runs to completion now instead of parking again.
+		// The counters are NOT adjusted on resume: start_private_car_threads()
+		// (and suspend_private_car_threads()) move parked cities to the running
+		// count on the main thread before broadcasting, because the workers only
+		// wake some time after the broadcast — too late for the step's await.
+		const uint32 generation_at_park = private_car_generation;
+		while (generation_at_park == private_car_generation && !route_t::suspend_private_car_routing)
+		{
+			pthread_cond_wait(&private_car_start_cond, &private_car_route_mutex);
+		}
+	}
+	trace_private_car_event(route_t::suspend_private_car_routing ? 'F' : 'R');
+	error = pthread_mutex_unlock(&private_car_route_mutex);
+	assert(error == 0);
 	(void)error;
 }
 
@@ -2119,10 +2273,17 @@ void karte_t::init_threads()
 	pthread_attr_init(&thread_attributes);
 	pthread_attr_setdetachstate(&thread_attributes, PTHREAD_CREATE_JOINABLE);
 
-	//const bool one_private_car_thread = env_t::networkmode;
-	const bool one_private_car_thread = false; // Because we allow servers to run private car threading in the background when no clients are connected, we should now always allow multiple thread instances here.
+	// Initialise the private-car completion-rendezvous state. A savegame may have
+	// been saved with cities published but not yet processed (cities_to_process
+	// > 0); those cities are still in the queue, so make them claimable by the
+	// workers on the first start_private_car_threads() after loading. (Saves are
+	// normally written after await_all_threads(), which forces all searches to
+	// completion, so cities_to_process is 0 in practice.)
+	private_car_cycle_claims_remaining = max(cities_to_process, 0);
+	private_car_cities_running = 0;
+	private_car_cities_suspended = 0;
+	private_car_step_outstanding = 0;
 
-	simthread_barrier_init(&private_car_barrier, NULL, one_private_car_thread ? 2 : parallel_operations + 1);
 	simthread_barrier_init(&karte_t::unreserve_route_barrier, NULL, parallel_operations + 2); // This and the next does not run concurrently with anything significant on the main thread, so the number of parallel operations need to be +1 compared to the others.
 	simthread_barrier_init(&step_passengers_and_mail_barrier, NULL, parallel_operations + 2);
 	simthread_barrier_init(&step_convoys_barrier_external, NULL, 2);
@@ -2135,6 +2296,8 @@ void karte_t::init_threads()
 
 	private_car_route_mutex_initialised = true;
 	pthread_mutex_init(&private_car_route_mutex, &mutex_attributes);
+	pthread_cond_init(&private_car_start_cond, NULL);
+	pthread_cond_init(&private_car_done_cond, NULL);
 
 	pthread_mutex_init(&step_passengers_and_mail_mutex, &mutex_attributes);
 	pthread_mutex_init(&path_explorer_await_mutex, &mutex_attributes);
@@ -2143,7 +2306,9 @@ void karte_t::init_threads()
 
 	for (uint32 i = 0; i < parallel_operations + 1; i++)
 	{
-		if ((i < parallel_operations && !one_private_car_thread) || i < 1)
+		// Servers run private car threading in the background even when no
+		// clients are connected, so always create the full set of workers here.
+		if (i < parallel_operations || i < 1)
 		{
 			uint32* thread_number_checker = new uint32;
 			*thread_number_checker = i;
@@ -2254,7 +2419,14 @@ void karte_t::destroy_threads()
 		simthread_barrier_wait(&step_passengers_and_mail_barrier);
 #endif
 		await_private_car_threads();
-		simthread_barrier_wait(&private_car_barrier);
+		// Release the parked private-car workers so that they can see
+		// terminating_threads (set above) and exit.
+		int error = pthread_mutex_lock(&private_car_route_mutex);
+		assert(error == 0);
+		pthread_cond_broadcast(&private_car_start_cond);
+		error = pthread_mutex_unlock(&private_car_route_mutex);
+		assert(error == 0);
+		(void)error;
 
 		simthread_barrier_wait(&unreserve_route_barrier);
 #ifdef MULTI_THREAD_PATH_EXPLORER
@@ -2282,7 +2454,8 @@ void karte_t::destroy_threads()
 #ifdef MULTI_THREAD_PASSENGER_GENERATION
 		simthread_barrier_destroy(&step_passengers_and_mail_barrier);
 #endif
-		simthread_barrier_destroy(&private_car_barrier);
+		pthread_cond_destroy(&private_car_start_cond);
+		pthread_cond_destroy(&private_car_done_cond);
 		simthread_barrier_destroy(&unreserve_route_barrier);
 
 #ifdef MULTI_THREAD_PATH_EXPLORER
@@ -3087,6 +3260,10 @@ karte_t::karte_t() :
 	transferring_cargoes = NULL;
 #ifdef MULTI_THREAD
 	cities_to_process = 0;
+	private_car_cycle_claims_remaining = 0;
+	private_car_cities_running = 0;
+	private_car_cities_suspended = 0;
+	private_car_step_outstanding = 0;
 	terminating_threads = false;
 #endif
 
@@ -4970,14 +5147,18 @@ void karte_t::pause_step()
 	{
 #ifdef MULTI_THREAD
 		// This cannot be started at the end of the step, as we will not know at that point whether we need to call this at all.
-		// There can be many mutex clashes with this; however, processing only one city at a time can make it take an unfeasible amount of time to refresh all routes.
-		//cities_to_process = cities.get_count() > 64 ? 1 : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
-		//cities_to_process = 1;
+		// Same publish rule as in karte_t::step, except that a paused background
+		// server has no clients in lockstep and so may process multiple cities
+		// per step even in network mode. cities_to_process counts
+		// published-but-unfinished cities (including ones parked mid-search).
 		error = pthread_mutex_lock(&private_car_route_mutex);
 		assert(error == 0);
-		if (cities_to_process <= 0 || cities_awaiting_private_car_route_check.get_count() > parallel_operations - 1)
+		if (cities_to_process < parallel_operations - 1)
 		{
-			cities_to_process = min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1);
+			const sint32 additional_cities = min((sint32)cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1 - cities_to_process);
+			cities_to_process += additional_cities;
+			private_car_cycle_claims_remaining += additional_cities;
+			trace_private_car_event('p');
 		}
 		error = pthread_mutex_unlock(&private_car_route_mutex);
 		assert(error == 0);
@@ -5004,6 +5185,10 @@ void karte_t::pause_step()
 #ifdef MULTI_THREAD
 	await_private_car_threads();
 #endif
+
+	// As in karte_t::step: merge newly recorded identical destination lists while
+	// the workers are parked.
+	weg_t::private_car_route_map::merge_duplicate_destination_lists();
 
 	weg_t::apply_travel_time_updates();
 
@@ -5186,16 +5371,22 @@ void karte_t::step()
 		// This cannot be started at the end of the step, as we will not know at that point whether we need to call this at all.
 		// There can be many mutex clashes with this; however, processing only one city at a time can make it take an unfeasible amount of time to refresh all routes.
 
-		// EXPERIMENTAL (private-car-mt-network branch): the former network-mode clamp to one city per
-		// step is removed to test empirically whether multi-city threaded private car route checking
-		// is now deterministic in network mode after the 2026 threading race fixes (ef33efe43,
-		// ac81f463c and the map-reader hardening). Historically this was "not network safe" for
-		// unknown reasons; route-map link formation order-dependence is the remaining suspect.
+		// Multi-city processing is network safe: recording into the route maps
+		// (weg_t::private_car_route_map) is now order-independent (per-slot set
+		// unions with copy-on-write of shared lists), and identical destination
+		// lists are merged single-threaded at a fixed point after the workers are
+		// awaited (merge_duplicate_destination_lists). cities_to_process counts
+		// published-but-unfinished cities (including ones parked mid-search), so a
+		// long search occupying its slot blocks new publishes until it completes.
 		error = pthread_mutex_lock(&private_car_route_mutex);
 		assert(error == 0);
-		if (cities_to_process <= 0 || cities_awaiting_private_car_route_check.get_count() > parallel_operations - 1)
+		const sint32 max_cities_per_step = parallel_operations - 1;
+		if (cities_to_process < max_cities_per_step)
 		{
-			cities_to_process = env_t::networkmode ? min(1, cities_awaiting_private_car_route_check.get_count()) : min(cities_awaiting_private_car_route_check.get_count(), parallel_operations - 1); // CONTROL-BUILD
+			const sint32 additional_cities = min((sint32)cities_awaiting_private_car_route_check.get_count(), max_cities_per_step - cities_to_process);
+			cities_to_process += additional_cities;
+			private_car_cycle_claims_remaining += additional_cities;
+			trace_private_car_event('p');
 		}
 		// Temporary diagnostic (remove before merge): prove that multi-city concurrency was
 		// actually exercised in network mode, otherwise a determinism PASS is meaningless.
@@ -5277,11 +5468,9 @@ void karte_t::step()
 #ifndef CONCURRENT_ROUTE_PROCESSING
 	uint32 step_cities_count = 0;
 #endif
-	// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
-	// the city stepping loop is moved to AFTER await_private_car_threads() below, so that
-	// city growth (building/road construction) cannot mutate the map while private-car
-	// route searches are in flight. If the per-step route hash then agrees between
-	// independent runs, the non-determinism comes from this overlap.
+	// NOTE: the city stepping loop runs AFTER await_private_car_threads() below:
+	// city growth (building/road construction) mutates the map and must not
+	// overlap the private-car workers' route-search window.
 
 	rands[15] = get_random_seed();
 
@@ -5293,13 +5482,15 @@ void karte_t::step()
 	{
 		await_private_car_threads();
 		// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
-		// if the await were a reliable rendezvous, cities_to_process would always be 0 here.
+		// if the await is a reliable rendezvous, every published city is completed or
+		// parked mid-search here, and no worker is still running.
 		{
 			int error2 = pthread_mutex_lock(&private_car_route_mutex);
 			assert(error2 == 0);
-			if (cities_to_process != 0)
+			if (private_car_step_outstanding != 0 || private_car_cities_running != 0)
 			{
-				dbg->warning("karte_t::step", "EXPERIMENT: await released with cities_to_process=%d, queue=%u at step %u", cities_to_process, cities_awaiting_private_car_route_check.get_count(), steps);
+				dbg->warning("karte_t::step", "EXPERIMENT: await released early: cities_to_process=%d, suspended=%d, running=%d, queue=%u at step %u (gen=%u flag=%d working=%d claims=%d)", cities_to_process, private_car_cities_suspended, private_car_cities_running, cities_awaiting_private_car_route_check.get_count(), steps, private_car_generation, (int)route_t::suspend_private_car_routing, (int)private_car_threads_working, private_car_cycle_claims_remaining);
+				dump_private_car_trace();
 			}
 			error2 = pthread_mutex_unlock(&private_car_route_mutex);
 			assert(error2 == 0);
@@ -5308,6 +5499,12 @@ void karte_t::step()
 	}
 #endif
 
+	// Share newly recorded private car destination lists that are identical, so that
+	// memory use stays near its steady-state level throughout the refresh cycle.
+	// This runs here, after the workers are awaited and before anything else touches
+	// the map, so that the merge sees a quiescent, deterministic state on every peer.
+	weg_t::private_car_route_map::merge_duplicate_destination_lists();
+
 	weg_t::apply_travel_time_updates();
 
 	// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
@@ -5315,6 +5512,9 @@ void karte_t::step()
 	// representation (idx/link_mode ordering), logged every step so that two independent
 	// runs can be compared to localise the first semantically divergent step.
 	// route_map_mtx is held so that no worker can be mid-backtrace-write during the read.
+	// Guarded by the log level so that -debug 1 runs (the profiling suite) do not
+	// spend main-thread time computing a hash whose output would be suppressed anyway.
+	if (env_t::verbose_debug >= log_t::LEVEL_WARN)
 	{
 		weg_t::private_car_route_map::route_map_lock();
 		uint32 route_hash = 2166136261u; // FNV-1a offset basis
@@ -5339,6 +5539,9 @@ void karte_t::step()
 		// exactly which tiles/destinations diverge. dr_time() in the filename distinguishes runs.
 		if (steps == 5 || steps == 250 || steps == 500 || steps == 750 || steps == 1000)
 		{
+			// TEMPORARY DIAGNOSTIC (remove before merge): route-map memory statistics.
+			dbg->warning("karte_t::step", "EXPERIMENT route map memory at step %u (cities=%u):", steps, cities.get_count());
+			weg_t::private_car_route_map::diagnose_memory_usage();
 			char fn[128];
 			sprintf(fn, "routes-dump-%lu-step-%u.txt", (unsigned long)dr_time(), steps);
 			if (FILE* f = fopen(fn, "w"))
@@ -5365,8 +5568,8 @@ void karte_t::step()
 		weg_t::private_car_route_map::route_map_unlock();
 	}
 
-	// TEMPORARY DIAGNOSTIC (moved from above; remove before merge): cities step here,
-	// after the private-car workers have been awaited, so growth cannot race the searches.
+	// Cities step here, after the private-car workers have been awaited (see the
+	// note above), so that growth cannot race the route searches.
 	FOR(weighted_vector_tpl<stadt_t*>, const i, cities)
 	{
 		i->step(delta_t);
@@ -5674,6 +5877,9 @@ void karte_t::refresh_private_car_routes() {
 #ifdef MULTI_THREAD
 	suspend_private_car_threads();
 #endif
+	// With the workers quiesced, run a final duplicate merge so that the completed
+	// element is fully shared before it becomes the reading element.
+	weg_t::private_car_route_map::merge_duplicate_destination_lists(true);
 	weg_t::swap_private_car_routes_currently_reading_element();
 	clear_private_car_routes();
 	for(auto & city : cities) {
@@ -9916,14 +10122,15 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	// Create the worker threads only now that every piece of state that they
 	// might read has been loaded: all of the above writes then happen-before
 	// (via pthread_create) any read by any worker, so that the workers cannot
-	// race with the loading process. The private car workers are suspended
-	// first so that they cannot start processing the loaded city queue before
-	// the first step's start_private_car_threads; the single barrier wait then
-	// moves them from their suspended wait to their usual parked position.
+	// race with the loading process. The private car workers are created
+	// suspended so that they cannot start processing the loaded city queue
+	// before the first step's start_private_car_threads (which clears the
+	// suspend flag); until then they park on the start condition variable.
 	route_t::suspend_private_car_routing = true;
 	init_threads();
-	simthread_barrier_wait(&private_car_barrier);
-	route_t::suspend_private_car_routing = false;
+	// A savegame may carry linked (shared) destination lists in the element that
+	// will now be written: flag them so that the workers copy-on-write them.
+	weg_t::private_car_route_map::flag_shared_lists_loaded();
 #endif
 
 	// Move the staged transferring cargoes into the array allocated above by
