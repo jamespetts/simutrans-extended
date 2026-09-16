@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ f0263252a
+verified: master @ 79e91affc
 ---
 # Threading
 
@@ -176,7 +176,7 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
 - Private-car workers: `stadt_t::connected_cities/industries/attractions` (private_car_route_mutex; via `add_road_connexion` in `route_t::find_route` checker mode); `stadt_t::private_car_route_finding_in_progress` (✗; no reader found — Known problems); `weg_t::private_car_routes` writing element + backtrace statics (route_map_mtx); `karte_t::cities_to_process`/`cities_awaiting_private_car_route_check` (the workers under the mutex; the main thread's step-head queue bookkeeping — the refresh decision and the `cities_to_process` write — takes the same mutex). `connected_*` READERS (`stadt_t::check_road_connexion_to`, called from passenger generation) hold no lock — safety rests on the await placement before passenger generation plus the mid-search suspend mechanism, not on the mutex.
 - Route-unreservation workers: `schiene_t::reserved` cleared (✗; main thread blocked on the barrier meanwhile); `obj_t::dirty` when `show_reservations`.
 - Passenger/mail workers (under step_passengers_and_mail_mutex in `karte_t::generate_passengers_or_mail`): city history counters, gebaeude statistics, halt unhappy/no-route counters (`add_pax_unhappy` also books finance + `recalc_status` when not networked), fabrik mail-departed stats, checklist-fed `add_to_debug_sums`; `next_step_passenger/mail` after the barrier. `haltestelle_t::resort_freight_info` (`add_to_waiting_list`) is set from workers outside any mutex but is `std::atomic<bool>` — a result-benign latch (always set true; only ever reset by the main-thread re-sort).
-- Convoy workers (under step_convois_mutex, via `threaded_step`→`drive_to`): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags, `simlinemgmt_t::update_line` (after `await_path_explorer`), `simline_t::set_state`, message system via `report_vehicle_problem`; plus `convoys_next_step` (master worker). Their map READS (objlists, ways, signs, depots, ownership) are protected by the map-reader mechanism (below), not by a mutex.
+- Convoy workers (via `threaded_step`→`drive_to`; route finding only): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags; `simlinemgmt_t::update_line` (under `step_convois_mutex`, after `await_path_explorer`); `simline_t::set_state`; plus `convoys_next_step` (master worker). Workers do NOT touch: (a) the message system — route-finding failures are recorded in the convoy via `convoi_t::defer_message` and posted by the main thread in `convoi_t::step`; (b) halt position and way reservations (`haltestelle_t` tile reservation slots, `schiene_t::reserved`) — a convoy's held reservations are released on the main thread by `vehicle_t::release_target_reservations()` from `convoi_t::prepare_for_routing()` (the single funnel for all ROUTING_2 entries) and from `convoi_t::finish_rd()` (convoys loaded in ROUTING_2), and the vehicle `calc_route` functions contain no reservation code; `convoi_t::unreserve_route()` is main-thread-only again (its barrier expects main-thread participation) [CODE master @ 79e91affc]. Their map READS (objlists, ways, signs, depots, ownership) are protected by the map-reader mechanism (below), not by a mutex.
 - Path-explorer worker (✗ throughout): halt cargo lists, connexion swaps + resort flags, schedule counts, reroute flags (`prepare_goods_list`/`swap_connexions`/`set_schedule_count`/`set_reroute_goods_next_step`); line/convoy average-journey-time entry removal; path_explorer_t statics incl. limit_set_t `local_*` copies (read by `process_network_commands` → `nwc_routesearch_t`).
 - Map-loop workers (main thread blocked inside the loop; simulation not stepping): plan/ground/object state via callbacks — `plans_finish_rd` (load; object finish_rd into global lists under the gebaeude/label/leitung2 mutexes; player-finance way maintenance/length booking under load_mutex; heights under height_mutex), `perlin_hoehe_loop`, `recalc_transitions_loop`, `rotate90_plans`, `update_map_intern`.
 - Display workers (display barriers; may overlap convoy/path-explorer workers, never main-thread simulation code): simgraph16 shared image cache, `grund_t::dirty` (smart cursor), hide/pause state (hide_mutex), framebuffer.
@@ -265,7 +265,9 @@ use a just-hopped vehicle's stale tile position); reservation-dependent *choose-
 cannot run threaded at all (the
 `is_choosing` flag and the waiting states are only ever active in the single-threaded parts, and
 `ROUTING_2` is mutually exclusive with them, so `check_next_tile`'s `can_reserve` reads are dead in
-the threaded context). Remaining TSan-visible benign value races → Known problems.
+the threaded context). Reservation state itself (halt position slots, `schiene_t::reserved`) is
+outside the map-reader mechanism entirely — it is main-thread-only (see the convoy-workers entry in
+the inventory) [CODE master @ 79e91affc].
 
 ## Per-thread state & buffers
 
