@@ -224,20 +224,29 @@ void leitung_t::rotate90()
 /**
  * replace networks connection
  * non-trivial to handle transformers correctly
+ *
+ * Iterative rather than recursive: the recursion depth was the longest path
+ * through the power network, which on large maps overflowed the (worker) thread
+ * stack — observed as an AddressSanitizer stack-overflow while loading a large
+ * savegame (ASan frames are larger; a big enough network would overflow a plain
+ * build too). The result is unchanged: every connected piece ends up on new_net.
  */
 void leitung_t::replace(powernet_t* new_net)
 {
-	if (get_net() != new_net) {
-		// convert myself ...
-//DBG_MESSAGE("leitung_t::replace()","My net %p by %p at (%i,%i)",new_net,current,base_pos.x,base_pos.y);
-		set_net(new_net);
-	}
-
-	leitung_t * conn[4];
-	if(gimme_neighbours(conn)>0) {
-		for(int i=0; i<4; i++) {
-			if(conn[i] && conn[i]->get_net()!=new_net) {
-				conn[i]->replace(new_net);
+	vector_tpl<leitung_t*> to_visit;
+	to_visit.append(this);
+	while (!to_visit.empty()) {
+		leitung_t* const current = to_visit.pop_back();
+		if (current->get_net() == new_net) {
+			continue;
+		}
+		current->set_net(new_net);
+		leitung_t * conn[4];
+		if(current->gimme_neighbours(conn)>0) {
+			for(int i=0; i<4; i++) {
+				if(conn[i] && conn[i]->get_net()!=new_net) {
+					to_visit.append(conn[i]);
+				}
 			}
 		}
 	}
