@@ -126,6 +126,25 @@ public:
 		MAX_STATES
 	};
 
+	/**
+	 * Kinds of message that may be deferred by convoy worker threads for the
+	 * main thread to post (see deferred_message). The message system is
+	 * main-thread/GUI only: workers must never call it.
+	 */
+	enum deferred_message_kind {
+		defer_none = 0,
+		defer_no_route,        // posted via player_t::report_vehicle_problem
+		defer_halt_too_short   // "Vehicle %s cannot choose because stop too short!"
+	};
+
+	/**
+	 * Records a message request from a convoy worker thread; posted and
+	 * cleared by the main thread in step(). Safe without a lock: the worker
+	 * writes during its start/await window and the main thread reads only
+	 * after the step-head await_convoy_threads.
+	 */
+	void defer_message(deferred_message_kind kind, koord3d pos) { deferred_message = kind; deferred_message_pos = pos; }
+
 	enum terminal_shunt_mode {
 		wye = 0,
 		rearrange = 1,
@@ -437,6 +456,15 @@ private:
 	 * it can run after an indeterminate number of sync_steps.
 	 */
 	sint32 wait_lock_next_step;
+
+	/**
+	 * Worker-to-main message deferral slots: written by convoy worker
+	 * threads during route finding, read and cleared by the main thread in
+	 * step() (after the step-head await, so no synchronisation is needed).
+	 * Transient UI state: not saved.
+	 */
+	deferred_message_kind deferred_message;
+	koord3d deferred_message_pos;
 
 	/**
 	 * The flag whether this convoi is requested to change lane by the convoi behind this.

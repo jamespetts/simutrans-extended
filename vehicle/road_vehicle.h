@@ -52,6 +52,10 @@ public:
 
 	virtual route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
 
+	// Releases the target halt position reservation. Main thread only;
+	// see vehicle_t::release_target_reservations.
+	void release_target_reservations() OVERRIDE;
+
 	bool can_enter_tile(const grund_t *gr_next, sint32 &restart_speed, uint8 second_check_count) OVERRIDE;
 
 	// returns true for the way search to an unknown target.

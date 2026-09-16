@@ -133,6 +133,10 @@ public:
 
 	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
 
+	// Releases the target halt position and runway reservations.
+	// Main thread only; see vehicle_t::release_target_reservations.
+	void release_target_reservations() OVERRIDE;
+
 	// BG, 08.08.2012: extracted from can_enter_tile()
 	route_t::route_result_t reroute(const uint16 reroute_index, const koord3d &ziel) OVERRIDE;
 

@@ -34,6 +34,10 @@ public:
 	// since we might need to unreserve previously used blocks, we must do this before calculation a new route
 	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed, bool is_tall, route_t* route) OVERRIDE;
 
+	// Unreserves previously used blocks (and the target halt reservation).
+	// Main thread only; see vehicle_t::release_target_reservations.
+	void release_target_reservations() OVERRIDE;
+
 	// how expensive to go here (for way search)
 	int get_cost(const grund_t *, const sint32 max_speed, ribi_t::ribi from) OVERRIDE;
 
