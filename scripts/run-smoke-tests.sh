@@ -5,11 +5,11 @@
 #
 # Default mode is network: run a loopback-only server with -fast-network-sync against
 # tests/demo.sve twice and compare the two runs' per-step semantic private-car route
-# hash sequences (representation-independent; the final server<port>-restore.sve files
-# are compared byte-for-byte for information only, because internal route-map list
-# indices are allocated in thread-timing-dependent order and can differ between
-# semantically identical runs). This exercises the network server code path, where
-# deterministic lockstep is expected.
+# hash sequences (computed independently of the storage layout; the final
+# server<port>-restore.sve files are compared byte-for-byte for information only,
+# because internal route-map list indices are allocated in thread-timing-dependent
+# order and can differ between semantically identical runs). This exercises the
+# network server code path, where deterministic lockstep is expected.
 #
 # Optional singleuser mode fast-forwards and compares monthly autosaves. It exercises the
 # single-player code path; byte-identical determinism is NOT expected there.
@@ -41,7 +41,7 @@ SAVE_FORMAT="zipped"
 MODE="network"
 FAST_NETWORK_SYNC=100
 SERVER_PORT=13353
-MARKERS="FATAL ERROR|AddressSanitizer|runtime error|await released early"
+MARKERS="FATAL ERROR|AddressSanitizer|runtime error|rendezvous released with work outstanding"
 SKIP_ROUNDTRIP=0
 CLEAN=0
 
@@ -275,11 +275,11 @@ fi
 if [[ "$MODE" == "network" ]]; then
 	# Primary oracle: the per-step semantic route-hash sequences must be identical
 	# (see the header comment for why final.sve bytes may legitimately differ).
-	mapfile -t hA < <(grep -oE "EXPERIMENT route hash step [0-9]+: [0-9a-f]+" "$LOGS/runA.err.log" 2>/dev/null || true)
-	mapfile -t hB < <(grep -oE "EXPERIMENT route hash step [0-9]+: [0-9a-f]+" "$LOGS/runB.err.log" 2>/dev/null || true)
+	mapfile -t hA < <(grep -oE "Private car route hash step [0-9]+: [0-9a-f]+" "$LOGS/runA.err.log" 2>/dev/null || true)
+	mapfile -t hB < <(grep -oE "Private car route hash step [0-9]+: [0-9a-f]+" "$LOGS/runB.err.log" 2>/dev/null || true)
 	n=${#hA[@]}; [[ ${#hB[@]} -lt $n ]] && n=${#hB[@]}
 	if [[ $n -lt 100 ]]; then
-		failures+=("determinism : route-hash sequences too short or missing (A=${#hA[@]}, B=${#hB[@]}) - is the route-hash diagnostic compiled in?")
+		failures+=("determinism : route-hash sequences too short or missing (A=${#hA[@]}, B=${#hB[@]}) - the per-step route hash is logged only at -debug 2 or higher")
 	else
 		hash_diff=-1
 		for ((i=0; i<n; i++)); do

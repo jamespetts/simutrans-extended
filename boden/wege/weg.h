@@ -344,12 +344,6 @@ public:
 
 		inline sint32 get_idx() const {if(link_mode==link_mode_NULL || link_mode==link_mode_single) return -1; return idx;}
 
-		// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
-		// logs memory statistics for both route-map elements: what the slots expose
-		// logically (following links) versus what is actually stored, to size the
-		// cost of deferring link formation in the union-then-link redesign.
-		static void diagnose_memory_usage();
-
 #ifdef MULTI_THREAD
 		static pthread_mutex_t route_map_mtx;
 #endif

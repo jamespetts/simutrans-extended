@@ -34,7 +34,7 @@ param(
   [int]$FastNetworkSync = 100,
   [int]$ServerPort = 13353,
   [int]$Threads = 0,
-  [string[]]$Markers = @("FATAL ERROR", "AddressSanitizer", "runtime error", "await released early"),
+  [string[]]$Markers = @("FATAL ERROR", "AddressSanitizer", "runtime error", "rendezvous released with work outstanding"),
   [switch]$SkipRoundtrip,
   [switch]$Clean
 )
@@ -44,10 +44,10 @@ param(
 # are running, in an order that depends on thread timing. Two runs can therefore
 # produce final.sve files that differ byte-for-byte while recording semantically
 # IDENTICAL route data (the checklist and the simulation only ever see the semantic
-# content; the indices are an internal storage detail). The primary determinism
-# oracle is therefore the per-step semantic route hash ("EXPERIMENT route hash"
-# log lines, representation-independent); the final.sve byte comparison is
-# reported for information only and does not fail the run.
+# content; the indices are an internal storage detail). The determinism oracle is
+# the per-step semantic route hash ("Private car route hash" log lines, computed
+# independently of the storage layout); the final.sve byte comparison is reported
+# for information only and does not fail the run.
 
 $ErrorActionPreference = "Stop"
 if (-not $PSScriptRoot) { Write-Output "FAIL: run via powershell -File"; exit 1 }
@@ -280,11 +280,11 @@ foreach ($f in $aFiles) {
 if ($Mode -eq "network") {
   # Primary oracle: the per-step semantic route-hash sequences must be identical
   # (see the NOTE at the top of this script for why final.sve bytes may differ).
-  $hA = @(Select-String -Path (Join-Path $logs "runA.err.log") -Pattern "EXPERIMENT route hash step \d+: [0-9a-f]+" -ErrorAction SilentlyContinue | ForEach-Object { $_.Matches[0].Value })
-  $hB = @(Select-String -Path (Join-Path $logs "runB.err.log") -Pattern "EXPERIMENT route hash step \d+: [0-9a-f]+" -ErrorAction SilentlyContinue | ForEach-Object { $_.Matches[0].Value })
+  $hA = @(Select-String -Path (Join-Path $logs "runA.err.log") -Pattern "Private car route hash step \d+: [0-9a-f]+" -ErrorAction SilentlyContinue | ForEach-Object { $_.Matches[0].Value })
+  $hB = @(Select-String -Path (Join-Path $logs "runB.err.log") -Pattern "Private car route hash step \d+: [0-9a-f]+" -ErrorAction SilentlyContinue | ForEach-Object { $_.Matches[0].Value })
   $n = [Math]::Min($hA.Count, $hB.Count)
   if ($n -lt 100) {
-    $failures += "determinism : route-hash sequences too short or missing (A=$($hA.Count), B=$($hB.Count)) - is the route-hash diagnostic compiled in?"
+    $failures += "determinism : route-hash sequences too short or missing (A=$($hA.Count), B=$($hB.Count)) - the per-step route hash is logged only at -debug 2 or higher"
   } else {
     $hashDiff = -1
     for ($i = 0; $i -lt $n; $i++) { if ($hA[$i] -ne $hB[$i]) { $hashDiff = $i; break } }

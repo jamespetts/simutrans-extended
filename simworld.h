@@ -905,11 +905,6 @@ public:
 	// returns immediately if suspend_private_car_routing is set (in which case
 	// the search runs to completion so that save/refresh/destroy see a quiescent state).
 	static void private_car_suspend_point();
-	// TEMPORARY DIAGNOSTIC (private-car-mt-network branch; remove before merge):
-	// transition trace for the private-car rendezvous protocol; dumped when the
-	// early-release check fires. All writers hold private_car_route_mutex.
-	static void trace_private_car_event(char event);
-	static void dump_private_car_trace();
 	void start_passengers_and_mail_threads();
 	void start_convoy_threads();
 	void start_path_explorer();
