@@ -86,14 +86,15 @@ network clients which adopt the server's saved value; else `env_t::num_threads -
 ### Simulation workers (simworld.cc, created by `karte_t::init_threads`)
 
 Joinable; each loops {barrier wait → work → barrier wait(s)} until `terminating_threads` (set by
-`destroy_threads()`, which then trips every barrier once and joins via `clean_threads`). Barrier
+`destroy_threads()`, which then trips every barrier once and joins via `clean_threads`), except
+`check_road_connexions_threaded`, which loops on a condition variable instead. Barrier
 participant counts are set in `init_threads` (comments explain the +1/+2 variants). Main-thread
 `start_*` helpers release a subsystem with one barrier wait and set its `*_threads_working` flag;
 `await_*` helpers match the workers' waits and clear it.
 
 | Worker fn | × | Work | Synchronisation |
 |---|---|---|---|
-| `check_road_connexions_threaded` | po | city private-car route checks (`stadt_t::check_all_private_car_routes`), dequeued from `cities_awaiting_private_car_route_check` | `private_car_barrier` (po+1); `private_car_route_mutex` (queue, city road connexions, suspend flag) |
+| `check_road_connexions_threaded` | po | city private-car route checks (`stadt_t::check_all_private_car_routes`), dequeued from `cities_awaiting_private_car_route_check` | completion rendezvous under `private_car_route_mutex` (queue, city road connexions, suspend flag, counters below) + cond vars `private_car_start_cond`/`private_car_done_cond` |
 | `unreserve_route_threaded` | po+1 | `convoi_t::unreserve_route_range` over slices of the global way list, on demand | `unreserve_route_barrier` (po+2) |
 | `step_passengers_and_mail_threaded` | po+1 | passenger/mail generation, quota-split; per-thread seed `setsimrand(325651 + random_counter·thread_number)`; thread numbers 1..po+1 (0 = main thread, which does not generate) | `step_passengers_and_mail_barrier` (po+2); `step_passengers_and_mail_mutex` |
 | `step_individual_convoy_threaded` | po | `convoi_t::threaded_step()` — route finding only, only in state `ROUTING_2` (set only by the single-threaded `convoi_t::step()`); strides over `convoys_next_step`; map reads protected by the map-reader mechanism (below) | `step_convoys_barrier_internal` (po+1) |
@@ -102,12 +103,33 @@ participant counts are set in `init_threads` (comments explain the +1/+2 variant
 
 - Route unreserving is on-demand from main-thread code: `convoi_t::unreserve_route()` sets
   `current_unreserver`, trips `unreserve_route_barrier` twice, clears it.
-- Private-car route searches yield mid-search: after `max_route_tiles_to_process_in_a_step`
-  (settings; separate paused-server value) route.cc hits `private_car_barrier` twice
-  ("intentional"), so long searches do not block the frame indefinitely.
-- `route_t::suspend_private_car_routing` (plain global bool) parks the private-car workers;
-  `karte_t::suspend_private_car_threads()` = await → set flag under `private_car_route_mutex` →
-  one barrier cycle → clear.
+- Private-car rendezvous protocol (all under `private_car_route_mutex`): each step the main
+  thread publishes up to `parallel_operations - 1` cities (`cities_to_process`,
+  `private_car_cycle_claims_remaining`) and `start_private_car_threads()` clears the suspend
+  flag, bumps `private_car_generation`, moves parked cities to the running count, sets
+  `private_car_step_outstanding = claims + previously-parked`, and broadcasts
+  `private_car_start_cond`. Workers claim cities atomically, decrement
+  `private_car_step_outstanding` on each completion or mid-search park, and broadcast
+  `private_car_done_cond`; `await_private_car_threads()` waits for it to reach zero. Moving
+  the suspended→running count transition onto the main thread at start/suspend time is
+  load-bearing: workers only wake some time after the broadcast, so an await that consulted
+  the live parked counter could release the step while resumed searches were still running
+  (observed 2026-09-16 under client/server CPU contention; the one-step route-hash
+  divergences it produced reconverged but proved the window). A permanent invariant check in
+  `await_private_car_threads()` logs an error if it releases with work outstanding.
+- Private-car route searches park mid-search: after `max_route_tiles_to_process_in_a_step`
+  (settings; separate paused-server value) route.cc calls `karte_t::private_car_suspend_point()`,
+  which parks the worker on `private_car_start_cond` until the next start's generation change,
+  so long searches do not block the frame indefinitely. If `route_t::suspend_private_car_routing`
+  is set the search runs to completion instead, so save/refresh/destroy see a quiescent state.
+- `route_t::suspend_private_car_routing` (plain bool, accessed only under
+  `private_car_route_mutex` or before threads start) blocks the private-car workers;
+  `karte_t::suspend_private_car_threads()` = await → move parked cities to the running count →
+  set flag under `private_car_route_mutex` → broadcast start_cond → wait `cities_to_process == 0`
+  (all published cities run to completion); the flag clears at the next start.
+- City stepping (`stadt_t::step`, which can build roads and buildings) runs after
+  `await_private_car_threads()` in `karte_t::step()`, so growth cannot overlap the workers'
+  route-search window.
 ### Map-loop workers (`karte_t::world_xy_loop`, simworld.cc)
 
 Lazily spawned DETACHED on first call (`spawned_world_threads`), reused for every later call;
@@ -171,12 +193,12 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
   `init_threads()`) → once all worker-visible state is final (settings incl. `parallel_operations`
   adopted from the save by network clients, the city queue, `cities_to_process`, RNG state), the
   workers are created ONCE at the end of load: `route_t::suspend_private_car_routing = true` →
-  `init_threads()` → one `private_car_barrier` wait → flag cleared. The pre-set suspend flag
-  closes the private-car workers' first-iteration pickup gate (they would otherwise start
-  processing the loaded city queue immediately, unpaced and racing the load tail); the single
-  barrier wait then moves them from the suspended wait to their usual parked position, so
-  processing starts at the first step's `start_private_car_threads` — the effective state the old
-  code reached only accidentally (workers were spawned before the queue was read from the save).
+  `init_threads()` (the workers park on `private_car_start_cond` because the flag is set) →
+  `weg_t::private_car_route_map::flag_shared_lists_loaded()` (marks lists referenced by linked
+  slots in the loaded writing element as shared, so the workers copy-on-write them). The pre-set
+  suspend flag closes the private-car workers' first-iteration pickup gate (they would otherwise
+  start processing the loaded city queue immediately, unpaced and racing the load tail);
+  processing starts at the first step's `start_private_car_threads`, which clears the flag.
   `pthread_create` orders all load-time writes before any worker read. `karte_t::load(filename)`
   additionally calls `suspend_private_car_threads()` first ("Necessary here to prevent thread
   deadlocks").
@@ -270,16 +292,25 @@ the threaded context). Remaining TSan-visible benign value races → Known probl
   streams are semantically fine.
 - weg_t private-car route data is double-buffered: `private_car_routes[2][…]` reading/writing
   element; `swap_private_car_routes_currently_reading_element()` only from single-threaded
-  context (`karte_t::refresh_private_car_routes`, after suspending the private-car threads;
-  writes go through `private_car_route_map::route_map_mtx` via the backtrace functions).
+  context (`karte_t::refresh_private_car_routes`, after suspending the private-car threads).
+  Writes go through `private_car_route_map::route_map_mtx` via the backtrace functions and are
+  order-independent by construction: each is a pure set union into the tile's own destination
+  list, with copy-on-write if that list is shared (a per-list `shared` flag, set only by the
+  merge or at load, never cleared between refreshes — an overestimate costs only an occasional
+  unnecessary copy). Identical destination lists are merged to share storage by
+  `merge_duplicate_destination_lists()`: single-threaded, after the per-step await and once
+  per refresh before the swap, processing only the slots written since the last call (a dirty
+  list filled under `route_map_mtx`, sorted by tile coordinate before processing so the result
+  is identical on every network peer). Stored lists are never freed between refreshes, so way
+  deletion mid-cycle needs no bookkeeping; `karte_t::destroy()` clears all of it
+  (`clear_transient_state()` — the dirty list holds way pointers, which dangle when a server
+  reloads its world in-process on a client join).
 
 ## Lock inventory (game code)
 
-- Two flags are `std::atomic<bool>` rather than mutex-protected, because workers read them
-  outside any mutex/barrier window while the main thread writes them:
-  `karte_t::terminating_threads` (top-of-loop reads in `check_road_connexions_threaded` vs the
-  write in `destroy_threads()`) and `route_t::suspend_private_car_routing` (else-branch and
-  mid-search-yield reads vs the under-mutex writes in `suspend_private_car_threads()`).
+- One flag is `std::atomic<bool>` rather than mutex-protected, because workers read it
+  outside any mutex window while the main thread writes it: `karte_t::terminating_threads`
+  (top-of-loop reads in `check_road_connexions_threaded` vs the write in `destroy_threads()`).
   Further atomics for legitimate cross-window read/write sharing (all single-writer):
   `karte_t::path_explorer_working` (also written by convoy workers via `await_path_explorer` from
   `drive_to`), `convoi_t::state`, `obj_t::flags` (own byte since the owner nibble split),
@@ -287,7 +318,9 @@ the threaded context). Remaining TSan-visible benign value races → Known probl
   `leitung_t::net` (std::atomic<powernet_t*> — map-loop workers read/write it under inconsistent
   mutexes during threaded load; the atomic makes the accessor pair race-free regardless).
 - Simulation aggregates: `karte_t::private_car_route_mutex` (ERRORCHECK type; route queue, city
-  road connexions in route.cc, city-queue bookkeeping in `karte_t::step`/`pause_step`), `karte_t::step_passengers_and_mail_mutex` (also
+  road connexions in route.cc, city-queue bookkeeping in `karte_t::step`/`pause_step`, and the
+  whole private-car rendezvous state — publish/claim counters, generation, outstanding-work
+  counter, suspend flag — with cond vars `private_car_start_cond`/`private_car_done_cond`), `karte_t::step_passengers_and_mail_mutex` (also
   held around rdwr of `next_step_passenger`/`next_step_mail`), `path_explorer_await_mutex`
   (file-static), `step_convois_mutex` (simconvoi.cc; schedule/reverse-flag updates from
   `threaded_step` contexts), `weg_t::private_car_route_map::route_map_mtx`, `netlist_mutex`
@@ -325,7 +358,13 @@ the threaded context). Remaining TSan-visible benign value races → Known probl
 
 ## Provenance
 
-Verified against master @ f0263252a [CODE; CI verified green for the TSan and ASan smoke jobs at
+Private-car worker sections (worker inventory row, rendezvous protocol, suspension, lifecycle
+order, route-map double-buffering, lock inventory entries) verified against
+private-car-mt-network @ f69b873ca, 2026-09-16 [CODE; validated by the demo network battery
+(30/30 identical per-step route-hash sequences), a loopback client-server run with checklist
+comparison every sync step (10,065 steps, zero divergence), gargantuan-fixture A/B runs
+(1534/1534 identical), and a green TSan smoke CI run]. The remainder verified against master @
+f0263252a [CODE; CI verified green for the TSan and ASan smoke jobs at
 that sha, 2026-09-13]. Earlier base: master @ 07ad4ef13 (which includes: the map-reader hardening — objlist seqlock,
 freelist reclamation quarantine, step-head `await_convoy_threads`, season-loop reorder, convoy
 lifetime awaits, atomic `state`/flags/`disp_lane`/`path_explorer_working`, verified by 26
@@ -358,10 +397,6 @@ rises to 26.8% and the main thread falls to 59.4% — repeat before acting on th
 
 ## Open questions
 
-- Exact barrier-trip accounting for `private_car_barrier` across cycles (main thread vs po
-  workers, mid-route-search yields): not derivable by static reading; relevant to the deadlock
-  family (→ [known-bugs](known-bugs.md)). Asked user 2026-09-07: unknown — resolve dynamically
-  at deadlock triage.
 - Passenger/mail generation split: `init_threads()` creates `parallel_operations + 1` worker
   threads (po = `get_parallel_operations()`, normally `num_threads - 1`), numbered 1..po+1, but
   each worker divides the per-step quota (`next_step_passenger`/`next_step_mail`) by po — not

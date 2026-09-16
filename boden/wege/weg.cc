@@ -5,6 +5,8 @@
 
 #include <stdio.h>
 #include <tuple>
+#include <algorithm>
+#include <unordered_map>
 
 #include "../../tpl/slist_tpl.h"
 
@@ -730,7 +732,7 @@ void weg_t::private_car_route_map::rdwr(loadsave_t *file){
 		//save the destination list
 		if(link_mode==link_mode_master){
 			for(uint32 k = 0; k < get_count(); k++){
-				route_maps[route_map_elem][idx].get_by_index(k).rdwr(file);
+				route_maps[route_map_elem][idx].destinations.get_by_index(k).rdwr(file);
 			}
 		}
 	}else{
@@ -750,7 +752,8 @@ void weg_t::private_car_route_map::rdwr(loadsave_t *file){
 				idx |= uint32(static_cast<uint16>(idx2.y));
 				link_mode = -1 - idx2.x;
 				if(link_mode == link_mode_master){
-					route_maps[route_map_elem].store_at(idx,ordered_vector_tpl<koord,uint32>(count-2));
+					route_maps[route_map_elem].store_at(idx,list_t());
+					route_maps[route_map_elem][idx].destinations.resize(count-2);
 				}
 			}else{
 				//older file, just append destinations
@@ -1592,13 +1595,29 @@ signal_t *weg_t::get_signal(ribi_t::ribi direction_of_travel) const
 	else return NULL;
 }
 
-//#define NO_PRIVATE_CAR_DESTINATION_LINKING
+vector_tpl<weg_t::private_car_route_map::list_t> weg_t::private_car_route_map::route_maps[2];
 
-vector_tpl<ordered_vector_tpl<koord,uint32> > weg_t::private_car_route_map::route_maps[2];
+// Merge bookkeeping for duplicate-list merging (merge_duplicate_destination_lists).
+// Slots whose contents changed since the last merge, in worker completion order
+// (appended under route_map_mtx during backtraces); sorted by tile before use so
+// that the merge result is identical on every network peer.
+struct dirty_route_slot_t {
+	weg_t* way;
+	uint8 slot;
+};
+static vector_tpl<dirty_route_slot_t> dirty_route_slots;
+// Indices of cleared lists available for reuse (lists are never removed from
+// route_maps between refreshes, so slot indices stay valid).
+static vector_tpl<uint32> free_route_map_lists[2];
+// Content hash -> indices of stored lists with that hash, per element. Entries
+// are only ever added; a registered list that is shared can never change
+// (copy-on-write), and a registered list that is not shared is re-registered if
+// its slot is written again, so stale entries only ever fail the equality check.
+static std::unordered_map<uint64, vector_tpl<uint32> > route_map_content_index[2];
 
 void weg_t::private_car_route_map::clear(){
 	if(link_mode==link_mode_master){
-		route_maps[route_map_elem][idx].clear();
+		route_maps[route_map_elem][idx].destinations.clear();
 	}else{
 		link_mode=link_mode_NULL;
 	}
@@ -1606,7 +1625,7 @@ void weg_t::private_car_route_map::clear(){
 
 void weg_t::private_car_route_map::pre_reset(){
 	if(link_mode==link_mode_master){
-		route_maps[route_map_elem][idx].clear();
+		route_maps[route_map_elem][idx].destinations.clear();
 	}
 	link_mode=link_mode_NULL;
 }
@@ -1623,11 +1642,23 @@ bool weg_t::private_car_route_map::contains(koord elem) const{
 	{
 		return false;
 	}
-	bool result=route_maps[route_map_elem][idx].contains(elem);
+	bool result=route_maps[route_map_elem][idx].destinations.contains(elem);
 	return result;
 }
 
-bool weg_t::private_car_route_map::insert_unique(koord elem, private_car_route_map* link_to, uint8 link_dir){
+uint32 weg_t::private_car_route_map::new_list_index(uint8 elem)
+{
+	if (!free_route_map_lists[elem].empty())
+	{
+		const uint32 idx = free_route_map_lists[elem].pop_back();
+		route_maps[elem][idx].shared = false;
+		return idx;
+	}
+	route_maps[elem].append(list_t());
+	return route_maps[elem].get_count() - 1;
+}
+
+bool weg_t::private_car_route_map::insert_unique(koord elem){
 	if(link_mode==link_mode_NULL){
 		single_koord=elem;
 		link_mode=link_mode_single;
@@ -1637,64 +1668,32 @@ bool weg_t::private_car_route_map::insert_unique(koord elem, private_car_route_m
 		if(single_koord==elem){
 			return false;
 		}
-		if(link_to
-				&& link_to->link_mode!=link_mode_NULL
-				&& link_to->link_mode!=link_mode_single
-				&& link_to->contains(single_koord)
-				&& link_to->contains(elem)){
-			link_mode=link_dir;
-			idx=link_to->idx;
-			return true;
-		}
-		route_maps[route_map_elem].append(ordered_vector_tpl<koord,uint32>());
-		uint32 new_idx=route_maps[route_map_elem].get_count()-1;
-		route_maps[route_map_elem][new_idx].insert_unique(single_koord);
+		const uint32 new_idx=new_list_index(route_map_elem);
+		route_maps[route_map_elem][new_idx].destinations.insert_unique(single_koord);
+		route_maps[route_map_elem][new_idx].destinations.insert_unique(elem);
 		idx=new_idx;
 		link_mode=link_mode_master;
+		return true;
 	}
-	if(link_mode==link_mode_master){
-		bool result = route_maps[route_map_elem][idx].insert_unique(elem);
-		return result;
+	if(link_mode==link_mode_master && !route_maps[route_map_elem][idx].shared){
+		// Sole owner of this list: write in place.
+		return route_maps[route_map_elem][idx].destinations.insert_unique(elem);
 	}
-	if(link_to){
-		if(link_mode==link_dir
-				&& link_to->link_mode!=link_mode_NULL
-				&& link_to->link_mode!=link_mode_single){
-			// Re-pointing this slot at the next tile's list is only valid if that
-			// list already covers every destination in this slot's current list
-			// plus the new destination; overwriting idx unconditionally here used
-			// to discard any entries present in the current list but not (yet) in
-			// the target list, silently losing recorded routes. In multi-threaded
-			// route checking that loss also depended on the order in which
-			// concurrent workers' writes interleaved.
-			const ordered_vector_tpl<koord,uint32>& current = route_maps[route_map_elem][idx];
-			const ordered_vector_tpl<koord,uint32>& target = route_maps[route_map_elem][link_to->idx];
-			bool covers = target.get_count() >= current.get_count() && target.contains(elem);
-			for (uint32 i = 0; covers && i < current.get_count(); i++)
-			{
-				covers = target.contains(current[i]);
-			}
-			if (covers)
-			{
-				idx=link_to->idx;
-				return false;
-			}
-			// Otherwise fall through to the copy-and-union path below, which
-			// preserves the current list's contents.
-		}
-		route_maps[route_map_elem].append(ordered_vector_tpl<koord,uint32>(route_maps[route_map_elem][idx]));
-		uint32 new_idx=route_maps[route_map_elem].get_count()-1;
-		if(link_to->link_mode==link_mode_single){
-			route_maps[route_map_elem][new_idx].insert_unique(link_to->single_koord);
-		}else if(link_to->link_mode!=link_mode_NULL){
-			route_maps[route_map_elem][new_idx].set_union(route_maps[route_map_elem][link_to->idx]);
-		}
-		idx=new_idx;
-		link_mode=link_mode_master;
-		bool result = route_maps[route_map_elem][idx].insert_unique(elem);
-		return result;
+	// This slot references a list that is (or may be) shared with other slots:
+	// copy it before writing (copy-on-write). Writing a shared list in place would
+	// change other slots' contents and make the result depend on the order in which
+	// concurrent workers' writes interleave, breaking network determinism.
+	if (route_maps[route_map_elem].get_count() <= idx)
+	{
+		// Stale reference (defensive; contains()/get_count() guard the same way).
+		return false;
 	}
-	return false;
+	const uint32 new_idx=new_list_index(route_map_elem);
+	route_maps[route_map_elem][new_idx].destinations = route_maps[route_map_elem][idx].destinations;
+	route_maps[route_map_elem][new_idx].destinations.insert_unique(elem);
+	idx=new_idx;
+	link_mode=link_mode_master;
+	return true;
 }
 
 koord& weg_t::private_car_route_map::get_by_index(uint32_t i){
@@ -1702,7 +1701,7 @@ koord& weg_t::private_car_route_map::get_by_index(uint32_t i){
 		koord& result=single_koord;
 		return result;
 	}
-	koord& result = route_maps[route_map_elem][idx][i];
+	koord& result = route_maps[route_map_elem][idx].destinations[i];
 	return result;
 }
 
@@ -1711,7 +1710,7 @@ const koord& weg_t::private_car_route_map::get_by_index(uint32_t i) const {
 		const koord& result=single_koord;
 		return result;
 	}
-	const koord& result = route_maps[route_map_elem][idx][i];
+	const koord& result = route_maps[route_map_elem][idx].destinations[i];
 	return result;
 }
 koord& weg_t::private_car_route_map::operator[](uint32 i){
@@ -1733,7 +1732,7 @@ uint32 weg_t::private_car_route_map::get_count() const {
 	{
 		return false;
 	}
-	const uint32 result = route_maps[route_map_elem][idx].get_count();
+	const uint32 result = route_maps[route_map_elem][idx].destinations.get_count();
 	return result;
 }
 
@@ -1748,7 +1747,7 @@ bool weg_t::private_car_route_map::is_empty() const {
 	{
 		return false;
 	}
-	const bool result = route_maps[route_map_elem][idx].is_empty();
+	const bool result = route_maps[route_map_elem][idx].destinations.is_empty();
 	return result;
 }
 
@@ -1768,7 +1767,7 @@ bool weg_t::private_car_route_map::remove(koord elem){
 	{
 		return false;
 	}
-	bool result = route_maps[route_map_elem][idx].remove(elem);
+	bool result = route_maps[route_map_elem][idx].destinations.remove(elem);
 	return result;
 }
 
@@ -1777,29 +1776,213 @@ void weg_t::private_car_route_map::resize(uint32 new_size){
 		return;
 	}
 	if(link_mode!=link_mode_master){
-		ordered_vector_tpl<koord,uint32> to_append=(link_mode==link_mode_single || link_mode==link_mode_NULL)
-				? ordered_vector_tpl<koord,uint32>() : ordered_vector_tpl<koord,uint32>(route_maps[route_map_elem][idx]);
+		// Used only by the loading of very old savegames, single-threaded: a fresh
+		// private list is wanted here, not copy-on-write bookkeeping.
+		list_t to_append;
+		if(link_mode!=link_mode_single && link_mode!=link_mode_NULL){
+			to_append.destinations = route_maps[route_map_elem][idx].destinations;
+		}
 		route_maps[route_map_elem].append(to_append);
 		idx=route_maps[route_map_elem].get_count()-1;
 		if(link_mode==link_mode_single){
-			route_maps[route_map_elem][idx].insert_unique(single_koord);
+			route_maps[route_map_elem][idx].destinations.insert_unique(single_koord);
 		}
 		link_mode=link_mode_master;
 	}
-	route_maps[route_map_elem][idx].resize(new_size);
+	route_maps[route_map_elem][idx].destinations.resize(new_size);
 }
 
 void weg_t::private_car_route_map::reset(uint8 map_elem){
 	route_maps[map_elem].clear();
 	route_maps[map_elem].resize(0);
+	// The merge bookkeeping for the element being reset must not survive it: the
+	// list indices it references are about to mean something else.
+	dirty_route_slots.clear();
+	free_route_map_lists[map_elem].clear();
+	route_map_content_index[map_elem].clear();
 }
 
-weg_t::private_car_route_map* weg_t::private_car_backtrace_last_route_map=NULL;
-uint8 weg_t::private_car_backtrace_last_idx=0;
+void weg_t::private_car_route_map::merge_duplicate_destination_lists(bool force)
+{
+	// The merge interval: the per-step recording budget (max_route_tiles_to_process_
+	// in_a_step) bounds how much new unshared data can accumulate between merges to
+	// a small amount, so merging only every few steps loses almost no memory benefit
+	// while dividing both the merge cost and the discarded copy-on-write churn by
+	// the interval. The call cadence is identical on every network peer (it follows
+	// the step sequence), so merge timing is deterministic.
+	static const uint32 merge_interval_calls = 32;
+	static uint32 calls_since_merge = 0;
+	calls_since_merge++;
+	if (!force && (calls_since_merge < merge_interval_calls || dirty_route_slots.empty()))
+	{
+		return;
+	}
+	calls_since_merge = 0;
+	const uint8 elem = weg_t::get_private_car_routes_currently_writing_element();
+
+	route_map_lock();
+
+	// Sort by tile position, then slot index, so that the merge result (which slot
+	// becomes the canonical owner of a shared list) is identical on every network
+	// peer regardless of the order in which the workers completed their writes.
+	std::sort(dirty_route_slots.begin(), dirty_route_slots.end(), [](const dirty_route_slot_t& a, const dirty_route_slot_t& b) {
+		const koord3d pa = a.way->get_pos();
+		const koord3d pb = b.way->get_pos();
+		if (pa.x != pb.x) return pa.x < pb.x;
+		if (pa.y != pb.y) return pa.y < pb.y;
+		if (pa.z != pb.z) return pa.z < pb.z;
+		return a.slot < b.slot;
+	});
+
+	weg_t* last_way = NULL;
+	uint8 last_slot = 255;
+	for (uint32 i = 0; i < dirty_route_slots.get_count(); i++)
+	{
+		weg_t* const w = dirty_route_slots[i].way;
+		const uint8 slot = dirty_route_slots[i].slot;
+		if (w == last_way && slot == last_slot)
+		{
+			continue; // Duplicate dirty entry (many destinations recorded per tile).
+		}
+		last_way = w;
+		last_slot = slot;
+
+		private_car_route_map& m = w->private_car_routes[elem][slot];
+		const uint32 n = m.get_count();
+		if (n < 2)
+		{
+			continue; // Empty, or a single destination held inline: nothing to share.
+		}
+
+		// FNV-1a over the sorted destination sequence.
+		uint64 hash = 14695981039346656037ull;
+		for (uint32 k = 0; k < n; k++)
+		{
+			const koord kk = m.get_by_index(k);
+			hash = (hash ^ (uint32)(uint16)kk.x) * 1099511628211ull;
+			hash = (hash ^ (uint32)(uint16)kk.y) * 1099511628211ull;
+		}
+
+		vector_tpl<uint32>& candidates = route_map_content_index[elem][hash];
+		bool merged = false;
+		FOR(vector_tpl<uint32>, const candidate, candidates)
+		{
+			if (candidate >= route_maps[elem].get_count())
+			{
+				continue;
+			}
+			const ordered_vector_tpl<koord,uint32>& cl = route_maps[elem][candidate].destinations;
+			if (cl.get_count() != n)
+			{
+				continue;
+			}
+			uint32 k = 0;
+			for (; k < n; k++)
+			{
+				if (cl.get_by_index(k) != m.get_by_index(k))
+				{
+					break;
+				}
+			}
+			if (k != n)
+			{
+				continue; // Hash collision only.
+			}
+			// Identical contents found.
+			if (m.link_mode == link_mode_master && m.idx == candidate)
+			{
+				merged = true; // This slot already is the registered copy.
+				break;
+			}
+			// Re-point this slot at the registered copy. The link_mode value is the
+			// slot's own index; only its being neither NULL, single nor master
+			// matters for reads and for savegames.
+			const bool was_sole_owner = (m.link_mode == link_mode_master) && !route_maps[elem][m.idx].shared;
+			const uint32 old_idx = m.idx;
+			m.idx = candidate;
+			m.link_mode = slot;
+			route_maps[elem][candidate].shared = true;
+			if (was_sole_owner)
+			{
+				// The old list is provably unreferenced by any other slot (it was
+				// private, and no new sharing is created between merges), so it is
+				// safe to clear and recycle it here.
+				route_maps[elem][old_idx].destinations.clear();
+				free_route_map_lists[elem].append(old_idx);
+			}
+			// Otherwise the old list may still be referenced by other slots: leave
+			// it in place (reclaimed at the next refresh).
+			merged = true;
+			break;
+		}
+
+		if (!merged && m.link_mode != link_mode_single)
+		{
+			// First time this content has been seen: register this slot's list as
+			// the candidate copy for later slots. A master stays privately owned
+			// (flag unchanged) until a later slot actually shares it; a linked slot
+			// references an already-shared list, which is frozen by copy-on-write.
+			bool already_registered = false;
+			FOR(vector_tpl<uint32>, const candidate, candidates)
+			{
+				if (candidate == m.idx)
+				{
+					already_registered = true;
+					break;
+				}
+			}
+			if (!already_registered)
+			{
+				candidates.append(m.idx);
+			}
+		}
+	}
+
+	dirty_route_slots.clear();
+	route_map_unlock();
+}
+
+void weg_t::private_car_route_map::clear_transient_state()
+{
+	// Called from karte_t::destroy() after the private car threads have been
+	// stopped. dirty_route_slots holds way pointers that dangle once the world's
+	// ways are deleted; the rest is list storage tied to the old world's slots.
+	dirty_route_slots.clear();
+	for (uint8 elem = 0; elem < 2; elem++)
+	{
+		route_maps[elem].clear();
+		route_maps[elem].resize(0);
+		free_route_map_lists[elem].clear();
+		route_map_content_index[elem].clear();
+	}
+}
+
+void weg_t::private_car_route_map::flag_shared_lists_loaded()
+{
+	const uint8 elem = weg_t::get_private_car_routes_currently_writing_element();
+	FOR(vector_tpl<weg_t*>, const w, alle_wege)
+	{
+		if (w->get_waytype() != road_wt)
+		{
+			continue;
+		}
+		for (uint8 d = 0; d < 5; d++)
+		{
+			const private_car_route_map& m = w->private_car_routes[elem][d];
+			if (m.link_mode != link_mode_NULL && m.link_mode != link_mode_single && m.link_mode != link_mode_master
+				&& route_maps[elem].get_count() > m.idx)
+			{
+				// A slot linked to another slot's list was loaded: the target list
+				// is shared and must be copy-on-written from now on.
+				route_maps[elem][m.idx].shared = true;
+			}
+		}
+	}
+}
+
 
 void weg_t::private_car_backtrace_begin(){
 	private_car_route_map::route_map_lock();
-	private_car_backtrace_last_route_map=NULL;
 }
 
 void weg_t::private_car_backtrace_end(){
@@ -1812,25 +1995,11 @@ void weg_t::private_car_backtrace_add(koord destination, koord3d next_tile){
 	const uint8 map_idx = get_map_idx(next_tile);
 
 	if(!map[map_idx].contains(destination)) {
-#ifdef NO_PRIVATE_CAR_DESTINATION_LINKING
-		for(uint8 i=0;i<5;i++) {
-			if(i != map_idx && map[i].remove(destination)) {
-				break;
-			}
+		if (map[map_idx].insert_unique(destination)) {
+			dirty_route_slot_t entry = { this, map_idx };
+			dirty_route_slots.append(entry);
 		}
-		map[map_idx].insert_unique(destination);
-#else
-		map[map_idx].insert_unique(destination,private_car_backtrace_last_route_map,private_car_backtrace_last_idx);
-#endif
 	}
-}
-
-void weg_t::private_car_backtrace_inc(koord3d next_tile){
-	uint8 writing_elem=get_private_car_routes_currently_writing_element();
-	auto map = private_car_routes[writing_elem];
-	const uint8 map_idx = get_map_idx(next_tile);
-	private_car_backtrace_last_route_map=map+map_idx;
-	private_car_backtrace_last_idx=map_idx;
 }
 
 void weg_t::add_private_car_route(koord destination, koord3d next_tile)
@@ -1962,9 +2131,6 @@ void weg_t::clear_travel_time_updates() {
 }
 
 koord3d weg_t::get_next_on_private_car_route_to(koord dest, bool reading_set, uint8 startdir) const {
-#ifdef NO_PRIVATE_CAR_DESTINATION_LINKING
-	startdir=0;
-#endif
 	auto map = private_car_routes[reading_set ? private_car_routes_currently_reading_element : get_private_car_routes_currently_writing_element()];
 	if(map[4].contains(dest)){
 		return koord3d::invalid;
