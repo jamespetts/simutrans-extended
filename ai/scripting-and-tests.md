@@ -31,6 +31,19 @@ verified: none
    independent of Squirrel
    [CODE master @ 49fd95a32: .github/workflows]. Mechanics:
    [build-and-toolchain](build-and-toolchain.md).
+- Smoke-harness network determinism oracle [CODE private-car-mt-network working tree,
+   2026-09-16; user-directed]: the two loopback runs are compared on their per-step
+   **semantic private-car route hash** sequences ("EXPERIMENT route hash" log lines), not on
+   byte-identity of the final saves. Byte-identity is no longer expected: private-car
+   route-map list indices are allocated while worker threads are running, in
+   thread-timing-dependent order, so semantically identical runs can produce byte-different
+   `final.sve` files (the checklist and the simulation only ever see semantic content).
+   The byte comparison remains as informational output ("NOTE:" lines). The same applies to
+   the Windows local runner `scripts/run-smoke-tests.ps1`. **Dependency:** the hash
+   diagnostic is currently a temporary branch diagnostic; before it is removed, either make
+   it a permanent debug-gated feature or canonicalise route-map list indices in the save
+   path, or this oracle breaks (tracked in [ex-15-adjacent work on private-car threading];
+   see [sync-and-determinism](sync-and-determinism.md)).
 
 ## Initial facts
 
