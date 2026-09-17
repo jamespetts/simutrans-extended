@@ -76,6 +76,25 @@ static inline uintptr_t olist_atomic_load_word(const uintptr_t *p) { return *p; 
 static inline void olist_atomic_store_word(uintptr_t *p, uintptr_t v) { *p = v; }
 #endif
 
+/* Debug builds only: bound the seqlock read retry loops. A read that retries
+ * this many times means the writer never closed its mutation window — for a
+ * same-thread read that is a self-deadlock (a re-entrant read inside the
+ * writer's own window, e.g. an object destructor reading the list during
+ * loesche_alle()); across threads it means a stuck writer. Fail loudly with a
+ * fatal instead of hanging the process silently. Release builds keep the
+ * unbounded spin, which is correct for genuine cross-thread retries. */
+#ifdef DEBUG
+#	define OLIST_SPIN_LIMIT 0x10000000u
+#	define OLIST_SPIN_CHECK(reader, counter) do { if(  ++(counter) >= OLIST_SPIN_LIMIT  ) { objlist_seqlock_spin_fatal(reader); } } while(0)
+#else
+#	define OLIST_SPIN_CHECK(reader, counter) ((void)(counter))
+#endif
+
+#ifdef DEBUG
+/* Reports an exhausted seqlock retry bound (see OLIST_SPIN_CHECK); never returns. */
+void objlist_seqlock_spin_fatal(const char *reader);
+#endif
+
 /* Taking the address of members of this packed struct (for the atomic
  * accessors) triggers -Waddress-of-packed-member on GCC/clang. The addresses
  * are safe: objlist_t is only ever instantiated as the first data member of
@@ -248,6 +267,7 @@ public:
 	*/
 	inline obj_t * bei(uint8 n) const
 	{
+		uint32 spin_count = 0;
 		for(  ;;  ) {
 			const uint8 v0 = read_version_begin();
 			const uintptr_t w = olist_atomic_load_word(&optr);
@@ -274,6 +294,7 @@ public:
 			if(  read_version_ok(v0)  ) {
 				return result;
 			}
+			OLIST_SPIN_CHECK("objlist_t::bei", spin_count);
 		}
 	}
 
