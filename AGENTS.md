@@ -82,8 +82,9 @@ uses the unauthenticated `git://` protocol and cannot accept pushes.
 - Version constants live in `simversion.h`: base `SIM_*` series + Extended `EX_*` series
   (branch-dependent!) — see `ai/savegame-versioning.md`.
 - Tests: Squirrel scripts `tests/*.nut`, run via an in-game scenario (needs built binary +
-  pakset). CI: `.github/workflows/` (Linux ASan/UBSan test runs, MSVC/Linux builds,
-  nightlies). Details: `ai/scripting-and-tests.md`.
+  pakset). CI: `.github/workflows/` (Linux ASan/UBSan smoke + headless world-generation
+  (`-generate_map`, `scripts/run-mapgen-tests.sh`) test runs, MSVC/Linux builds, nightlies).
+  Details: `ai/scripting-and-tests.md`.
 - The repo root contains much untracked/ignored clutter and some dead legacy files; see
   `ai/repo-map.md` before trusting anything found at the top level.
 

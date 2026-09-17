@@ -1,6 +1,6 @@
 ---
 status: stub
-verified: none
+verified: master @ 69b4c8c84
 ---
 # Scripting & tests
 
@@ -31,6 +31,13 @@ verified: none
    independent of Squirrel
    [CODE master @ 49fd95a32: .github/workflows]. Mechanics:
    [build-and-toolchain](build-and-toolchain.md).
+- World generation is exercised by `scripts/run-mapgen-tests.sh`: a 9-case size/seed/town-count
+   matrix driving the headless `-generate_map` mode (overrides `-map_size X,Y`, `-map_seed N`,
+   `-map_towns N`, `-map_factories N`, `-map_attractions N`, `-map_water_level N`; pass = exit 0
+   + `MAP-GEN: PASS` line + no failure markers; hangs fail via the per-run watchdog, and in DEBUG
+   builds the objlist seqlock spin assertion fatals fast instead). It runs as a step of
+   `smoke-harness.yml` (ASan gate, TSan detector, pakset-pin verification)
+   [CODE master @ 69b4c8c84: simmain.cc, scripts/run-mapgen-tests.sh, .github/workflows/smoke-harness.yml].
 - Smoke-harness network determinism oracle [CODE private-car-mt-network, 2026-09-16;
    user-directed]: the two loopback runs are compared on their per-step **semantic
    private-car route hash** sequences ("Private car route hash" log lines, computed every
@@ -59,7 +66,9 @@ verified: none
 
 ## Open questions
 
-- Can the test suite run headless, or does it need a graphical backend?
+- Can the Squirrel test suite run headless, or does it need a graphical backend? (World
+  generation can: the server build with `-generate_map` creates and reports a world without
+  entering the interactive loop [CODE master @ 69b4c8c84: simmain.cc].)
 - Root cause of the `run-tests.yml` Squirrel-suite failure (`[suspended]` error + hang) — not yet
   diagnosed. (The TSan races once reported by that job were the separate, since-fixed
   `karte_t::load`/`init_threads` family.)
