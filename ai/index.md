@@ -36,6 +36,7 @@ Note: the documents may be nested. Only top level documents are shown here.
 ## Build, data & infrastructure
 
 - [build-and-toolchain](build-and-toolchain.md) — read when compiling anything, touching build files/CI, packaging releases or nightlies, dealing with the Bridgewater-Brunel VPS/server pipeline, or dealing with backend libraries (SDL, PNG, zlib, ICU).
+- [vps-migration](vps-migration.md) — read when planning or starting the Bridgewater-Brunel VPS migration, setting up OpenCode/AI-assisted server configuration on a new server, or reproducing the test harness off GitHub CI. Future plan (not started); delivered as interactive step-by-step configuration sessions with the user.
 - [savegame-versioning](savegame-versioning.md) — MANDATORY read before touching load/save code, simversion.h, rdwr methods, or anything version-negotiation related (AGENTS.md rule 5).
 - [data-and-pak](data-and-pak.md) — read when touching descriptors (desc classes), pak/pakset data, makeobj, settings, or the dataobj/ layer.
 - [translations](translations.md) — read when adding, changing or debugging any user-facing text: translation keys, language (.tab) files, Simutranslator workflow, city/street name lists, in-game help pages, or pak-embedded object texts; deeper subdocs are keyed from it.
