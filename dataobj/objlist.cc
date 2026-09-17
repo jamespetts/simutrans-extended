@@ -581,34 +581,58 @@ static void local_delete_object(obj_t *remove_obj, player_t *player)
 }
 
 
-bool objlist_t::loesche_alle_intern(player_t *player, uint8 offset)
+// Unlinks the last deletable object (if any) without deleting it.
+// Must be called within mutation_begin()/mutation_end().
+obj_t *objlist_t::unlink_last_intern(uint8 offset)
 {
-	if(top<=offset) {
+	if(  top<=offset  ) {
+		return NULL;
+	}
+
+	if(  capacity>1  ) {
+		obj_t **a = write_array();
+		OLIST_ATOMIC_STORE(&top, top-1);
+		obj_t *const obj = array_read(a, top);
+		array_write(a, top, NULL);
+		return obj;
+	}
+	if(  capacity==1  ) {
+		obj_t *const obj = read_single();
+		store_single(NULL);
+		capacity = 0;
+		OLIST_ATOMIC_STORE(&top, 0);
+		return obj;
+	}
+	return NULL;
+}
+
+
+bool objlist_t::loesche_alle(player_t *player, uint8 offset)
+{
+	if(  get_top()<=offset  ) {
 		return false;
 	}
 
-	// something to delete?
-	bool ok=false;
+	// Unlink each object inside the seqlock write window, but delete it only
+	// after mutation_end(): destructors run arbitrary code that may read this
+	// same list (e.g. gebaeude_t::~gebaeude_t() reads it via
+	// check_road_tiles()), and a re-entrant read while mutation_version is odd
+	// spins forever in the seqlock retry loop (self-deadlock).
+	bool ok = false;
+	for(  ;;  ) {
+		mutation_begin();
+		obj_t *const obj = unlink_last_intern(offset);
+		mutation_end();
+		if(  !obj  ) {
+			break;
+		}
+		ok = true;
+		local_delete_object(obj, player);
+	}
 
-	if(capacity>1) {
-		obj_t **a = write_array();
-		while(  top>offset  ) {
-			OLIST_ATOMIC_STORE(&top, top-1);
-			local_delete_object(array_read(a, top), player);
-			array_write(a, top, NULL);
-			ok = true;
-		}
-	}
-	else {
-		if(capacity==1) {
-			local_delete_object(read_single(), player);
-			ok = true;
-			store_single(NULL);
-			capacity = 0;
-			OLIST_ATOMIC_STORE(&top, 0);
-		}
-	}
-	shrink_capacity(top);
+	mutation_begin();
+	shrink_capacity(get_top());
+	mutation_end();
 
 	return ok;
 }

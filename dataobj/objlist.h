@@ -35,6 +35,12 @@
  *  - mutation_version is a seqlock: the writer bumps it (odd) before and (even)
  *    after every structural mutation; readers retry if it changed or was odd.
  *    This gives each individual read a consistent point-in-time view.
+ *  - Object destructors must never run inside a mutation_begin/end window:
+ *    destructors execute arbitrary code that may read this same list (e.g.
+ *    gebaeude_t::~gebaeude_t reads it via check_road_tiles()), and a
+ *    re-entrant read while mutation_version is odd spins forever in the
+ *    seqlock retry loop (self-deadlock). loesche_alle() therefore unlinks
+ *    each object under the lock and deletes it after mutation_end().
  *  - Freed arrays and deleted objects are never recycled while a worker window
  *    is open (freelist_t quarantine), so a stale pointer always refers to valid
  *    memory for the duration of the window.
@@ -218,7 +224,7 @@ private:
 	bool add_intern(obj_t* new_obj);
 	bool remove_intern(const obj_t* obj);
 	obj_t *remove_last_intern();
-	bool loesche_alle_intern(player_t *player, uint8 offset);
+	obj_t *unlink_last_intern(uint8 offset);
 	void sort_trees_intern(uint8 index, uint8 count);
 
 	objlist_t(objlist_t const&);
@@ -297,13 +303,11 @@ public:
 		return r;
 	}
 
-	bool loesche_alle(player_t *player, uint8 offset)
-	{
-		mutation_begin();
-		const bool r = loesche_alle_intern(player, offset);
-		mutation_end();
-		return r;
-	}
+	// Defined in objlist.cc: unlinks each object inside the seqlock write
+	// window, but deletes it only after mutation_end() (see the design note
+	// at the top of this file: object destructors must never run inside the
+	// write window).
+	bool loesche_alle(player_t *player, uint8 offset);
 
 	// only used internal for loading. DO NOT USE OTHERWISE! Use add instead!
 	bool append(obj_t *obj)
