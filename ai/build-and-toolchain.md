@@ -353,7 +353,8 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   diffs of updated files instead of whole artifacts. The user cannot locate Nightly Updater V2's
   source; server-hasher is to be supplied by the user. Maintainability therefore uncertain.
 - VPS legacy-tier migration: which parts of the pipeline must be reproduced on a new machine, and
-  should the scripts be brought under version control (with the password removed)?
+  should the scripts be brought under version control (with the password removed)? Plan:
+  [vps-migration](vps-migration.md).
 - Server security improvements (the user intends to address these at some point): scope not yet
   defined — password handling and privilege levels are known concerns
   [RECOLLECTION:2026-09-05 user statement].

@@ -35,6 +35,12 @@
  *  - mutation_version is a seqlock: the writer bumps it (odd) before and (even)
  *    after every structural mutation; readers retry if it changed or was odd.
  *    This gives each individual read a consistent point-in-time view.
+ *  - Object destructors must never run inside a mutation_begin/end window:
+ *    destructors execute arbitrary code that may read this same list (e.g.
+ *    gebaeude_t::~gebaeude_t reads it via check_road_tiles()), and a
+ *    re-entrant read while mutation_version is odd spins forever in the
+ *    seqlock retry loop (self-deadlock). loesche_alle() therefore unlinks
+ *    each object under the lock and deletes it after mutation_end().
  *  - Freed arrays and deleted objects are never recycled while a worker window
  *    is open (freelist_t quarantine), so a stale pointer always refers to valid
  *    memory for the duration of the window.
@@ -68,6 +74,25 @@ static inline void olist_atomic_store_word(uintptr_t *p, uintptr_t v) { __atomic
 #	define OLIST_ATOMIC_STORE(p, v) ((void)(*(p) = (v)))
 static inline uintptr_t olist_atomic_load_word(const uintptr_t *p) { return *p; }
 static inline void olist_atomic_store_word(uintptr_t *p, uintptr_t v) { *p = v; }
+#endif
+
+/* Debug builds only: bound the seqlock read retry loops. A read that retries
+ * this many times means the writer never closed its mutation window — for a
+ * same-thread read that is a self-deadlock (a re-entrant read inside the
+ * writer's own window, e.g. an object destructor reading the list during
+ * loesche_alle()); across threads it means a stuck writer. Fail loudly with a
+ * fatal instead of hanging the process silently. Release builds keep the
+ * unbounded spin, which is correct for genuine cross-thread retries. */
+#ifdef DEBUG
+#	define OLIST_SPIN_LIMIT 0x10000000u
+#	define OLIST_SPIN_CHECK(reader, counter) do { if(  ++(counter) >= OLIST_SPIN_LIMIT  ) { objlist_seqlock_spin_fatal(reader); } } while(0)
+#else
+#	define OLIST_SPIN_CHECK(reader, counter) ((void)(counter))
+#endif
+
+#ifdef DEBUG
+/* Reports an exhausted seqlock retry bound (see OLIST_SPIN_CHECK); never returns. */
+void objlist_seqlock_spin_fatal(const char *reader);
 #endif
 
 /* Taking the address of members of this packed struct (for the atomic
@@ -218,7 +243,7 @@ private:
 	bool add_intern(obj_t* new_obj);
 	bool remove_intern(const obj_t* obj);
 	obj_t *remove_last_intern();
-	bool loesche_alle_intern(player_t *player, uint8 offset);
+	obj_t *unlink_last_intern(uint8 offset);
 	void sort_trees_intern(uint8 index, uint8 count);
 
 	objlist_t(objlist_t const&);
@@ -242,6 +267,7 @@ public:
 	*/
 	inline obj_t * bei(uint8 n) const
 	{
+		uint32 spin_count = 0;
 		for(  ;;  ) {
 			const uint8 v0 = read_version_begin();
 			const uintptr_t w = olist_atomic_load_word(&optr);
@@ -268,6 +294,7 @@ public:
 			if(  read_version_ok(v0)  ) {
 				return result;
 			}
+			OLIST_SPIN_CHECK("objlist_t::bei", spin_count);
 		}
 	}
 
@@ -297,13 +324,11 @@ public:
 		return r;
 	}
 
-	bool loesche_alle(player_t *player, uint8 offset)
-	{
-		mutation_begin();
-		const bool r = loesche_alle_intern(player, offset);
-		mutation_end();
-		return r;
-	}
+	// Defined in objlist.cc: unlinks each object inside the seqlock write
+	// window, but deletes it only after mutation_end() (see the design note
+	// at the top of this file: object destructors must never run inside the
+	// write window).
+	bool loesche_alle(player_t *player, uint8 offset);
 
 	// only used internal for loading. DO NOT USE OTHERWISE! Use add instead!
 	bool append(obj_t *obj)

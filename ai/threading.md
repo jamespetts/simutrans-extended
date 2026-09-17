@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 79e91affc
+verified: master @ 69b4c8c84
 ---
 # Threading
 
@@ -244,7 +244,15 @@ The mechanism making this safe has three parts:
    use atomic accessors (OLIST_ATOMIC_*) so no data race exists. `optr` is additionally the
    *publication point* for array contents (release-store/acquire-load), which orders the plain
    fresh-array initialisation writes against reader content accesses. Writer is always the main
-   thread.
+   thread. The writer must never re-enter the list as a reader inside its own mutation window:
+   a read while `mutation_version` is odd spins forever in the retry loop, so a writer whose
+   call path re-reads the same list self-deadlocks single-threaded. In particular, object
+   destructors must never run inside `mutation_begin`/`mutation_end` (destructors execute
+   arbitrary code — e.g. `gebaeude_t::~gebaeude_t` re-reads the list via `check_road_tiles`),
+   so `loesche_alle()` unlinks each object under the lock and deletes it only after
+   `mutation_end()` [CODE master @ 90a0b3ad4]. Debug builds bound every retry loop
+   (`OLIST_SPIN_CHECK`) and fatal with the reader name instead of hanging, so a stuck writer
+   fails fast [CODE master @ 70bb63703].
 2. **Reclamation quarantine (freelist_t)**: while any map-reader window is open
    (`begin_map_reader_window` in `start_convoy_threads`/`start_private_car_threads`),
    `putback_node` and object deallocation (`obj_t::operator delete` → `deferred_delete`) do not

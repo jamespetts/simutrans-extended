@@ -135,6 +135,14 @@ static uint8 type_to_pri[256]=
 };
 
 
+#ifdef DEBUG
+void objlist_seqlock_spin_fatal(const char *reader)
+{
+	dbg->fatal( reader, "objlist seqlock read retried 0x%x times without the mutation window closing: the writer (main thread) is stuck, or re-entered this same list as a reader inside its own mutation window (e.g. an object destructor running during loesche_alle)", OLIST_SPIN_LIMIT );
+}
+#endif
+
+
 // Arrays have one extra slot: element 0 is the capacity header (see objlist.h).
 // dl_free routes through the freelist quarantine: while a simulation worker
 // window is open the array is not recycled (a concurrent reader may still hold
@@ -581,34 +589,58 @@ static void local_delete_object(obj_t *remove_obj, player_t *player)
 }
 
 
-bool objlist_t::loesche_alle_intern(player_t *player, uint8 offset)
+// Unlinks the last deletable object (if any) without deleting it.
+// Must be called within mutation_begin()/mutation_end().
+obj_t *objlist_t::unlink_last_intern(uint8 offset)
 {
-	if(top<=offset) {
+	if(  top<=offset  ) {
+		return NULL;
+	}
+
+	if(  capacity>1  ) {
+		obj_t **a = write_array();
+		OLIST_ATOMIC_STORE(&top, top-1);
+		obj_t *const obj = array_read(a, top);
+		array_write(a, top, NULL);
+		return obj;
+	}
+	if(  capacity==1  ) {
+		obj_t *const obj = read_single();
+		store_single(NULL);
+		capacity = 0;
+		OLIST_ATOMIC_STORE(&top, 0);
+		return obj;
+	}
+	return NULL;
+}
+
+
+bool objlist_t::loesche_alle(player_t *player, uint8 offset)
+{
+	if(  get_top()<=offset  ) {
 		return false;
 	}
 
-	// something to delete?
-	bool ok=false;
+	// Unlink each object inside the seqlock write window, but delete it only
+	// after mutation_end(): destructors run arbitrary code that may read this
+	// same list (e.g. gebaeude_t::~gebaeude_t() reads it via
+	// check_road_tiles()), and a re-entrant read while mutation_version is odd
+	// spins forever in the seqlock retry loop (self-deadlock).
+	bool ok = false;
+	for(  ;;  ) {
+		mutation_begin();
+		obj_t *const obj = unlink_last_intern(offset);
+		mutation_end();
+		if(  !obj  ) {
+			break;
+		}
+		ok = true;
+		local_delete_object(obj, player);
+	}
 
-	if(capacity>1) {
-		obj_t **a = write_array();
-		while(  top>offset  ) {
-			OLIST_ATOMIC_STORE(&top, top-1);
-			local_delete_object(array_read(a, top), player);
-			array_write(a, top, NULL);
-			ok = true;
-		}
-	}
-	else {
-		if(capacity==1) {
-			local_delete_object(read_single(), player);
-			ok = true;
-			store_single(NULL);
-			capacity = 0;
-			OLIST_ATOMIC_STORE(&top, 0);
-		}
-	}
-	shrink_capacity(top);
+	mutation_begin();
+	shrink_capacity(get_top());
+	mutation_end();
 
 	return ok;
 }
@@ -678,6 +710,7 @@ void objlist_t::set_all_dirty()
 /* check for obj */
 bool objlist_t::ist_da(const obj_t* test_obj) const
 {
+	uint32 spin_count = 0;
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
 		const uintptr_t w = olist_atomic_load_word(&optr);
@@ -700,12 +733,14 @@ bool objlist_t::ist_da(const obj_t* test_obj) const
 		if(  read_version_ok(v0)  ) {
 			return found;
 		}
+		OLIST_SPIN_CHECK("objlist_t::ist_da", spin_count);
 	}
 }
 
 
 obj_t *objlist_t::suche(obj_t::typ typ,uint8 start) const
 {
+	uint32 spin_count = 0;
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
 		const uintptr_t w = olist_atomic_load_word(&optr);
@@ -735,12 +770,14 @@ obj_t *objlist_t::suche(obj_t::typ typ,uint8 start) const
 		if(  read_version_ok(v0)  ) {
 			return result;
 		}
+		OLIST_SPIN_CHECK("objlist_t::suche", spin_count);
 	}
 }
 
 
 obj_t *objlist_t::get_leitung() const
 {
+	uint32 spin_count = 0;
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
 		const uintptr_t w = olist_atomic_load_word(&optr);
@@ -771,12 +808,14 @@ obj_t *objlist_t::get_leitung() const
 		if(  read_version_ok(v0)  ) {
 			return result;
 		}
+		OLIST_SPIN_CHECK("objlist_t::get_leitung", spin_count);
 	}
 }
 
 
 obj_t *objlist_t::get_convoi_vehicle() const
 {
+	uint32 spin_count = 0;
 	for(  ;;  ) {
 		const uint8 v0 = read_version_begin();
 		const uintptr_t w = olist_atomic_load_word(&optr);
@@ -808,6 +847,7 @@ obj_t *objlist_t::get_convoi_vehicle() const
 		if(  read_version_ok(v0)  ) {
 			return result;
 		}
+		OLIST_SPIN_CHECK("objlist_t::get_convoi_vehicle", spin_count);
 	}
 }
 
