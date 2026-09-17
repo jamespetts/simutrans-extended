@@ -836,6 +836,7 @@ public:
 	void rotate_regions();
 
 	sint32 get_map_number() const {return map_number;}
+	void set_map_number(sint32 n) {map_number=n;}
 
 	void set_factory_count(sint32 d) { factory_count=d; }
 	sint32 get_factory_count() const {return factory_count;}
@@ -861,6 +862,7 @@ public:
 	sint8 get_minimumheight() const { return world_minimum_height; }
 
 	sint8 get_groundwater() const {return (sint8)groundwater;}
+	void set_groundwater(sint16 n) {groundwater=n;}
 
 	double get_max_mountain_height() const {return max_mountain_height;}
 

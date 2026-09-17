@@ -475,6 +475,16 @@ void print_help()
 		" -freeplay           play with endless money\n"
 		" -fullscreen         starts simutrans in fullscreen mode\n"
 		" -fps COUNT          framerate (from 5 to 100)\n"
+		" -generate_map       create a new world from the default settings plus the\n"
+		"                     -map_* overrides below, print MAP-GEN: PASS, and quit\n"
+		"                     without entering the game loop (for scripted testing);\n"
+		"                     takes precedence over -load and -scenario\n"
+		" -map_size X,Y       with -generate_map: map size in tiles (min 16,16)\n"
+		" -map_seed N         with -generate_map: map generation seed (map number)\n"
+		" -map_towns N        with -generate_map: number of towns\n"
+		" -map_factories N    with -generate_map: target number of factories\n"
+		" -map_attractions N  with -generate_map: number of tourist attractions\n"
+		" -map_water_level N  with -generate_map: sea/groundwater level (height units)\n"
 		" -h | -help | --help displays this help\n"
 		" -lang CODE          starts with specified language\n"
 		" -load NAME          loads savegame with name 'NAME' from Simutrans 'save' directory\n"
@@ -1605,6 +1615,50 @@ int simu_main(int argc, char** argv)
 	setsimrand(dr_time(), dr_time());
 	clear_random_mode( 7 ); // allow all
 
+	// Headless world generation for scripted testing/CI (-generate_map):
+	// create a world from env_t::default_settings with the optional -map_*
+	// overrides, report the result on stdout, and quit without entering the
+	// interactive loop. Takes precedence over -load/-scenario (ignored).
+	bool world_generated_headless = false;
+	if(  args.has_arg("-generate_map")  ) {
+		settings_t *const sets = &env_t::default_settings;
+		if(  const char *p = args.gimme_arg("-map_size", 1)  ) {
+			int x = 0, y = 0;
+			if(  sscanf(p, "%d,%d", &x, &y) == 2  &&  x >= 16  &&  y >= 16  ) {
+				sets->set_size(x, y);
+			}
+			else {
+				dbg->warning("simu_main()", "Ignoring malformed -map_size \"%s\" (expected -map_size X,Y with X,Y >= 16)", p);
+			}
+		}
+		if(  const char *p = args.gimme_arg("-map_seed", 1)  ) {
+			sets->set_map_number( atol(p) );
+		}
+		if(  const char *p = args.gimme_arg("-map_towns", 1)  ) {
+			sets->set_city_count( atoi(p) );
+		}
+		if(  const char *p = args.gimme_arg("-map_factories", 1)  ) {
+			sets->set_factory_count( atoi(p) );
+		}
+		if(  const char *p = args.gimme_arg("-map_attractions", 1)  ) {
+			sets->set_tourist_attractions( atoi(p) );
+		}
+		if(  const char *p = args.gimme_arg("-map_water_level", 1)  ) {
+			sets->set_groundwater( (sint16)clamp(atoi(p), -32, 32) );
+		}
+		sets->heightfield = ""; // generate from the seed, as the GUI does when no relief is loaded
+		dbg->message("simu_main()", "Headless map generation: size=%dx%d seed=%d towns=%d factories=%d attractions=%d",
+			sets->get_size_x(), sets->get_size_y(), sets->get_map_number(), sets->get_city_count(), sets->get_factory_count(), sets->get_tourist_attractions() );
+		welt->init( sets, 0 );
+		printf( "MAP-GEN: PASS size=%dx%d seed=%d towns=%d (cities=%u factories=%u)\n",
+			sets->get_size_x(), sets->get_size_y(), sets->get_map_number(), sets->get_city_count(),
+			welt->get_cities().get_count(), welt->get_fab_list().get_count() );
+		fflush( stdout );
+		new_world = false; // suppress the default-world creation and banner below
+		world_generated_headless = true;
+		env_t::quit_simutrans = true; // run the normal shutdown path, skip the interactive loop
+	}
+
 	scenario_t *scen = NULL;
 	if(  const char *scen_name = args.gimme_arg("-scenario", 1)  ) {
 		scen = new scenario_t(welt);
@@ -1631,7 +1685,7 @@ int simu_main(int argc, char** argv)
 		}
 	}
 
-	if(  scen == NULL && (loadgame==""  ||  !welt->load(loadgame.c_str()))  ) {
+	if(  scen == NULL  &&  !world_generated_headless  &&  (loadgame==""  ||  !welt->load(loadgame.c_str()))  ) {
 		// no autosave on initial map during the first six months
 		loadgame = "";
 		new_world = true;

@@ -3,7 +3,9 @@
 #
 # Builds the engine (DEBUG + sanitizer variant: ASan+UBSan default, or TSan) and a plain
 # makeobj from the same checkout, compiles pak128.Britain-Ex from a pinned pakset commit
-# with that makeobj, and runs scripts/run-smoke-tests.sh in network mode. Called by run-tests.yml
+# with that makeobj, and runs scripts/run-smoke-tests.sh in network mode followed by
+# scripts/run-mapgen-tests.sh (headless world-generation matrix via -generate_map).
+# Called by run-tests.yml
 # (blocking ASan variant), tsan-smoke.yml (non-blocking TSan regression detector; the
 # karte_t::load/init_threads race family that made it knowingly red is fixed) and
 # pakset-pin.yml (pin-candidate verification,
@@ -149,6 +151,14 @@ jobs:
           runner_args+=(--until "$HARNESS_UNTIL")
         fi
         bash scripts/run-smoke-tests.sh "${runner_args[@]}"
+    - name: Run world-generation tests
+      run: |
+        if [ "${{ inputs.sanitizer }}" = "tsan" ]; then
+          markers="FATAL ERROR|ThreadSanitizer|runtime error"
+        else
+          markers="FATAL ERROR|AddressSanitizer|runtime error"
+        fi
+        bash scripts/run-mapgen-tests.sh --exe "$ENGINE_BIN" --timeout "${{ inputs.runner_timeout_s }}" --markers "$markers"
     - name: Upload logs and results on failure
       if: failure()
       uses: actions/upload-artifact@v4
@@ -157,4 +167,5 @@ jobs:
         path: |
           ai/temp/simutest/logs
           ai/temp/simutest/results
+          ai/temp/mapgen/logs
         if-no-files-found: ignore
