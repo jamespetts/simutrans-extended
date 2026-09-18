@@ -35,6 +35,7 @@
 
 #include "simintr.h"
 #include "simdebug.h"
+#include "sys/simsys.h"
 
 #include "obj/gebaeude.h"
 #include "obj/roadsign.h"
@@ -5655,6 +5656,7 @@ void stadt_t::build(bool new_town, bool map_generation)
 // find suitable places for cities
 vector_tpl<koord>* stadt_t::random_place(const karte_t* wl, const vector_tpl<sint32> *sizes_list, sint16 old_x, sint16 old_y)
 {
+	uint32 ms_t = dr_time();
 	unsigned number_of_clusters = env_t::number_of_clusters;
 	unsigned cluster_size = env_t::cluster_size;
 	const int grid_step = 8;
@@ -5948,6 +5950,7 @@ vector_tpl<koord>* stadt_t::random_place(const karte_t* wl, const vector_tpl<sin
 		}
 	}
 	delete list;
+	dbg->message("MAPGEN-T","random_place %ux%u: %u ms (%u found)", wl->get_size().x, wl->get_size().y, dr_time()-ms_t, result->get_count());
 	return result;
 }
 

@@ -893,6 +893,7 @@ void karte_t::add_queued_city(stadt_t* city)
 
 void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sint16 old_y)
 {
+	uint32 ms_t = dr_time();
 	sint32 new_city_count = abs(sets->get_city_count());
 
 	const uint32 number_of_big_cities = env_t::number_of_big_cities;
@@ -941,6 +942,8 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 #endif
 
 	vector_tpl<koord> *pos = stadt_t::random_place(this, &city_population, old_x, old_y);
+	dbg->message("MAPGEN-T","random_place (city position search): %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	if (pos->empty()) {
 		// could not generate any town
@@ -976,15 +979,20 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		const uint32 tbegin = dr_time();
 #endif
 		for (unsigned i = 0; i < new_city_count; i++) {
+			const uint32 ms_city = dr_time();
 			stadt_t* s = new stadt_t(get_public_player(), (*pos)[i], 1);
 			DBG_DEBUG("karte_t::distribute_groundobjs_cities()", "Erzeuge stadt %i with %ld inhabitants", i, (s->get_city_history_month())[HIST_CITIZENS]);
+			const uint32 ms_city_buildings = s->get_buildings();
 			if (s->get_buildings() > 0) {
 				add_city(s);
 			}
 			else {
 				delete(s);
 			}
+			dbg->message("MAPGEN-T","city %u: %u ms (built %u buildings)", i, dr_time()-ms_city, ms_city_buildings);
 		}
+		dbg->message("MAPGEN-T","all towns total: %u ms", dr_time()-ms_t);
+		ms_t = dr_time();
 
 		delete pos;
 #ifdef DEBUG
@@ -1066,6 +1074,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 
 
 	// Hajo: connect some cities with roads
+	uint32 ms_ic = dr_time();
 	ls.set_what(translator::translate("Connecting cities ..."));
 	way_desc_t const* desc = settings.get_intercity_road_type(get_timeline_year_month());
 	if (desc == NULL || !settings.get_use_timeline()) {
@@ -1291,6 +1300,7 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		}
 		delete test_driver;
 	}
+	dbg->message("MAPGEN-T","intercity roads (spanning tree + completion): %u ms (connections attempted: %i)", dr_time()-ms_ic, count);
 }
 
 void karte_t::distribute_groundobjs_cities( settings_t const * const sets, sint16 old_x, sint16 old_y)
@@ -1392,6 +1402,8 @@ static uint32 calc_name_list_seed(const settings_t &sets)
 
 void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 {
+	uint32 ms_init = dr_time();
+	uint32 ms_t = ms_init;
 	clear_random_mode( 7 );
 	mute_sound(true);
 	if (env_t::networkmode) {
@@ -1429,6 +1441,8 @@ void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 	// founded (distribute_cities, below). Generation is deterministic and
 	// seeded from the saved map settings, so all peers produce identical lists.
 	translator::init_custom_names(settings.get_name_language_id(), calc_name_list_seed(settings));
+	dbg->message("MAPGEN-T","name lists (init_custom_names): %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	ticks = 0;
 	last_step_ticks = ticks;
@@ -1478,16 +1492,24 @@ DBG_DEBUG("karte_t::init()","hausbauer_t::new_world()");
 
 DBG_DEBUG("karte_t::init()","init_tiles");
 	init_tiles();
+	dbg->message("MAPGEN-T","init_tiles: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	enlarge_map(&settings, h_field);
+	dbg->message("MAPGEN-T","enlarge_map total: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 DBG_DEBUG("karte_t::init()","distributing trees");
 	if (!settings.get_no_trees()) {
 		tree_builder_t::distribute_trees(3, 0, 0, get_size().x, get_size().x);
 	}
+	dbg->message("MAPGEN-T","distribute_trees: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 DBG_DEBUG("karte_t::init()","built timeline");
 	private_car_t::build_timeline_list(this);
+	dbg->message("MAPGEN-T","build_timeline_list: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	nosave_warning = nosave = false;
 
@@ -1512,12 +1534,16 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	}
 
 	settings.set_factory_count( fab_list.get_count() );
+	dbg->message("MAPGEN-T","factories (industry density loop): %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 	finance_history_year[0][WORLD_FACTORIES] = finance_history_month[0][WORLD_FACTORIES] = fab_list.get_count();
 
 	// tourist attractions
 	ls.set_what(translator::translate("Placing attractions ..."));
 	// Not worth actually constructing a progress bar, very fast
 	factory_builder_t::distribute_attractions(settings.get_tourist_attractions());
+	dbg->message("MAPGEN-T","attractions: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	ls.set_what(translator::translate("Finalising ..."));
 	// Not worth actually constructing a progress bar, very fast
@@ -1587,6 +1613,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 #else
 	transferring_cargoes = new vector_tpl<transferring_cargo_t>[1];
 #endif
+	dbg->message("MAPGEN-T","init TOTAL: %u ms", dr_time()-ms_init);
 }
 
 void karte_t::recalc_passenger_destination_weights()
@@ -2822,6 +2849,7 @@ void karte_t::init_height_to_climate()
 
 void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 {
+	uint32 ms_t = dr_time();
 	sint16 new_size_x = sets->get_size_x();
 	sint16 new_size_y = sets->get_size_y();
 	//const sint32 map_size = max (new_size_x, new_size_y);
@@ -2938,6 +2966,8 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 		}
 		exit_perlin_map();
 	}
+	dbg->message("MAPGEN-T","heights/perlin: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	/** @note First we'll copy the border heights to the adjacent tile.
 	 * The best way I could find is raising the first new grid point to
@@ -2981,12 +3011,16 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 
 	// smooth the new part, reassign slopes on new part
 	cleanup_karte( old_x, old_y );
+	dbg->message("MAPGEN-T","cleanup_karte: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 	if (  old_x == 0  &&  old_y == 0  ) {
 		ls.set_progress(4);
 	}
 
 	if(  sets->get_lake()  ) {
 		create_lakes( old_x, old_y );
+		dbg->message("MAPGEN-T","create_lakes: %u ms", dr_time()-ms_t);
+		ms_t = dr_time();
 	}
 
 	if (  old_x == 0  &&  old_y == 0  ) {
@@ -2999,11 +3033,15 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 			calc_climate( koord( ix, iy ), false );
 		}
 	}
+	dbg->message("MAPGEN-T","climates: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 	if (  old_x == 0  &&  old_y == 0  ) {
 		ls.set_progress(14);
 	}
 
 	create_beaches( old_x, old_y );
+	dbg->message("MAPGEN-T","create_beaches: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 	if (  old_x == 0  &&  old_y == 0  ) {
 		ls.set_progress(15);
 	}
@@ -3022,6 +3060,8 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 
 		ls.set_progress(16);
 	}
+	dbg->message("MAPGEN-T","recalc_transitions: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	// now recalc the images of the old map near the seam ...
 	for(  sint16 y = 0;  y < old_y - 20;  y++  ) {
@@ -3053,6 +3093,8 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 	}
 
 	distribute_groundobjs_cities(sets, old_x, old_y);
+	dbg->message("MAPGEN-T","groundobjs+cities total: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	// Now add all the buildings to the world list.
 	// This is not done in distribute_groundobjs_cities
@@ -3077,6 +3119,8 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 			target->set_building_tiles();
 		}
 	}
+	dbg->message("MAPGEN-T","post-process building/world lists: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	FOR(weighted_vector_tpl<gebaeude_t*>, const target, mail_origins_and_targets)
 	{
