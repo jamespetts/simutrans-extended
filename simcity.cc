@@ -899,8 +899,15 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	clear_ptr_vector( house_rules );
 	for (uint32 i = 0; i < num_house_rules; i++) {
 		house_rules.append(new rule_t());
+		// The rule weight property was named "chance" until commit aa88e8679 (April 2017)
+		// renamed it to "distribution_weight" without any pakset being updated, so every
+		// Extended pakset since then wrote ".chance" keys that the code no longer read
+		// (all rule weights silently defaulting to 0). Read both: the legacy ".chance"
+		// property first, overridden by ".distribution_weight" where present.
+		sprintf(buf, "house_%u.chance", i + 1);
+		const sint32 chance_weight = contents.get_int(buf, 0);
 		sprintf(buf, "house_%u.distribution_weight", i + 1);
-		house_rules[i]->distribution_weight = contents.get_int(buf, 0);
+		house_rules[i]->distribution_weight = contents.get_int(buf, chance_weight);
 
 		sprintf(buf, "house_%u", i + 1);
 		const char* rule = contents.get_string(buf, "");
@@ -947,8 +954,12 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	clear_ptr_vector( road_rules );
 	for (uint32 i = 0; i < num_road_rules; i++) {
 		road_rules.append(new rule_t());
+		// See the house-rule weight comment above: read the legacy ".chance" property
+		// first, overridden by ".distribution_weight" where present.
+		sprintf(buf, "road_%d.chance", i + 1);
+		const sint32 chance_weight = contents.get_int(buf, 0);
 		sprintf(buf, "road_%d.distribution_weight", i + 1);
-		road_rules[i]->distribution_weight = contents.get_int(buf, 0);
+		road_rules[i]->distribution_weight = contents.get_int(buf, chance_weight);
 
 		sprintf(buf, "road_%d", i + 1);
 		const char* rule = contents.get_string(buf, "");
