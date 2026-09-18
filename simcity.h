@@ -273,6 +273,42 @@ private:
 
 	sint32 number_of_cars;
 
+#if defined DEBUG || defined PROFILE
+public:
+	// Map-generation growth diagnostics (local instrumentation; not saved, not networking state).
+	struct growth_diag_t {
+		uint32 growth_steps;              // citizen steps processed by step_grow_city
+		uint32 build_attempt_rounds;      // inner build-attempt loops started
+		uint32 build_attempt_rounds_fail; // ... of which exhausted num_tries
+		uint32 build_calls;               // stadt_t::build() calls
+		uint32 sweeps;                    // candidate-list rebuilds in build()
+		uint32 candidates_created;        // natur tiles collected across all sweeps
+		uint32 candidates_checked;        // candidates drawn and evaluated
+		uint32 enlarge_ok, enlarge_fail;  // enlarge_city_borders() outcomes in build()
+		uint32 road_rule_match;           // maybe_build_road: a road rule matched
+		uint32 road_build_fail;           // ... but build_road refused
+		uint32 road_built;
+		uint32 br_noboden;                // build_road refusals by reason: tile not plain boden (water/bridge/tunnel/foundation)
+		uint32 br_wayconflict, br_private, br_objects;
+		uint32 br_slope, br_flattens, br_track, br_excessive, br_bridge, br_noconn, br_ok;
+		uint32 house_rule_match;          // bewerte_haus found a site -> build_city_building
+		uint32 gbc_reject_natur;          // build_city_building refusals by reason
+		uint32 gbc_reject_object;
+		uint32 gbc_reject_slope;
+		uint32 gbc_reject_nodesc;         // site fine, no available building desc
+		uint32 gbc_built;
+		uint32 runway_skips;              // candidates rejected by nearby-runway check
+		uint32 spez_attraction_place;     // check_bau_spezial: attraction placement search run
+		uint32 spez_monument_place;       // check_bau_spezial: monument placement search run
+		uint32 max_empty_build_streak;    // longest run of build() calls that made nothing (current run: empty_build_streak)
+		uint32 empty_build_streak;
+		uint64 ms_build_attempts;         // time in the inner build-attempt loops
+		uint64 ms_spezial, ms_townhall, ms_factory; // time in per-citizen check_bau_* calls
+	};
+	growth_diag_t growth_diag;
+private:
+#endif
+
 public:
 
 	void add_building_to_list(gebaeude_t* building, bool ordered = false, bool do_not_add_to_world_list = false, bool do_not_update_stats = false);

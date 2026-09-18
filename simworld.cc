@@ -1050,6 +1050,29 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 			// the growth is slow, so update here the progress bar
 			ls.set_progress(++old_progress);
 			dbg->message("MAPGEN-T","city growth %u: %u ms (population %i, buildings %u)", i, dr_time()-ms_gi, cities[i]->get_einwohner(), cities[i]->get_buildings());
+#if defined DEBUG || defined PROFILE
+			{
+				// NOTE: koord::get_str() shares one static buffer; never pass several to one message.
+				const stadt_t::growth_diag_t& gd = cities[i]->growth_diag;
+				const koord th = cities[i]->get_pos();
+				const koord clo = cities[i]->get_linksoben();
+				const koord cur = cities[i]->get_rechtsunten();
+				dbg->message("MAPGEN-D","city %u ctx: townhall %i,%i climate %i region %i hgt %i bounds %i,%i..%i,%i",
+					i, th.x, th.y, (int)get_climate(th), (int)get_region(th), (int)max_hgt(th), clo.x, clo.y, cur.x, cur.y);
+				dbg->message("MAPGEN-D","city %u steps %u rounds %u/%u builds %u sweeps %u cand %u/%u enlarge %u/%u",
+					i, gd.growth_steps, gd.build_attempt_rounds, gd.build_attempt_rounds_fail, gd.build_calls, gd.sweeps,
+					gd.candidates_checked, gd.candidates_created, gd.enlarge_ok, gd.enlarge_fail);
+				dbg->message("MAPGEN-D","city %u road %u/%u/%u (match/fail/built) house %u gbc %u/%u/%u/%u/%u (natur/obj/slope/nodesc/built) runway %u",
+					i, gd.road_rule_match, gd.road_build_fail, gd.road_built, gd.house_rule_match,
+					gd.gbc_reject_natur, gd.gbc_reject_object, gd.gbc_reject_slope, gd.gbc_reject_nodesc, gd.gbc_built, gd.runway_skips);
+				dbg->message("MAPGEN-D","city %u br %u/%u/%u/%u/%u/%u/%u/%u/%u (noboden/wconf/priv/obj/slope/flat/track/excs/bridge) noconn %u ok %u",
+					i, gd.br_noboden, gd.br_wayconflict, gd.br_private, gd.br_objects, gd.br_slope, gd.br_flattens,
+					gd.br_track, gd.br_excessive, gd.br_bridge, gd.br_noconn, gd.br_ok);
+				dbg->message("MAPGEN-D","city %u ms %u/%u/%u/%u (build/spez/town/fact) fp attr %u mon %u empty streak %u/%u (cur/max)",
+					i, (unsigned)gd.ms_build_attempts, (unsigned)gd.ms_spezial, (unsigned)gd.ms_townhall, (unsigned)gd.ms_factory,
+					gd.spez_attraction_place, gd.spez_monument_place, gd.empty_build_streak, gd.max_empty_build_streak);
+			}
+#endif
 		}
 		dbg->message("MAPGEN-T","city growth TOTAL: %u ms", dr_time()-ms_g);
 
