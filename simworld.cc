@@ -1014,7 +1014,9 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 		uint32 original_industry_growth = settings.get_industry_increase_every();
 		settings.set_industry_increase_every(0);
 
+		uint32 ms_g = dr_time();
 		for (uint32 i = old_city_count; i < cities.get_count(); i++) {
+			const uint32 ms_gi = dr_time();
 			// Hajo: do final init after world was loaded/created
 			cities[i]->finish_rd();
 
@@ -1047,7 +1049,9 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 
 			// the growth is slow, so update here the progress bar
 			ls.set_progress(++old_progress);
+			dbg->message("MAPGEN-T","city growth %u: %u ms (population %i, buildings %u)", i, dr_time()-ms_gi, cities[i]->get_einwohner(), cities[i]->get_buildings());
 		}
+		dbg->message("MAPGEN-T","city growth TOTAL: %u ms", dr_time()-ms_g);
 
 		current_month = original_start_year;
 		settings.set_industry_increase_every(original_industry_growth);
@@ -1305,17 +1309,22 @@ void karte_t::distribute_cities(settings_t const * const sets, sint16 old_x, sin
 
 void karte_t::distribute_groundobjs_cities( settings_t const * const sets, sint16 old_x, sint16 old_y)
 {
+	uint32 ms_t = dr_time();
 	DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing groundobjs");
 
 	if (env_t::river_types > 0 && settings.get_river_number() > 0) {
 		create_rivers(settings.get_river_number());
 	}
+	dbg->message("MAPGEN-T","create_rivers: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	sint32 new_city_count = abs(sets->get_city_count());
 	// Do city and road creation if (and only if) cities were requested.
 	if (new_city_count > 0) {
 		this->distribute_cities(sets, old_x, old_y);
 	}
+	dbg->message("MAPGEN-T","distribute_cities TOTAL: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 	DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing groundobjs");
 	if(  env_t::ground_object_probability > 0  ) {
@@ -1347,6 +1356,8 @@ void karte_t::distribute_groundobjs_cities( settings_t const * const sets, sint1
 			}
 		}
 	}
+	dbg->message("MAPGEN-T","groundobjs scatter: %u ms", dr_time()-ms_t);
+	ms_t = dr_time();
 
 
 DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing movingobjs");
@@ -1377,6 +1388,7 @@ DBG_DEBUG("karte_t::distribute_groundobjs_cities()","distributing movingobjs");
 			}
 		}
 	}
+	dbg->message("MAPGEN-T","movingobjs scatter: %u ms", dr_time()-ms_t);
 }
 
 
