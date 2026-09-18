@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: mapgen-perf-fixes @ 1b342600b
+verified: mapgen-perf-fixes @ 652568623
 ---
 # Performance & profiling
 
@@ -151,63 +151,66 @@ non-interactively [EXECUTION-VERIFIED:2026-09-10]:
 
 ## Mapgen profiling (`-generate_map`)
 
-Alternative profiling target to the play fixture: headless world generation. Measured 2026-09-18
-on branch `mapgen-perf-fixes` @ a3e08150b (0954e8c3c + local timing instrumentation
-2a99f36c5/a3e08150b), `Profile (server)|x64` and `Optimised debug|x64` [EXECUTION-VERIFIED:2026-09-18].
+Alternative profiling target to the play fixture: headless world generation, fully deterministic
+from `-map_seed` (all RNG streams seeded, simmain.cc) — an identical seed yields an identical
+`MAP-GEN:` result line across server/GUI and release/optimised-debug builds. That line, plus the
+instrumentation counters below, is the oracle for proving a change output-invariant
+[EXECUTION-VERIFIED:2026-09-18].
 
-- **Reproducibility requirement:** 0954e8c3c (simmain.cc) makes `-generate_map` seed ALL RNG
-  streams from `-map_seed`; before it, wall-clock/save seeding made A/B or replay comparisons
-  meaningless. A runner must additionally delete `settings-extended.xml` from the working
-  directory before every run — map settings persist between runs. With both, an identical seed
-  yields an identical `MAP-GEN:` result line across server/GUI and release/optimised-debug.
-- **Phase timings:** `MAP-GEN-T` `dbg->message` lines (instrumentation above; local test commits)
-  bound `karte_t::init` phases and per-city growth. Debug-build caveat: worldgen floods
-  `way_builder_t::init_builder` log lines at MSG_LEVEL ≥ 3 (~19k lines on the 42-city map;
-  simcity.cc constructs a `way_builder_t` per direction only to call `check_slope`) — ~2% total
-  cost in Optimised debug, but per-line flushing can dominate in a true unoptimised Debug build;
-  profile on Profile (logging caveat above).
-- **Phase costs** (1024×1024, seed 42, water −2, 50 towns requested → 42 placed, init total
-  ≈ 126 s): city-growth loop **117.5 s (93%)**; `create_rivers` 6.9 s (5.5%); everything else
-  ≈ 1% (intercity roads 1.1 s; heights/perlin 54 ms; cleanup 95 ms; climates 17 ms; beaches
-  32 ms; transitions 30 ms; all `random_place` 0.44 s; name lists 0.3 s).
-- **Generation hotspots** (ETW whole-generation trace, 393k samples, self %):
-  `stadt_t::bewerte_loc` 27.4, `simrand` 13.5 (+`float32e8_t::MTgenerate` 2.0),
-  `stadt_t::bewerte_loc_has_public_road` 10.4, `grund_t::get_weg` 10.0, `stadt_t::build` 7.7,
-  `stadt_t::reset_city_borders` 5.4, `stadt_t::maybe_build_road` 5.1. objlist/freelist/route
-  costs negligible — **the September 2026 race-fix batch (objlist seqlock 07ad4ef13, freelist
-  quarantine, per-world name lists, `loesche_alle` windowing) had NO measurable gen effect:
-  HEAD-vs-pre-batch ratios 0.995–1.03 across release/optimised-debug × server/GUI with identical
-  generated output** [EXECUTION-VERIFIED:2026-09-18; A/B baseline worktree at ac81f463c with
-  test-only backports of `-generate_map` and the seed fix — branch `ab-base-ac81f463c`, never
-  merge].
-- **Pathological growth churn — ROOT-CAUSED and largely fixed 2026-09-18.** Mechanism (verified
-   per-city with MAPGEN-D counters, case D): city sites where `stadt_t::build_road` refuses ~91–98%
-   of road-rule matches at the slope branch (non-way slope + `can_flatten_tile` refusal; br_flattens=0
-   at stuck sites vs 528 at city 0) → hardly any roads → house rules (all need adjacent public road)
-   almost never match → no buildings → `reset_city_borders` (called only on *building* success) never
-   shrinks bounds while every failed `build()` enlarges them up to 4x (enlarge only refuses other-city
-   tiles/map edge; isolated sites always succeed — city 11 grew to 607x121 tiles, leaking permanent
-   city-owned territory) → each empty `build()` re-sweeps every natur tile in the grown bounds at
-   ~58 gated rule draws/candidate (city 11: 20.05M candidate evaluations ≈ 46.5 s of its 47.6 s).
-   Six cities had max-empty-build streaks 222–1168 vs ≤19 for healthy ones. **The cityrules weight fix
-   (master 206db8379, merged here 1b342600b) removed most of it**: guaranteed road_23/24 join rules +
-   higher match rates let road networks bootstrap on hilly sites — city 11: 47.6 s→0.84 s with
-   609 buildings (was 9); growth TOTAL 117.5 s → 74.0 s; wall 125→85 s. Cities 3/39 still stall
-   mildly (max streak 416/215, 2.1 s/0.9 s — bounded for now). **All pre-fix baselines below are stale
-   for A/B purposes** (output changed: same seed → different map; the ETW hotspot table was measured
-   pre-fix). City 0 (57.3 s, 16.5k buildings, legitimate) is now 77% of the growth phase; remaining
-   optimisation candidates: per-`build()`-call memoised rule flags (output-invariant), stall bound
-   (~100 empty build() calls; would need threshold margin verified across seeds/sizes first),
-   batching `reset_city_borders` (5.4% self at city 0 sizes). Details: [known-bugs](known-bugs.md) P2.
-- Placement anomalies (open, pre-existing): fewer towns placed than requested (50 → 42 on 1024²,
-   50 → 19 on 600², 50 → 3 on 300² — spacing/isolation constraints); factory counts do not match
-   `-map_factories` (8 requested → 32 placed on 1024² pre-fix; → 13 post cityrules-fix, ab10); and
-   placed-factory count varies across *Optimised-debug* builds on one seed while release builds match
-   each other — factory placement is config-sensitive in DEBUG builds [EXECUTION-VERIFIED:2026-09-18].
-- Two cityName/legend-vs-code mismatches noted while root-causing (cosmetic; any behavioural fix would
-   change output): `bewerte_loc` 'S' is implemented as `!has_public_road` (private-road tiles pass,
-   contrary to its comment), and 'U'/'u' code semantics are inverted relative to the cityrules.tab
-   legend [CODE mapgen-perf-fixes @ 1b342600b].
+Canonical profiling case: `-generate_map -map_size 1024,1024 -map_seed 42 -map_towns 50
+-map_factories 8 -map_attractions 4 -map_water_level -2`, pak128.Britain-Ex-0.9.4,
+`Profile (server)|x64`. Invariant line at mapgen-perf-fixes @ 652568623:
+`MAP-GEN: PASS size=1024x1024 seed=42 towns=50 (cities=42 factories=13)`.
+
+Runner hygiene [EXECUTION-VERIFIED:2026-09-18]:
+- Delete `settings-extended.xml` from the working directory before every run (map settings
+  persist between runs); DEBUG-config builds use `settings-extended-debug.xml` instead (simmain.cc).
+- MSBuild silently skips a source file whose timestamp is older than its `.obj` — PowerShell
+  `Copy-Item` preserves timestamps, so fix them after restoring A/B sources from a copy.
+- Profile the `Profile` configuration: at `-debug ≥ 3` worldgen floods `way_builder_t::init_builder`
+  log lines (~19k on the 42-city map; simcity.cc constructs a `way_builder_t` per direction only
+  to call `check_slope`), and per-line log flushing dominates unoptimised Debug builds.
+
+Instrumentation: `MAP-GEN-T` phase timings and `MAPGEN-D` per-city growth counters exist as
+LOCAL-ONLY commits on `mapgen-perf-fixes` (2a99f36c5/a3e08150b, 479523d90 — strip before PR;
+counter fields documented at `stadt_t::growth_diag_t`). DEBUG||PROFILE-gated, no RNG consumed,
+counter-identical across repeat runs. For ETW, trace the whole generation via the pipeline above
+and analyse while the PDB still matches the binary being profiled.
+
+Current cost structure (canonical case; init ≈ 69 s) [EXECUTION-VERIFIED:2026-09-18]:
+- City growth ≈ 60 s (~87%), of which the largest city (16.5k buildings) ≈ 46–48 s;
+  `create_rivers` ≈ 7 s; every other phase ≲ 1%.
+- Growth hotspots (ETW, self % of in-process samples): `stadt_t::bewerte_loc` 28.9 (rule-entry
+  loop over candidates × rules × rotations), `stadt_t::build` 10.2 (candidate-collection sweep:
+  every `build()` call re-collects all natur tiles in bounds), `simrand` 10.0 (rule gate draws —
+  these define the output and cannot be removed without changing it), `stadt_t::reset_city_borders`
+  9.0 (runs on every building success), `stadt_t::compute_loc_flags` 6.1, `grund_t::get_weg` 5.5.
+- Next targets in that order: the candidate-collection sweep, then `reset_city_borders` batching.
+
+City-growth structure needed to work on it safely [CODE mapgen-perf-fixes @ 652568623]:
+- Growth uses an exhaustive candidate sweep with enlarge-bounds-on-failure — the deliberate
+  Extended divergence (7bd1947ea). Standard's `build()` (checked at its current master, 2026-09)
+  is the single-random-tile algorithm, which survives in Extended only as the
+  `quick_city_growth=1` path; no upstream port of the sweep exists.
+- The `bewerte_loc` tile predicates (public road, fundament/house, natur, slope, stop) are
+  memoised per sweep (`stadt_t::loc_cache_*`, rect = bounds+3, sweeps with ≥ 64 candidates).
+  INVARIANT for anyone touching `build()`/`build_road`: the cache is valid only while no tile
+  mutates — any tile mutation during a sweep (terraformation, excess-road removal, road/bridge
+  construction) must deactivate it for the rest of the call; the current deactivation points are
+  the flatten/water-remediation block and the head of the `connection_roads` mutation cluster in
+  `build_road`.
+- Failed sweeps enlarge the bounds (up to 4× per `build()`); enlarged rows are marked
+  `set_city(this)` and only unmarked on building *success* (`reset_city_borders`) — the resulting
+  bounds leak is open (→ [known-bugs](known-bugs.md)). Mild stalls at hilly sites (≈1–2 s per
+  affected city at 1024²) are accepted behaviour; a stall cap was rejected as contrary to growth
+  design intent.
+- Rule gating: a rule is evaluated when `simrand(8 + distribution_weight) == 0`; weight −8 =
+  guaranteed and consumes no RNG (`simrand(0)` draws nothing). Pakset `.chance` and
+  `.distribution_weight` keys are both read (→ [economy-and-passengers](economy-and-passengers.md)).
+- Output caveats: generated town/factory counts differ from the requested numbers
+  (→ [known-bugs](known-bugs.md)); two `bewerte_loc` legend-vs-code mismatches are cosmetic and
+  fixing them would change output: 'S' passes private-road tiles, and 'U'/'u' are inverted
+  relative to the cityrules.tab legend.
 
 ## Hotspots
 

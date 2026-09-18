@@ -165,7 +165,6 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
-| City-growth churn during map generation: stuck city sites burn outsized generation time in `stadt_t::build` candidate re-sweeps (not a forum report: measured 2026-09-18, mapgen-perf-fixes @ a3e08150b) | — | ROOT-CAUSED: `build_road` slope/flatten refusals (100% flatten refusal at stuck sites) → no roads → no house-rule matches → unbounded `enlarge_city_borders` + full-bounds re-sweeps per empty build(); the enlarged bounds leak into the save as city-owned tiles. LARGELY FIXED by the cityrules weight fix (master 206db8379: `.chance` properties ignored since the 2017 aa88e8679 rename; guaranteed road_23/24 join rules restored) — worst city 47.6 s→0.84 s, growth total 117.5→74.0 s (case D, ab10). RESIDUAL: mild stalls still possible (cities 3/39: 2.1 s/0.9 s, max empty-build streaks 416/215 vs ≤19 healthy) — no hard stall bound exists; bounds leak unfixed. Details: [performance](performance.md) § Mapgen |
 | [Bug with replacing signals](https://forum.simutrans.com/index.php/topic,23958.0.html) | 2026 | |
 | [48,000 jobs and no production](https://forum.simutrans.com/index.php/topic,23771.0.html) | 2026 | industry simulation |
 | ["Passengers intended for a building that has been deleted" warning](https://forum.simutrans.com/index.php/topic,23862.0.html) | 2026 | |
@@ -227,6 +226,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| City bounds leak from failed growth sweeps (not a forum report: measured 2026-09-18, mapgen-perf-fixes @ 652568623) | — | A `stadt_t::build` sweep that finds nothing buildable enlarges the city bounds (up to 4× per call); the new rows are marked `set_city(this)` and are only unmarked by `reset_city_borders`, which runs on building *success* — so persistently stalled sites (hilly terrain) accumulate city-owned tiles with no buildings, blocking neighbouring cities' expansion into them [CODE]. Whether loading a save recomputes city-tile ownership from buildings (self-heal) is unverified |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |
 | [Minimum loading percentage display in schedule UI](https://forum.simutrans.com/index.php/topic,22781.0.html) | 2024 | |
