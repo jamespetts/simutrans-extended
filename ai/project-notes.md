@@ -40,6 +40,9 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
   (e.g. no duplicated checks) in these areas. *Always* give detailed consideration to the performance impact of *any* 
   change that runs under step() or sync_step(). How to measure this and where the hotspots are: [performance](performance.md).
 
+- The engine is OOP-dominant; data-oriented design exists only as local hot-path optimisations. Structural causes of the
+  hot-path costs and feasible DOD directions: [data-layout-and-design-style](data-layout-and-design-style.md). [CODE master @ fd4a025a2]
+
 - Use the Simutrans container and utility classes (tpl/, utils/) instead of std (etc.) equivalents
   for new code: they are profiled to be faster for this game's workloads. Inventory + gotchas:
   [utilities](utilities.md). [RECOLLECTION:2026-09-07]

@@ -32,6 +32,7 @@ Note: the documents may be nested. Only top level documents are shown here.
 
 - [high-level-design-goals](high-level-design-goals.md) — read when doing any design work on a feature: the project's normative design goals (realism, economics, multiplayer balance) that new features must serve.
 - [project-roadmap](project-roadmap.md) — read when planning what features to add in what order: registry of planned features with balance-critical/simple/15.x markers; also check after implementing a feature to close its entry (per [conventions](conventions.md)).
+- [data-layout-and-design-style](data-layout-and-design-style.md) — read when choosing or reviewing a container/data layout, wondering whether a path is OOP or data-oriented, or considering restructuring a hot path for cache/bandwidth reasons.
 
 ## Build, data & infrastructure
 

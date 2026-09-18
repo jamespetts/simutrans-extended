@@ -13,7 +13,8 @@ utils/openttd), sys/ (simsys + backends, clipboard), sound/ + music/ (backends),
 **Use these, not std.** Simutrans containers/utilities (tpl/, utils/) must be preferred over
 std (etc.) equivalents: they are profiled to be faster for this game's workloads
 [RECOLLECTION:2026-09-07] (canonical note: [project-notes](project-notes.md)). Headers are the
-interface authority; this doc records role + gotchas only.
+interface authority; this doc records role + gotchas only. Design-paradigm context (why these
+containers, and where data-oriented layout is deliberate): [data-layout-and-design-style](data-layout-and-design-style.md).
 
 ## Containers (tpl/) — general
 

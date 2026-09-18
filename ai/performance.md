@@ -228,7 +228,8 @@ counts a function for every stack it appears in, "self" counts only leaf frames.
 everything under `step()`/`sync_step()` as hot (project-notes). Domain mechanics:
 [simulation-core](simulation-core.md), [routing-and-scheduling](routing-and-scheduling.md),
 [vehicles-and-convoys](vehicles-and-convoys.md), [threading](threading.md),
-[rendering](rendering.md).
+[rendering](rendering.md). The structural/design-style causes of these costs and the feasible
+data-oriented alternatives: [data-layout-and-design-style](data-layout-and-design-style.md).
 
 **ex-15 comparison** (first ex-15 capture, same fixture/window/threads, ex-15 @ 60228c088 with
 uncommitted haltlist guards; 358,011 samples, 47% in game module) [EXECUTION-VERIFIED:2026-09-11]:
