@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: mapgen-perf-fixes @ a3e08150b
+verified: mapgen-perf-fixes @ 1b342600b
 ---
 # Performance & profiling
 
@@ -180,14 +180,34 @@ on branch `mapgen-perf-fixes` @ a3e08150b (0954e8c3c + local timing instrumentat
   generated output** [EXECUTION-VERIFIED:2026-09-18; A/B baseline worktree at ac81f463c with
   test-only backports of `-generate_map` and the seed fix — branch `ab-base-ac81f463c`, never
   merge].
-- **Pathological growth churn:** 2 of the 42 cities spent 53 s (45% of the whole generation)
-  placing almost nothing (city 11: 47.6 s / 9 buildings; city 39: 5.5 s / 32 buildings; city 0's
-  51.9 s is legitimate — 17k buildings). Open bug → [known-bugs](known-bugs.md) P2.
+- **Pathological growth churn — ROOT-CAUSED and largely fixed 2026-09-18.** Mechanism (verified
+   per-city with MAPGEN-D counters, case D): city sites where `stadt_t::build_road` refuses ~91–98%
+   of road-rule matches at the slope branch (non-way slope + `can_flatten_tile` refusal; br_flattens=0
+   at stuck sites vs 528 at city 0) → hardly any roads → house rules (all need adjacent public road)
+   almost never match → no buildings → `reset_city_borders` (called only on *building* success) never
+   shrinks bounds while every failed `build()` enlarges them up to 4x (enlarge only refuses other-city
+   tiles/map edge; isolated sites always succeed — city 11 grew to 607x121 tiles, leaking permanent
+   city-owned territory) → each empty `build()` re-sweeps every natur tile in the grown bounds at
+   ~58 gated rule draws/candidate (city 11: 20.05M candidate evaluations ≈ 46.5 s of its 47.6 s).
+   Six cities had max-empty-build streaks 222–1168 vs ≤19 for healthy ones. **The cityrules weight fix
+   (master 206db8379, merged here 1b342600b) removed most of it**: guaranteed road_23/24 join rules +
+   higher match rates let road networks bootstrap on hilly sites — city 11: 47.6 s→0.84 s with
+   609 buildings (was 9); growth TOTAL 117.5 s → 74.0 s; wall 125→85 s. Cities 3/39 still stall
+   mildly (max streak 416/215, 2.1 s/0.9 s — bounded for now). **All pre-fix baselines below are stale
+   for A/B purposes** (output changed: same seed → different map; the ETW hotspot table was measured
+   pre-fix). City 0 (57.3 s, 16.5k buildings, legitimate) is now 77% of the growth phase; remaining
+   optimisation candidates: per-`build()`-call memoised rule flags (output-invariant), stall bound
+   (~100 empty build() calls; would need threshold margin verified across seeds/sizes first),
+   batching `reset_city_borders` (5.4% self at city 0 sizes). Details: [known-bugs](known-bugs.md) P2.
 - Placement anomalies (open, pre-existing): fewer towns placed than requested (50 → 42 on 1024²,
-  50 → 19 on 600², 50 → 3 on 300² — spacing/isolation constraints); factory counts do not match
-  `-map_factories` (8 requested → 32 placed on 1024²); and placed-factory count varies across
-  *Optimised-debug* builds on one seed while release builds match each other — factory placement
-  is config-sensitive in DEBUG builds [EXECUTION-VERIFIED:2026-09-18].
+   50 → 19 on 600², 50 → 3 on 300² — spacing/isolation constraints); factory counts do not match
+   `-map_factories` (8 requested → 32 placed on 1024² pre-fix; → 13 post cityrules-fix, ab10); and
+   placed-factory count varies across *Optimised-debug* builds on one seed while release builds match
+   each other — factory placement is config-sensitive in DEBUG builds [EXECUTION-VERIFIED:2026-09-18].
+- Two cityName/legend-vs-code mismatches noted while root-causing (cosmetic; any behavioural fix would
+   change output): `bewerte_loc` 'S' is implemented as `!has_public_road` (private-road tiles pass,
+   contrary to its comment), and 'U'/'u' code semantics are inverted relative to the cityrules.tab
+   legend [CODE mapgen-perf-fixes @ 1b342600b].
 
 ## Hotspots
 
