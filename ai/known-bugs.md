@@ -226,7 +226,6 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| City bounds leak from failed growth sweeps (not a forum report: measured 2026-09-18, mapgen-perf-fixes @ 652568623) | — | A `stadt_t::build` sweep that finds nothing buildable enlarges the city bounds (up to 4× per call); the new rows are marked `set_city(this)` and are only unmarked by `reset_city_borders`, which runs on building *success* — so persistently stalled sites (hilly terrain) accumulate city-owned tiles with no buildings, blocking neighbouring cities' expansion into them [CODE]. Whether loading a save recomputes city-tile ownership from buildings (self-heal) is unverified |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |
 | [Minimum loading percentage display in schedule UI](https://forum.simutrans.com/index.php/topic,22781.0.html) | 2024 | |
