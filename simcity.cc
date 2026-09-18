@@ -655,11 +655,95 @@ bool stadt_t::bewerte_loc_has_public_road(const koord pos)
 	return false;
 }
 
+/**
+ * Bit flags for the memoised per-tile predicates used by bewerte_loc
+ * (stadt_t::loc_cache; see stadt_t::build). Each flag is a pure function of
+ * the current tile state; no randomness is consumed in computing them.
+ */
+enum loc_cache_flag_t {
+	lf_has_public_road = 1,		// bewerte_loc_has_public_road: 's' passes / 'S' fails
+	lf_is_fundament    = 2,		// get_typ() == fundament: 'H' fails
+	lf_is_house        = 4,		// fundament with no or a building object: 'h' passes
+	lf_is_natur        = 8,		// ist_natur and nothing blocking removal: 'n' passes
+	lf_good_slope      = 16,	// slope_t::is_way: 'U' passes / 'u' fails (as coded; see below)
+	lf_is_stop         = 32,	// is_halt: 't' passes / 'T' fails
+	lf_invalid         = 64,	// off-map: any rule fails (bewerte_loc returns false)
+	lf_known           = 128	// cache entry has been computed
+};
+
+uint8 stadt_t::compute_loc_flags(koord k)
+{
+	const grund_t* gr = welt->lookup_kartenboden(k);
+	if (gr == NULL) {
+		return lf_invalid;
+	}
+	uint8 flags = 0;
+	if (bewerte_loc_has_public_road(k)) {
+		flags |= lf_has_public_road;
+	}
+	if (gr->get_typ() == grund_t::fundament) {
+		flags |= lf_is_fundament;
+		if (gr->obj_bei(0) == NULL  ||  gr->obj_bei(0)->get_typ() == obj_t::gebaeude) {
+			flags |= lf_is_house;
+		}
+	}
+	if (gr->ist_natur()  &&  gr->kann_alle_obj_entfernen(NULL) == NULL) {
+		flags |= lf_is_natur;
+	}
+	if (slope_t::is_way(gr->get_grund_hang())) {
+		flags |= lf_good_slope;
+	}
+	if (gr->is_halt()) {
+		flags |= lf_is_stop;
+	}
+	return flags;
+}
+
+uint8 stadt_t::get_loc_flags(koord k)
+{
+	if (loc_cache_active
+		&&  k.x >= loc_cache_origin.x  &&  k.x < loc_cache_origin.x + loc_cache_w
+		&&  k.y >= loc_cache_origin.y  &&  k.y < loc_cache_origin.y + loc_cache_h)
+	{
+		uint8 &entry = loc_cache_data[(k.y - loc_cache_origin.y) * loc_cache_w + (k.x - loc_cache_origin.x)];
+		if (!(entry & lf_known)) {
+			entry = compute_loc_flags(k) | lf_known;
+		}
+		return entry;
+	}
+	return compute_loc_flags(k);
+}
+
+void stadt_t::activate_loc_cache()
+{
+	// Rules read up to 3 tiles beyond the candidate position in every direction.
+	const koord origin(lo.x - 3, lo.y - 3);
+	const sint32 w = (sint32)ur.x - (sint32)lo.x + 7;
+	const sint32 h = (sint32)ur.y - (sint32)lo.y + 7;
+	if (loc_cache_active  &&  loc_cache_origin == origin  &&  loc_cache_w == w  &&  loc_cache_h == h) {
+		// Entries remain valid: any tile mutation during a sweep deactivates the cache.
+		return;
+	}
+	free(loc_cache_data);
+	loc_cache_data = (uint8 *)calloc((size_t)w * (size_t)h, 1);
+	loc_cache_origin = origin;
+	loc_cache_w = w;
+	loc_cache_h = h;
+	loc_cache_active = loc_cache_data != NULL;
+}
+
+void stadt_t::deactivate_loc_cache()
+{
+	free(loc_cache_data);
+	loc_cache_data = NULL;
+	loc_cache_active = false;
+}
+
 /*
-* @param pos position to check
-* @param regel the rule to evaluate
-* @return true on match, false otherwise
-*/
+ * @param pos position to check
+ * @param regel the rule to evaluate
+ * @return true on match, false otherwise
+ */
 
 bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 {
@@ -677,51 +761,48 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 		}
 
 		const koord k(pos.x+x-3, pos.y+y-3);
-		const grund_t* gr = welt->lookup_kartenboden(k);
-		if (gr == NULL) {
+		// Pure function of tile state (no RNG): memoised per sweep in build()
+		const uint8 flags = get_loc_flags(k);
+		if (flags & lf_invalid) {
 			// outside of the map => cannot apply this rule
 			return false;
 		}
 		switch (r.flag) {
 			case 's':
 				// public road?
-				if (!bewerte_loc_has_public_road(k)) return false;
+				if (!(flags & lf_has_public_road)) return false;
 				break;
 			case 'S':
-				// no road at all, not even a private one?
-				if (bewerte_loc_has_public_road(k)) return false;
+				// no public road? (private roads pass; as coded)
+				if (flags & lf_has_public_road) return false;
 				break;
 			case 'h':
 				// is house.
-				if (gr->get_typ() != grund_t::fundament  ||
-				    (gr->obj_bei(0) && gr->obj_bei(0)->get_typ()!=obj_t::gebaeude))
-				{
-					return false;
-				}
+				if (!(flags & lf_is_house)) return false;
 				break;
 			case 'H':
 				// no house
-				if (gr->get_typ() == grund_t::fundament) return false;
+				if (flags & lf_is_fundament) return false;
 				break;
 			case 'n':
 				// nature/empty
-				if (!gr->ist_natur() || gr->kann_alle_obj_entfernen(NULL) != NULL) return false;
+				if (!(flags & lf_is_natur)) return false;
 				break;
 			case 'U':
-				// unbuildable for road
-				if (!slope_t::is_way(gr->get_grund_hang())) return false;
+				// passes when a way IS buildable here (code semantics)
+				if (!(flags & lf_good_slope)) return false;
 				break;
 			case 'u':
-				// road may be buildable
-				if (slope_t::is_way(gr->get_grund_hang())) return false;
+				// passes when a way is NOT buildable here (code semantics)
+				if (flags & lf_good_slope) return false;
 				break;
 			case 't':
 				// here is a stop/extension building
-				if (!gr->is_halt()) return false;
+				if (!(flags & lf_is_stop)) return false;
 				break;
 			case 'T':
 				// no stop
-				if (gr->is_halt()) return false;
+				if (flags & lf_is_stop) return false;
 				break;
 			default: ;
 				// ignore
@@ -1623,6 +1704,8 @@ void stadt_t::reset_city_borders()
 
 stadt_t::~stadt_t()
 {
+	free(loc_cache_data);
+
 	// close info win
 	destroy_win((ptrdiff_t)this);
 
@@ -1725,6 +1808,9 @@ stadt_t::stadt_t(player_t* player, koord pos, sint32 citizens) :
 
 	lo = ur = pos;
 
+	loc_cache_data = NULL;
+	loc_cache_active = false;
+
 	// initialize history array
 	for (uint year = 0; year < MAX_CITY_HISTORY_YEARS; year++) {
 		for (uint hist_type = 0; hist_type < MAX_CITY_HISTORY; hist_type++) {
@@ -1813,6 +1899,9 @@ stadt_t::stadt_t(loadsave_t* file) :
 
 	unsupplied_city_growth = 0;
 	stadtinfo_options = 3;
+
+	loc_cache_data = NULL;
+	loc_cache_active = false;
 
 	// These things are not yet saved as part of the city's history,
 	// as doing so would require reversioning saved games.
@@ -5307,6 +5396,11 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 			welt->set_climate(k, c, true);
 			bd = welt->lookup_kartenboden(k);
 		}
+		// Terraformation changes the corner heights shared with neighbouring
+		// tiles, and the water remediation above may have changed this tile,
+		// so no memoised tile flags may survive: if the road is subsequently
+		// refused, the sweep in build() continues uncached.
+		deactivate_loc_cache();
 	}
 
 	// initially allow all possible directions ...
@@ -5414,6 +5508,12 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 	}
 
 	if (connection_roads != ribi_t::none || forced) {
+		// The remainder of this function mutates map tiles (excess road removal,
+		// road construction, bridges, raising for bridge ramps). Failure exits
+		// after these mutations are rare but do occur (e.g. no bridge available),
+		// after which the sweep in build() continues, so no memoised tile flags
+		// may survive from here on.
+		deactivate_loc_cache();
 		grund_t::road_network_plan_t road_tiles;
 		while (bd->would_create_excessive_roads(road_tiles)) {
 			if (!bd->remove_excessive_roads(road_tiles)) {
@@ -5702,6 +5802,13 @@ void stadt_t::build(bool new_town, bool map_generation)
 		return;
 	}
 
+	// Ensure the tile-predicate cache (see below) never outlives this function.
+	struct loc_cache_guard_t {
+		stadt_t *s;
+		explicit loc_cache_guard_t(stadt_t *s_) : s(s_) {}
+		~loc_cache_guard_t() { s->deactivate_loc_cache(); }
+	} loc_cache_guard(this);
+
 	int num_enlarge_tries = 4;
 #if defined DEBUG || defined PROFILE
 	growth_diag.build_calls++;
@@ -5732,6 +5839,20 @@ void stadt_t::build(bool new_town, bool map_generation)
 		growth_diag.sweeps++;
 		growth_diag.candidates_created += candidates.get_count();
 #endif
+
+		// Memoise the tile predicates evaluated by bewerte_loc during the sweep
+		// below: each candidate's rules re-read the same 7x7 neighbourhood across
+		// rotations, across rules and across adjacent candidates. The predicates
+		// are pure functions of tile state and consume no randomness, so results
+		// are identical with or without the cache. Only worthwhile for
+		// non-trivial sweeps; any tile mutation during the sweep (in build_road)
+		// deactivates the cache.
+		if (candidates.get_count() >= 64) {
+			activate_loc_cache();
+		}
+		else {
+			deactivate_loc_cache();
+		}
 
 		// loop until all candidates are exhausted or until we find a suitable location to build road or city building
 		while(  candidates.get_count()>0  ) {

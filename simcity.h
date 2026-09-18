@@ -470,6 +470,27 @@ private:
 	void bewerte_strasse(koord pos, sint32 rd, const rule_t &regel);
 	void bewerte_haus(koord pos, sint32 rd, const rule_t &regel);
 
+	/**
+	 * Transient per-sweep memoisation of the tile predicates evaluated by
+	 * bewerte_loc during the candidate sweep in build(). The predicates are
+	 * pure functions of tile state and consume no randomness, so results are
+	 * identical with or without the cache. Never serialised: the contents are
+	 * derived from current map state and are recomputed identically on every
+	 * network peer. Any tile mutation during a sweep (terraformation or road
+	 * construction in build_road) deactivates the cache.
+	 */
+	uint8 *loc_cache_data;
+	koord loc_cache_origin;			// top-left corner of the cached rectangle
+	sint32 loc_cache_w, loc_cache_h;	// cached rectangle size
+	bool loc_cache_active;
+
+	// evaluates all tile predicates for one tile; the result never has lf_known set
+	uint8 compute_loc_flags(koord k);
+	// returns the predicate flags for a tile, memoised while the cache is active
+	uint8 get_loc_flags(koord k);
+	void activate_loc_cache();
+	void deactivate_loc_cache();
+
 	bool private_car_route_finding_in_progress = false;
 
 	sint32 traffic_level;
