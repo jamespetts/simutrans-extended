@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 69b4c8c84
+verified: master @ a2ae2ee0e
 ---
 # Threading
 
@@ -141,6 +141,13 @@ map-creation loops (`perlin_hoehe_loop`), `rotate90_plans` (rotation, after `awa
 `update_map_intern` (image recalculation; `weg_calc_image_mutex`). (The season/snowline tile loop
 in `karte_t::step` is a MAIN-THREAD loop, not a `world_xy_loop` user.) These threads are never
 joined (process lifetime).
+
+**Invariant:** callbacks run concurrently on row-slices and may read tile state in adjacent
+slices (e.g. `recalc_transitions_loop` reads neighbour slope/height via `grund_t::get_neighbour`),
+so a callback must only write state that callbacks on other slices never read — in practice
+per-tile display state. Water tile height/slope are set in the `wasser_t` constructor and
+maintained by `planquadrat_t::correct_water()`; `wasser_t::calc_image_internal` must not write
+them (writing them raced with neighbour reads during multithreaded map generation).
 
 ### Display helpers (display/simview.cc)
 
