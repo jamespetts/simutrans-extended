@@ -1647,6 +1647,9 @@ int simu_main(int argc, char** argv)
 			sets->set_groundwater( (sint16)clamp(atoi(p), -32, 32) );
 		}
 		sets->heightfield = ""; // generate from the seed, as the GUI does when no relief is loaded
+		// Seed every RNG stream from the map seed: the wall-clock seeding above would
+		// otherwise leave placement RNG varying between runs of the same -map_seed.
+		setsimrand((uint32)sets->get_map_number(), (uint32)sets->get_map_number());
 		dbg->message("simu_main()", "Headless map generation: size=%dx%d seed=%d towns=%d factories=%d attractions=%d",
 			sets->get_size_x(), sets->get_size_y(), sets->get_map_number(), sets->get_city_count(), sets->get_factory_count(), sets->get_tourist_attractions() );
 		welt->init( sets, 0 );
