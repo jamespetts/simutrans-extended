@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 31ba08cb9
+verified: mapgen-perf-fixes @ a3e08150b
 ---
 # Performance & profiling
 
@@ -9,7 +9,7 @@ verified: master @ 31ba08cb9
 ai/tools/perf/, symbol cache ai/tools/symbols/, both gitignored), the profiling fixture
 (bb-10-sep-2023.sve + branch pakset binaries in simutrans/), the MSVC "Profile" configuration,
 the DEBUG/PROFILE-only benchmark command-line options (`-until`, `-times`, `-fast-network-sync`
-in simmain.cc), and the performance hotspot inventory.
+in simmain.cc), and the performance hotspot inventory (play fixture and `-generate_map` worldgen).
 
 ## Why this doc
 
@@ -149,6 +149,46 @@ non-interactively [EXECUTION-VERIFIED:2026-09-10]:
   (e.g. a complete path-explorer run), which is rare and better studied on a small map (the CI
   demo fixture) [RECOLLECTION:2026-09-09].
 
+## Mapgen profiling (`-generate_map`)
+
+Alternative profiling target to the play fixture: headless world generation. Measured 2026-09-18
+on branch `mapgen-perf-fixes` @ a3e08150b (0954e8c3c + local timing instrumentation
+2a99f36c5/a3e08150b), `Profile (server)|x64` and `Optimised debug|x64` [EXECUTION-VERIFIED:2026-09-18].
+
+- **Reproducibility requirement:** 0954e8c3c (simmain.cc) makes `-generate_map` seed ALL RNG
+  streams from `-map_seed`; before it, wall-clock/save seeding made A/B or replay comparisons
+  meaningless. A runner must additionally delete `settings-extended.xml` from the working
+  directory before every run — map settings persist between runs. With both, an identical seed
+  yields an identical `MAP-GEN:` result line across server/GUI and release/optimised-debug.
+- **Phase timings:** `MAP-GEN-T` `dbg->message` lines (instrumentation above; local test commits)
+  bound `karte_t::init` phases and per-city growth. Debug-build caveat: worldgen floods
+  `way_builder_t::init_builder` log lines at MSG_LEVEL ≥ 3 (~19k lines on the 42-city map;
+  simcity.cc constructs a `way_builder_t` per direction only to call `check_slope`) — ~2% total
+  cost in Optimised debug, but per-line flushing can dominate in a true unoptimised Debug build;
+  profile on Profile (logging caveat above).
+- **Phase costs** (1024×1024, seed 42, water −2, 50 towns requested → 42 placed, init total
+  ≈ 126 s): city-growth loop **117.5 s (93%)**; `create_rivers` 6.9 s (5.5%); everything else
+  ≈ 1% (intercity roads 1.1 s; heights/perlin 54 ms; cleanup 95 ms; climates 17 ms; beaches
+  32 ms; transitions 30 ms; all `random_place` 0.44 s; name lists 0.3 s).
+- **Generation hotspots** (ETW whole-generation trace, 393k samples, self %):
+  `stadt_t::bewerte_loc` 27.4, `simrand` 13.5 (+`float32e8_t::MTgenerate` 2.0),
+  `stadt_t::bewerte_loc_has_public_road` 10.4, `grund_t::get_weg` 10.0, `stadt_t::build` 7.7,
+  `stadt_t::reset_city_borders` 5.4, `stadt_t::maybe_build_road` 5.1. objlist/freelist/route
+  costs negligible — **the September 2026 race-fix batch (objlist seqlock 07ad4ef13, freelist
+  quarantine, per-world name lists, `loesche_alle` windowing) had NO measurable gen effect:
+  HEAD-vs-pre-batch ratios 0.995–1.03 across release/optimised-debug × server/GUI with identical
+  generated output** [EXECUTION-VERIFIED:2026-09-18; A/B baseline worktree at ac81f463c with
+  test-only backports of `-generate_map` and the seed fix — branch `ab-base-ac81f463c`, never
+  merge].
+- **Pathological growth churn:** 2 of the 42 cities spent 53 s (45% of the whole generation)
+  placing almost nothing (city 11: 47.6 s / 9 buildings; city 39: 5.5 s / 32 buildings; city 0's
+  51.9 s is legitimate — 17k buildings). Open bug → [known-bugs](known-bugs.md) P2.
+- Placement anomalies (open, pre-existing): fewer towns placed than requested (50 → 42 on 1024²,
+  50 → 19 on 600², 50 → 3 on 300² — spacing/isolation constraints); factory counts do not match
+  `-map_factories` (8 requested → 32 placed on 1024²); and placed-factory count varies across
+  *Optimised-debug* builds on one seed while release builds match each other — factory placement
+  is config-sensitive in DEBUG builds [EXECUTION-VERIFIED:2026-09-18].
+
 ## Hotspots
 
 Measured 2026-09-10 on the canonical fixture via the -Trace pipeline (server-paced Capture,
@@ -245,3 +285,6 @@ must not be perturbed without reading [threading](threading.md) and
   [RECOLLECTION:2026-09-09 user: not now].
 - A linkable release-build zstd static lib (same toolset as the game, or zstd sources compiled into
   the project) — would remove the debug-zstd decompression bias from load-phase measurements.
+- Mapgen: source of the Optimised-debug factory-placement config-sensitivity, and why town
+  placement stops at 42/50 on a sparse-enough 1024² map (spacing vs terrain rejection) —
+  resolve before adding placement-based test asserts.

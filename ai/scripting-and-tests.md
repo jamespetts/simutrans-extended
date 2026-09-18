@@ -1,6 +1,6 @@
 ---
 status: stub
-verified: master @ 69b4c8c84
+verified: mapgen-perf-fixes @ 0954e8c3c
 ---
 # Scripting & tests
 
@@ -38,6 +38,13 @@ verified: master @ 69b4c8c84
    builds the objlist seqlock spin assertion fatals fast instead). It runs as a step of
    `smoke-harness.yml` (ASan gate, TSan detector, pakset-pin verification)
    [CODE master @ 69b4c8c84: simmain.cc, scripts/run-mapgen-tests.sh, .github/workflows/smoke-harness.yml].
+- `-generate_map` reproducibility: 0954e8c3c (simmain.cc, branch mapgen-perf-fixes) makes
+  `-map_seed` seed all RNG streams, so one seed gives an identical `MAP-GEN:` result line across
+  server/GUI and release/debug builds — generated worlds become byte-comparable for A/B tests and
+  replay debugging. Harness requirements: delete `settings-extended.xml` from the workdir before
+  every run (settings persist between runs), and note factory placement remains config-sensitive
+  in DEBUG builds ([performance](performance.md)). Before this fix, `-map_seed` alone did not
+  reproduce runs [EXECUTION-VERIFIED:2026-09-18].
 - Smoke-harness network determinism oracle [CODE private-car-mt-network, 2026-09-16;
    user-directed]: the two loopback runs are compared on their per-step **semantic
    private-car route hash** sequences ("Private car route hash" log lines, computed every

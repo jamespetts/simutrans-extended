@@ -29,6 +29,12 @@ cost at large map sizes — `grund_t::get_weg` 3.4% self, `karte_t::lookup` 2.4%
 `grund_t::get_neighbour` 2.6% incl, `planquadrat_t::get_boden_in_hoehe` 1.0% self of in-game CPU.
 Parts of the tile walk are multi-threaded → [threading](threading.md).
 
+- Worldgen: the per-city growth loop dominates world-generation cost — 93% of `karte_t::init` on
+  a 1024²/42-city map, with location scoring (`stadt_t::bewerte_loc` 27% self,
+  `bewerte_loc_has_public_road` 10% self) and way/ground lookup (`grund_t::get_weg` 10% self) the
+  hot leaves. Method + full inventory: [performance](performance.md)
+  [EXECUTION-VERIFIED:2026-09-18 mapgen-perf-fixes @ a3e08150b].
+
 ## Open questions
 
 - Does `world/` duplicate or complement simworld? (Inventory pending.)

@@ -165,6 +165,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
+| City-growth churn during map generation: the ageing loop in `distribute_cities` keeps calling `stadt_t::change_size` while building placement keeps failing, so a stuck city can consume outsized share of generation time (not a forum report: measured 2026-09-18, mapgen-perf-fixes @ a3e08150b) | — | on a 1024²/42-city map, 2 cities took 53 s = 45% of the whole generation for 9 and 32 buildings placed; the loop halves its month step until progress is made, so iteration count is effectively unbounded for unlucky seeds/settings — no stall bound exists. Details: [performance](performance.md) |
 | [Bug with replacing signals](https://forum.simutrans.com/index.php/topic,23958.0.html) | 2026 | |
 | [48,000 jobs and no production](https://forum.simutrans.com/index.php/topic,23771.0.html) | 2026 | industry simulation |
 | ["Passengers intended for a building that has been deleted" warning](https://forum.simutrans.com/index.php/topic,23862.0.html) | 2026 | |
