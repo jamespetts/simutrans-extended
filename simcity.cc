@@ -3598,6 +3598,12 @@ void stadt_t::check_bau_spezial(bool new_town)
 								gebaeude_t *gb = gr->find<gebaeude_t>();
 								if (gb) {
 									hausbauer_t::remove(NULL, gb, false);
+									// removing a building can replace the ground tile
+									// (e.g. fundament restored to natural ground), so re-fetch it
+									gr = welt->lookup_kartenboden(k);
+									if (!gr) {
+										continue;
+									}
 								}
 								if (gr->hat_weg(road_wt)) {
 									continue;

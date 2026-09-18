@@ -63,9 +63,12 @@ void wasser_t::calc_image_internal(const bool calc_only_snowline_change)
 {
 	if(  !calc_only_snowline_change  ) {
 		koord pos2d( get_pos().get_2d() );
-		sint8 height = welt->get_water_hgt( pos2d );\
-		set_hoehe(height);
-		slope = slope_t::flat;
+		// NOTE: height and slope must not be (re)set here: this function runs on
+		// multiple threads during map generation (karte_t::recalc_transitions_loop),
+		// and neighbouring tiles read these fields concurrently via get_neighbour().
+		// Both are set in the constructor and kept up to date by
+		// planquadrat_t::correct_water() whenever the water table changes.
+		sint8 height = welt->get_water_hgt( pos2d );
 
 		sint8 zpos = min( welt->lookup_hgt( pos2d ), height ); // otherwise slope will fail ...
 
