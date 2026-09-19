@@ -10,6 +10,8 @@ verified: none
   maintainer's machine (timings, load results, link behaviour); machine-specific, so treat as a
   dated observation, not a universal constant.
 - `[FORUM:<url>]` — from a Simutrans forum thread; cite thread and post date where possible.
+- `[STANDARD:<name>]` — from a published technical standard or its normative documentation
+  (e.g. IEEE 754, a compiler's floating-point documentation); cite the standard by name/version.
 - `[RECOLLECTION:<date>]` — user statement from memory. An indication, not a verified fact:
   verify against code before relying on it (the user has been away from the code for some years).
 - `[UNVERIFIED]` — agent inference, not yet confirmed. Must be verified or removed at review.

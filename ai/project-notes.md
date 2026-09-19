@@ -8,8 +8,9 @@ Short cross-cutting notes that are easy to miss — read at the start of most ta
 (AGENTS.md). Kept deliberately brief per [documentation-architecture](documentation-architecture.md)
 rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
 
-- **No floating point in sync-critical code.** Windows, Linux and Mac clients compute different
-  floating-point results; floats in synced code cause desyncs. Use plain integers wherever possible
+- **No floating point in sync-critical code.** Unconstrained floating-point arithmetic is not
+  portable across Windows/Linux/Mac and toolchains (libm transcendentals, FMA contraction,
+  excess precision), so floats in synced code desync. Use plain integers wherever possible
   (strongly preferred for performance); `float32e8_t` (utils/float32e8_t.h) only where sync-critical
   code genuinely needs decimals (e.g. physics; much slower than float/int). double/float are safe
   only where results never need to stay in sync between peers [RECOLLECTION:2026-09-07; class and

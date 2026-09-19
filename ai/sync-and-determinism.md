@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 712f9335c
+verified: master @ 525118eaa
 ---
 # Sync & determinism: rules for simulation code
 
@@ -26,7 +26,11 @@ Network play is deterministic lockstep: server and every client independently ru
 ## Floating-point rules
 
 - Full constraint (canonical): [project-architecture](project-architecture.md) constraint 1. Rule: integers may be used anywhere; `double`/`float` may be used anywhere that never needs to be kept in sync between network servers/clients; the fixed-point `float32e8_t` (utils/float32e8_t.h) only where sync-critical code genuinely needs decimals (e.g. physics) — it is much slower than float or int [RECOLLECTION:2026-09-07].
-- Observed boundary discipline [CODE]: simulation state is integer or `float32e8_t` (convoy physics `calc_move`, resistances/brake factors in convoy.h/cc; velocity `convoi_t::v`; unit conversions in simunits.h; vehicle residual values). `to_double()`/`to_sint32()` appear only at display/debug/export boundaries. Only the fixed-point *mantissa* crosses the network (checklist feed in `convoi_t::sync_step` uses `v.get_mantissa()`).
+- Portability boundary [STANDARD:IEEE 754]: IEEE 754 requires *correct rounding* (one rounding of the infinitely precise result) for `+`, `-`, `*`, `/` and `sqrt` only, so those are bit-identical across conforming hardware given the same rounding mode. Everything else can differ: libm `pow`/`cbrt`/`exp`/`log`/`sin`/`cos` have no correct-rounding requirement and differ between the MSVC CRT, glibc and Apple libm; compilers may fuse `a*b+c` into an FMA, reassociate, or reorder vectorised reductions; 32-bit x86 historically evaluated expressions in 80-bit x87 registers (excess precision depending on register allocation); `long double` differs in width by platform. In lockstep, one differing bit can change a later discrete decision and diverge the game — the original cross-architecture desyncs that the integer physics class was introduced to fix [RECOLLECTION:2026-09-19].
+- The current physics is outside that portable subset [CODE]: convoy.cc computes a cube root and general powers (`signed_power(..., float32e8_t::third)` in `calc_max_speed`), and `vehicle_t::calc_sale_value` raises a ratio to an integer month count. A `float32e8_t` → `double` substitution built on libm `cbrt`/`pow` would therefore still diverge; deterministic replacements for those powers are a precondition of any hardware-FP approach.
+- `float32e8_t` is not IEEE 754: it is a custom base-2 format (32-bit mantissa, 10-bit exponent, sign) whose `*` and `/` truncate. Its cross-platform determinism comes from being integer-only, not from round-to-nearest correctness. The `double` interop behind `USE_DOUBLE` is compiled out and would itself call `::log2`/`pow` (non-deterministic) [CODE].
+- Numeric-type changes are sync-and-save-format changes: only the fixed-point *mantissa* currently crosses the network (checklist feed in `convoi_t::sync_step` uses `v.get_mantissa()`), and the type's `rdwr` form (mantissa/exponent/sign) is persisted. Replacing it changes both, which is change-restricted (AGENTS.md rule 5) [CODE].
+- Observed boundary discipline [CODE]: simulation state is integer or `float32e8_t` (convoy physics `calc_move`, resistances/brake factors in convoy.h/cc; velocity `convoi_t::v`; unit conversions in simunits.h; vehicle residual values). `to_double()`/`to_sint32()` appear only at display/debug/export boundaries.
 - `double` appears in map-creation-only code (`stadt_t::random_place`, Pareto city sizing in `karte_t::distribute_cities`, Perlin noise) — map creation is never synced; see "Map creation" below [CODE].
 
 ## State & serialisation rules
@@ -135,10 +139,14 @@ pre-fix desync within seconds of unpause every run; post-fix in sync indefinitel
 load-time state computations identical between server-reload and client-load]. Private-car
 route-checking entries (threading-rules bullet, rands[15]/[16] checkpoints, the
 route-hash caveat) verified against private-car-mt-network @ f69b873ca, 2026-09-16 [CODE;
-validation evidence listed in [threading](threading.md) provenance]. Remainder verified against master @ 78a4bb3b9. The covered files (utils/simrandom.*, utils/checklist.*, network/) are materially identical on ex-15 — the only branch difference in these files is an added integer `sigmoid()` helper (no RNG semantics change) — so this doc applies to both branches [CODE]. The lockstep/checklist model and threading design are Extended-era developments built on the Standard Simutrans network base; coarse provenance only, per conventions.
+validation evidence listed in [threading](threading.md) provenance]. The floating-point boundary
+additions (IEEE-754 portable subset; the current physics' cube-root/general-`pow` uses;
+`float32e8_t` not being IEEE) verified against master @ 525118eaa [CODE; STANDARD:IEEE 754;
+the original cross-architecture desync motive RECOLLECTION:2026-09-19]. Remainder verified against master @ 78a4bb3b9. The covered files (utils/simrandom.*, utils/checklist.*, network/) are materially identical on ex-15 — the only branch difference in these files is an added integer `sigmoid()` helper (no RNG semantics change) — so this doc applies to both branches [CODE]. The lockstep/checklist model and threading design are Extended-era developments built on the Standard Simutrans network base; coarse provenance only, per conventions.
 
 ## Open questions
 
 - Is the de-facto requirement for identical `threads` settings across peers intentional (given `parallel_operations` already makes the work split identical), or should the checklist tolerate differing thread counts? (Rationale evidenced only by a commit title; user could not confirm, asked 2026-09-07.)
 - `tunnelboden_t::get_weg_hang()` reads `ist_karten_boden()` + the ground slope, both loaded in `grund_t::rdwr` before the way loop, so tunnels are believed unaffected by the bridge/pier-deck load-order fix — but this was not separately verified [UNVERIFIED].
 - The way degradation transform in `weg_t::calc_speed_limit` is non-idempotent at load (halves when `degraded && old==topspeed`, restores otherwise), so save→load cycles toggle degraded ways' effective speed until they re-degrade. No longer sync-critical (the calc now always runs with the correct way-slope), but a single-player fidelity wart worth a cleanup pass [CODE].
+- Is the integer-only fixed-point rule still the best trade-off for the hot physics path, or should it move to hardware `double` under an enforced strict-FP build regime (`/fp:strict`, or `-ffp-contract=off -fno-fast-math -fexcess-precision=standard`, no `long double`, no `-march=native`, deterministic replacements for `pow`/`cbrt`)? Reproducible hardware `+ - * / sqrt` is not the obstacle; guaranteeing the whole-program settings across MSVC/MinGW/GCC/Clang and preventing a future stray libm call are. The integer rule's value is that it is structurally self-enforcing, unlike a global build-flag guarantee. Not yet tested empirically across the supported toolchains [UNVERIFIED].
