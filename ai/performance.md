@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: mapgen-perf-fixes @ 652568623
+verified: master @ 075d540f3
 ---
 # Performance & profiling
 
@@ -293,6 +293,15 @@ in sync-critical code (also faster) [project-notes](project-notes.md); multi-thr
 must not be perturbed without reading [threading](threading.md) and
 [sync-and-determinism](sync-and-determinism.md).
 
+### SIMD applicability — summary
+
+Assessed 2026-09-19: the measured hot paths are dominated by memory latency, pointer chase and
+sequential dependence — no drop-in SIMD target exists in the current code shape, and integer-only
+SIMD is the determinism ceiling for synced code. The single genuine dense-arithmetic kernel is
+the path explorer's relaxation loop, whose staged SIMD position (design SIMD-compatible → scalar
+→ SIMD after verification) is tied to the ex-15 Y/H traversal work. Constraints, per-hotspot
+verdicts and the staged position: [simd-applicability](simd-applicability.md).
+
 ## Open questions
 
 - Exact fixture map dimensions and object counts (convoys, halts, cities, ways) — worth recording
@@ -300,6 +309,11 @@ must not be perturbed without reading [threading](threading.md) and
 - Why is `sync_list_t::sync_step` itself (not the objects it steps) 23.7% *self*? Candidates:
   list iteration cost at this object count, cache misses on the node walk, or inlining
   attribution artefacts. Investigate before attempting optimisation.
+- Was the path explorer's near-zero share in the measured fixture window dormancy or
+  budget-capping? Measure an active window (induced change activity on the fixture, or a long
+  capture spanning a burst): pass duration, total iterations. Reconcile with the 2026-09-09
+  recollection that on busy servers changes outpace it. Prerequisite for the staged SIMD position
+  in [simd-applicability](simd-applicability.md).
 - The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a
   post-load-wave problem, not a steady-state one; investigate with a Load-phase or
