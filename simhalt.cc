@@ -4611,6 +4611,11 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 
 		file->rdwr_long(count);
+		if (file->is_loading() && count > MAX_TRANSFERRING_CARGOES)
+		{
+			dbg->warning("haltestelle_t::rdwr", "Discarding corrupt transferring cargo count (%u); the halt would otherwise be unresponsive", count);
+			count = 0;
+		}
 #ifdef MULTI_THREAD
 		sint32 po;
 		if (file->is_saving())

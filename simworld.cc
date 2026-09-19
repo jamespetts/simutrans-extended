@@ -10002,6 +10002,12 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 
 		file->rdwr_long(count);
 
+		if (count > MAX_TRANSFERRING_CARGOES)
+		{
+			dbg->warning("karte_t::load", "Discarding corrupt transferring cargo count (%u); the world would otherwise be unresponsive", count);
+			count = 0;
+		}
+
 		for (uint32 i = 0; i < count; i++)
 		{
 			file->rdwr_longlong(ready);
