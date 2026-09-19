@@ -6,6 +6,7 @@
 #include "pier_deck.h"
 #include "../descriptor/ground_desc.h"
 #include "../simworld.h"
+#include "wege/weg.h"
 
 pier_deck_t::pier_deck_t(koord3d pos, slope_t::type grund_slope, slope_t::type way_slope) : grund_t(pos)
 {
@@ -25,6 +26,19 @@ void pier_deck_t::rdwr(loadsave_t *file){
 	grund_t::rdwr(file);
 
 	file->rdwr_byte(way_slope);
+
+	if(  file->is_loading()  ) {
+		// way_slope is only read here, AFTER grund_t::rdwr has loaded (and
+		// calculated speed limits for) the ways on this tile; those calculations
+		// read get_weg_hang(), so redo them now that it holds the file's value.
+		// (grund_t::rdwr skips them on pier deck tiles for exactly this reason.)
+		for (uint8 i = 0; i < get_top(); i++) {
+			obj_t* o = obj_bei(i);
+			if (o && o->get_typ() == obj_t::way) {
+				static_cast<weg_t*>(o)->calc_speed_limit(this, true);
+			}
+		}
+	}
 
 }
 

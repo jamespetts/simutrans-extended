@@ -416,7 +416,18 @@ void grund_t::rdwr(loadsave_t *file)
 					else {
 						assert((flags&has_way2)==0); // maximum two ways on one tile ...
 						weg->set_pos(pos);
-						weg->calc_speed_limit(this, true); // Necessary to recalculate elements of way speed limits (e.g., slope specific) that rely on the gr, which is not supplied earlier.
+						// The bridge deck and pier deck tile classes read their way
+						// slope (weg_hang/way_slope) from the file only AFTER
+						// grund_t::rdwr (and hence this loop) has run; calculating
+						// the speed limit here would read uninitialised memory on
+						// those tiles (zeroed on a fresh load, stale on an
+						// in-process reload such as a network server reloading when
+						// a client joins — a desync vector). On those tiles the
+						// calculation is deferred to the subclass's rdwr, after the
+						// slope has been read.
+						if (get_typ() != brueckenboden && get_typ() != pierdeck) {
+							weg->calc_speed_limit(this, true); // Necessary to recalculate elements of way speed limits (e.g., slope specific) that rely on the gr, which is not supplied earlier.
+						}
 						if(owner_n!=-1) {
 							weg->set_owner(welt->get_player(owner_n));
 						}
