@@ -10,8 +10,11 @@ not a style choice. Short-form reminders: [project-notes](project-notes.md).
 ## Constraints (verified or user-sourced)
 
 1. **Determinism — no floating point in sync-critical code.** Network games must produce
-   identical results on Windows, Linux and Mac clients; floating-point results differ across
-   platforms and cause desyncs. Sync-critical code uses plain integers wherever possible
+   identical results on Windows, Linux and Mac clients; unconstrained floating point does not
+   (only IEEE-754 `+ - * / sqrt` are correctly rounded and portable; libm transcendentals, FMA
+   contraction, excess precision and reassociation are not — boundary and rationale in
+   [sync-and-determinism](sync-and-determinism.md)).
+   Sync-critical code uses plain integers wherever possible
    (strongly preferred: `float32e8_t` performance is much worse than float or int); the
    fixed-point class `float32e8_t` (utils/float32e8_t.h) only where sync-critical code
    genuinely needs decimals — e.g. convoy physics (forces, resistances, braking, `calc_move`)

@@ -8,8 +8,9 @@ Short cross-cutting notes that are easy to miss — read at the start of most ta
 (AGENTS.md). Kept deliberately brief per [documentation-architecture](documentation-architecture.md)
 rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
 
-- **No floating point in sync-critical code.** Windows, Linux and Mac clients compute different
-  floating-point results; floats in synced code cause desyncs. Use plain integers wherever possible
+- **No floating point in sync-critical code.** Unconstrained floating-point arithmetic is not
+  portable across Windows/Linux/Mac and toolchains (libm transcendentals, FMA contraction,
+  excess precision), so floats in synced code desync. Use plain integers wherever possible
   (strongly preferred for performance); `float32e8_t` (utils/float32e8_t.h) only where sync-critical
   code genuinely needs decimals (e.g. physics; much slower than float/int). double/float are safe
   only where results never need to stay in sync between peers [RECOLLECTION:2026-09-07; class and
@@ -39,6 +40,9 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
   otherwise. This means:  performance can justify less readable code, or code that needs more work to get right 
   (e.g. no duplicated checks) in these areas. *Always* give detailed consideration to the performance impact of *any* 
   change that runs under step() or sync_step(). How to measure this and where the hotspots are: [performance](performance.md).
+
+- The engine is OOP-dominant; data-oriented design exists only as local hot-path optimisations. Structural causes of the
+  hot-path costs and feasible DOD directions: [data-layout-and-design-style](data-layout-and-design-style.md). [CODE master @ fd4a025a2]
 
 - Use the Simutrans container and utility classes (tpl/, utils/) instead of std (etc.) equivalents
   for new code: they are profiled to be faster for this game's workloads. Inventory + gotchas:

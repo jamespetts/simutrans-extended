@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 31ba08cb9
+verified: master @ 075d540f3
 ---
 # Performance & profiling
 
@@ -9,7 +9,7 @@ verified: master @ 31ba08cb9
 ai/tools/perf/, symbol cache ai/tools/symbols/, both gitignored), the profiling fixture
 (bb-10-sep-2023.sve + branch pakset binaries in simutrans/), the MSVC "Profile" configuration,
 the DEBUG/PROFILE-only benchmark command-line options (`-until`, `-times`, `-fast-network-sync`
-in simmain.cc), and the performance hotspot inventory.
+in simmain.cc), and the performance hotspot inventory (play fixture and `-generate_map` worldgen).
 
 ## Why this doc
 
@@ -18,6 +18,9 @@ performance critical — full rules in [project-notes](project-notes.md) (memory
 biggest constraint on the huge maps now commonly played). Any change touching those paths needs a
 *measured* performance check, not just reasoning. This doc defines the canonical way to measure and
 lists the known hotspots so agents know where care is needed and where to look when profiling.
+The network-play smoothness defect (burst–hang jerkiness) is the frame-pacing consequence of these
+costs — serial `step()`/`sync_step` time against the fixed network frame budget: analysis, options
+and the pacing-side measurement plan in [frame-pacing-smoothness](frame-pacing-smoothness.md).
 
 ## The canonical profiling suite
 
@@ -149,6 +152,69 @@ non-interactively [EXECUTION-VERIFIED:2026-09-10]:
   (e.g. a complete path-explorer run), which is rare and better studied on a small map (the CI
   demo fixture) [RECOLLECTION:2026-09-09].
 
+## Mapgen profiling (`-generate_map`)
+
+Alternative profiling target to the play fixture: headless world generation, fully deterministic
+from `-map_seed` (all RNG streams seeded, simmain.cc) — an identical seed yields an identical
+`MAP-GEN:` result line across server/GUI and release/optimised-debug builds. That line, plus the
+instrumentation counters below, is the oracle for proving a change output-invariant
+[EXECUTION-VERIFIED:2026-09-18].
+
+Canonical profiling case: `-generate_map -map_size 1024,1024 -map_seed 42 -map_towns 50
+-map_factories 8 -map_attractions 4 -map_water_level -2`, pak128.Britain-Ex-0.9.4,
+`Profile (server)|x64`. Invariant line at mapgen-perf-fixes @ 652568623:
+`MAP-GEN: PASS size=1024x1024 seed=42 towns=50 (cities=42 factories=13)`.
+
+Runner hygiene [EXECUTION-VERIFIED:2026-09-18]:
+- Delete `settings-extended.xml` from the working directory before every run (map settings
+  persist between runs); DEBUG-config builds use `settings-extended-debug.xml` instead (simmain.cc).
+- MSBuild silently skips a source file whose timestamp is older than its `.obj` — PowerShell
+  `Copy-Item` preserves timestamps, so fix them after restoring A/B sources from a copy.
+- Profile the `Profile` configuration: at `-debug ≥ 3` worldgen floods `way_builder_t::init_builder`
+  log lines (~19k on the 42-city map; simcity.cc constructs a `way_builder_t` per direction only
+  to call `check_slope`), and per-line log flushing dominates unoptimised Debug builds.
+
+Instrumentation: `MAP-GEN-T` phase timings and `MAPGEN-D` per-city growth counters exist as
+LOCAL-ONLY commits on `mapgen-perf-fixes` (2a99f36c5/a3e08150b, 479523d90 — strip before PR;
+counter fields documented at `stadt_t::growth_diag_t`). DEBUG||PROFILE-gated, no RNG consumed,
+counter-identical across repeat runs. For ETW, trace the whole generation via the pipeline above
+and analyse while the PDB still matches the binary being profiled.
+
+Current cost structure (canonical case; init ≈ 69 s) [EXECUTION-VERIFIED:2026-09-18]:
+- City growth ≈ 60 s (~87%), of which the largest city (16.5k buildings) ≈ 46–48 s;
+  `create_rivers` ≈ 7 s; every other phase ≲ 1%.
+- Growth hotspots (ETW, self % of in-process samples): `stadt_t::bewerte_loc` 28.9 (rule-entry
+  loop over candidates × rules × rotations), `stadt_t::build` 10.2 (candidate-collection sweep:
+  every `build()` call re-collects all natur tiles in bounds), `simrand` 10.0 (rule gate draws —
+  these define the output and cannot be removed without changing it), `stadt_t::reset_city_borders`
+  9.0 (runs on every building success), `stadt_t::compute_loc_flags` 6.1, `grund_t::get_weg` 5.5.
+- Next targets in that order: the candidate-collection sweep, then `reset_city_borders` batching.
+
+City-growth structure needed to work on it safely [CODE mapgen-perf-fixes @ 652568623]:
+- Growth uses an exhaustive candidate sweep with enlarge-bounds-on-failure — the deliberate
+  Extended divergence (7bd1947ea). Standard's `build()` (checked at its current master, 2026-09)
+  is the single-random-tile algorithm, which survives in Extended only as the
+  `quick_city_growth=1` path; no upstream port of the sweep exists.
+- The `bewerte_loc` tile predicates (public road, fundament/house, natur, slope, stop) are
+  memoised per sweep (`stadt_t::loc_cache_*`, rect = bounds+3, sweeps with ≥ 64 candidates).
+  INVARIANT for anyone touching `build()`/`build_road`: the cache is valid only while no tile
+  mutates — any tile mutation during a sweep (terraformation, excess-road removal, road/bridge
+  construction) must deactivate it for the rest of the call; the current deactivation points are
+  the flatten/water-remediation block and the head of the `connection_roads` mutation cluster in
+  `build_road`.
+- Failed sweeps enlarge the bounds (up to 4× per `build()`); enlarged rows are marked
+  `set_city(this)` and only unmarked on building *success* (`reset_city_borders`) — the resulting
+  bounds leak is open (→ [known-bugs](known-bugs.md)). Mild stalls at hilly sites (≈1–2 s per
+  affected city at 1024²) are accepted behaviour; a stall cap was rejected as contrary to growth
+  design intent.
+- Rule gating: a rule is evaluated when `simrand(8 + distribution_weight) == 0`; weight −8 =
+  guaranteed and consumes no RNG (`simrand(0)` draws nothing). Pakset `.chance` and
+  `.distribution_weight` keys are both read (→ [economy-and-passengers](economy-and-passengers.md)).
+- Output caveats: generated town/factory counts differ from the requested numbers
+  (→ [known-bugs](known-bugs.md)); two `bewerte_loc` legend-vs-code mismatches are cosmetic and
+  fixing them would change output: 'S' passes private-road tiles, and 'U'/'u' are inverted
+  relative to the cityrules.tab legend.
+
 ## Hotspots
 
 Measured 2026-09-10 on the canonical fixture via the -Trace pipeline (server-paced Capture,
@@ -165,7 +231,8 @@ counts a function for every stack it appears in, "self" counts only leaf frames.
 everything under `step()`/`sync_step()` as hot (project-notes). Domain mechanics:
 [simulation-core](simulation-core.md), [routing-and-scheduling](routing-and-scheduling.md),
 [vehicles-and-convoys](vehicles-and-convoys.md), [threading](threading.md),
-[rendering](rendering.md).
+[rendering](rendering.md). The structural/design-style causes of these costs and the feasible
+data-oriented alternatives: [data-layout-and-design-style](data-layout-and-design-style.md).
 
 **ex-15 comparison** (first ex-15 capture, same fixture/window/threads, ex-15 @ 60228c088 with
 uncommitted haltlist guards; 358,011 samples, 47% in game module) [EXECUTION-VERIFIED:2026-09-11]:
@@ -229,6 +296,15 @@ in sync-critical code (also faster) [project-notes](project-notes.md); multi-thr
 must not be perturbed without reading [threading](threading.md) and
 [sync-and-determinism](sync-and-determinism.md).
 
+### SIMD applicability — summary
+
+Assessed 2026-09-19: the measured hot paths are dominated by memory latency, pointer chase and
+sequential dependence — no drop-in SIMD target exists in the current code shape, and integer-only
+SIMD is the determinism ceiling for synced code. The single genuine dense-arithmetic kernel is
+the path explorer's relaxation loop, whose staged SIMD position (design SIMD-compatible → scalar
+→ SIMD after verification) is tied to the ex-15 Y/H traversal work. Constraints, per-hotspot
+verdicts and the staged position: [simd-applicability](simd-applicability.md).
+
 ## Open questions
 
 - Exact fixture map dimensions and object counts (convoys, halts, cities, ways) — worth recording
@@ -236,6 +312,11 @@ must not be perturbed without reading [threading](threading.md) and
 - Why is `sync_list_t::sync_step` itself (not the objects it steps) 23.7% *self*? Candidates:
   list iteration cost at this object count, cache misses on the node walk, or inlining
   attribution artefacts. Investigate before attempting optimisation.
+- Was the path explorer's near-zero share in the measured fixture window dormancy or
+  budget-capping? Measure an active window (induced change activity on the fixture, or a long
+  capture spanning a burst): pass duration, total iterations. Reconcile with the 2026-09-09
+  recollection that on busy servers changes outpace it. Prerequisite for the staged SIMD position
+  in [simd-applicability](simd-applicability.md).
 - The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a
   post-load-wave problem, not a steady-state one; investigate with a Load-phase or
@@ -245,3 +326,6 @@ must not be perturbed without reading [threading](threading.md) and
   [RECOLLECTION:2026-09-09 user: not now].
 - A linkable release-build zstd static lib (same toolset as the game, or zstd sources compiled into
   the project) — would remove the debug-zstd decompression bias from load-phase measurements.
+- Mapgen: source of the Optimised-debug factory-placement config-sensitivity, and why town
+  placement stops at 42/50 on a sparse-enough 1024² map (spacing vs terrain rejection) —
+  resolve before adding placement-based test asserts.

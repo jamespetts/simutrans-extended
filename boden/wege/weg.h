@@ -305,6 +305,17 @@ public:
 		// pointers, which dangle once the world's ways are deleted.
 		static void clear_transient_state();
 
+		// Ensures that every stored list referenced by a linked slot is also
+		// referenced by at least one master slot, promoting a referencing linked
+		// slot to master where necessary, and returns the number of promotions.
+		// Must be called before saving: the save format stores list contents only
+		// for master slots, and copy-on-write of a shared master leaves the old
+		// list without any master (orphaned), so its contents would otherwise
+		// never be written and would silently load as empty routes (the 2026-09-19
+		// join desync: the server's in-process reload read the orphaned lists back
+		// from retained vector storage, so only freshly loading clients lost them).
+		static uint32 promote_orphaned_linked_slots();
+
 		//backwards compatible saving
 		void rdwr(loadsave_t *file);
 

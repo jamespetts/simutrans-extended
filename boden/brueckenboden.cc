@@ -80,6 +80,19 @@ void brueckenboden_t::rdwr(loadsave_t *file)
 		weg_hang = (scorner_sw(weg_hang) + scorner_se(weg_hang) * 3 + scorner_ne(weg_hang) * 9 + scorner_nw(weg_hang) * 27) * env_t::pak_height_conversion_factor;
 	}
 
+	if(  file->is_loading()  ) {
+		// weg_hang is only read here, AFTER grund_t::rdwr has loaded (and
+		// calculated speed limits for) the ways on this tile; those calculations
+		// read get_weg_hang(), so redo them now that it holds the file's value.
+		// (grund_t::rdwr skips them on bridge tiles for exactly this reason.)
+		for (uint8 i = 0; i < get_top(); i++) {
+			obj_t* o = obj_bei(i);
+			if (o && o->get_typ() == obj_t::way) {
+				static_cast<weg_t*>(o)->calc_speed_limit(this, true);
+			}
+		}
+	}
+
 	if(!find<bruecke_t>()) {
 		dbg->error( "brueckenboden_t::rdwr()", "No bridge on bridge ground at (%s); try replacement", pos.get_str() );
 		weg_t *w = get_weg_nr(0);

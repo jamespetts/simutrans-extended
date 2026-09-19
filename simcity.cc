@@ -35,6 +35,7 @@
 
 #include "simintr.h"
 #include "simdebug.h"
+#include "sys/simsys.h"
 
 #include "obj/gebaeude.h"
 #include "obj/roadsign.h"
@@ -656,11 +657,95 @@ bool stadt_t::bewerte_loc_has_public_road(const koord pos)
 	return false;
 }
 
+/**
+ * Bit flags for the memoised per-tile predicates used by bewerte_loc
+ * (stadt_t::loc_cache; see stadt_t::build). Each flag is a pure function of
+ * the current tile state; no randomness is consumed in computing them.
+ */
+enum loc_cache_flag_t {
+	lf_has_public_road = 1,		// bewerte_loc_has_public_road: 's' passes / 'S' fails
+	lf_is_fundament    = 2,		// get_typ() == fundament: 'H' fails
+	lf_is_house        = 4,		// fundament with no or a building object: 'h' passes
+	lf_is_natur        = 8,		// ist_natur and nothing blocking removal: 'n' passes
+	lf_good_slope      = 16,	// slope_t::is_way: 'U' passes / 'u' fails (as coded; see below)
+	lf_is_stop         = 32,	// is_halt: 't' passes / 'T' fails
+	lf_invalid         = 64,	// off-map: any rule fails (bewerte_loc returns false)
+	lf_known           = 128	// cache entry has been computed
+};
+
+uint8 stadt_t::compute_loc_flags(koord k)
+{
+	const grund_t* gr = welt->lookup_kartenboden(k);
+	if (gr == NULL) {
+		return lf_invalid;
+	}
+	uint8 flags = 0;
+	if (bewerte_loc_has_public_road(k)) {
+		flags |= lf_has_public_road;
+	}
+	if (gr->get_typ() == grund_t::fundament) {
+		flags |= lf_is_fundament;
+		if (gr->obj_bei(0) == NULL  ||  gr->obj_bei(0)->get_typ() == obj_t::gebaeude) {
+			flags |= lf_is_house;
+		}
+	}
+	if (gr->ist_natur()  &&  gr->kann_alle_obj_entfernen(NULL) == NULL) {
+		flags |= lf_is_natur;
+	}
+	if (slope_t::is_way(gr->get_grund_hang())) {
+		flags |= lf_good_slope;
+	}
+	if (gr->is_halt()) {
+		flags |= lf_is_stop;
+	}
+	return flags;
+}
+
+uint8 stadt_t::get_loc_flags(koord k)
+{
+	if (loc_cache_active
+		&&  k.x >= loc_cache_origin.x  &&  k.x < loc_cache_origin.x + loc_cache_w
+		&&  k.y >= loc_cache_origin.y  &&  k.y < loc_cache_origin.y + loc_cache_h)
+	{
+		uint8 &entry = loc_cache_data[(k.y - loc_cache_origin.y) * loc_cache_w + (k.x - loc_cache_origin.x)];
+		if (!(entry & lf_known)) {
+			entry = compute_loc_flags(k) | lf_known;
+		}
+		return entry;
+	}
+	return compute_loc_flags(k);
+}
+
+void stadt_t::activate_loc_cache()
+{
+	// Rules read up to 3 tiles beyond the candidate position in every direction.
+	const koord origin(lo.x - 3, lo.y - 3);
+	const sint32 w = (sint32)ur.x - (sint32)lo.x + 7;
+	const sint32 h = (sint32)ur.y - (sint32)lo.y + 7;
+	if (loc_cache_active  &&  loc_cache_origin == origin  &&  loc_cache_w == w  &&  loc_cache_h == h) {
+		// Entries remain valid: any tile mutation during a sweep deactivates the cache.
+		return;
+	}
+	free(loc_cache_data);
+	loc_cache_data = (uint8 *)calloc((size_t)w * (size_t)h, 1);
+	loc_cache_origin = origin;
+	loc_cache_w = w;
+	loc_cache_h = h;
+	loc_cache_active = loc_cache_data != NULL;
+}
+
+void stadt_t::deactivate_loc_cache()
+{
+	free(loc_cache_data);
+	loc_cache_data = NULL;
+	loc_cache_active = false;
+}
+
 /*
-* @param pos position to check
-* @param regel the rule to evaluate
-* @return true on match, false otherwise
-*/
+ * @param pos position to check
+ * @param regel the rule to evaluate
+ * @return true on match, false otherwise
+ */
 
 bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 {
@@ -678,51 +763,48 @@ bool stadt_t::bewerte_loc(const koord pos, const rule_t &regel, int rotation)
 		}
 
 		const koord k(pos.x+x-3, pos.y+y-3);
-		const grund_t* gr = welt->lookup_kartenboden(k);
-		if (gr == NULL) {
+		// Pure function of tile state (no RNG): memoised per sweep in build()
+		const uint8 flags = get_loc_flags(k);
+		if (flags & lf_invalid) {
 			// outside of the map => cannot apply this rule
 			return false;
 		}
 		switch (r.flag) {
 			case 's':
 				// public road?
-				if (!bewerte_loc_has_public_road(k)) return false;
+				if (!(flags & lf_has_public_road)) return false;
 				break;
 			case 'S':
-				// no road at all, not even a private one?
-				if (bewerte_loc_has_public_road(k)) return false;
+				// no public road? (private roads pass; as coded)
+				if (flags & lf_has_public_road) return false;
 				break;
 			case 'h':
 				// is house.
-				if (gr->get_typ() != grund_t::fundament  ||
-				    (gr->obj_bei(0) && gr->obj_bei(0)->get_typ()!=obj_t::gebaeude))
-				{
-					return false;
-				}
+				if (!(flags & lf_is_house)) return false;
 				break;
 			case 'H':
 				// no house
-				if (gr->get_typ() == grund_t::fundament) return false;
+				if (flags & lf_is_fundament) return false;
 				break;
 			case 'n':
 				// nature/empty
-				if (!gr->ist_natur() || gr->kann_alle_obj_entfernen(NULL) != NULL) return false;
+				if (!(flags & lf_is_natur)) return false;
 				break;
 			case 'U':
-				// unbuildable for road
-				if (!slope_t::is_way(gr->get_grund_hang())) return false;
+				// passes when a way IS buildable here (code semantics)
+				if (!(flags & lf_good_slope)) return false;
 				break;
 			case 'u':
-				// road may be buildable
-				if (slope_t::is_way(gr->get_grund_hang())) return false;
+				// passes when a way is NOT buildable here (code semantics)
+				if (flags & lf_good_slope) return false;
 				break;
 			case 't':
 				// here is a stop/extension building
-				if (!gr->is_halt()) return false;
+				if (!(flags & lf_is_stop)) return false;
 				break;
 			case 'T':
 				// no stop
-				if (gr->is_halt()) return false;
+				if (flags & lf_is_stop) return false;
 				break;
 			default: ;
 				// ignore
@@ -771,6 +853,15 @@ bool stadt_t::maybe_build_road(koord k, bool map_generation)
 	if (best_strasse.found()) {
 		bool success = build_road(best_strasse.get_pos(), NULL, false, map_generation);
 		INT_CHECK("simcity 5095");
+#if defined DEBUG || defined PROFILE
+		growth_diag.road_rule_match++;
+		if (!success) {
+			growth_diag.road_build_fail++;
+		}
+		else {
+			growth_diag.road_built++;
+		}
+#endif
 		return success;
 	}
 
@@ -901,8 +992,15 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	clear_ptr_vector( house_rules );
 	for (uint32 i = 0; i < num_house_rules; i++) {
 		house_rules.append(new rule_t());
+		// The rule weight property was named "chance" until commit aa88e8679 (April 2017)
+		// renamed it to "distribution_weight" without any pakset being updated, so every
+		// Extended pakset since then wrote ".chance" keys that the code no longer read
+		// (all rule weights silently defaulting to 0). Read both: the legacy ".chance"
+		// property first, overridden by ".distribution_weight" where present.
+		sprintf(buf, "house_%u.chance", i + 1);
+		const sint32 chance_weight = contents.get_int(buf, 0);
 		sprintf(buf, "house_%u.distribution_weight", i + 1);
-		house_rules[i]->distribution_weight = contents.get_int(buf, 0);
+		house_rules[i]->distribution_weight = contents.get_int(buf, chance_weight);
 
 		sprintf(buf, "house_%u", i + 1);
 		const char* rule = contents.get_string(buf, "");
@@ -949,8 +1047,12 @@ bool stadt_t::cityrules_init(const std::string &objfilename)
 	clear_ptr_vector( road_rules );
 	for (uint32 i = 0; i < num_road_rules; i++) {
 		road_rules.append(new rule_t());
+		// See the house-rule weight comment above: read the legacy ".chance" property
+		// first, overridden by ".distribution_weight" where present.
+		sprintf(buf, "road_%d.chance", i + 1);
+		const sint32 chance_weight = contents.get_int(buf, 0);
 		sprintf(buf, "road_%d.distribution_weight", i + 1);
-		road_rules[i]->distribution_weight = contents.get_int(buf, 0);
+		road_rules[i]->distribution_weight = contents.get_int(buf, chance_weight);
 
 		sprintf(buf, "road_%d", i + 1);
 		const char* rule = contents.get_string(buf, "");
@@ -1604,6 +1706,8 @@ void stadt_t::reset_city_borders()
 
 stadt_t::~stadt_t()
 {
+	free(loc_cache_data);
+
 	// close info win
 	destroy_win((ptrdiff_t)this);
 
@@ -1683,6 +1787,9 @@ stadt_t::stadt_t(player_t* player, koord pos, sint32 citizens) :
 	buildings(16),
 	pax_destinations_old(welt->get_size()),
 	pax_destinations_new(welt->get_size())
+#if defined DEBUG || defined PROFILE
+	,growth_diag()
+#endif
 {
 	assert(welt->is_within_limits(pos));
 
@@ -1702,6 +1809,9 @@ stadt_t::stadt_t(player_t* player, koord pos, sint32 citizens) :
 	won = 0;
 
 	lo = ur = pos;
+
+	loc_cache_data = NULL;
+	loc_cache_active = false;
 
 	// initialize history array
 	for (uint year = 0; year < MAX_CITY_HISTORY_YEARS; year++) {
@@ -1777,6 +1887,9 @@ stadt_t::stadt_t(loadsave_t* file) :
 	buildings(16),
 	pax_destinations_old(welt->get_size()),
 	pax_destinations_new(welt->get_size())
+#if defined DEBUG || defined PROFILE
+	,growth_diag()
+#endif
 {
 
 	//step_count = 0;
@@ -1788,6 +1901,9 @@ stadt_t::stadt_t(loadsave_t* file) :
 
 	unsupplied_city_growth = 0;
 	stadtinfo_options = 3;
+
+	loc_cache_data = NULL;
+	loc_cache_active = false;
 
 	// These things are not yet saved as part of the city's history,
 	// as doing so would require reversioning saved games.
@@ -3114,22 +3230,63 @@ void stadt_t::step_grow_city(bool new_town, bool map_generation)
 
 	// Hajo: let city grow in steps of 1
 	// @author prissi: No growth without development
+#if defined DEBUG || defined PROFILE
+	growth_diag.growth_steps += (uint32)growth_steps;
+#endif
 	for(  sint64 n = 0;  n < growth_steps;  n++  ) {
 		bev++;
 
 		if (!failure) {
+#if defined DEBUG || defined PROFILE
+			growth_diag.build_attempt_rounds++;
+			const uint32 t0 = dr_time();
+#endif
 			int i;
 
 			for (i = 0; i < num_tries && bev * 2 > won + arb + 100; i++) {
+#if defined DEBUG || defined PROFILE
+				const uint32 built_before = growth_diag.road_built + growth_diag.gbc_built;
+#endif
 				build(new_town, map_generation);
+#if defined DEBUG || defined PROFILE
+				if (built_before == growth_diag.road_built + growth_diag.gbc_built) {
+					growth_diag.empty_build_streak++;
+					if (growth_diag.empty_build_streak > growth_diag.max_empty_build_streak) {
+						growth_diag.max_empty_build_streak = growth_diag.empty_build_streak;
+					}
+				}
+				else {
+					growth_diag.empty_build_streak = 0;
+				}
+#endif
 			}
 
 			failure = i == num_tries;
+#if defined DEBUG || defined PROFILE
+			growth_diag.ms_build_attempts += dr_time() - t0;
+			if (failure) {
+				growth_diag.build_attempt_rounds_fail++;
+			}
+#endif
 		}
 
+#if defined DEBUG || defined PROFILE
+		const uint32 ts = dr_time();
+#endif
 		check_bau_spezial(new_town);
+#if defined DEBUG || defined PROFILE
+		const uint32 tt = dr_time();
+		growth_diag.ms_spezial += tt - ts;
+#endif
 		check_bau_townhall(new_town);
+#if defined DEBUG || defined PROFILE
+		const uint32 tf = dr_time();
+		growth_diag.ms_townhall += tf - tt;
+#endif
 		check_bau_factory(new_town); // add industry? (not during creation)
+#if defined DEBUG || defined PROFILE
+		growth_diag.ms_factory += dr_time() - tf;
+#endif
 		INT_CHECK("simcity 2241");
 	}
 }
@@ -3509,6 +3666,9 @@ void stadt_t::check_bau_spezial(bool new_town)
 			bool is_rotate = desc->get_all_layouts() > 1;
 			sint16 radius = koord_distance( get_rechtsunten(), get_linksoben() )/2 + 10;
 			// find place
+#if defined DEBUG || defined PROFILE
+			growth_diag.spez_attraction_place++;
+#endif
 			koord best_pos = building_place_with_road_finder(welt, radius, big_city).find_place(pos, desc->get_x(), desc->get_y(), desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), &is_rotate);
 
 			if (best_pos != koord::invalid) {
@@ -3536,6 +3696,9 @@ void stadt_t::check_bau_spezial(bool new_town)
 		if (desc) {
 			koord total_size = koord(2 + desc->get_x(), 2 + desc->get_y());
 			sint16 radius = koord_distance( get_rechtsunten(), get_linksoben() )/2 + 10;
+#if defined DEBUG || defined PROFILE
+			growth_diag.spez_monument_place++;
+#endif
 			koord best_pos(monument_placefinder_t(welt, radius).find_place(pos, total_size.x, total_size.y, desc->get_allowed_climate_bits(), desc->get_allowed_region_bits()));
 
 			if (best_pos != koord::invalid) {
@@ -4388,23 +4551,35 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 	grund_t* gr = welt->lookup_kartenboden(k);
 	if (!gr)
 	{
+#if defined DEBUG || defined PROFILE
+		growth_diag.gbc_reject_natur++;
+#endif
 		return;
 	}
 	const koord3d pos(gr->get_pos());
 
 	// Not building on ways (this was actually tested before be the cityrules), but you can construct manually
 	if(  !gr->ist_natur() ) {
+#if defined DEBUG || defined PROFILE
+		growth_diag.gbc_reject_natur++;
+#endif
 		return;
 	}
 	// test ownership of all objects that can block construction
 	for(  uint8 i = 0;  i < gr->obj_count();  i++  ) {
 		obj_t *const obj = gr->obj_bei(i);
 		if(  obj->is_deletable(NULL) != NULL  &&  obj->get_typ() != obj_t::pillar && obj->get_typ() != obj_t::pier ) {
+#if defined DEBUG || defined PROFILE
+			growth_diag.gbc_reject_object++;
+#endif
 			return;
 		}
 	}
 	// Refuse to build on a slope, when there is a ground right on top of it (=> the house would sit on the bridge then!)
 	if(  gr->get_grund_hang() != slope_t::flat  &&  welt->lookup(koord3d(k, welt->max_hgt(k))) != NULL  ) {
+#if defined DEBUG || defined PROFILE
+		growth_diag.gbc_reject_slope++;
+#endif
 		return;
 	}
 
@@ -4486,6 +4661,9 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 
 	if (h == NULL) {
 		// Found no suitable building.  Return!
+#if defined DEBUG || defined PROFILE
+		growth_diag.gbc_reject_nodesc++;
+#endif
 		return;
 	}
 //	if (h->get_clusters() == 0) {
@@ -4525,6 +4703,9 @@ void stadt_t::build_city_building(const koord k, bool new_town, bool map_generat
 			case building_desc_t::city_ind: arb +=  h->get_level() * 20; break;
 			default: break;
 		}
+#if defined DEBUG || defined PROFILE
+		growth_diag.gbc_built++;
+#endif
 	}
 }
 
@@ -5152,6 +5333,9 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 
 	if (bd->get_typ() != grund_t::boden) {
 		// not on water, monorails, foundations, tunnel or bridges
+#if defined DEBUG || defined PROFILE
+		growth_diag.br_noboden++;
+#endif
 		return false;
 	}
 
@@ -5169,6 +5353,9 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 
 		if (!allow_deletion)
 		{
+#if defined DEBUG || defined PROFILE
+			growth_diag.br_wayconflict++;
+#endif
 			return false;
 		}
 	}
@@ -5178,12 +5365,18 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		const weg_t* road = bd->get_weg(road_wt);
 		if (road->get_owner() != welt->get_public_player() && !welt->get_settings().get_towns_adopt_player_roads() && road->get_max_speed() > 0 && road->get_max_axle_load() > 0)
 		{
+#if defined DEBUG || defined PROFILE
+			growth_diag.br_private++;
+#endif
 			return false;
 		}
 	}
 
 	// somebody else's things on it?
 	if(  bd->kann_alle_obj_entfernen(NULL)  ) {
+#if defined DEBUG || defined PROFILE
+		growth_diag.br_objects++;
+#endif
 		return false;
 	}
 
@@ -5193,8 +5386,14 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 		climate c = welt->get_climate(k);
 		if(  bd->get_hoehe() > welt->get_water_hgt(k)  &&  welt->can_flatten_tile(NULL, k, bd->get_hoehe() )  ) {
 			welt->flatten_tile(NULL, k, bd->get_hoehe());
+#if defined DEBUG || defined PROFILE
+			growth_diag.br_flattens++;
+#endif
 		}
 		else {
+#if defined DEBUG || defined PROFILE
+			growth_diag.br_slope++;
+#endif
 			return false;
 		}
 		// kartenboden may have changed - also ensure is land
@@ -5205,6 +5404,11 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 			welt->set_climate(k, c, true);
 			bd = welt->lookup_kartenboden(k);
 		}
+		// Terraformation changes the corner heights shared with neighbouring
+		// tiles, and the water remediation above may have changed this tile,
+		// so no memoised tile flags may survive: if the road is subsequently
+		// refused, the sweep in build() continues uncached.
+		deactivate_loc_cache();
 	}
 
 	// initially allow all possible directions ...
@@ -5238,6 +5442,9 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 				// no building on crossings, curves, dead ends unless this is an unowned degraded way
 				if (!(sch->get_owner_nr() == PLAYER_UNOWNED && sch->is_degraded()))
 				{
+#if defined DEBUG || defined PROFILE
+					growth_diag.br_track++;
+#endif
 					return false;
 				}
 			}
@@ -5309,9 +5516,18 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 	}
 
 	if (connection_roads != ribi_t::none || forced) {
+		// The remainder of this function mutates map tiles (excess road removal,
+		// road construction, bridges, raising for bridge ramps). Failure exits
+		// after these mutations are rare but do occur (e.g. no bridge available),
+		// after which the sweep in build() continues, so no memoised tile flags
+		// may survive from here on.
+		deactivate_loc_cache();
 		grund_t::road_network_plan_t road_tiles;
 		while (bd->would_create_excessive_roads(road_tiles)) {
 			if (!bd->remove_excessive_roads(road_tiles)) {
+#if defined DEBUG || defined PROFILE
+				growth_diag.br_excessive++;
+#endif
 				return false;
 			}
 		}
@@ -5398,11 +5614,14 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 			     (bd_next->is_water() || bd_next->hat_weg(water_wt) || bd_next->hat_weg(track_wt) || bd_next->hat_weg(narrowgauge_wt) ||
 			       bd_next->hat_weg(monorail_wt) || bd_next->hat_weg(maglev_wt) || (bd_next->hat_weg(road_wt) && !bd_next->get_weg(road_wt)->is_public_right_of_way()))) {
 				// There is a river, a canal, railway, a private road, or a lake in the way. Build a bridge.
-				const bridge_desc_t* bridge = bridge_builder_t::find_bridge(road_wt, welt->get_city_road()->get_topspeed(), welt->get_timeline_year_month());
-				if (bridge == NULL) {
-					// does not have a bridge available ...
-					return false;
-				}
+			const bridge_desc_t* bridge = bridge_builder_t::find_bridge(road_wt, welt->get_city_road()->get_topspeed(), welt->get_timeline_year_month());
+			if (bridge == NULL) {
+				// does not have a bridge available ...
+#if defined DEBUG || defined PROFILE
+				growth_diag.br_bridge++;
+#endif
+				return false;
+			}
 				const char *err = NULL;
 				sint8 bridge_height;
 				koord3d end = bridge_builder_t::find_end_pos(NULL, bd->get_pos(), zv, bridge, err, bridge_height, false);
@@ -5468,9 +5687,15 @@ bool stadt_t::build_road(const koord k, player_t* player_, bool forced, bool map
 				}
 			}
 		}
+#if defined DEBUG || defined PROFILE
+		growth_diag.br_ok++;
+#endif
 		return true;
 	}
 
+#if defined DEBUG || defined PROFILE
+	growth_diag.br_noconn++;
+#endif
 	return false;
 }
 
@@ -5586,7 +5811,17 @@ void stadt_t::build(bool new_town, bool map_generation)
 		return;
 	}
 
+	// Ensure the tile-predicate cache (see below) never outlives this function.
+	struct loc_cache_guard_t {
+		stadt_t *s;
+		explicit loc_cache_guard_t(stadt_t *s_) : s(s_) {}
+		~loc_cache_guard_t() { s->deactivate_loc_cache(); }
+	} loc_cache_guard(this);
+
 	int num_enlarge_tries = 4;
+#if defined DEBUG || defined PROFILE
+	growth_diag.build_calls++;
+#endif
 	do {
 
 		// firstly, determine all potential candidate coordinates
@@ -5609,11 +5844,32 @@ void stadt_t::build(bool new_town, bool map_generation)
 				candidates.append(k);
 			}
 		}
+#if defined DEBUG || defined PROFILE
+		growth_diag.sweeps++;
+		growth_diag.candidates_created += candidates.get_count();
+#endif
+
+		// Memoise the tile predicates evaluated by bewerte_loc during the sweep
+		// below: each candidate's rules re-read the same 7x7 neighbourhood across
+		// rotations, across rules and across adjacent candidates. The predicates
+		// are pure functions of tile state and consume no randomness, so results
+		// are identical with or without the cache. Only worthwhile for
+		// non-trivial sweeps; any tile mutation during the sweep (in build_road)
+		// deactivates the cache.
+		if (candidates.get_count() >= 64) {
+			activate_loc_cache();
+		}
+		else {
+			deactivate_loc_cache();
+		}
 
 		// loop until all candidates are exhausted or until we find a suitable location to build road or city building
 		while(  candidates.get_count()>0  ) {
 			const uint32 idx = simrand( candidates.get_count(), "void stadt_t::build" );
 			const koord k = candidates[idx];
+#if defined DEBUG || defined PROFILE
+			growth_diag.candidates_checked++;
+#endif
 
 			if (maybe_build_road(k, map_generation)) {
 				INT_CHECK("simcity 5095");
@@ -5625,6 +5881,9 @@ void stadt_t::build(bool new_town, bool map_generation)
 			karte_t::runway_info ri = welt->check_nearby_runways(k);
 			if (ri.pos != koord::invalid)
 			{
+#if defined DEBUG || defined PROFILE
+				growth_diag.runway_skips++;
+#endif
 				candidates.remove_at(idx, false);
 				continue;
 			}
@@ -5639,6 +5898,9 @@ void stadt_t::build(bool new_town, bool map_generation)
 			}
 			// one rule applied?
 			if (best_haus.found()) {
+#if defined DEBUG || defined PROFILE
+				growth_diag.house_rule_match++;
+#endif
 				build_city_building(best_haus.get_pos(), new_town, map_generation);
 				INT_CHECK("simcity 5192");
 				return;
@@ -5650,6 +5912,14 @@ void stadt_t::build(bool new_town, bool map_generation)
 		// (Admittedly, this may be because percentage-distribution_weight rules told us not to.)
 		// Anyway, if this happened, enlarge the city limits and try again.
 		bool could_enlarge = enlarge_city_borders();
+#if defined DEBUG || defined PROFILE
+		if (could_enlarge) {
+			growth_diag.enlarge_ok++;
+		}
+		else {
+			growth_diag.enlarge_fail++;
+		}
+#endif
 		if (!could_enlarge) {
 			// Oh boy.  It's not possible to enlarge.  Seriously?
 			// I guess we'd better try merging this city into a neighbor (not implemented yet).
@@ -5664,6 +5934,7 @@ void stadt_t::build(bool new_town, bool map_generation)
 // find suitable places for cities
 vector_tpl<koord>* stadt_t::random_place(const karte_t* wl, const vector_tpl<sint32> *sizes_list, sint16 old_x, sint16 old_y)
 {
+	uint32 ms_t = dr_time();
 	unsigned number_of_clusters = env_t::number_of_clusters;
 	unsigned cluster_size = env_t::cluster_size;
 	const int grid_step = 8;
@@ -5957,6 +6228,7 @@ vector_tpl<koord>* stadt_t::random_place(const karte_t* wl, const vector_tpl<sin
 		}
 	}
 	delete list;
+	dbg->message("MAPGEN-T","random_place %ux%u: %u ms (%u found)", wl->get_size().x, wl->get_size().y, dr_time()-ms_t, result->get_count());
 	return result;
 }
 

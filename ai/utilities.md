@@ -13,7 +13,8 @@ utils/openttd), sys/ (simsys + backends, clipboard), sound/ + music/ (backends),
 **Use these, not std.** Simutrans containers/utilities (tpl/, utils/) must be preferred over
 std (etc.) equivalents: they are profiled to be faster for this game's workloads
 [RECOLLECTION:2026-09-07] (canonical note: [project-notes](project-notes.md)). Headers are the
-interface authority; this doc records role + gotchas only.
+interface authority; this doc records role + gotchas only. Design-paradigm context (why these
+containers, and where data-oriented layout is deliberate): [data-layout-and-design-style](data-layout-and-design-style.md).
 
 ## Containers (tpl/) — general
 
@@ -171,13 +172,15 @@ network checklist (`random_seed` + `rand[32]`, utils/checklist.h → [network](n
 Random-mode bitmasks (INTERACTIVE_/STEP_/SYNC_STEP_/LOAD_/MAP_CREATE_/MODAL_RANDOM) tag where
 simrand is called, for desync debugging. ex-15 adds `sigmoid` [CODE ex-15 @ fff9c203c].
 
-**float32e8_t** — deterministic decimal type: 32-bit mantissa + 10-bit exponent + sign; all
-arithmetic is integer-only → bit-identical results on all platforms (the network-sync-safe
-decimal; used in physics). Full arithmetic/comparison operators; constants (`zero`…`ten_thousand`,
-`half`, `third`, …); `abs`/`sgn`/`log2`/`exp2`/`pow`/`sqrt`; `fl_min`/`fl_max`; `rdwr` (savegame
+**float32e8_t** — deterministic custom binary-float type (not IEEE 754; `*` and `/` truncate):
+32-bit mantissa + 10-bit exponent + sign; all arithmetic is integer-only → bit-identical results
+on all platforms (the network-sync-safe decimal; used in physics). Full arithmetic/comparison
+operators; constants (`zero`…`ten_thousand`, `half`, `third`, …);
+`abs`/`sgn`/`log2`/`exp2`/`pow`/`sqrt`; `fl_min`/`fl_max`; `rdwr` (savegame
 surface); `get_mantissa()` for checksums; `to_double`/`to_sint32` (explicit cast). Much slower
 than float/int — plain integers remain preferred ([project-notes](project-notes.md)). Double
-interop is behind `USE_DOUBLE`, defined nowhere in-tree → disabled.
+interop is behind `USE_DOUBLE`, defined nowhere in-tree → disabled; it would call `::log2`/`pow`
+and is not itself deterministic.
 
 **log.h** — `log_t` (debug/message/warning/error/`fatal`[NORETURN]/vmessage; log file + stderr
 tee; optional syslog; duplicate-object message tracking `doubled`). Global instance `dbg`

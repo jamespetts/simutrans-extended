@@ -32,6 +32,9 @@ Note: the documents may be nested. Only top level documents are shown here.
 
 - [high-level-design-goals](high-level-design-goals.md) — read when doing any design work on a feature: the project's normative design goals (realism, economics, multiplayer balance) that new features must serve.
 - [project-roadmap](project-roadmap.md) — read when planning what features to add in what order: registry of planned features with balance-critical/simple/15.x markers; also check after implementing a feature to close its entry (per [conventions](conventions.md)).
+- [data-layout-and-design-style](data-layout-and-design-style.md) — read when choosing or reviewing a container/data layout, wondering whether a path is OOP or data-oriented, or considering restructuring a hot path for cache/bandwidth reasons.
+- [simd-applicability](simd-applicability.md) — read when considering SIMD/intrinsics work in any simulation code path, or when designing the ex-15 Y/H path-explorer traversal: baseline-ISA and determinism constraints, per-hotspot verdicts, staged path-explorer SIMD position.
+- [frame-pacing-smoothness](frame-pacing-smoothness.md) — read when investigating network-play jerkiness (burst–hang pattern), frame/step cadence, client pacing margins/clamps, or when proposing changes to FIX_RATIO pacing or the pacing tunables: mechanism, root-cause analysis and assessed improvement options.
 
 ## Build, data & infrastructure
 
