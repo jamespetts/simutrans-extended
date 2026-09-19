@@ -699,6 +699,7 @@ void weg_t::rdwr(loadsave_t *file)
 			}
 		}
 	}
+
 }
 
 
@@ -1495,6 +1496,7 @@ bool weg_t::renew()
 			owner->book_way_renewal(price, wt);
 		}
 	}
+
 	else if(owner && owner == welt->get_active_player() && !owner->get_has_been_warned_about_no_money_for_renewals())
 	{
 		welt->get_message()->add_message(translator::translate("Not enough money to carry out essential way renewal work.\n"), get_pos().get_2d(), message_t::warnings, owner->get_player_nr());
@@ -1577,6 +1579,7 @@ void weg_t::degrade()
 			}
 		}
 	}
+
 }
 
 signal_t *weg_t::get_signal(ribi_t::ribi direction_of_travel) const
@@ -1950,16 +1953,86 @@ void weg_t::private_car_route_map::clear_transient_state()
 	dirty_route_slots.clear();
 	for (uint8 elem = 0; elem < 2; elem++)
 	{
-		route_maps[elem].clear();
-		route_maps[elem].resize(0);
+		// Release the storage (copy-and-swap assignment), do not merely clear():
+		// vector_tpl::clear() retains the old data, and store_at() during loading
+		// overwrites only the positions of lists that have masters in the file,
+		// so a linked slot referencing a list that the file lacks (an orphaned
+		// list; see promote_orphaned_linked_slots) would read back the STALE
+		// contents from the previous world instead of an empty list — which masked
+		// the orphaned-list serialisation loss on server reloads (2026-09-19).
+		route_maps[elem] = vector_tpl<list_t>();
 		free_route_map_lists[elem].clear();
 		route_map_content_index[elem].clear();
 	}
 }
 
+uint32 weg_t::private_car_route_map::promote_orphaned_linked_slots()
+{
+	route_map_lock();
+	uint32 promotions = 0;
+	for (uint8 elem = 0; elem < 2; elem++)
+	{
+		const uint32 list_count = route_maps[elem].get_count();
+		if (list_count == 0)
+		{
+			continue;
+		}
+		// has_master[l] == true iff some master slot references list l. Copy-on-
+		// write of a shared master moves the master slot to a fresh list, leaving
+		// the old list referenced by linked slots only (orphaned); the save format
+		// stores list contents only for master slots, so orphaned lists would be
+		// lost on saving. Promote one referencing linked slot to master for each
+		// orphaned list. This changes only the internal representation, not the
+		// recorded routes (identical contents), and is network-safe: only the
+		// saving peer runs this, and the file it produces loads identically
+		// everywhere.
+		vector_tpl<char> has_master(list_count);
+		for (uint32 i = 0; i < list_count; i++)
+		{
+			has_master.append(0);
+		}
+		FOR(vector_tpl<weg_t*>, const w, alle_wege)
+		{
+			if (w->get_waytype() != road_wt)
+			{
+				continue;
+			}
+			for (uint8 d = 0; d < 5; d++)
+			{
+				const private_car_route_map& m = w->private_car_routes[elem][d];
+				if (m.link_mode == link_mode_master && m.idx < list_count)
+				{
+					has_master[m.idx] = 1;
+				}
+			}
+		}
+		FOR(vector_tpl<weg_t*>, const w, alle_wege)
+		{
+			if (w->get_waytype() != road_wt)
+			{
+				continue;
+			}
+			for (uint8 d = 0; d < 5; d++)
+			{
+				private_car_route_map& m = w->private_car_routes[elem][d];
+				// Linked slots (link_mode 0..4) referencing an orphaned list.
+				if (m.link_mode < link_mode_master && m.idx < list_count && !has_master[m.idx])
+				{
+					m.link_mode = link_mode_master;
+					has_master[m.idx] = 1;
+					promotions++;
+				}
+			}
+		}
+	}
+	route_map_unlock();
+	return promotions;
+}
+
 void weg_t::private_car_route_map::flag_shared_lists_loaded()
 {
 	const uint8 elem = weg_t::get_private_car_routes_currently_writing_element();
+	uint32 dangling_links = 0;
 	FOR(vector_tpl<weg_t*>, const w, alle_wege)
 	{
 		if (w->get_waytype() != road_wt)
@@ -1969,14 +2042,28 @@ void weg_t::private_car_route_map::flag_shared_lists_loaded()
 		for (uint8 d = 0; d < 5; d++)
 		{
 			const private_car_route_map& m = w->private_car_routes[elem][d];
-			if (m.link_mode != link_mode_NULL && m.link_mode != link_mode_single && m.link_mode != link_mode_master
-				&& route_maps[elem].get_count() > m.idx)
+			if (m.link_mode != link_mode_NULL && m.link_mode != link_mode_single && m.link_mode != link_mode_master)
 			{
-				// A slot linked to another slot's list was loaded: the target list
-				// is shared and must be copy-on-written from now on.
-				route_maps[elem][m.idx].shared = true;
+				if (route_maps[elem].get_count() > m.idx)
+				{
+					// A slot linked to another slot's list was loaded: the target
+					// list is shared and must be copy-on-written from now on.
+					route_maps[elem][m.idx].shared = true;
+				}
+				else
+				{
+					// The file references a list that it does not contain: this
+					// save was written by a build with the orphaned-list bug
+					// (see promote_orphaned_linked_slots). The routes are lost;
+					// they will be re-recorded over the coming refresh cycles.
+					dangling_links++;
+				}
 			}
 		}
+	}
+	if (dangling_links > 0)
+	{
+		dbg->warning("weg_t::private_car_route_map::flag_shared_lists_loaded", "%u linked private car route slots reference lists missing from this savegame (written by a build with the orphaned-list bug); the affected routes will be re-recorded automatically", dangling_links);
 	}
 }
 

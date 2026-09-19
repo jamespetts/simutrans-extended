@@ -5229,6 +5229,37 @@ void karte_t::pause_step()
 #endif
 }
 
+// Semantic hash of all private car route data, independent of the internal
+// route-map representation (idx/link_mode ordering). This is the determinism
+// oracle used by the smoke test harness and the network join-sync test: two
+// independent runs must produce identical values for identical state, and a
+// divergence localises the first semantically divergent step. It exists because
+// the route maps' storage layout is allocated during multi-threaded worker
+// windows, so savegames of semantically identical runs are not byte-comparable.
+// route_map_mtx is held so that no worker can be mid-backtrace-write during the
+// read.
+static uint32 private_car_route_semantic_hash()
+{
+	weg_t::private_car_route_map::route_map_lock();
+	uint32 route_hash = 2166136261u; // FNV-1a offset basis
+	for (uint8 elem = 0; elem < 2; elem++) {
+		for (weg_t* w : weg_t::get_alle_wege()) {
+			if (w->get_waytype() != road_wt) continue;
+			for (uint8 d = 0; d < 5; d++) {
+				const weg_t::private_car_route_map& m = w->private_car_routes[elem][d];
+				const uint32 n = m.get_count();
+				route_hash = (route_hash ^ n) * 16777619u;
+				for (uint32 k = 0; k < n; k++) {
+					const koord kk = m.get_by_index(k);
+					route_hash = (route_hash ^ (((uint32)(uint16)kk.x << 16) | (uint16)kk.y)) * 16777619u;
+				}
+			}
+		}
+	}
+	weg_t::private_car_route_map::route_map_unlock();
+	return route_hash;
+}
+
 void karte_t::step()
 {
 	rands[8] = get_random_seed();
@@ -5522,36 +5553,12 @@ void karte_t::step()
 
 	weg_t::apply_travel_time_updates();
 
-	// Semantic hash of all private car route data, independent of the internal
-	// route-map representation (idx/link_mode ordering), logged every step. This
-	// is the determinism oracle used by the smoke test harness: two independent
-	// runs must produce identical sequences, and a divergence localises the first
-	// semantically divergent step. It exists because the route maps' storage
-	// layout is allocated during multi-threaded worker windows, so savegames of
-	// semantically identical runs are not byte-comparable. route_map_mtx is held
-	// so that no worker can be mid-backtrace-write during the read. Guarded by
-	// the log level so that -debug 1 runs (e.g. the profiling suite) do not spend
-	// main-thread time computing a hash whose output would be suppressed anyway.
+	// Guarded by the log level so that -debug 1 runs (e.g. the profiling suite) do
+	// not spend main-thread time computing a hash whose output would be suppressed
+	// anyway.
 	if (env_t::verbose_debug >= log_t::LEVEL_WARN)
 	{
-		weg_t::private_car_route_map::route_map_lock();
-		uint32 route_hash = 2166136261u; // FNV-1a offset basis
-		for (uint8 elem = 0; elem < 2; elem++) {
-			for (weg_t* w : weg_t::get_alle_wege()) {
-				if (w->get_waytype() != road_wt) continue;
-				for (uint8 d = 0; d < 5; d++) {
-					const weg_t::private_car_route_map& m = w->private_car_routes[elem][d];
-					const uint32 n = m.get_count();
-					route_hash = (route_hash ^ n) * 16777619u;
-					for (uint32 k = 0; k < n; k++) {
-						const koord kk = m.get_by_index(k);
-						route_hash = (route_hash ^ (((uint32)(uint16)kk.x << 16) | (uint16)kk.y)) * 16777619u;
-					}
-				}
-			}
-		}
-		dbg->warning("karte_t::step", "Private car route hash step %u: %08x", steps, route_hash);
-		weg_t::private_car_route_map::route_map_unlock();
+		dbg->warning("karte_t::step", "Private car route hash step %u: %08x", steps, private_car_route_semantic_hash());
 	}
 
 	// Cities step here, after the private-car workers have been awaited (see the
@@ -8284,12 +8291,25 @@ void karte_t::save(loadsave_t *file, bool silent)
 
 	loadingscreen_t *ls = NULL;
 DBG_MESSAGE("karte_t::save(loadsave_t *file)", "start");
+
 	if(!silent) {
 		ls = new loadingscreen_t( translator::translate("Saving map ..."), get_size().y );
 	}
 #ifdef MULTI_THREAD
 	await_all_threads();
 #endif
+	// The private car route map save format stores list contents only for master
+	// slots; copy-on-write of a shared master can leave a list without any master
+	// (orphaned), so its contents would never be written. Promote a referencing
+	// linked slot to master for each orphaned list so that all recorded routes
+	// actually reach the file (representation-only change; see weg.cc). Must run
+	// AFTER await_all_threads(), which completes parked searches and can create
+	// new orphans.
+	const uint32 orphaned_lists_repaired = weg_t::private_car_route_map::promote_orphaned_linked_slots();
+	if (orphaned_lists_repaired > 0)
+	{
+		dbg->warning("karte_t::save", "Promoted %u linked private car route slots to master so that all recorded routes are saved", orphaned_lists_repaired);
+	}
 	// rotate the map until it can be saved completely
 	for( int i=0;  i<4  &&  nosave_warning;  i++  ) {
 		rotate90();
@@ -10117,6 +10137,15 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	// A savegame may carry linked (shared) destination lists in the element that
 	// will now be written: flag them so that the workers copy-on-write them.
 	weg_t::private_car_route_map::flag_shared_lists_loaded();
+	// Determinism diagnostic for network-join verification (used by the
+	// join-sync test): the semantic private car route hash as loaded, before any
+	// post-load stepping. The server's reload and the client's load of the same
+	// transferred file must produce identical values; a difference here means
+	// that loading itself is asymmetric.
+	if (env_t::verbose_debug >= log_t::LEVEL_WARN)
+	{
+		dbg->warning("karte_t::load", "Private car route hash after load: all=%08x (cities queued %u, cities_to_process %d)", private_car_route_semantic_hash(), cities_awaiting_private_car_route_check.get_count(), cities_to_process);
+	}
 #endif
 
 	// Move the staged transferring cargoes into the array allocated above by
