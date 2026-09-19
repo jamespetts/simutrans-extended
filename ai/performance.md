@@ -18,6 +18,9 @@ performance critical — full rules in [project-notes](project-notes.md) (memory
 biggest constraint on the huge maps now commonly played). Any change touching those paths needs a
 *measured* performance check, not just reasoning. This doc defines the canonical way to measure and
 lists the known hotspots so agents know where care is needed and where to look when profiling.
+The network-play smoothness defect (burst–hang jerkiness) is the frame-pacing consequence of these
+costs — serial `step()`/`sync_step` time against the fixed network frame budget: analysis, options
+and the pacing-side measurement plan in [frame-pacing-smoothness](frame-pacing-smoothness.md).
 
 ## The canonical profiling suite
 

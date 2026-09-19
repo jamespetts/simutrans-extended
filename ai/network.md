@@ -62,6 +62,7 @@ Deterministic lockstep: only commands travel during play; full game state travel
 - Client pacing (`karte_t::process_network_commands`) [CODE]: from the received server sync step it computes a target offset (`settings.get_server_frames_ahead()` + `env_t::additional_client_frames_behind`) and applies gentle speed correction via `ms_difference` (clamped in `interactive` to roughly 83%–500% of normal rate); hard limit: `sync_steps_barrier` — a client at the barrier only displays (`sync_step(0,false,true)`) and cannot overtake the server.
 - Pause machinery: `karte_t::network_game_set_pause(pause, syncsteps)` re-derives step/frame counters and, on client unpause, grants the server a head start. `env_t::pause_server_no_clients` pauses an empty server; `env_t::server_runs_background_tasks_when_paused` (`-run-background-tasks`) lets it keep running path explorer/private-car routing via `pause_step()` [CODE].
 - Command processing order per iteration of `karte_t::interactive`: `process_network_commands` (receive → execute/queue → drain due commands via `karte_t::do_network_world_command`) BEFORE simulation advance [CODE].
+- Smoothness defect of this pacing — the network-play burst–hang pattern (freeze during heavy frames, catch-up sprints, barrier/hard-reset freezes on clients): analysis and assessed improvement options in [frame-pacing-smoothness](frame-pacing-smoothness.md).
 
 ## Checklist mechanism
 
