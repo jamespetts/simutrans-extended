@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ be23f4203
+verified: master @ 7655609c9
 ---
 # Savegame & network versioning
 
@@ -40,6 +40,7 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
 - `loadsave_t::wr_open(filename, mode, level, pak_extension, savegame_version, savegame_version_ex, savegame_revision_ex)` (dataobj/loadsave.h) [CODE].
 - The strings come from `env_t::savegame_version_str / savegame_ex_version_str / savegame_ex_revision_str` (dataobj/environment.h — "version for which the savegames should be created"), defaulted to build constants (dataobj/environment.cc) and **user-selectable in the settings dialog** (gui/settings_stats.cc comboboxes from static `version[]`, `version_ex[]`, `revision_ex[]` arrays; gui/loadsave_frame.cc saves via the env_t strings) [CODE].
 - Consequence: when saving, `finfo.ext_version` is set from the *target* strings — version conditions control what is written as well as what is read [CODE].
+- The target revision is honored end to end: `wr_open()` appends the revision parameter to the version string (callers pass `.`-prefixed or bare), and `int_version()` parses the optional `.<ex_rev>` (absent means 0; the explicit revision long stays authoritative for saves). Previously the revision parameter was dropped and the parser always returned the build's `EX_SAVE_MINOR`, so old-target saves silently carried the current revision [CODE master @ 7655609c9].
 - Server-side saves use `SERVER_SAVEGAME_VER_NR` (simworld.cc, network/network_cmd_ingame.cc) [CODE].
 
 ## Rules for rdwr serialization code (what AI-written save code must follow)

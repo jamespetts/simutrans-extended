@@ -54,6 +54,10 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
    (gitignored). Clear `ai/temp/` at the end of a work session, EXCEPT the persistent
    performance-suite state under `ai/temp/perf/` (see `ai/performance.md`). At session start, if
    `ai/temp/` is non-empty, read any handoff notes there first.
+9. Any change made for testing only (temporary config values, diagnostic logging,
+   scaffolding, scratch data inside the repo) must carry an explicit comment containing
+   the word TEST or TESTING in capital letters, so it is never mistaken for an intended
+   fix. Revert all such changes before finishing.
 
 
 ## Commit messages

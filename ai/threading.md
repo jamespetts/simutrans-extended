@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ a2ae2ee0e
+verified: master @ 7655609c9
 ---
 # Threading
 
@@ -203,9 +203,16 @@ What non-main threads write beyond per-thread buffers (rule 1); locks → Lock i
   `init_threads()` (the workers park on `private_car_start_cond` because the flag is set) →
   `weg_t::private_car_route_map::flag_shared_lists_loaded()` (marks lists referenced by linked
   slots in the loaded writing element as shared, so the workers copy-on-write them). The pre-set
-  suspend flag closes the private-car workers' first-iteration pickup gate (they would otherwise
-  start processing the loaded city queue immediately, unpaced and racing the load tail);
-  processing starts at the first step's `start_private_car_threads`, which clears the flag.
+   suspend flag closes the private-car workers' first-iteration pickup gate (they would otherwise
+   start processing the loaded city queue immediately, unpaced and racing the load tail);
+   processing starts at the first step's `start_private_car_threads`, which clears the flag.
+   Loaded private-car counters must satisfy the rendezvous invariant (`cities_to_process` ==
+   claims + running + suspended; with no worker running at load, `0 <= cities_to_process` <=
+   queued cities); `karte_t::load()` validates the queue block and repairs it deterministically
+   (discard the block if the count exceeds the city count, clamp the counter into range), with a
+   warning, so unrestorable file values cannot deadlock the first step's await
+   [CODE master @ 7655609c9; EXECUTION-VERIFIED on a save carrying an unrestorable counter with
+   an empty queue: repaired with a warning, then stepped normally].
   `pthread_create` orders all load-time writes before any worker read. `karte_t::load(filename)`
   additionally calls `suspend_private_car_threads()` first ("Necessary here to prevent thread
   deadlocks").
