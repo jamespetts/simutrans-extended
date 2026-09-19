@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 79e91affc
+verified: master @ 712f9335c
 ---
 # Sync & determinism: rules for simulation code
 
@@ -35,6 +35,8 @@ Network play is deterministic lockstep: server and every client independently ru
 - rdwr mechanics and version-condition rules → [savegame-versioning](savegame-versioning.md). Changing serialisation of synced data is change-restricted (AGENTS.md rule 5).
 - Settings are server-authoritative in network mode (special-cased rdwr in dataobj/settings.cc); loading very old saves in network mode forces fixed defaults for certain settings "to prevent desyncs" [CODE comment].
 - Algorithms fed by non-deterministic iteration order must still decide deterministically — e.g. passenger-class downgrading in simhalt.cc handles classes arriving in non-deterministic vehicle order [CODE comment].
+- Serialisation of shared/deduplicated storage must preserve reachability: every stored list referenced by a live slot must be reachable through the serialised form. Representation-level sharing (linking/dedup, e.g. the private-car route maps' master/linked slots) must not strand content in non-serialised reference shapes. [CODE; a violation silently lost recorded routes on client load until promote_orphaned_linked_slots, weg.cc]
+- Computations at load time must only consume state that has already been loaded at that point; an in-process reload (a network server reloading when a client joins, nwc_sync_t) can mask load-order bugs because freed heap keeps stale-but-correct values from the destroyed world, while a fresh client load sees zeros/garbage. [CODE; the bridge/pier-deck way-slope read-after-use in grund_t::rdwr way loading desynced joins until the calc was deferred to the subclass rdwr, grund.cc/brueckenboden.cc/pier_deck.cc]
 
 ## Threading rules
 
@@ -126,10 +128,17 @@ When adding per-step diagnostic aggregates for a new subsystem, use an unused sl
 
 ## Provenance
 
-Private-car route-checking entries (threading-rules bullet, rands[15]/[16] checkpoints, the
+The two serialisation-rule bullets added 2026-09-19 (shared-storage reachability; load-time
+computation order incl. in-process-reload masking) verified against master @ 712f9335c [CODE;
+EXECUTION-VERIFIED by a loopback server+client join repro on the bb6-apr-2010.sve fixture:
+pre-fix desync within seconds of unpause every run; post-fix in sync indefinitely, with all
+load-time state computations identical between server-reload and client-load]. Private-car
+route-checking entries (threading-rules bullet, rands[15]/[16] checkpoints, the
 route-hash caveat) verified against private-car-mt-network @ f69b873ca, 2026-09-16 [CODE;
 validation evidence listed in [threading](threading.md) provenance]. Remainder verified against master @ 78a4bb3b9. The covered files (utils/simrandom.*, utils/checklist.*, network/) are materially identical on ex-15 — the only branch difference in these files is an added integer `sigmoid()` helper (no RNG semantics change) — so this doc applies to both branches [CODE]. The lockstep/checklist model and threading design are Extended-era developments built on the Standard Simutrans network base; coarse provenance only, per conventions.
 
 ## Open questions
 
 - Is the de-facto requirement for identical `threads` settings across peers intentional (given `parallel_operations` already makes the work split identical), or should the checklist tolerate differing thread counts? (Rationale evidenced only by a commit title; user could not confirm, asked 2026-09-07.)
+- `tunnelboden_t::get_weg_hang()` reads `ist_karten_boden()` + the ground slope, both loaded in `grund_t::rdwr` before the way loop, so tunnels are believed unaffected by the bridge/pier-deck load-order fix — but this was not separately verified [UNVERIFIED].
+- The way degradation transform in `weg_t::calc_speed_limit` is non-idempotent at load (halves when `degraded && old==topspeed`, restores otherwise), so save→load cycles toggle degraded ways' effective speed until they re-degrade. No longer sync-critical (the calc now always runs with the correct way-slope), but a single-player fidelity wart worth a cleanup pass [CODE].

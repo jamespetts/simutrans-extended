@@ -52,9 +52,22 @@ verified: mapgen-perf-fixes @ 0954e8c3c
    not on byte-identity of the final saves. Byte-identity is not expected: private-car
    route-map list indices are allocated while worker threads are running, in
    thread-timing-dependent order, so semantically identical runs can produce
-   byte-different `final.sve` files (the checklist and the simulation only ever see
-   semantic content). The byte comparison runs as informational output ("NOTE:" lines)
-   only. The same applies to the Windows local runner `scripts/run-smoke-tests.ps1`.
+    byte-different `final.sve` files (the checklist and the simulation only ever see
+    semantic content). The byte comparison runs as informational output ("NOTE:" lines)
+    only. The same applies to the Windows local runner `scripts/run-smoke-tests.ps1`.
+- Network-JOIN synchronisation gate [CODE master @ 6d2749344; user-directed requirement]:
+    `scripts/run-join-sync-test.sh` + workflow `join-sync.yml` (push/PR) replay a loopback
+    server+client join on the real Bridgewater-Brunel fixture `bb6-apr-2010.sve` — the only
+    harness that exercises the join save/transfer/reload path (the smoke harness compares two
+    independent server runs). One MULTI_THREAD headless binary plays both roles (headless
+    clients work: `-load net:` ends in `network_connect()`, pure socket/file IO). Oracles:
+    desync/kick log markers; per-step semantic route-hash agreement over common steps (server
+    side: last-occurrence-per-step wins, because the join pause re-derives the step counter);
+    the client's server=/client= checklist-pair mismatch count; generic failure markers.
+    Fixture is NOT in the repo: the workflow reads the `BB_SYNC_FIXTURE_URL` repository Actions
+    variable (optional `BB_SYNC_FIXTURE_SHA256`; cached by URL hash) and SKIPs with a notice
+    while unset. Deliberately a separate workflow so its cost (two engine processes holding the
+    whole BB map) is not inherited by the TSan detector or the pakset-pin ratchet.
 
 ## Initial facts
 
@@ -79,3 +92,9 @@ verified: mapgen-perf-fixes @ 0954e8c3c
 - Root cause of the `run-tests.yml` Squirrel-suite failure (`[suspended]` error + hang) — not yet
   diagnosed. (The TSan races once reported by that job were the separate, since-fixed
   `karte_t::load`/`init_threads` family.)
+- join-sync on ex-15: the fixture is a 14.x-era save; loading it with the ex-15 engine and the ex-15
+  pakset pin is unverified. If it fails, restrict `join-sync.yml` to master or host a branch-specific
+  fixture [UNVERIFIED].
+- join-sync runner sizing: both engine processes hold the whole BB map simultaneously; the 16 GB /
+  4-core standard GitHub runner has not been measured against this fixture (if it OOMs or times out:
+  larger runners, or shorter pre-join/observation windows) [UNVERIFIED].
