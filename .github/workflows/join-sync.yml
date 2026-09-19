@@ -1,0 +1,205 @@
+#
+# Loopback network-join synchronisation test on the real Bridgewater-Brunel
+# fixture (bb6-apr-2010.sve, ~186 MB zipped save of a large mature map).
+#
+# Regression gate for the live-server join desync fixed by
+# promote_orphaned_linked_slots (boden/wege/weg.cc, called from karte_t::save in
+# simworld.cc): orphaned shared private-car route lists were not serialised, so
+# a client joining a running server received different private-car route data
+# and lost synchronisation within seconds of unpause. The job builds ONE
+# MULTI_THREAD headless binary and runs it as both server and client over
+# loopback via scripts/run-join-sync-test.sh (the Linux port of the proven local
+# repro ai/temp/desync-repro/run-repro.ps1). See the script header for the
+# headless-client feasibility evidence and the oracles.
+#
+# Deliberately a separate workflow, not a flavour of smoke-harness.yml: the
+# fixture is far larger than tests/demo.sve (two engine processes hold the whole
+# map simultaneously - mind the 16 GB standard-runner limit), a sanitizer build
+# would multiply the runtime on every step, and neither the TSan detector nor
+# the pakset-pin ratchet should inherit this cost. Plain optimised GNU-make
+# build (no DEBUG): -until is unused, -debug 2 is a runtime level, and the
+# route-hash/checklist oracles are compiled into every build.
+#
+# MULTI_THREAD is mandatory (the desync machinery under test is multi-threaded):
+# the GNU-make autoconf route sets MULTI_THREAD = 1 on Linux (configure.ac
+# pthread check) and the Configure step below fails if it did not. Do NOT switch
+# this job to CMake without -DSIMUTRANS_MULTI_THREAD=ON (CMake defaults OFF).
+#
+# Fixture provisioning: the fixture is not hosted in the repository. Set the
+# repository Actions variable BB_SYNC_FIXTURE_URL to its download URL (e.g. in
+# the bridgewater-brunel.me.uk downloads area) to enable the gate; until then
+# every run SKIPS with a notice and a success exit. Optional:
+# BB_SYNC_FIXTURE_SHA256 (hex digest) enables an integrity check. The download
+# is cached by URL hash; re-hosting different content under the same URL
+# requires a new URL or clearing the cache (the sha256 check catches drift).
+# A workflow_dispatch run can override the URL via the fixture_url input.
+#
+name: Join sync
+on:
+  push:
+    branches: [master, ex-15]
+  pull_request:
+    branches: [master, ex-15]
+  workflow_dispatch:
+    inputs:
+      fixture_url:
+        description: 'Fixture download URL (empty: use the BB_SYNC_FIXTURE_URL repository variable)'
+        type: string
+        default: ''
+
+env:
+  BB_SYNC_FIXTURE_URL: ${{ vars.BB_SYNC_FIXTURE_URL }}
+
+jobs:
+  resolve-pakset-pin:
+    runs-on: ubuntu-latest
+    outputs:
+      pakset_sha: ${{ steps.pin.outputs.pakset_sha }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Read pin
+      id: pin
+      run: |
+        branch="${{ github.base_ref || github.ref_name }}"
+        case "$branch" in
+          ex-15) key="ex-15" ;;
+          *) key="master" ;;
+        esac
+        sha=$(awk -F' *= *' -v k="$key" '$1 == k { print $2 }' tests/pakset-pin.tab)
+        if [ -z "$sha" ]; then
+          echo "::error::no pakset pin for key '$key' in tests/pakset-pin.tab"
+          exit 1
+        fi
+        echo "pakset_sha=$sha" >> "$GITHUB_OUTPUT"
+        echo "pakset pin ($key): $sha"
+
+  join-sync:
+    needs: resolve-pakset-pin
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Resolve head sha
+      id: head
+      run: echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+    - name: Resolve fixture URL
+      id: fixture
+      run: |
+        url="${{ github.event.inputs.fixture_url }}"
+        [ -n "$url" ] || url="$BB_SYNC_FIXTURE_URL"
+        if [ -z "$url" ]; then
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::SKIP: BB_SYNC_FIXTURE_URL is not configured - the join-sync test needs the hosted bb6-apr-2010.sve fixture. Set the BB_SYNC_FIXTURE_URL repository Actions variable (or pass the fixture_url input on a workflow_dispatch run) to enable this gate."
+          exit 0
+        fi
+        echo "run=true" >> "$GITHUB_OUTPUT"
+        echo "url=$url" >> "$GITHUB_OUTPUT"
+        echo "cache_key=bb-sync-fixture-$(printf '%s' "$url" | sha256sum | cut -c1-20)" >> "$GITHUB_OUTPUT"
+        echo "fixture_url: $url"
+    - name: Install dependencies
+      if: steps.fixture.outputs.run == 'true'
+      run: |
+        sudo apt-get -y update
+        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache
+    - name: Cache ccache
+      if: steps.fixture.outputs.run == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ccache:join-sync:${{ steps.head.outputs.head_sha }}
+        restore-keys: |
+          ccache:join-sync:
+    - name: Configure (headless, MULTI_THREAD)
+      if: steps.fixture.outputs.run == 'true'
+      run: |
+        autoconf
+        CC="ccache clang-14" CXX="ccache clang++-14" ./configure --enable-server
+        # The desync machinery under test is multi-threaded; refuse to test a
+        # single-threaded binary.
+        grep -E '^MULTI_THREAD *= *1' config.default || { echo "::error::configure did not enable MULTI_THREAD (pthread missing?)"; exit 1; }
+    - name: Build makeobj
+      if: steps.fixture.outputs.run == 'true'
+      run: CC="ccache clang-14" CXX="ccache clang++-14" make -j$(nproc) makeobj
+    - name: Build engine
+      if: steps.fixture.outputs.run == 'true'
+      run: CC="ccache clang-14" CXX="ccache clang++-14" make -j$(nproc)
+    - name: Locate binaries
+      if: steps.fixture.outputs.run == 'true'
+      run: |
+        engine_path=$(find . -maxdepth 4 -type f -name simutrans-extended -not -path './pakset-src/*' -not -path './simutrans/*' | head -1)
+        makeobj_path=$(find . -maxdepth 4 -type f -name makeobj-extended -not -path './pakset-src/*' | head -1)
+        [ -n "$engine_path" ] || { echo "::error::engine binary not found"; exit 1; }
+        [ -n "$makeobj_path" ] || { echo "::error::makeobj binary not found"; exit 1; }
+        echo "ENGINE_BIN=$(readlink -f "$engine_path")" >> "$GITHUB_ENV"
+        echo "MAKEOBJ_BIN=$(readlink -f "$makeobj_path")" >> "$GITHUB_ENV"
+    - name: Checkout pakset sources
+      if: steps.fixture.outputs.run == 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: jamespetts/simutrans-pak128.britain
+        ref: ${{ needs.resolve-pakset-pin.outputs.pakset_sha }}
+        path: pakset-src
+    - name: Cache compiled pakset
+      if: steps.fixture.outputs.run == 'true'
+      id: pakcache
+      uses: actions/cache@v4
+      with:
+        path: pakset-src/pak128.Britain-Ex
+        key: pakset-${{ needs.resolve-pakset-pin.outputs.pakset_sha }}@${{ steps.head.outputs.head_sha }}
+    - name: Compile pakset
+      if: steps.fixture.outputs.run == 'true' && steps.pakcache.outputs.cache-hit != 'true'
+      run: make -C pakset-src MAKEOBJ="$MAKEOBJ_BIN"
+    - name: Link pakset into simutrans/
+      if: steps.fixture.outputs.run == 'true'
+      run: ln -sfn ../pakset-src/pak128.Britain-Ex simutrans/pak128.Britain-Ex
+    - name: Cache fixture
+      if: steps.fixture.outputs.run == 'true'
+      id: fixcache
+      uses: actions/cache@v4
+      with:
+        path: ai/temp/fixtures
+        key: ${{ steps.fixture.outputs.cache_key }}
+    - name: Download fixture
+      if: steps.fixture.outputs.run == 'true' && steps.fixcache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ai/temp/fixtures
+        curl -fL --retry 3 -o ai/temp/fixtures/bb6-apr-2010.sve "${{ steps.fixture.outputs.url }}"
+    - name: Verify fixture
+      if: steps.fixture.outputs.run == 'true'
+      run: |
+        f=ai/temp/fixtures/bb6-apr-2010.sve
+        [ -s "$f" ] || { echo "::error::fixture missing or empty: $f"; exit 1; }
+        size=$(stat -c%s "$f")
+        echo "fixture size: $size bytes"
+        if [ "$size" -lt 100000000 ]; then
+          echo "::error::fixture is only $size bytes - expected the ~186 MB bb6-apr-2010.sve (wrong URL or truncated download?)"
+          exit 1
+        fi
+        if [ -n "${{ vars.BB_SYNC_FIXTURE_SHA256 }}" ]; then
+          echo "${{ vars.BB_SYNC_FIXTURE_SHA256 }}  $f" | sha256sum -c -
+        fi
+    - name: Run join-sync test
+      if: steps.fixture.outputs.run == 'true'
+      run: |
+        echo "engine: $ENGINE_BIN"
+        echo "pakset: ${{ needs.resolve-pakset-pin.outputs.pakset_sha }}"
+        bash scripts/run-join-sync-test.sh \
+          --exe "$ENGINE_BIN" \
+          --fixture ai/temp/fixtures/bb6-apr-2010.sve \
+          --server-port 13356 \
+          --server-ready-timeout 2700 \
+          --client-timeout 2700 \
+          --pre-join-steps 50 \
+          --observe-seconds 240
+    - name: Upload logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: join-sync-${{ github.base_ref || github.ref_name }}
+        path: |
+          ai/temp/join-sync/logs
+          ai/temp/join-sync/server/config
+          ai/temp/join-sync/client/config
+        if-no-files-found: ignore
