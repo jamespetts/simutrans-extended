@@ -141,7 +141,10 @@ inline); parent doc: [ex-15](../ex-15.md). Untagged claims are [CODE] at the fro
   portion's schedule to the target line/convoy schedule at the target entry.
 - **Y/H-shaped path-explorer traversal** — the explorer never reads couple/uncouple targets;
   connexions are computed within one schedule only (linear/cyclic + mirrored). Journeys through a
-  join/split cannot be discovered or time-estimated.
+  join/split cannot be discovered or time-estimated. The design must satisfy the SIMD-compatible
+  layout requirements and staged implementation position (design SIMD-compatible → scalar
+  implementation verified → SIMD immediately after; design-time gate on dense vectorisability)
+  recorded in [simd-applicability](../simd-applicability.md) [RECOLLECTION:2026-09-19].
 - **Two-party timed coupling; dead-lock avoidance** — no arrival synchronisation, no validation of
   couple/uncouple target graphs (mutual waits, circular targets, platform blockage).
 - **Freight/passenger continuity across splits/joins** — displaced vehicles are force-unloaded at
