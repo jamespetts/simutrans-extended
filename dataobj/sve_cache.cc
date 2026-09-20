@@ -68,8 +68,8 @@ void sve_cache_t::load_cache()
 		/* We rename the old cache file and remove any incomplete read version.
 		 * Upon an error the cache will be rebuilt then next time.
 		 */
-		dr_rename( SAVE_PATH_X "_cached_exp.xml", SAVE_PATH_X "_load_cached_exp.xml" );
-		if(  file.rd_open(SAVE_PATH_X "_load_cached_exp.xml")  == loadsave_t::FILE_STATUS_OK  ) {
+		dr_rename( SAVE_PATH_X "_cached_ex.xml", SAVE_PATH_X "_load_cached_ex.xml" );
+		if(  file.rd_open(SAVE_PATH_X "_load_cached_ex.xml")  == loadsave_t::FILE_STATUS_OK  ) {
 			// ignore comment
 			const char *text=NULL;
 			file.rdwr_str(text);
@@ -93,7 +93,7 @@ void sve_cache_t::load_cache()
 				free(const_cast<char *>(text));
 			}
 			file.close();
-			dr_rename( SAVE_PATH_X "_load_cached_exp.xml", SAVE_PATH_X "_cached_exp.xml" );
+			dr_rename( SAVE_PATH_X "_load_cached_ex.xml", SAVE_PATH_X "_cached_ex.xml" );
 		}
 	}
 #endif
@@ -102,7 +102,7 @@ void sve_cache_t::load_cache()
 
 void sve_cache_t::write_cache()
 {
-	static const char *cache_file = SAVE_PATH_X "_cached.xml";
+	static const char *cache_file = SAVE_PATH_X "_cached_ex.xml";
 
 	loadsave_t file;
 	if(  file.wr_open(cache_file, loadsave_t::xml, 0, "cache", SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR) == loadsave_t::FILE_STATUS_OK  )
@@ -158,13 +158,13 @@ const char *sve_cache_t::get_info(const char *fname)
 	}
 	else {
 		// read pak_extension from file
-		loadsave_t test;
-		test.rd_open(fname); // == loadsave_t::FILE_STATUS_OK
+		file_info_t info;
+		classify_file(fname, &info);
 		// add pak extension
-		pak_extension = test.get_pak_extension();
+		pak_extension = info.pak_extension;
 
 		// now insert in hash_table
-		sve_info_t *svei_new = new sve_info_t(pak_extension.c_str(), sb.st_mtime, sb.st_size, test.get_version_int(), test.get_extended_version());
+		sve_info_t *svei_new = new sve_info_t(pak_extension.c_str(), sb.st_mtime, sb.st_size, info.ext_version.version, info.ext_version.extended_version);
 		// copy filename
 		char *key = strdup(fname);
 		sve_info_t *svei_old = cached_info.set(key, svei_new);

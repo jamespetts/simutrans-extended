@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 075d540f3
+verified: master @ 47d73a3
 ---
 # Performance & profiling
 
@@ -59,12 +59,6 @@ and the pacing-side measurement plan in [frame-pacing-smoothness](frame-pacing-s
   output for this.
 - Command line build (project-level; no solution needed):
   `MSBuild.exe Simutrans-Extended.vcxproj "/p:Configuration=Profile" "/p:Platform=x64" /m`
-- **zstd caveat:** every MSVC configuration links the old debug-built zstd static lib
-  (`..\zstd-1.4.4\build\VS2010\bin\x64_Debug`). A freshly built release zstd lib cannot be linked
-  into v143 game builds: its objects force link-time code generation, which then fails against the
-  ancient bytecode in `libbz2.lib` (C1047/LNK1257) [execution-verified 2026-09-09]. Consequence:
-  **load-phase timings include debug-build (unoptimised) zstd decompression** — treat absolute
-  load numbers with caution; simulation capture is unaffected.
 - **Verify `revision.h` after MSVC builds**: the pre-build `revision.jse` historically wrote a
   stale revision (its git-output length check rejected modern `--short=7` output; fixed 2026-09-09
   to accept 7–12 trimmed hex digits). The embedded revision identifies the profiled build in every
@@ -89,7 +83,7 @@ missing-desc path, so the ex-15 world state differs slightly from master's
 
 | Mode | Command line core | Measures |
 |---|---|---|
-| `Load` | `-until 0 -debug 3` | Load cost: pakset + savegame load, at most one sim step, clean exit. Wall time of the whole run (zstd caveat above). (graphical build) |
+| `Load` | `-until 0 -debug 3` | Load cost: pakset + savegame load, at most one sim step, clean exit. Wall time of the whole run. (graphical build) |
 | `Capture` | `-server <port> -debug 1` | Server workload: load, then run as a server at its normal pace (FIX_RATIO; the savegame's own settings drive frame/step pacing; loopback-only, no clients) for `-WindowSec`, then kill. Default exe: headless Profile (server) build (no display cost); `-Graphical` selects the graphical Profile build. |
 | `CaptureGui` | `-debug 1` | Client workload: load, then run as an offline client at normal single-player pace (display + simulation — the way players actually run) for `-WindowSec`, then kill. Use for graphics-code hotspots. (graphical build) |
 | `Times` | `-times -until 0 -debug 3` | Built-in drawing micro-benchmarks (show_times in simmain.cc) on the loaded world; results parsed into the summary. (graphical build) |
@@ -288,7 +282,12 @@ removed at load) — repeat before acting on the deltas.
     graphics-code hotspots, `Times` mode for micro-benchmarks. Details: [rendering](rendering.md).
 11. **Savegame load — `karte_t::load` (simworld.cc) + loadsave/io layers.** ~78 s to the load
     plateau for this fixture [EXECUTION-VERIFIED:2026-09-10]; dominates server rotations and
-    client joins. Profile with `-TracePhase Load` (zstd caveat above).
+    client joins. Profile with `-TracePhase Load`. Measured load-phase split on `bb6-apr-2010.sve`:
+    zstd decompression ~61% incl (`ZSTD_decompressSequences_default` ~52%), main-thread world load
+    ~22% incl (`plans_finish_rd` ~13%, largely `grund_t::calc_back_image` ~6% and
+    `wasser_t::calc_image_internal` ~6.5%), pakset/startup ~3%. Linking the optimised `x64_Release`
+    zstd cut Load wall time on `bb6-apr-2010.sve` from 42 s to 16 s (~2.6×); world-load image
+    computation is then the leading in-phase cost [EXECUTION-VERIFIED:2026-09-20].
 
 Cross-cutting rules that protect these paths: Simutrans `tpl/`/`utils/` containers instead of std
 (profiled faster for these workloads) [project-notes](project-notes.md); plain integers over floats
@@ -324,8 +323,6 @@ verdicts and the staged position: [simd-applicability](simd-applicability.md).
 - The ~30 startup tunnel-builder menu errors with pak128.Britain-Ex-0.9.4 on current master:
   possibly pakset/menuconf mismatch; worth investigating later
   [RECOLLECTION:2026-09-09 user: not now].
-- A linkable release-build zstd static lib (same toolset as the game, or zstd sources compiled into
-  the project) — would remove the debug-zstd decompression bias from load-phase measurements.
 - Mapgen: source of the Optimised-debug factory-placement config-sensitivity, and why town
   placement stops at 42/50 on a sparse-enough 1024² map (spacing vs terrain rejection) —
   resolve before adding placement-based test asserts.

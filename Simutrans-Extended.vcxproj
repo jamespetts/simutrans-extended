@@ -550,7 +550,8 @@
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (graphical server)|Win32'">..\OpenTTD\win32\library;..\bzip\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (non-graphical server)|Win32'">..\OpenTTD\win32\library;..\bzip\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\zstd-1.4.4\build\VS2010\bin\x64_Debug;..\freetype-2.10.1;..\miniupnpc;..\OpenTTD\win64\library;..\bzip\lib\x64;$(LibraryPath)</LibraryPath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Optimised debug|x64'">..\zstd-1.4.4\build\VS2010\bin\x64_Debug;..\miniupnpc;..\OpenTTD\win64\library;..\bzip\lib\x64;..\freetype-2.10.1;$(LibraryPath)</LibraryPath>
+    <!-- Optimised debug uses the optimised (Release) zstd lib. Its Project's Release|x64 has LTCG disabled so it links against the old libbz2.lib, avoiding C1047/LNK1257. -->
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Optimised debug|x64'">..\zstd-1.4.4\build\VS2010\bin\x64_Release;..\miniupnpc;..\OpenTTD\win64\library;..\bzip\lib\x64;..\freetype-2.10.1;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (no randomness)|x64'">..\OpenTTD\win64\library;..\bzip\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (single threaded new)|x64'">..\OpenTTD\win64\library;..\bzip\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (graphical server)|x64'">..\OpenTTD\win64\library;..\bzip\lib\x64;$(LibraryPath)</LibraryPath>
@@ -565,9 +566,9 @@
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug (command-line server)|x64'">..\OpenTTD\win64\library;..\bzip\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\OpenTTD\win32\library;..\bzip\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\OpenTTD\win64\library;..\bzip\lib\x64;$(LibraryPath)</LibraryPath>
-    <!-- Profile uses the old x64_Debug zstd lib: a freshly built release zstd lib (v142 /GL objects) cannot be linked into v143 game builds (C1047/LNK1257 against the ancient libbz2.lib). Load-phase timings therefore include debug-build zstd decompression. -->
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">..\zstd-1.4.4\build\VS2010\bin\x64_Debug;..\miniupnpc;..\OpenTTD\win64\library;..\bzip\lib\x64;..\freetype-2.10.1;$(LibraryPath)</LibraryPath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Profile (server)|x64'">..\zstd-1.4.4\build\VS2010\bin\x64_Debug;..\miniupnpc;..\OpenTTD\win64\library;..\bzip\lib\x64;..\freetype-2.10.1;$(LibraryPath)</LibraryPath>
+    <!-- Profile and Optimised debug use the optimised (Release) zstd lib. Its project's Release configurations disable LTCG so it links against the old libbz2.lib, avoiding C1047/LNK1257. -->
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">..\zstd-1.4.4\build\VS2010\bin\x64_Release;..\miniupnpc;..\OpenTTD\win64\library;..\bzip\lib\x64;..\freetype-2.10.1;$(LibraryPath)</LibraryPath>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Profile (server)|x64'">..\zstd-1.4.4\build\VS2010\bin\x64_Release;..\miniupnpc;..\OpenTTD\win64\library;..\bzip\lib\x64;..\freetype-2.10.1;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release (single threaded)|Win32'">..\OpenTTD\win32\library;..\bzip\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release (single threaded)|x64'">..\OpenTTD\win64\library;..\bzip\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Dr. Memory|Win32'">..\OpenTTD\win32\library;..\bzip\lib;$(LibraryPath)</LibraryPath>
@@ -1046,6 +1047,8 @@
       <ExceptionHandling>false</ExceptionHandling>
       <OmitFramePointers>false</OmitFramePointers>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <!-- /JMC adds __CheckForDebuggerJustMyCode prologue calls; disabled for the optimised build to remove the overhead and keep profiles clean. -->
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libzstd_static.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;advapi32.lib;wsock32.lib;libbz2.lib;Strmiids.lib;Ws2_32.lib;shell32.lib;pthreadVC2.lib;miniupnpc.lib;freetype.lib;imm32.lib;libpng.lib;zlibstat.lib;IPHlpApi.Lib</AdditionalDependencies>
@@ -1608,6 +1611,8 @@
       <OmitFramePointers>true</OmitFramePointers>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FloatingPointModel>Fast</FloatingPointModel>
+      <!-- /JMC adds __CheckForDebuggerJustMyCode prologue calls; disabled for this profiling build to remove the overhead and keep profiles clean. -->
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libzstd_static.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;advapi32.lib;wsock32.lib;libbz2.lib;Strmiids.lib;Ws2_32.lib;shell32.lib;pthreadVC2.lib;miniupnpc.lib;freetype.lib;imm32.lib;libpng.lib;zlibstat.lib;IPHlpApi.Lib</AdditionalDependencies>
@@ -1651,6 +1656,8 @@
       <OmitFramePointers>true</OmitFramePointers>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FloatingPointModel>Fast</FloatingPointModel>
+      <!-- /JMC adds __CheckForDebuggerJustMyCode prologue calls; disabled for this profiling build to remove the overhead and keep profiles clean. -->
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libzstd_static.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;advapi32.lib;wsock32.lib;libbz2.lib;Strmiids.lib;Ws2_32.lib;shell32.lib;pthreadVC2.lib;freetype.lib;imm32.lib;zlibstat.lib;IPHlpApi.Lib</AdditionalDependencies>
