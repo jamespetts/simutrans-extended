@@ -13,7 +13,7 @@ Per-feature registry for the 15.x programme. Intent sources: forum threads 16980
 (post URLs inline); parent doc: [ex-15](../ex-15.md). Untagged claims are [CODE] at the frontmatter
 value.
 
-## Usage-based (wear) maintenance — mechanism IMPLEMENTED, booking DEFECTIVE
+## Usage-based (wear) maintenance — IMPLEMENTED
 
 - Intent: running cost rises with km since last overhaul (integer sigmoid), capped at
   max_running_cost; availability decays on the same curve

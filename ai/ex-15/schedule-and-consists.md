@@ -120,7 +120,7 @@ explorer's treatment of consist orders.
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
   trigger_one_only, couple, uncouple → those runtime paths are unreachable in normal play. All are
   still planned for 15.x, awaiting GUI wiring [RECOLLECTION:2026-09-07]; gui/schedule_gui.h carries
-  a "UI TODO" for exactly these. Polarity defect → [known-bugs](../known-bugs.md).
+  a "UI TODO" for exactly these.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
