@@ -396,7 +396,7 @@ void loadsave_t::rdwr_string(std::string &s)
 
 
 loadsave_t::file_status_t loadsave_t::wr_open( const char *filename_utf8, mode_t m, int level, const char *pak_extension,
-	const char *savegame_version, const char *savegame_version_ex, const char * )
+	const char *savegame_version, const char *savegame_version_ex, const char *savegame_revision_ex )
 {
 	mode = m;
 	close();
@@ -440,6 +440,17 @@ loadsave_t::file_status_t loadsave_t::wr_open( const char *filename_utf8, mode_t
 	if (savegame_version_ex && savegame_version_ex != savegame_version)
 	{
 		savegame_ver.append(savegame_version_ex);
+	}
+	// The revision travels in the version string (callers pass either ".<rev>"
+	// or "<rev>"); without it the user-selected save target revision would be
+	// silently replaced by the build's EX_SAVE_MINOR below.
+	if (savegame_revision_ex && *savegame_revision_ex && savegame_version_ex && *savegame_version_ex)
+	{
+		if (savegame_revision_ex[0] != '.')
+		{
+			savegame_ver += '.';
+		}
+		savegame_ver.append(savegame_revision_ex);
 	}
 
 	// find the start
@@ -1357,8 +1368,35 @@ extended_version_t loadsave_t::int_version(const char *version_text, char *pak_e
 
 	uint32 version = v0 * 1000000 + v1 * 1000 + v2;
 
-	while (isdigit(*version_text) || *version_text == '.') {
+	// Parse the optional Extended revision: the version text holds
+	// "0.<maj>.<save_minor>[.<ex_ver>[.<ex_rev>]]". Absent means 0 (headers
+	// written before revisions existed carry none; the explicit revision long
+	// read/written by rd_open/wr_open remains authoritative for saves).
+	uint32 extended_revision = 0;
+	if (*version_text == '.')
+	{
+		// skip the already-parsed ".<extended_version>"
 		version_text++;
+		while (isdigit(*version_text)) {
+			version_text++;
+		}
+		if (*version_text == '.')
+		{
+			version_text++;
+			extended_revision = atoi(version_text);
+			while (isdigit(*version_text)) {
+				version_text++;
+			}
+		}
+		while (isdigit(*version_text) || *version_text == '.') {
+			version_text++;
+		}
+	}
+	else
+	{
+		while (isdigit(*version_text) || *version_text == '.') {
+			version_text++;
+		}
 	}
 
 	if(  version<=102002  ) {
@@ -1400,7 +1438,7 @@ extended_version_t loadsave_t::int_version(const char *version_text, char *pak_e
 		*pak_extension_str = 0;
 	}
 
-	return { version, extended_version, EX_SAVE_MINOR };
+	return { version, extended_version, extended_revision };
 }
 
 

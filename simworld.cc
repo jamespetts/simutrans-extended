@@ -8470,7 +8470,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "saved messages");
 		file->rdwr_double(old_proportion);
 		industry_density_proportion = old_proportion * 10000.0;
 	}
-	else if(file->get_extended_version() >= 9 && file->is_version_atleast(111, 6) && file->get_extended_version() < 11)
+	else if(file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) && file->get_extended_version() < 11)
 	{
 		// Versions before 10.16 used an excessively low (and therefore inaccurate) integer for the industry density proportion.
 		// Detect this by checking whether the highest bit is set (it will not be naturally, so will only be set if this is
@@ -8645,7 +8645,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "motd filename %s", env_t::server
 		file->rdwr_long(weg_t::private_car_routes_currently_reading_element);
 	}
 
-	if (file->get_extended_version() >= 15 || ((file->get_extended_version() >= 14 && file->get_extended_revision() >= 8) && get_settings().get_save_path_explorer_data()))
+	if ((file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 8)) && get_settings().get_save_path_explorer_data())
 	{
 		path_explorer_t::rdwr(file);
 	}
@@ -10146,6 +10146,26 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		}
 
 		file->rdwr_long(cities_to_process);
+
+		// The saved counters must satisfy the rendezvous invariant
+		// (cities_to_process == claims + running + suspended, with no worker
+		// running at load, hence 0 <= cities_to_process <= queued cities).
+		// Unrestorable values would deadlock the first step's
+		// await_private_car_threads(), so repair them here deterministically
+		// (all peers loading the same file compute the same repair).
+		const uint32 queued_cities = cities_awaiting_private_car_route_check.get_count();
+		const uint32 city_count = cities.get_count();
+		if (count > city_count)
+		{
+			dbg->warning("karte_t::load", "Discarding corrupt private car route queue (queued %u cities, but the world has only %u cities); the routes will be re-recorded", count, city_count);
+			cities_awaiting_private_car_route_check.clear();
+			cities_to_process = 0;
+		}
+		else if (cities_to_process < 0 || cities_to_process > (sint32)queued_cities)
+		{
+			dbg->warning("karte_t::load", "Repairing corrupt private car route progress (cities_to_process %d with %u cities queued); the routes will be re-recorded", cities_to_process, queued_cities);
+			cities_to_process = cities_to_process < 0 ? 0 : (sint32)queued_cities;
+		}
 	}
 
 	// MUST be at the end of the load/save routine.

@@ -61,7 +61,7 @@ fixture's near-zero share is dormancy-or-capping, unresolved (open question belo
 lacks live player activity and likely understates busy-server demand.
 
 Staged as one programme with the ex-15 Y/H traversal work
-(→ [ex-15 schedule-and-consists](ex-15/schedule-and-consists.md)):
+(→ [ex-15 yh-path-explorer](ex-15/yh-path-explorer.md)):
 1. **Design** Y/H SIMD-compatible: dense contiguous uint32-only aggregate-time array (SoA split
    from `path_element_t`/`transport_element_t`); per-cell conditions (schedule flags, invalid
    zones, transfer extras) as dense mask/bonus arrays, not per-cell branches; iteration counting

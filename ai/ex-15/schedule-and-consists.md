@@ -11,6 +11,10 @@ gui/schedule_gui.*, gui/consist_order_gui.*, gui/components/gui_schedule_item.*,
 Per-feature registry for the 15.x programme. Design intent sources: forum thread 17852 (post URLs
 inline); parent doc: [ex-15](../ex-15.md). Untagged claims are [CODE] at the frontmatter value.
 
+Y/H-shaped journey traversal — the agreed design and rationale: [yh-path-explorer](yh-path-explorer.md);
+read when touching cross-schedule path exploration, split/join journey-time estimation, or the
+explorer's treatment of consist orders.
+
 ## Data structures — IMPLEMENTED (deviates from the 2018 plan)
 
 - `schedule_entry_t` (dataobj/schedule_entry.h): `pos`; `flags` (uint32, enum `schedule_entry_flag`);
@@ -141,10 +145,11 @@ inline); parent doc: [ex-15](../ex-15.md). Untagged claims are [CODE] at the fro
   portion's schedule to the target line/convoy schedule at the target entry.
 - **Y/H-shaped path-explorer traversal** — the explorer never reads couple/uncouple targets;
   connexions are computed within one schedule only (linear/cyclic + mirrored). Journeys through a
-  join/split cannot be discovered or time-estimated. The design must satisfy the SIMD-compatible
-  layout requirements and staged implementation position (design SIMD-compatible → scalar
-  implementation verified → SIMD immediately after; design-time gate on dense vectorisability)
-  recorded in [simd-applicability](../simd-applicability.md) [RECOLLECTION:2026-09-19].
+  join/split cannot be discovered or time-estimated. **Design agreed and documented
+  in [yh-path-explorer](yh-path-explorer.md)**; it must satisfy the SIMD-compatible layout
+  requirements and staged implementation position (design SIMD-compatible → scalar implementation
+  verified → SIMD immediately after; design-time gate on dense vectorisability) recorded in
+  [simd-applicability](../simd-applicability.md) [RECOLLECTION:2026-09-19].
 - **Two-party timed coupling; dead-lock avoidance** — no arrival synchronisation, no validation of
   couple/uncouple target graphs (mutual waits, circular targets, platform blockage).
 - **Freight/passenger continuity across splits/joins** — displaced vehicles are force-unloaded at
