@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 91d9b252e
+verified: ex-15 @ 96c1a245f
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -105,9 +105,8 @@ explorer's treatment of consist orders.
   controls, "slot may be empty" commented out, window rdwr disabled, opens only from line schedule
   windows. Consist-order editing for lineless convoys is intended but unbuilt (the runtime fully
   supports convoy-level orders) [RECOLLECTION:2026-09-07]. rule_flags preferences serialised but
-  never evaluated; keep-or-remove undecided [RECOLLECTION:2026-09-07]. `max_catering` omitted from
-  string serialisation (network/tool round-trip resets it). Livery copying in set_convoy_order
-  explicitly unsupported.
+  never evaluated; keep-or-remove undecided [RECOLLECTION:2026-09-07]. Livery copying in
+  set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
