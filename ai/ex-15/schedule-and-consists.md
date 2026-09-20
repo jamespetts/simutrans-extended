@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 96c1a245f
+verified: ex-15 @ a49791fdb
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -45,8 +45,7 @@ explorer's treatment of consist orders.
 ## IMPLEMENTED features
 
 - **Per-entry speed limit** — `max_speed_kmh`, enforced in `convoi_t::calc_move`; GUI controls
-  (bt_speed_limit/numimp_speed_limit). Forum reported an inverted-UI bug Jul 2022
-  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg200904.html] — re-verify.
+  (bt_speed_limit/numimp_speed_limit).
 - **Layover** — flag + `convoi_t::LAYOVER` state + enter/exit_layover; requires a stop with a
   `layover_enable` building (`haltestelle_t::can_lay_over`, building_desc FLAG_LAYOVER_ENABLE);
   halt-side `laid_over` registry; `min_layover_overhead_seconds` setting; entering layover forces
