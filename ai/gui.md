@@ -9,7 +9,8 @@ simutrans/themes/ (assets); launch/menu glue simmenu/simticker/simmesg (root →
 [simulation-core](simulation-core.md)); drawing primitives → [rendering](rendering.md).
 
 Read when touching windows, frames, GUI components, themes, or any user-interface work; for
-image-free dialog-geometry verification see [gui-layout-dump](gui/layout-dump.md).
+image-free dialog-geometry verification see [gui-layout-dump](gui/layout-dump.md), and for the
+rendered-pixel screenshot feedback loop see [gui-visual-feedback](gui/visual-feedback.md).
 
 ## Component model
 
@@ -35,6 +36,10 @@ image-free dialog-geometry verification see [gui-layout-dump](gui/layout-dump.md
   `components[n-1] … components[0]`, so **index 0 is drawn last (topmost)** and also receives
   mouse events first (`infowin_event` scans forward). There is no z-index field. The focused
   component is drawn last of all.
+- **One component instance, one parent.** `add_component` stores the bare pointer and each
+  parent overwrites the child's `pos`/`size` on resize, so adding the same widget (e.g. a
+  shared note label) to two containers corrupts geometry in one view — use a separate
+  instance per container [CODE ex-15 @ d6bf8f3e7: gui/prices_frame.cc `note_table`/`note_chart`].
 
 ## Frames, windows and widgets
 
@@ -67,7 +72,9 @@ image-free dialog-geometry verification see [gui-layout-dump](gui/layout-dump.md
 ## Tooling
 
 - [gui-layout-dump](gui/layout-dump.md) — read when verifying dialog geometry (positions,
-  overlap, clipping, z-order) without a rendered image.
+  overlap, clipping, z-order) without a rendered image. Design; not yet implemented.
+- [gui-visual-feedback](gui/visual-feedback.md) — read when iterating dialog design with real
+  screenshots: `SIMUTRANS_UI_AUTOMATION` build gates, env vars, run recipe, loop procedure.
 
 ## Open questions
 
