@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 67f5cd15b
+verified: master @ 47d73a3
 ---
 # Build & toolchain
 
@@ -69,6 +69,12 @@ Four build paths coexist:
   5dc127a85) remains the optimised-*debugging* configuration — its `DEBUG=3` define biases
   hot-path profiling (DBG-macro calls, asserts, `DEBUG_FREELIST`). The profiling workflow:
   [performance](performance.md).
+- `Optimised debug|x64`, `Profile|x64` and `Profile (server)|x64` link the optimised
+  `..\zstd-1.4.4\build\VS2010\bin\x64_Release` zstd lib and set `SupportJustMyCode=false`
+  (disables `/JMC`); `Debug|x64` keeps the debug zstd lib and the toolset-default `/JMC`. The
+  optimised lib links only because the zstd project's `Release` configurations disable
+  `WholeProgramOptimization` (LTCG), whose objects otherwise fail against
+  `..\bzip\lib\x64\libbz2.lib` (C1047/LNK1257) [CODE master @ 47d73a3].
 
 **Verified by execution on the maintainer's Windows machine, 2026-09-05** (VS2022 Community MSBuild,
 after the master→ex-15 merge):
@@ -277,15 +283,6 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   `dome_simutrans`.
 
 ## Known problems & observations
-
-- The MSVC game configurations all link the old debug-built zstd static lib
-  (`..\zstd-1.4.4\build\VS2010\bin\x64_Debug\libzstd_static.lib`). A freshly built release zstd lib
-  (v142 toolset, from `..\zstd-1.4.4\build\VS2010\zstd.sln`) cannot be linked into the v143 game
-  builds: its objects force link-time code generation, which then fails against ancient bytecode in
-  `..\bzip\lib\x64\libbz2.lib` (LNK C1047/LNK1257) — reproduced with the `Profile|x64` build
-  2026-09-09. Consequence: load-phase profiling includes debug-build (unoptimised) zstd
-  decompression; simulation profiling is unaffected. Fix options (same-toolset lib rebuild, or
-  compiling zstd sources into the project): open [execution-verified 2026-09-09].
 
 - Windows nettool cross-build broken: confirmed against the public endpoint 2026-09-05 — no
   `Nettool-Extended.exe` published; only a 2017 `nettool.exe`. `nightly.sh` copies
