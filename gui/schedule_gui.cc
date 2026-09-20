@@ -1976,6 +1976,8 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(condition_line_selector.get_element(selection));
 				if (item) {
 					schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = item->get_line().get_id();
+					// A line target is selected: ensure the line/convoy flag has line polarity.
+					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::cond_trigger_is_line_or_cnv);
 					return true;
 				}
 			}
