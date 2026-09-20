@@ -42,7 +42,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends build-essential cmake clang-14
 
       - name: Install dependencies
-        run: sudo apt-get install -y --no-install-recommends zlib1g-dev libbz2-dev ${{inputs.additional_dependencies}}
+        run: sudo apt-get install -y --no-install-recommends zlib1g-dev libbz2-dev libzstd-dev ${{inputs.additional_dependencies}}
 
       # Ubuntu 22.04/24.04 do not package SDL3 (verified 2026-09-06 via the Launchpad archive API)
       - name: Build and install SDL3 from source

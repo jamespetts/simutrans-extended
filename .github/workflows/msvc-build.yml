@@ -38,7 +38,7 @@ jobs:
       # triplet (/MT) would fail to link against them.
       - name: Install vcpkg dependencies
         shell: pwsh
-        run: vcpkg install --triplet x64-windows-static-md zlib bzip2 libpng ${{inputs.additional_dependencies}}
+        run: vcpkg install --triplet x64-windows-static-md zlib bzip2 libpng zstd ${{inputs.additional_dependencies}}
 
       - name: Create build directory
         shell: pwsh

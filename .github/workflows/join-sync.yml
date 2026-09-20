@@ -102,7 +102,7 @@ jobs:
       if: steps.fixture.outputs.run == 'true'
       run: |
         sudo apt-get -y update
-        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache
+        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev libzstd-dev autoconf clang-14 ccache
     - name: Cache ccache
       if: steps.fixture.outputs.run == 'true'
       uses: actions/cache@v4

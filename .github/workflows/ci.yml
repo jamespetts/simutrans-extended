@@ -200,7 +200,22 @@ jobs:
       image: ceeac/simutrans-build-env:mingw-sdl2
     steps:
       - name: Additional setup
-        run: sudo dnf -y install git cmake
+        run: sudo dnf -y install git cmake curl
+      # Fedora packages mingw zstd only as a shared library; the game is linked
+      # statically, so build a static libzstd into the mingw sysroot here.
+      - name: Build static zstd for MinGW
+        run: |
+          set -e
+          ZSTD_VERSION=1.5.7
+          curl -fL -o /tmp/zstd.tar.gz "https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz"
+          echo "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3  /tmp/zstd.tar.gz" | sha256sum -c -
+          tar -C /tmp -xzf /tmp/zstd.tar.gz
+          make -C "/tmp/zstd-${ZSTD_VERSION}/lib" libzstd.a-release CC=x86_64-w64-mingw32-gcc AR=x86_64-w64-mingw32-ar
+          sudo make -C "/tmp/zstd-${ZSTD_VERSION}/lib" install-static install-includes install-pc \
+            PREFIX=/usr/x86_64-w64-mingw32/sys-root/mingw \
+            LIBDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/lib \
+            INCLUDEDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/include \
+            PKGCONFIGDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/lib/pkgconfig
       - name: Checkout
         uses: actions/checkout@v4
       - name: Configure
@@ -229,7 +244,22 @@ jobs:
       image: ceeac/simutrans-build-env:mingw-sdl2
     steps:
       - name: Additional setup
-        run: sudo dnf -y install git cmake
+        run: sudo dnf -y install git cmake curl
+      # Fedora packages mingw zstd only as a shared library; the game is linked
+      # statically, so build a static libzstd into the mingw sysroot here.
+      - name: Build static zstd for MinGW
+        run: |
+          set -e
+          ZSTD_VERSION=1.5.7
+          curl -fL -o /tmp/zstd.tar.gz "https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz"
+          echo "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3  /tmp/zstd.tar.gz" | sha256sum -c -
+          tar -C /tmp -xzf /tmp/zstd.tar.gz
+          make -C "/tmp/zstd-${ZSTD_VERSION}/lib" libzstd.a-release CC=x86_64-w64-mingw32-gcc AR=x86_64-w64-mingw32-ar
+          sudo make -C "/tmp/zstd-${ZSTD_VERSION}/lib" install-static install-includes install-pc \
+            PREFIX=/usr/x86_64-w64-mingw32/sys-root/mingw \
+            LIBDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/lib \
+            INCLUDEDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/include \
+            PKGCONFIGDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/lib/pkgconfig
       - name: Checkout
         uses: actions/checkout@v4
       - name: Configure
@@ -258,7 +288,22 @@ jobs:
       image: ceeac/simutrans-build-env:mingw-sdl2
     steps:
       - name: Additional setup
-        run: sudo dnf -y install git cmake
+        run: sudo dnf -y install git cmake curl
+      # Fedora packages mingw zstd only as a shared library; the game is linked
+      # statically, so build a static libzstd into the mingw sysroot here.
+      - name: Build static zstd for MinGW
+        run: |
+          set -e
+          ZSTD_VERSION=1.5.7
+          curl -fL -o /tmp/zstd.tar.gz "https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz"
+          echo "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3  /tmp/zstd.tar.gz" | sha256sum -c -
+          tar -C /tmp -xzf /tmp/zstd.tar.gz
+          make -C "/tmp/zstd-${ZSTD_VERSION}/lib" libzstd.a-release CC=x86_64-w64-mingw32-gcc AR=x86_64-w64-mingw32-ar
+          sudo make -C "/tmp/zstd-${ZSTD_VERSION}/lib" install-static install-includes install-pc \
+            PREFIX=/usr/x86_64-w64-mingw32/sys-root/mingw \
+            LIBDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/lib \
+            INCLUDEDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/include \
+            PKGCONFIGDIR=/usr/x86_64-w64-mingw32/sys-root/mingw/lib/pkgconfig
       - name: Checkout
         uses: actions/checkout@v4
       - name: Configure
