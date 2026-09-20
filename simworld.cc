@@ -6039,29 +6039,39 @@ sint64 karte_t::calc_ready_time(ware_t ware, koord origin_pos) const
 void karte_t::check_transferring_cargoes()
 {
 	const sint64 current_time = ticks;
-	ware_t ware;
 #ifdef MULTI_THREAD
 	const sint32 po = get_parallel_operations() + 2;
 #else
 	const sint32 po = 1;
 #endif
-	bool removed;
 	for (sint32 i = 0; i < po; i++)
 	{
-		FOR(vector_tpl<transferring_cargo_t>, tc, transferring_cargoes[i])
+		vector_tpl<transferring_cargo_t>& cargoes = transferring_cargoes[i];
+		const uint32 count = cargoes.get_count();
+		// Drain in a single compaction pass rather than erasing each ready
+		// entry: remove-by-value scans and shifts the tail, which is quadratic
+		// in the list size and makes the cached-end iterator skip entries.
+		// Every entry is visited once here, and survivors keep their order.
+		uint32 survivors = 0;
+		for (uint32 j = 0; j < count; j++)
 		{
-			/*const uint32 ready_seconds = ticks_to_seconds((tc.ready_time - current_time));
-			const uint32 ready_minutes = ready_seconds / 60;
-			const uint32 ready_hours = ready_minutes / 60;*/
+			const transferring_cargo_t& tc = cargoes.get_element(j);
 			if (tc.ready_time <= current_time)
 			{
-				ware = tc.ware;
-				removed = transferring_cargoes[i].remove(tc);
-				if (removed)
-				{
-					deposit_ware_at_destination(ware);
-				}
+				deposit_ware_at_destination(tc.ware);
 			}
+			else
+			{
+				if (survivors != j)
+				{
+					cargoes.get_element(survivors) = tc;
+				}
+				survivors++;
+			}
+		}
+		if (survivors != count)
+		{
+			cargoes.set_count(survivors);
 		}
 	}
 }
@@ -8427,7 +8437,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "saved messages");
 		file->rdwr_double(old_proportion);
 		industry_density_proportion = old_proportion * 10000.0;
 	}
-	else if(file->get_extended_version() >= 9 && file->is_version_atleast(111, 6) && file->get_extended_version() < 11)
+	else if(file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) && file->get_extended_version() < 11)
 	{
 		// Versions before 10.16 used an excessively low (and therefore inaccurate) integer for the industry density proportion.
 		// Detect this by checking whether the highest bit is set (it will not be naturally, so will only be set if this is
@@ -8602,7 +8612,7 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "motd filename %s", env_t::server
 		file->rdwr_long(weg_t::private_car_routes_currently_reading_element);
 	}
 
-	if (file->get_extended_version() >= 15 || ((file->get_extended_version() >= 14 && file->get_extended_revision() >= 8) && get_settings().get_save_path_explorer_data()))
+	if ((file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 8)) && get_settings().get_save_path_explorer_data())
 	{
 		path_explorer_t::rdwr(file);
 	}
@@ -10001,12 +10011,6 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		ware_t ware;
 
 		file->rdwr_long(count);
-
-		if (count > MAX_TRANSFERRING_CARGOES)
-		{
-			dbg->warning("karte_t::load", "Discarding corrupt transferring cargo count (%u); the world would otherwise be unresponsive", count);
-			count = 0;
-		}
 
 		for (uint32 i = 0; i < count; i++)
 		{

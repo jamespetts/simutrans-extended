@@ -1218,43 +1218,55 @@ void haltestelle_t::request_loading(convoihandle_t cnv)
 void haltestelle_t::check_transferring_cargoes()
 {
 	const sint64 current_time = welt->get_ticks();
-	ware_t ware;
 
 #ifdef MULTI_THREAD
-	sint32 po = world()->get_parallel_operations();
+	// The array has parallel_operations + 2 slots: slot 0 for the main thread
+	// and one per passenger/mail generation worker, numbered 1..po+1.
+	const sint32 po = world()->get_parallel_operations() + 2;
 #else
-	sint32 po = 1;
+	const sint32 po = 1;
 #endif
 
 	for (sint32 i = 0; i < po; i++)
 	{
-		FOR(vector_tpl<transferring_cargo_t>, tc, transferring_cargoes[i])
+		vector_tpl<transferring_cargo_t>& cargoes = transferring_cargoes[i];
+		const uint32 count = cargoes.get_count();
+		// Drain in a single compaction pass rather than erasing each ready
+		// entry: remove-by-value scans and shifts the tail, which is quadratic
+		// in the list size and makes the cached-end iterator skip entries.
+		// Every entry is visited once here, and survivors keep their order.
+		uint32 survivors = 0;
+		for (uint32 j = 0; j < count; j++)
 		{
-			//const uint32 ready_seconds = world()->ticks_to_seconds((tc.ready_time - current_time));
-			//const uint32 ready_minutes = ready_seconds / 60;
-			//const uint32 ready_hours = ready_minutes / 60;
-			bool removed; // This check is necessary because, for some odd reason, the iterator sometimes repeats a tc object.
-
+			const transferring_cargo_t& tc = cargoes.get_element(j);
 			if (tc.ready_time <= current_time)
 			{
-				ware = tc.ware;
-				removed = transferring_cargoes[i].remove(tc);
-				if (removed && ware.get_ziel() == self)
+				if (tc.ware.get_ziel() == self)
 				{
 					// This is the final destination: register the cargoes
 					// at their ultimate end point.
-
-					world()->deposit_ware_at_destination(ware);
-					resort_freight_info = true;
+					world()->deposit_ware_at_destination(tc.ware);
 				}
-				else if (removed)
+				else
 				{
 					// This is just a transfer - add this to the stop's
 					// internal storage for onward travel.
-					add_ware_to_halt(ware);
-					resort_freight_info = true;
+					add_ware_to_halt(tc.ware);
 				}
+				resort_freight_info = true;
 			}
+			else
+			{
+				if (survivors != j)
+				{
+					cargoes.get_element(survivors) = tc;
+				}
+				survivors++;
+			}
+		}
+		if (survivors != count)
+		{
+			cargoes.set_count(survivors);
 		}
 	}
 }
@@ -3023,7 +3035,7 @@ uint32 haltestelle_t::get_transferring_goods_sum(const goods_desc_t *wtyp, uint8
 	ware_t ware;
 
 #ifdef MULTI_THREAD
-	sint32 po = world()->get_parallel_operations();
+	sint32 po = world()->get_parallel_operations() + 2;
 #else
 	sint32 po = 1;
 #endif
@@ -3050,7 +3062,7 @@ uint32 haltestelle_t::get_leaving_goods_sum(const goods_desc_t *wtyp, uint8 g_cl
 	ware_t ware;
 
 #ifdef MULTI_THREAD
-	sint32 po = world()->get_parallel_operations();
+	sint32 po = world()->get_parallel_operations() + 2;
 #else
 	sint32 po = 1;
 #endif
@@ -4601,7 +4613,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		{
 #ifdef MULTI_THREAD
 			count = 0;
-			for (sint32 i = 0; i < world()->get_parallel_operations(); i++)
+			for (sint32 i = 0; i < world()->get_parallel_operations() + 2; i++)
 			{
 				count += transferring_cargoes[i].get_count();
 			}
@@ -4611,16 +4623,11 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		}
 
 		file->rdwr_long(count);
-		if (file->is_loading() && count > MAX_TRANSFERRING_CARGOES)
-		{
-			dbg->warning("haltestelle_t::rdwr", "Discarding corrupt transferring cargo count (%u); the halt would otherwise be unresponsive", count);
-			count = 0;
-		}
 #ifdef MULTI_THREAD
 		sint32 po;
 		if (file->is_saving())
 		{
-			po = world()->get_parallel_operations();
+			po = world()->get_parallel_operations() + 2;
 		}
 		else
 		{
@@ -5023,7 +5030,12 @@ void haltestelle_t::recalc_status()
 		// For goods, include transferring goods when determining whether a stop is overcrowded.
 		// This is necessary as goods tend to come all at once and take a long time to transfer.
 		uint32 transferring_total = 0;
-		for (sint32 i = 0; i <= welt->get_parallel_operations(); i++)
+#ifdef MULTI_THREAD
+		const sint32 po = world()->get_parallel_operations() + 2;
+#else
+		const sint32 po = 1;
+#endif
+		for (sint32 i = 0; i < po; i++)
 		{
 			for (uint32 n = 0; n < transferring_cargoes[i].get_count(); n++)
 			{
@@ -6640,7 +6652,7 @@ sint64 haltestelle_t::calc_earliest_arrival_time_at(halthandle_t halt, convoihan
 uint32 haltestelle_t::get_transferring_cargoes_count() const
 {
 	uint32 count = 0;
-	for (sint32 i = 0; i < world()->get_parallel_operations(); i++)
+	for (sint32 i = 0; i < world()->get_parallel_operations() + 2; i++)
 	{
 		count += transferring_cargoes[i].get_count();
 	}
@@ -6864,7 +6876,7 @@ uint32 haltestelle_t::get_ware(slist_tpl<ware_t> &warray, uint8 catg_index, uint
 	else {
 		// transferring cargoes
 #ifdef MULTI_THREAD
-		sint32 po = world()->get_parallel_operations();
+		sint32 po = world()->get_parallel_operations() + 2;
 #else
 		sint32 po = 1;
 #endif

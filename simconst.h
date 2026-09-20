@@ -58,15 +58,6 @@
 // Maximum number of threads
 #define MAX_THREADS (12)
 
-// Maximum transferring cargoes accepted when loading a save. A real game stays
-// orders of magnitude below this (the Bridgewater-Brunel server maps hold a few
-// thousand in flight), so a count above it is treated as save corruption and
-// discarded rather than read (a corrupt count of only a few million would
-// otherwise hang the load and make the world unresponsive). The value is chosen
-// to have ~1000x headroom over the largest observed legitimate map, so the check
-// cannot alter the behaviour of any non-corrupted game.
-#define MAX_TRANSFERRING_CARGOES (1000000)
-
 /*********************** Useful things for debugging ... ********************/
 
 /* will highlight marked areas and convoi will leave traces */
