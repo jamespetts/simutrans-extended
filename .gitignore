@@ -109,6 +109,8 @@ motd.txt
 *.lib
 *.exp
 *.dll*
+_cached_ex.xml
+_load_cached_ex.xml
 _cached_exp.xml
 github-recovery-codes.txt
 simutrans/Simutrans-Extended
