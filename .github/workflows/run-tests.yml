@@ -76,7 +76,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get -y update
-        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache moreutils
+        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev libzstd-dev autoconf clang-14 ccache moreutils
     - name: Cache
       uses: actions/cache@v4
       with:
@@ -129,7 +129,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get -y update
-        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev autoconf clang-14 ccache moreutils
+        sudo apt-get -ym install libbz2-dev zlib1g-dev libpng-dev libzstd-dev autoconf clang-14 ccache moreutils
     - name: Cache
       uses: actions/cache@v4
       with:

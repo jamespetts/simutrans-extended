@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ cc1c5858f
+verified: master @ 67f5cd15b
 ---
 # Build & toolchain
 
@@ -93,7 +93,10 @@ after the master→ex-15 merge):
 - Backend selection (`SimutransBackend.cmake`): `sdl2` if SDL2 found, `gdi` on Win32, else `none`
   (headless); `SIMUTRANS_BACKEND` cache variable.
 - Dependencies: ZLIB, BZip2, PNG required; ZSTD, SDL2, Freetype, FluidSynth, MiniUPNP optional.
-  MSVC uses `find_package` (vcpkg in CI); other platforms use pkg-config.
+  MSVC finds ZSTD through the vcpkg config package (`find_package(zstd CONFIG)`, static target
+  `zstd::libzstd_static`); other platforms use pkg-config. A build compiled without ZSTD cannot open
+  zstd-compressed saves: classification marks such a file version-invalid, so loading is refused with
+  the generic "Incompatible saved game" message (io/classify_file.cc, dataobj/loadsave.cc, simworld.cc).
 - Options (`SimutransCompileOptions.cmake` + root): `SIMUTRANS_MULTI_THREAD` (**default OFF** —
   unlike the MSVC configurations and the usual GNU-make configs, which enable MULTI_THREAD),
   `SIMUTRANS_VALGRIND_SUPPORT`, `SIMUTRANS_ENABLE_PROFILING`, `SIMUTRANS_USE_SYSLOG`,
@@ -149,15 +152,17 @@ The `REVISION` define must match between server and clients for network play
 
 - `ci.yml` (push/PR): first job runs `cleanup_code.sh` (perl include-guard normalisation + trailing
   whitespace removal) and **auto-commits the result**; then build matrix:
-  - `linux-build.yml` (reusable; ubuntu-22.04; CMake + clang; apt zlib1g-dev/libbz2-dev + extras):
-    SDL2 client, headless, makeobj, nettool. Quirks: its `name:` field says "msvc-build"
+  - `linux-build.yml` (reusable; ubuntu-22.04; CMake + clang; apt zlib1g-dev/libbz2-dev/libzstd-dev
+    + extras): SDL2 client, headless, makeobj, nettool. Quirks: its `name:` field says "msvc-build"
     (copy-paste), and it installs clang++-10 but configures with CC/CXX=clang-14.
   - macOS jobs: brew (cmake freetype libpng pkg-config sdl2 fluidsynth); `make simutrans-extended
-    && make package`; also makeobj-extended, nettool-extended.
+    && make package`; also makeobj-extended, nettool-extended. libzstd comes from the runner image.
   - MinGW cross-builds on ubuntu: container `ceeac/simutrans-build-env:mingw-sdl2`, CMake with
-    `.github/toolchain_mingw.cmake`, backends sdl2/gdi/none.
+    `.github/toolchain_mingw.cmake`, backends sdl2/gdi/none. Fedora packages mingw zstd shared-only,
+    so the game jobs first build a static `libzstd` (pinned, checksum-verified tarball) into the
+    mingw sysroot.
   - `msvc-build.yml` (reusable; windows-2022): setup-msbuild + CMake 3.23 + vcpkg (pinned commit,
-    triplet `x64-windows-static`; zlib bzip2 libpng [+ sdl2]); generator "Visual Studio 17 2022",
+    triplet `x64-windows-static-md`; zlib bzip2 libpng zstd [+ sdl2]); generator "Visual Studio 17 2022",
     `-A x64`; builds `cmake --build . --target <target>-extended`. Note: CI's MSVC route is
     CMake+vcpkg, **not** the handwritten .sln.
   - `.github/init_env.py` computes artifact names/paths for uploads.

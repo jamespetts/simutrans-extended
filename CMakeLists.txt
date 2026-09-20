@@ -50,7 +50,9 @@ find_package(BZip2 REQUIRED)
 find_package(PNG REQUIRED)
 find_package(MiniUPNP)
 if (MSVC)
-	find_package(ZSTD)
+	# vcpkg ships the upstream zstd config package (zstdConfig.cmake); the
+	# lowercase package name is what upstream and vcpkg document.
+	find_package(zstd CONFIG)
 	find_package(SDL2)
 	# Optional: a machine without SDL3 simply does not offer the sdl3 backend.
 	find_package(SDL3 CONFIG)
@@ -242,12 +244,14 @@ endif (SIMUTRANS_USE_UPNP)
 
 if (SIMUTRANS_USE_ZSTD)
 	target_sources(simutrans-extended PRIVATE io/rdwr/zstd_file_rdwr_stream.cc)
-	target_include_directories(simutrans-extended PRIVATE ${ZSTD_INCLUDE_DIRS})
 	target_compile_definitions(simutrans-extended PRIVATE USE_ZSTD=1)
 	if (MSVC)
+		# Static target exported by the config package (vcpkg builds the static
+		# variety for the *-static-md triplet); it carries the include directory.
 		target_link_libraries(simutrans-extended PRIVATE zstd::libzstd_static)
 	elseif (MINGW)
 		# only 64 bit cmake, 32 bit is broken
+		target_include_directories(simutrans-extended PRIVATE ${ZSTD_INCLUDE_DIRS})
 		target_link_libraries(simutrans-extended PRIVATE -lzstd)
 	else()
 		target_link_libraries(simutrans-extended PRIVATE PkgConfig::ZSTD)

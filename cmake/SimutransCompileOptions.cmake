@@ -31,9 +31,11 @@ if (MiniUPNP_FOUND)
 	option(SIMUTRANS_USE_UPNP "Use MiniUPNP for easier server setup" ON)
 endif (MiniUPNP_FOUND)
 
-if (ZSTD_FOUND)
+# ZSTD_FOUND comes from pkg-config (linux/mac/mingw); zstd_FOUND comes from the
+# CMake config package (vcpkg on MSVC).
+if (ZSTD_FOUND OR zstd_FOUND)
 	option(SIMUTRANS_USE_ZSTD "Enable support for zstd save file compression (larger save files than bzip2, but faster)" ON)
-endif (ZSTD_FOUND)
+endif (ZSTD_FOUND OR zstd_FOUND)
 
 if (FluidSynth_FOUND AND NOT WIN32)
 	option(SIMUTRANS_USE_FLUIDSYNTH_MIDI "Enable FluidSynth for MIDI playback" ON)
