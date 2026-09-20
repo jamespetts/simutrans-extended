@@ -51,6 +51,7 @@
 #include "gui/vehiclelist_frame.h"
 #include "gui/signalboxlist_frame.h"
 #include "gui/player_ranking_frame.h"
+#include "gui/prices_frame.h"
 
 #include "obj/baum.h"
 
@@ -238,6 +239,21 @@ public:
 		return false;
 	}
 	bool exit(player_t*) OVERRIDE{ destroy_win(magic_player_ranking); return false; }
+	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
+	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
+};
+
+// prices/rates history dialog
+class dialog_prices_t : public tool_t {
+public:
+	dialog_prices_t() : tool_t(DIALOG_PRICES | DIALOG_TOOL) {}
+	char const* get_tooltip(player_t const*) const OVERRIDE{ return translator::translate("Prices and rates"); }
+	bool is_selected() const OVERRIDE{ return win_get_magic(magic_prices_frame); }
+	bool init(player_t* player) OVERRIDE{
+		create_win(new prices_frame_t(), w_info, magic_prices_frame);
+		return false;
+	}
+	bool exit(player_t*) OVERRIDE{ destroy_win(magic_prices_frame); return false; }
 	bool is_init_keeps_game_state() const OVERRIDE{ return true; }
 	bool is_work_keeps_game_state() const OVERRIDE{ return true; }
 };

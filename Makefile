@@ -206,6 +206,10 @@ ifneq ($(PROFILE),)
   LDFLAGS += -pg
 endif
 
+ifdef UI_AUTOMATION
+  CFLAGS += -DSIMUTRANS_UI_AUTOMATION
+endif
+
 
 ifdef USE_ZSTD
   ifeq ($(shell expr $(USE_ZSTD) \>= 1), 1)
@@ -472,6 +476,7 @@ SOURCES += gui/pakselector.cc
 SOURCES += gui/password_frame.cc
 SOURCES += gui/player_frame_t.cc
 SOURCES += gui/player_ranking_frame.cc
+SOURCES += gui/prices_frame.cc
 SOURCES += gui/privatesign_info.cc
 SOURCES += gui/savegame_frame.cc
 SOURCES += gui/scenario_frame.cc

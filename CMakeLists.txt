@@ -300,6 +300,10 @@ if (SIMUTRANS_ENABLE_PROFILING)
 	add_definitions(-DPROFILE=1)
 endif ()
 
+if (SIMUTRANS_UI_AUTOMATION)
+	add_definitions(-DSIMUTRANS_UI_AUTOMATION=1)
+endif ()
+
 target_compile_options(simutrans-extended PRIVATE ${SIMUTRANS_COMMON_COMPILE_OPTIONS})
 
 target_compile_definitions(simutrans-extended PRIVATE $<IF:$<CONFIG:Debug>,DEBUG=1,>)

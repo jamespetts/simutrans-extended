@@ -1,0 +1,31 @@
+<title>Prices and Rates Help</title>
+
+<h1><strong>Prices and Rates</strong></h1>
+
+<p>
+<strong>Prices and Rates</strong> shows how prices, interest rates, fuel costs and wages develop over the course of the game. The values are those defined by the pakset (in prices.tab) as they are applied in the simulation.
+</p>
+<p>
+Click the <em>Prices and rates</em> button in the <a href="finances.txt">Finances</a> window to open this window.
+</p>
+<p>
+The window is only available when the timeline is enabled, since prices only change with the passage of time.
+</p>
+<p>
+The <em>Tables</em> tab lists values for the last 26 game years, newest first: one row per year, one column per series. The <em>Graphs</em> tab shows the same data as charts; click the coloured buttons below each chart heading to show or hide individual curves.
+</p>
+<p>
+<em>Price indices</em> show the inflation factor applied to each type of price, as a percentage of its value in the first year of the game (100% = unchanged). The types are: General, Passenger fares, Mail rates, Goods rates, Vehicle purchase, Vehicle maintenance, Buildings, Infrastructure, City land and Country land.
+</p>
+<p>
+<em>Interest and tax rates</em> are absolute percentages per year:<br>
+<em>Base rate:</em> the interest paid on credit balances and charged on ordinary borrowing.<br>
+<em>Overdraft rate:</em> the higher rate charged on borrowing beyond the base rate margin set in the game settings.<br>
+<em>Corporation tax:</em> the rate of tax on profits.
+</p>
+<p>
+<em>Fuel prices</em> are the running costs per fuel unit for each traction type for which the pakset defines a cost. Traction types with no cost anywhere in the displayed years are hidden. Electricity used by battery vehicles is charged at the electric price, scaled by each vehicle's round-trip battery efficiency.
+</p>
+<p>
+<em>Staff wages</em> are the monthly wages for each staff type defined by the pakset. Staff types are numbered ("Staff type 0" etc.); the names shown come from the translation files.
+</p>

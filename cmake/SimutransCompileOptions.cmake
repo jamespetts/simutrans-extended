@@ -42,6 +42,7 @@ if (FluidSynth_FOUND AND NOT WIN32)
 endif (FluidSynth_FOUND AND NOT WIN32)
 
 option(SIMUTRANS_ENABLE_PROFILING "Enable profiling code" OFF)
+option(SIMUTRANS_UI_AUTOMATION "Compile the UI automation hooks for agent visual feedback (see ai/gui/visual-feedback.md)" OFF)
 option(SIMUTRANS_USE_SYSLOG "Enable logging to syslog" OFF)
 option(SIMUTRANS_USE_IP4_ONLY "Use only IPv4" OFF)
 option(SIMUTRANS_STEAM_BUILT "Compile a Steam build" OFF)

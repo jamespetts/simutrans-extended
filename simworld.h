@@ -1133,6 +1133,12 @@ public:
 
 	sint64 get_inflation_adjusted_price(sint32 monthyear, sint64 base_price, price_type pt) const;
 
+	// Read-only accessors for the prices/rates history GUI (gui/prices_frame.cc)
+	static const char* get_price_type_name(uint8 pt) { return get_price_type_string(pt); }
+	static bool is_price_type_defined(uint8 pt) { return pt < MAX_PRICE_TYPE && prices[pt].get_count() > 0; }
+	static bool is_fuel_cost_defined(uint8 engine_type) { return engine_type < vehicle_desc_t::MAX_TRACTION_TYPE && fuel[engine_type].get_count() > 0; }
+	static bool is_staff_type_defined(uint8 staff_type) { return salaries.get(staff_type).get_count() > 0; }
+
 	void set_rands(uint8 num, uint32 val) { rands[num] = val; }
 	void inc_rands(uint8 num) { rands[num]++; }
 	inline void add_to_debug_sums(uint8 num, uint32 val) { debug_sums[num] += val; }

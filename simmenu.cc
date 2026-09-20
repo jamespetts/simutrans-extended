@@ -220,6 +220,7 @@ const char *tool_t::id_to_string(uint16 id)
 
 		CASE_TO_STRING(DIALOG_LIST_SIGNALBOX);
 		CASE_TO_STRING(DIALOG_PLAYER_RANKING);
+		CASE_TO_STRING(DIALOG_PRICES);
 		}
 	}
 
@@ -388,6 +389,7 @@ tool_t *create_dialog_tool(int toolnr)
 		case DIALOG_LANGUAGE:        tool = new dialog_language_t();        break;
 		case DIALOG_PLAYERCOLOR:     tool = new dialog_playercolor_t();     break;
 		case DIALOG_PLAYER_RANKING:  tool = new dialog_player_ranking_t();  break;
+		case DIALOG_PRICES:          tool = new dialog_prices_t();          break;
 		case DIALOG_JUMP:            tool = new dialog_jump_t();            break;
 		case DIALOG_LOAD:            tool = new dialog_load_t();            break;
 		case DIALOG_SAVE:            tool = new dialog_save_t();            break;

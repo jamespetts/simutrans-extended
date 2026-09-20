@@ -1592,7 +1592,7 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;USE_C;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;NDEBUG;%(PreprocessorDefinitions);COLOUR_DEPTH=16;MULTI_THREAD;PROFILE;REVISION_FROM_FILE;GDI_SOUND;MINIUPNP_STATICLIB;CURL_STATICLIB;CUSTOM_MINIUPNPC_LOCATION</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_ZSTD;USE_UPNP;USE_FREETYPE;NOMINMAX=1;ZLIB_WINAPI;LITTLE_ENDIAN;USE_C;WIN32_LEAN_AND_MEAN;WINVER=_WIN32_WINNT_WINXP;NDEBUG;%(PreprocessorDefinitions);COLOUR_DEPTH=16;MULTI_THREAD;PROFILE;REVISION_FROM_FILE;GDI_SOUND;MINIUPNP_STATICLIB;CURL_STATICLIB;CUSTOM_MINIUPNPC_LOCATION;SIMUTRANS_UI_AUTOMATION</PreprocessorDefinitions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <StructMemberAlignment>Default</StructMemberAlignment>
@@ -2554,6 +2554,7 @@
     <ClCompile Include="finder\placefinder.cc" />
     <ClCompile Include="gui\player_frame_t.cc" />
     <ClCompile Include="gui\player_ranking_frame.cc" />
+    <ClCompile Include="gui\prices_frame.cc" />
     <ClCompile Include="dataobj\powernet.cc" />
     <ClCompile Include="dataobj\replace_data.cc" />
     <ClCompile Include="gui\replace_frame.cc" />
@@ -3080,6 +3081,7 @@
     <ClInclude Include="finder\placefinder.h" />
     <ClInclude Include="gui\player_frame_t.h" />
     <ClInclude Include="gui\player_ranking_frame.h" />
+    <ClInclude Include="gui\prices_frame.h" />
     <ClInclude Include="dataobj\powernet.h" />
     <ClInclude Include="tpl\ptrhashtable_tpl.h" />
     <ClInclude Include="tpl\quickstone_hashtable_tpl.h" />

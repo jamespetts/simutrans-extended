@@ -1812,6 +1812,20 @@ int simu_main(int argc, char** argv)
 		create_win({ 0,0 }, new news_img("No soundfont found!\n\nMusic won't play until you load a soundfont from the sound options menu."), w_info, magic_none );
 	}
 #endif
+#ifdef SIMUTRANS_UI_AUTOMATION
+	// UI automation for agent/developer visual feedback (ai/gui/visual-feedback.md):
+	// opens one dialog without interaction, named by its dialogue-tool index in
+	// SIMUTRANS_UI_SHOT_TOOL (e.g. 130 = DIALOG_PRICES). Dialogue tools only, so this
+	// never alters game state.
+	if(  const char* const shot_tool = getenv("SIMUTRANS_UI_SHOT_TOOL")  ) {
+		const uint16 shot_id = (uint16)atoi(shot_tool);
+		if(  shot_id < tool_t::dialog_tool.get_count()  &&  tool_t::dialog_tool[shot_id] != NULL
+			&&  (tool_t::dialog_tool[shot_id]->get_id() & DIALOG_TOOL) != 0  ) {
+			tool_t::dialog_tool[shot_id]->init(welt->get_public_player());
+		}
+	}
+#endif
+
 	while(  !env_t::quit_simutrans  ) {
 		// play next tune?
 		check_midi();
@@ -1843,6 +1857,91 @@ int simu_main(int argc, char** argv)
 			welt->stop(true);
 			break;
 		}
+
+#ifdef SIMUTRANS_UI_AUTOMATION
+		// UI automation for agent/developer visual feedback (ai/gui/visual-feedback.md):
+		// capture the top window from the last rendered frame, then quit.
+		if(  getenv("SIMUTRANS_UI_SHOT") != NULL  ) {
+			static bool ui_shot_clicks_queued = false;
+			gui_frame_t* top = win_get_top();
+			// Dismiss transient news boxes left on top by loading, so clicks
+			// target the window under test and not a modal leftover.
+			while(  top != NULL  &&  win_get_open_count() > 1  ) {
+				news_img* const news = dynamic_cast<news_img*>(top);
+				if(  news == NULL  ) {
+					break;
+				}
+				destroy_win(news);
+				top = win_get_top();
+			}
+			if(  !ui_shot_clicks_queued  &&  getenv("SIMUTRANS_UI_SHOT_CLICKS") != NULL  ) {
+				// Inject synthetic left clicks at window-relative positions from
+				// SIMUTRANS_UI_SHOT_CLICKS ("x,y;x,y;...") and pump them through the
+				// event manager synchronously, then fall through to the capture
+				// below in this same pass.
+				// A trailing `continue` plus another interactive() pass does NOT
+				// work: interactive() returns immediately when quit_month is
+				// already reached (and sets env_t::quit_simutrans, exiting the
+				// main loop), and a single NORMAL-mode step never pumps GUI
+				// events.
+				gui_frame_t* const topw = top;
+				if(  topw != NULL  ) {
+					const scr_coord wpos = win_get_pos(topw);
+					char buf[256];
+					strncpy(buf, getenv("SIMUTRANS_UI_SHOT_CLICKS"), sizeof(buf) - 1);
+					buf[sizeof(buf) - 1] = 0;
+					char* token = strtok(buf, ";");
+					while(  token != NULL  ) {
+						int x = 0, y = 0;
+						if(  sscanf(token, "%i,%i", &x, &y) == 2  ) {
+							const scr_coord p(scr_coord_val(wpos.x + x), scr_coord_val(wpos.y + y));
+							event_t* down = new event_t(EVENT_CLICK);
+							down->ev_code = MOUSE_LEFTBUTTON;
+							down->mouse_pos = p;
+							down->click_pos = p;
+							down->button_state = MOUSE_LEFTBUTTON;
+							queue_event(down);
+							event_t* up = new event_t(EVENT_RELEASE);
+							up->ev_code = MOUSE_LEFTBUTTON;
+							up->mouse_pos = p;
+							up->click_pos = p;
+							up->button_state = 0;
+							queue_event(up);
+						}
+						token = strtok(NULL, ";");
+					}
+				}
+				ui_shot_clicks_queued = true;
+				printf("UI-AUTO: queued clicks; top window %p (%s) at %i,%i; open windows %i\n", (void*)topw, topw != NULL ? topw->get_name() : "<none>", topw != NULL ? win_get_pos(topw).x : -1, topw != NULL ? win_get_pos(topw).y : -1, win_get_open_count());
+				fflush(stdout);
+				// Pump the queued click/release pairs through the GUI now; one
+				// check_events() call swallows up to 4 dummy events, so run it
+				// a few times to let every pair through.
+				for(  int i = 0;  i < 6;  i++  ) {
+					eventmanager->check_events();
+				}
+				top = win_get_top();
+				printf("UI-AUTO: clicks processed; top window %p (%s); open windows %i\n", (void*)top, top != NULL ? top->get_name() : "<none>", win_get_open_count());
+				fflush(stdout);
+			}
+			// `top` already points at the first non-news window (dismissed above).
+			// Render first: a frame may resize itself during its first draw (see
+			// prices_frame_t::fit_to_content()), and the snapshot rect must reflect
+			// the size the window actually ends up with.
+			view->display(true);
+			intr_refresh_display(true);
+			top = win_get_top();
+			const scr_rect shot_area = top != NULL
+				? scr_rect(win_get_pos(top), top->get_windowsize())
+				: scr_rect(0, 0, display_get_width(), display_get_height());
+			printf("UI-AUTO: capturing top window %p (%s) rect %i,%i %ix%i; open windows %i\n", (void*)top, top != NULL ? top->get_name() : "<none>", shot_area.x, shot_area.y, shot_area.w, shot_area.h, win_get_open_count());
+			fflush(stdout);
+			const bool shot_ok = display_snapshot(shot_area);
+			printf("UI-AUTO: display_snapshot returned %i\n", shot_ok ? 1 : 0);
+			fflush(stdout);
+			env_t::quit_simutrans = true;
+		}
+#endif
 
 		new_world = true;
 		welt->get_message()->get_message_flags(&env_t::message_flags[0], &env_t::message_flags[1], &env_t::message_flags[2], &env_t::message_flags[3]);
