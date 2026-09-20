@@ -310,6 +310,9 @@ void gui_schedule_entry_t::update_label()
 	if (entry.max_speed_kmh != 65535) {
 		lb_speed_limit.buf().printf("%u %s", entry.max_speed_kmh, "km/h");
 	}
+	else {
+		lb_speed_limit.buf().clear();
+	}
 	lb_speed_limit.update();
 }
 
@@ -1871,6 +1874,8 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			numimp_speed_limit.enable(bt_speed_limit.pressed);
 			lb_speed_limit.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
 			lb_speed_limit_kmh.set_color(bt_speed_limit.pressed ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED);
+			// Refresh the entry in the schedule list on the left, which displays the speed limit.
+			update_current_entry();
 		}
 		else if (comp == &numimp_speed_limit) {
 			schedule->entries[schedule->get_current_stop()].max_speed_kmh = numimp_speed_limit.get_value();
