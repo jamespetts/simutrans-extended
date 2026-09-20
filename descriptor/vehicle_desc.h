@@ -146,6 +146,9 @@ public:
 		case vehicle_desc_t::steam:
 			return "steam";
 
+		case vehicle_desc_t::electric:
+			return "electric";
+
 		case vehicle_desc_t::bio:
 			return "bio";
 
@@ -203,6 +206,27 @@ private:
 	uint32 cut_off_speed = 0;					// The minimum speed below which fuel consumption per km does not reduce (km/h)
 
 	uint32 fuel_per_km = 0;						// Fuel cost calibrated according to the above. Not all powered vehicles (e.g. sailing ships) use fuel. The traction type records the fuel type.
+
+	/**
+	 * The battery round-trip efficiency of this vehicle as an integer
+	 * percentage (i.e. 85 = 85%). Only used by battery traction, whose
+	 * energy cost is derived from the electricity cost (the fuel[electric]
+	 * entries in config/fuel.tab) divided by this efficiency, because
+	 * electricity is bought from the grid and a proportion of it is lost
+	 * in charging and discharging the battery. Battery traction has no
+	 * fuel.tab entry of its own.
+	 *
+	 * The default is the average of 2020s-dated measured and aggregate
+	 * values: 85% (NREL Annual Technology Baseline 2023 and 2024
+	 * utility-scale battery storage assumptions, from Cole & Karmakar
+	 * 2023); 84% (computed from EIA 2022 United States utility-scale
+	 * battery fleet data: gross generation 2,913,805 MWh against 539,294
+	 * MWh of charging electricity and own loads, published 2023); 86%
+	 * (measured round-trip efficiency of a 3.0Ah NMC 18650 cell at a 0.2C
+	 * charge rate; Bobanac, Basic & Pandzic, IEEE EUROCON 2021).
+	 * (85 + 85 + 84 + 86) / 4 = 85.
+	 */
+	uint8 battery_round_trip_efficiency = 85;
 
 	uint16 gear;								// engine gear (power multiplier), 64=100
 
@@ -768,6 +792,16 @@ public:
 	uint32 get_calibration_speed() const { return calibration_speed; }
 	uint32 get_cut_off_speed() const { return cut_off_speed; }
 	uint32 get_fuel_per_km() const { return fuel_per_km; }
+	uint8 get_battery_round_trip_efficiency() const { return battery_round_trip_efficiency; }
+	/**
+	 * Returns the fuel (energy) cost per unit for this vehicle's traction
+	 * type at the current timeline date. For battery traction, this is the
+	 * electricity cost scaled up by the battery round-trip efficiency
+	 * (integer arithmetic, see battery_round_trip_efficiency); for all
+	 * other traction types, this is the fuel cost of the traction type
+	 * directly.
+	 */
+	sint64 get_fuel_cost_per_unit() const;
 	uint32 get_initial_overhaul_cost() const { return initial_overhaul_cost; }
 	uint32 get_max_overhaul_cost() const { return max_overhaul_cost; }
 	uint16 get_overhauls_before_max_cost() const { return overhauls_before_max_cost; }

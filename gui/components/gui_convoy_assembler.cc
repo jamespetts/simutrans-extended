@@ -168,7 +168,7 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 					{
 						gui_table_cell_buf_t* td = new_component<gui_table_cell_buf_t>();
 						td->set_color(veh_type->get_fuel_per_km() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
-						const sint64 fuel_cost_per_unit = world()->get_fuel_cost(world()->get_timeline_year_month(), veh_type->get_engine_type());
+						const sint64 fuel_cost_per_unit = veh_type->get_fuel_cost_per_unit();
 						const sint64 fuel_cost_per_km = (fuel_cost_per_unit * veh_type->get_fuel_per_km()) / world()->get_settings().get_fuel_unit_cost_divider();
 						td->buf().printf("%1.2f$/km", (double)fuel_cost_per_km / 100.0);
 						td->update();

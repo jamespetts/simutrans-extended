@@ -3719,7 +3719,9 @@ void vehicle_t::consume_fuel(sint32 steps)
 
 void vehicle_t::book_fuel_consumption()
 {
-	const sint64 fuel_cost_per_unit = welt->get_fuel_cost(welt->get_timeline_year_month(), desc->get_engine_type());
+	// For battery traction, this is the electricity cost scaled up by the
+	// battery round-trip efficiency (vehicle_desc_t::get_fuel_cost_per_unit).
+	const sint64 fuel_cost_per_unit = desc->get_fuel_cost_per_unit();
 
 	cnv->book(-(fuel_cost_per_unit * fuel_used_this_trip) / welt->get_settings().get_fuel_unit_cost_divider(), convoi_t::CONVOI_OPERATIONS); // TODO: Consider whether to have fuel as a separate category to running (maintenance) costs
 

@@ -51,7 +51,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 144;
+	int total_len = 145;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -197,7 +197,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Standard 11, 0x700 - override_way_speed
 	// Standard 11, 0x800 - accommodation name
 	// Standard 11, 0x900 - multiple working type, staff specification, self-contained catering, fuel, overhauls, maintenance
-	version += 0x900;
+	// Standard 11, 0xA00 - battery round trip efficiency
+	version += 0xA00;
 
 	node.write_uint16(fp, version, pos);
 
@@ -1246,6 +1247,14 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint32 availability_decay_start_takeoffs = obj.get_int("availability_decay_start_takeoffs", 0); // Default 0: no decay
 	node.write_uint32(fp, availability_decay_start_takeoffs, pos);
 	pos += sizeof(availability_decay_start_takeoffs);
+
+	// The battery round-trip efficiency as an integer percentage (e.g. 85 = 85%).
+	// Used only by battery traction, whose energy costs are derived from the
+	// electricity (fuel[electric]) entries in config/fuel.tab divided by this
+	// efficiency.
+	uint8 battery_round_trip_efficiency = obj.get_int("battery_round_trip_efficiency", 85); // Default: 85%
+	node.write_uint8(fp, battery_round_trip_efficiency, pos);
+	pos += sizeof(battery_round_trip_efficiency);
 
 
 	sint8 sound_str_len = sound_str.size();

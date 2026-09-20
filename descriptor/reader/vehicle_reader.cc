@@ -477,7 +477,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->freight_image_type = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version < 9)
+			if(extended_version < 10)
 			{
 				// NOTE: Extended version reset to 1 with incrementing of
 				// Standard version to 10.
@@ -621,6 +621,16 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					desc->maintenance_interval_km = decode_uint32(p);
 					desc->overhaul_month_tenths = decode_uint8(p);
 					desc->availability_decay_start_takeoffs = decode_uint32(p);
+				}
+				if (extended && extended_version >= 9)
+				{
+					// The battery round-trip efficiency as an integer
+					// percentage (e.g. 85 = 85%). Used only by battery
+					// traction, whose energy costs are derived from the
+					// electricity (fuel[electric]) entries in config/fuel.tab
+					// divided by this efficiency; see battery_round_trip_efficiency
+					// in vehicle_desc.h for real-world reference values.
+					desc->battery_round_trip_efficiency = decode_uint8(p);
 				}
 				// We do not need the "else", as all of the new values are header initialised.
 			}

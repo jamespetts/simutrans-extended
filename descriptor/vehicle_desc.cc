@@ -41,6 +41,39 @@ sint64 vehicle_desc_t::get_base_price() const
 	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_base_price(), vehicle_purchase) : obj_desc_transport_related_t::get_base_price();
 }
 
+sint64 vehicle_desc_t::get_fuel_cost_per_unit() const
+{
+	if (!world())
+	{
+		return 0;
+	}
+
+	if (engine_type == battery)
+	{
+		// Battery traction has no fuel.tab entry of its own: its energy is
+		// bought as electricity (the fuel[electric] entries of config/fuel.tab),
+		// but a proportion of that electricity is lost in charging and
+		// discharging the battery, so the cost per unit of energy actually
+		// delivered is the electricity cost divided by the round-trip
+		// efficiency. The default of 85% is the average of 2020s-dated
+		// values: 85% (NREL Annual Technology Baseline 2023 and 2024
+		// utility-scale battery storage assumptions, from Cole & Karmakar
+		// 2023), 84% (computed from EIA 2022 United States utility-scale
+		// battery fleet data: gross generation 2,913,805 MWh against
+		// 539,294 MWh of charging electricity and own loads, published
+		// 2023), 86% (measured round-trip efficiency of a 3.0Ah NMC 18650
+		// cell at a 0.2C charge rate; Bobanac, Basic & Pandzic, IEEE
+		// EUROCON 2021). (85 + 85 + 84 + 86) / 4 = 85. Full attributions
+		// in battery_round_trip_efficiency in vehicle_desc.h.
+		const uint8 efficiency = battery_round_trip_efficiency;
+		const sint64 electric_cost = world()->get_fuel_cost(world()->get_timeline_year_month(), electric);
+		// A zero efficiency is invalid: fall back to the unscaled electricity cost.
+		return efficiency ? (electric_cost * 100) / efficiency : electric_cost;
+	}
+
+	return world()->get_fuel_cost(world()->get_timeline_year_month(), engine_type);
+}
+
 uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
 {
 	// Inflation is taken care of before we get here.
@@ -519,6 +552,7 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(maintenance_interval_km);
 	chk->input(overhaul_month_tenths);
 	chk->input(availability_decay_start_takeoffs);
+	chk->input(battery_round_trip_efficiency);
 
 	// TODO: Consider whether to add the staff detais here, too
 }
