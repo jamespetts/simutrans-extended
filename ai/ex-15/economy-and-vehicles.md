@@ -74,9 +74,13 @@ value.
   simplified_maintenance setting is a kill-switch for the whole system.
 - Skippable scheduled depot entry: conditional_skip + depot_flag; auto-appended (with
   maintain_or_overhaul) when a convoy/line is created from a depot.
-- DEFECT (user-confirmed [RECOLLECTION:2026-09-07]): urgent maintenance (1.5× interval) only sets
-  no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit wherever the
-  convoy is → [known-bugs](../known-bugs.md).
+- INCOMPLETE (not a bug; deferred): urgent maintenance (1.5× maintenance_interval_km) currently
+  sets only no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit
+  wherever the convoy is. The runtime hook exists — `convoi_t::emergency_go_to_depot(show_success,
+  maintain)` finds the nearest/home depot, inserts a maintain_or_overhaul stop and teleports as a
+  fallback — but it is not wired to `is_maintenance_urgently_needed()`. To be implemented together
+  with the outstanding schedule/consist-order changes, not in advance of them
+  [RECOLLECTION:2026-09-20]; see [schedule-and-consists](schedule-and-consists.md).
 - Gaps: prioritise_for_maintenance / depriortise_for_maintenance have no callers — a depot
   queue-management GUI is planned for 15.x [RECOLLECTION:2026-09-07]; MAINTENANCE/OVERHAUL/REPLENISHING have no status strings in the convoy info
   window (fall through to the default speed display).
