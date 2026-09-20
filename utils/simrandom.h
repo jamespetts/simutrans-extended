@@ -94,7 +94,31 @@ uint32 log2( uint32 i );
 uint32 sqrt_i32(uint32 num);
 uint64 sqrt_i64(uint64 num);
 
-// Compute integer sigmoid function
-uint64 sigmoid(uint64 value, uint64 upper_bound);
+// Fixed-point scale of the value returned by sigmoid(): it is always in the
+// range [0, SIGMOID_SCALE]. Callers map a target range [min, max] by
+//     min + (max - min) * sigmoid(value, upper_bound) / SIGMOID_SCALE.
+constexpr uint64 SIGMOID_SCALE = 100000;
+
+// Compute an integer sigmoid. Returns a fixed-point value in [0, SIGMOID_SCALE]
+// for value in [0, upper_bound] (0 when upper_bound == 0). This is the cubic
+// smoothstep f(t) = t^2 * (3 - 2t) with t = value / upper_bound: monotonic and
+// saturating. It uses only integer arithmetic (integer multiply and divide
+// are exact and identical on every platform), so the result is deterministic
+// between network peers.
+constexpr uint64 sigmoid(uint64 value, uint64 upper_bound)
+{
+	if (upper_bound == 0 || value == 0)
+	{
+		return 0;
+	}
+	if (value >= upper_bound)
+	{
+		return SIGMOID_SCALE;
+	}
+	// t is in [0, SIGMOID_SCALE). t * t <= 1e10 and (3 * SIGMOID_SCALE - 2 * t)
+	// <= 3e5, so the product is at most ~3e15 and cannot overflow a uint64.
+	const uint64 t = (value * SIGMOID_SCALE) / upper_bound;
+	return (t * t * (3 * SIGMOID_SCALE - 2 * t)) / (SIGMOID_SCALE * SIGMOID_SCALE);
+}
 
 #endif

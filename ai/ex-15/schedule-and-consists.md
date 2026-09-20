@@ -108,10 +108,9 @@ explorer's treatment of consist orders.
   never evaluated; keep-or-remove undecided [RECOLLECTION:2026-09-07]. `max_catering` omitted from
   string serialisation (network/tool round-trip resets it). Livery copying in set_convoy_order
   explicitly unsupported.
-- **Defect (user-confirmed [RECOLLECTION:2026-09-07])**: a convoy completing a consist order goes
-  SHUNTING → ROUTING_1 → advance_schedule without passing `check_departure` — it departs
-  immediately after the shunting delay, ignoring minimum loading and spacing slots
-  → [known-bugs](../known-bugs.md).
+- **Shunting completion** — a convoy completing a consist order passes through `check_departure`
+  when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
+  honoured rather than departing immediately on the delay expiring.
 - **Left-over/loose vehicles** — displaced vehicles become a new layover convoy in situ (blank
   route, reserves own tiles, empty schedule, no line); pool at stops via
   `haltestelle_t::get_laid_over`, consumed by process_consist_order; mothballed vehicles excluded.

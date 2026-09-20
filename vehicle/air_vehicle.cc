@@ -1434,13 +1434,22 @@ uint8 air_vehicle_t::get_availability() const
 
 		const uint8 min_availability = desc->get_minimum_availability();
 
-		if (number_of_takeoffs >= desc->get_availability_decay_start_takeoffs())
+		if (number_of_takeoffs >= desc->get_max_takeoffs())
 		{
 			return min_availability;
 		}
 
-		const uint64 availability_sigmoid = sigmoid(100000ll * (number_of_takeoffs - desc->get_availability_decay_start_takeoffs()), 100000ll * desc->get_availability_decay_start_takeoffs());
-		const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / 100000ll;
+		if (min_availability >= base_availability)
+		{
+			// No decay to apply (also avoids an unsigned underflow below).
+			return base_availability;
+		}
+
+		// sigmoid() returns fixed point in [0, SIGMOID_SCALE]; dividing by it maps
+		// the [min_availability, base_availability] availability range.
+		const uint32 decay_start = desc->get_availability_decay_start_takeoffs();
+		const uint64 availability_sigmoid = sigmoid(number_of_takeoffs - decay_start, desc->get_max_takeoffs() - decay_start);
+		const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / SIGMOID_SCALE;
 		return base_availability - (uint8)availability_loss;
 	}
 	return vehicle_t::get_availability();

@@ -24,17 +24,20 @@ value.
   minimum_availability, maintenance_interval_km; aircraft analogues: max_takeoffs,
   availability_decay_start_takeoffs (`air_vehicle_t::get_availability` on takeoff cycles).
 - `vehicle_t::get_running_cost(welt)` / `get_availability()`: sigmoid interpolation between the
-  bounds (`sigmoid()` in utils/simrandom.h — carries "TODO: Implement a proper function"). Both are
+  bounds (integer fixed-point `sigmoid()` in utils/simrandom.h — see below). Both are
   inflation-adjusted: the underlying `vehicle_desc_t::get_running_cost/get_max_running_cost`
   use `karte_t::get_inflation_adjusted_price`.
-- DEFECT (user-confirmed bug [RECOLLECTION:2026-09-07]): the only booking path
-  (`convoi_t::increment_odometer` → `add_running_cost` → `player_t::book_running_costs`) uses the
-  descriptor-level cost — the wear increase never reaches the finances, while the GUI
-  (gui_vehicle_maintenance_t) displays the wear-adjusted value as the operative $/km. Inflation IS
-  accounted for in this path; the bug is solely the omitted wear increase → [known-bugs](../known-bugs.md).
-- DEFECT: the sigmoid argument is `(km_since_last_overhaul − max_distance_between_overhauls)` —
-  negative throughout the active branch (unsigned wrap); the aircraft version subtracts the
-  decay-start value → [known-bugs](../known-bugs.md).
+- Booking uses the wear-adjusted cost: `convoi_t::increment_odometer` bills
+  `vehicle_t::get_running_cost` (not the descriptor-level cost), so the usage-based increase reaches
+  the finances.
+- The curve is driven by the integer fixed-point `sigmoid()` (utils/simrandom.h): a cubic
+  smoothstep on [0, upper_bound] returning [0, `SIGMOID_SCALE`] (`SIGMOID_SCALE = 100000`),
+  integer-only so it is network-safe (→ [sync-and-determinism](../sync-and-determinism.md)).
+  Every caller divides the result by `SIGMOID_SCALE` to map the range, so the scale is shared
+  rather than duplicated. `get_availability`/`get_running_cost` interpolate from the decay-start
+  distance to `max_distance_between_overhauls`; the aircraft analogue interpolates from
+  `availability_decay_start_takeoffs` to `max_takeoffs` [EXECUTION-VERIFIED:2026-09-20, exact
+  fixed-point values and saturation checked by a transient test].
 - REQUIREMENT: no booking of cost or revenue may use base-level .dat prices, or any function of
   them, that bypasses inflation adjustment [RECOLLECTION:2026-09-07]. A full audit of all booking
   paths against this requirement is outstanding (open question below).

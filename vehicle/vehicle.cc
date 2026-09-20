@@ -3555,8 +3555,10 @@ sint64 vehicle_t::get_overhaul_cost() const
 		return base_overhaul_cost;
 	}
 
-	const uint64 overhaul_sigmoid = sigmoid(100000ll * overhauls, 100000ll * desc->get_overhauls_before_max_cost());
-	const sint64 overhaul_cost = (((max_overhaul_cost - base_overhaul_cost) * (sint64)overhaul_sigmoid) / 10000ll) + base_overhaul_cost;
+	// sigmoid() returns fixed point in [0, SIGMOID_SCALE]; divide by it to map
+	// the [base_overhaul_cost, max_overhaul_cost] range.
+	const uint64 overhaul_sigmoid = sigmoid(overhauls, desc->get_overhauls_before_max_cost());
+	const sint64 overhaul_cost = (((max_overhaul_cost - base_overhaul_cost) * (sint64)overhaul_sigmoid) / SIGMOID_SCALE) + base_overhaul_cost;
 	return overhaul_cost;
 }
 
@@ -3598,8 +3600,18 @@ uint8 vehicle_t::get_availability() const
 		return min_availability;
 	}
 
-	const uint64 availability_sigmoid = sigmoid(100000ll * (km_since_last_overhaul - desc->get_max_distance_between_overhauls()), 100000ll * desc->get_max_distance_between_overhauls());
-	const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / 100000ll;
+	if (min_availability >= base_availability)
+	{
+		// No decay to apply (also avoids an unsigned underflow below).
+		return base_availability;
+	}
+
+	// The decay runs from the decay-start distance to the overhaul distance.
+	// sigmoid() returns fixed point in [0, SIGMOID_SCALE]; dividing by it maps
+	// the [min_availability, base_availability] availability range.
+	const uint32 decay_start = desc->get_availability_decay_start_km();
+	const uint64 availability_sigmoid = sigmoid(km_since_last_overhaul - decay_start, desc->get_max_distance_between_overhauls() - decay_start);
+	const uint64 availability_loss = (((uint64)base_availability - (uint64)min_availability) * availability_sigmoid) / SIGMOID_SCALE;
 	return base_availability - (uint8) availability_loss;
 }
 
@@ -3614,13 +3626,23 @@ sint32 vehicle_t::get_running_cost(const karte_t* welt) const
 
 	const sint32 max_cost = (sint32)desc->get_max_running_cost(welt);
 
+	if (max_cost <= base_cost)
+	{
+		// No increase to apply (also avoids an unsigned underflow below).
+		return base_cost;
+	}
+
 	if (km_since_last_overhaul >= desc->get_max_distance_between_overhauls())
 	{
 		return max_cost;
 	}
 
-	const uint64 cost_sigmoid = sigmoid(100000ll * (km_since_last_overhaul - desc->get_max_distance_between_overhauls()), 100000ll * desc->get_max_distance_between_overhauls());
-	const uint64 cost_increase = (((uint64)max_cost - (uint64)base_cost) * cost_sigmoid) / 100000ll;
+	// The increase runs from the decay-start distance to the overhaul distance.
+	// sigmoid() returns fixed point in [0, SIGMOID_SCALE]; dividing by it maps
+	// the [base_cost, max_cost] running-cost range.
+	const uint32 decay_start = desc->get_availability_decay_start_km();
+	const uint64 cost_sigmoid = sigmoid(km_since_last_overhaul - decay_start, desc->get_max_distance_between_overhauls() - decay_start);
+	const uint64 cost_increase = (((uint64)max_cost - (uint64)base_cost) * cost_sigmoid) / SIGMOID_SCALE;
 	return base_cost + (sint32)cost_increase;
 }
 

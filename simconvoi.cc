@@ -944,7 +944,9 @@ void convoi_t::increment_odometer(uint32 steps)
 			running_cost = 0;
 		}
 		must_add = true;
-		running_cost -= v.get_desc()->get_running_cost(welt);
+		// Use the wear-adjusted running cost, not the base descriptor cost, so that
+		// the usage-based maintenance increase is actually charged to the player.
+		running_cost -= v.get_running_cost(welt);
 	}
 
 	if (must_add)
@@ -2141,8 +2143,14 @@ void convoi_t::step()
 		break;
 
 		case LAYOVER:
+		case SHUNTING:
+			// We will only get here if wait_lock == 0. For a convoy that has
+			// just completed a consist order, this evaluates the departure
+			// conditions (minimum loading, spacing slot, etc.) that were
+			// deliberately skipped when the SHUNTING state was entered, so that
+			// the convoy does not depart immediately on the shunting delay
+			// expiring regardless of loading or spacing.
 			check_departure(haltestelle_t::get_halt(get_pos(), owner));
-			// We will only get here if wait_lock == 0
 			break;
 
 		case REVERSING:
@@ -2592,14 +2600,8 @@ void convoi_t::step()
 			}
 			break;
 
-		case SHUNTING:
-			if (wait_lock <= 0)
-			{
-				state = ROUTING_1;
-			}
-			break;
-
 		case LAYOVER:
+		case SHUNTING:
 		default: ;
 	}
 }
@@ -6838,6 +6840,7 @@ void convoi_t::check_pending_updates()
 					removed_depot_entry.target_unique_entry_uncouple = schedule->get_current_entry().target_unique_entry_uncouple;
 					removed_depot_entry.unique_entry_id = schedule->get_current_entry().unique_entry_id;
 					removed_depot_entry.waiting_time_shift = schedule->get_current_entry().waiting_time_shift;
+					removed_depot_entry.max_speed_kmh = schedule->get_current_entry().max_speed_kmh;
 					schedule->remove();
 					if(schedule->empty())
 					{
@@ -6928,7 +6931,7 @@ end_check:
 		{
 			// next was depot. restore it
 			///schedule->insert(welt->lookup(depot), 0, 0, 0, false, owner == welt->get_active_player()); // TODO: Confirm whether the last "false" is needed below and remove this comment line once that is done.
-			schedule->insert(welt->lookup(depot), removed_depot_entry.minimum_loading, removed_depot_entry.waiting_time_shift, removed_depot_entry.spacing_shift, removed_depot_entry.flags, removed_depot_entry.condition_bitfield_broadcaster, removed_depot_entry.condition_bitfield_receiver, removed_depot_entry.target_id_condition_trigger, removed_depot_entry.target_id_uncouple, owner == welt->get_active_player());
+			schedule->insert(welt->lookup(depot), removed_depot_entry.minimum_loading, removed_depot_entry.waiting_time_shift, removed_depot_entry.spacing_shift, removed_depot_entry.flags, removed_depot_entry.condition_bitfield_broadcaster, removed_depot_entry.condition_bitfield_receiver, removed_depot_entry.target_id_condition_trigger, removed_depot_entry.target_id_couple, removed_depot_entry.target_id_uncouple, removed_depot_entry.target_unique_entry_uncouple, owner == welt->get_active_player(), removed_depot_entry.max_speed_kmh);
 			// Insert will move the pointer past the inserted item; move back to it
 			schedule->advance_reverse();
 		}

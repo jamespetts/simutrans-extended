@@ -41,7 +41,9 @@ void schedule_t::copy_from(const schedule_t *src)
 		entries.append(i);
 	}
 
-	// Copy consist orders
+	// Copy consist orders. Clear any pre-existing orders first so that orders
+	// which are not present in the source schedule do not survive the copy.
+	orders.clear();
 	for (auto &order : src->orders)
 	{
 		orders.put(order.key, order.value);
@@ -54,6 +56,11 @@ void schedule_t::copy_from(const schedule_t *src)
 	bidirectional = src->is_bidirectional();
 	mirrored = src->is_mirrored();
 	same_spacing_shift = src->is_same_spacing_shift();
+
+	// Recompute the derived carried-category/class tables from the copied orders
+	// and entries; otherwise a schedule that has adopted another's orders would
+	// keep stale (or empty) derived tables.
+	parse_orders();
 }
 
 
