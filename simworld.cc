@@ -6071,29 +6071,39 @@ sint64 karte_t::calc_ready_time(ware_t ware, koord origin_pos) const
 void karte_t::check_transferring_cargoes()
 {
 	const sint64 current_time = ticks;
-	ware_t ware;
 #ifdef MULTI_THREAD
 	const sint32 po = get_parallel_operations() + 2;
 #else
 	const sint32 po = 1;
 #endif
-	bool removed;
 	for (sint32 i = 0; i < po; i++)
 	{
-		for(auto tc : transferring_cargoes[i])
+		vector_tpl<transferring_cargo_t>& cargoes = transferring_cargoes[i];
+		const uint32 count = cargoes.get_count();
+		// Drain in a single compaction pass rather than erasing each ready
+		// entry: remove-by-value scans and shifts the tail, which is quadratic
+		// in the list size and makes the cached-end iterator skip entries.
+		// Every entry is visited once here, and survivors keep their order.
+		uint32 survivors = 0;
+		for (uint32 j = 0; j < count; j++)
 		{
-			/*const uint32 ready_seconds = ticks_to_seconds((tc.ready_time - current_time));
-			const uint32 ready_minutes = ready_seconds / 60;
-			const uint32 ready_hours = ready_minutes / 60;*/
+			const transferring_cargo_t& tc = cargoes.get_element(j);
 			if (tc.ready_time <= current_time)
 			{
-				ware = tc.ware;
-				removed = transferring_cargoes[i].remove(tc);
-				if (removed)
-				{
-					deposit_ware_at_destination(ware);
-				}
+				deposit_ware_at_destination(tc.ware);
 			}
+			else
+			{
+				if (survivors != j)
+				{
+					cargoes.get_element(survivors) = tc;
+				}
+				survivors++;
+			}
+		}
+		if (survivors != count)
+		{
+			cargoes.set_count(survivors);
 		}
 	}
 }
