@@ -233,7 +233,6 @@ confirms they affect current builds in live games.
 | [Unable to compile Extended in Arch's MinGW cross-compilation toolchain](https://forum.simutrans.com/index.php/topic,21401.0.html) | 2022 | likely stale — CI MinGW builds pass; verify |
 | [The lines of the combobox collapse and overlap in one line](https://forum.simutrans.com/index.php/topic,21776.0.html) | 2022 | |
 | [Line Management Charts — wrong maximum numbers](https://forum.simutrans.com/index.php/topic,21691.0.html) | 2022 | |
-| Schedule trigger flag polarity mismatch (not a forum report: code inspection 2026-09-07) | — | ex-15 only: `convoi_t::ziel_erreicht` treats cond_trigger_is_line_or_cnv set=line/unset=convoy, the reverse of the couple/uncouple equivalents (set=convoy); the GUI stores a line ID without setting the flag. Latent until the trigger GUI is wired [CODE ex-15 @ 91d9b252e]. Context → [ex-15 schedule registry](ex-15/schedule-and-consists.md) |
 
 ## P4 — very low / backlog
 
