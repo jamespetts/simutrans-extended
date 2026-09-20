@@ -49,30 +49,27 @@ private:
 		uint8 chart_stride;       // number of series in the section (row width of its chart table)
 		sint64* chart_values;     // &chart_table[column of this series]; YEARS_DISPLAYED entries, stride chart_stride
 		button_t* toggle;
-		gui_table_header_t* header;   // column header of this series in the tables tab
 		gui_table_cell_buf_t* cells[YEARS_DISPLAYED];
 	};
 
 	// One item group: price indices, interest and tax rates, fuel prices, staff wages.
 	struct section_t {
-		series_kind_t kind;
 		const char* title;        // translation key
 		bool present;
 		uint8 first_series;
 		uint8 series_count;
 		int curve_type;
 		int precision;
-	gui_aligned_container_t cont;         // table tab content
-	gui_scrollpane_t scrolly;
-	gui_aligned_container_t cont_chart;   // graphs tab content
-	gui_scrollpane_t scrolly_chart;
-	gui_chart_t chart;
-	// Separate note labels per tab: one component instance cannot live in two
-	// containers (each parent would overwrite its position on resize).
-	gui_label_buf_t note_table;
-	gui_label_buf_t note_chart;
-	bool has_note;
-	gui_table_header_buf_t* year_cells[YEARS_DISPLAYED];
+		gui_aligned_container_t cont;         // table tab content
+		gui_scrollpane_t scrolly;
+		gui_aligned_container_t cont_chart;   // graphs tab content
+		gui_scrollpane_t scrolly_chart;
+		gui_chart_t chart;
+		// Separate note labels per tab: one component instance cannot live in two
+		// containers (each parent would overwrite its position on resize).
+		gui_label_buf_t note_table;
+		gui_label_buf_t note_chart;
+		gui_table_header_buf_t* year_cells[YEARS_DISPLAYED];
 
 		section_t() :
 			present(false),
@@ -81,8 +78,7 @@ private:
 			curve_type(gui_chart_t::STANDARD),
 			precision(0),
 			scrolly(&cont, false, true),
-			scrolly_chart(&cont_chart, false, true),
-			has_note(false)
+			scrolly_chart(&cont_chart, false, true)
 		{
 			for (uint8 j = 0; j < YEARS_DISPLAYED; j++) {
 				year_cells[j] = NULL;

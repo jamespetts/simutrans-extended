@@ -73,13 +73,8 @@ prices_frame_t::prices_frame_t() :
 		return;
 	}
 
-	sections[sk_index].kind = sk_index;
-	sections[sk_rate].kind = sk_rate;
-	sections[sk_fuel].kind = sk_fuel;
-	sections[sk_staff].kind = sk_staff;
 	for (uint8 k = 0; k < MAX_KINDS; k++) {
 		sections[k].title = section_title[k];
-		sections[k].has_note = true;
 	}
 	sections[sk_index].curve_type = gui_chart_t::PERCENT;
 	sections[sk_index].precision = 0;
@@ -226,7 +221,6 @@ void prices_frame_t::build_series()
 			s.kind = sk_index;
 			s.id = pt;
 			s.name = translator::translate(index_series_display_key(pt));
-			s.name_buf[0] = 0;
 			s.color_idx = series_colors[col++ % 10];
 		}
 	}
@@ -237,7 +231,6 @@ void prices_frame_t::build_series()
 			s.kind = sk_rate;
 			s.id = r;
 			s.name = rate_row_name[r];
-			s.name_buf[0] = 0;
 			s.color_idx = rate_row_color[r];
 		}
 	}
@@ -246,7 +239,6 @@ void prices_frame_t::build_series()
 		s.kind = sk_rate;
 		s.id = rate_tax;
 		s.name = rate_row_name[rate_tax];
-		s.name_buf[0] = 0;
 		s.color_idx = rate_row_color[rate_tax];
 	}
 
@@ -260,7 +252,6 @@ void prices_frame_t::build_series()
 			s.kind = sk_fuel;
 			s.id = et;
 			s.name = vehicle_desc_t::get_engine_type_string(et);
-			s.name_buf[0] = 0;
 			s.color_idx = series_colors[col++ % 10];
 		}
 	}
@@ -295,7 +286,6 @@ void prices_frame_t::build_series()
 		s.chart = NULL;
 		s.curve_id = 0;
 		s.toggle = NULL;
-		s.header = NULL;
 		for (uint8 j = 0; j < YEARS_DISPLAYED; j++) {
 			s.cells[j] = NULL;
 		}
@@ -312,11 +302,9 @@ void prices_frame_t::build_table(section_t& s)
 	// More series columns than fit the window width are reached by horizontal scrolling.
 	s.scrolly.set_show_scroll_x(true);
 
-	if (s.has_note) {
-		s.cont.add_component(&s.note_table);
-		// Breathing room between the note and the data grid (finance-window idiom).
-		s.cont.new_component<gui_margin_t>(0, LINESPACE / 2);
-	}
+	s.cont.add_component(&s.note_table);
+	// Breathing room between the note and the data grid (finance-window idiom).
+	s.cont.new_component<gui_margin_t>(0, LINESPACE / 2);
 
 	const uint8 cols = 1 + s.series_count;
 	gui_aligned_container_t* const grid = s.cont.add_table(cols, 0);
@@ -326,7 +314,7 @@ void prices_frame_t::build_table(section_t& s)
 	grid->new_component<gui_table_header_t>("Year", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
 	for (uint8 c = 0; c < s.series_count; c++) {
 		series_t& ser = series[s.first_series + c];
-		ser.header = grid->new_component<gui_table_header_t>(ser.name, SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+		grid->new_component<gui_table_header_t>(ser.name, SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
 	}
 
 	// One row per year, newest first; the year rows scroll vertically. Data rows
@@ -338,7 +326,7 @@ void prices_frame_t::build_table(section_t& s)
 		for (uint8 c = 0; c < s.series_count; c++) {
 			series_t& ser = series[s.first_series + c];
 			ser.cells[j] = grid->new_component<gui_table_cell_buf_t>("", band, gui_label_t::right, true);
-			ser.cells[j]->set_min_width(proportional_string_width(s.kind == sk_index || s.kind == sk_rate ? "88,888%" : "88,888.88$"));
+			ser.cells[j]->set_min_width(proportional_string_width(s.curve_type == gui_chart_t::PERCENT ? "88,888%" : "88,888.88$"));
 		}
 	}
 	s.cont.end_table();
@@ -352,9 +340,7 @@ void prices_frame_t::build_chart(section_t& s)
 	s.cont_chart.set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
 
 	// No heading here: the active sub-tab already names the section.
-	if (s.has_note) {
-		s.cont_chart.add_component(&s.note_chart);
-	}
+	s.cont_chart.add_component(&s.note_chart);
 
 	// Curve toggle buttons, five per row
 	const uint8 button_rows = (s.series_count + 4) / 5;
@@ -419,7 +405,7 @@ void prices_frame_t::update_values()
 			s.year_cells[j]->update();
 		}
 
-		switch (s.kind) {
+		switch ((series_kind_t)k) {
 			case sk_index:
 				s.note_table.buf().printf("Price indices as %% of %i values.", start_year);
 				s.note_chart.buf().printf("Price indices as %% of %i values.", start_year);
