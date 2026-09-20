@@ -9,5 +9,5 @@
 # (last-known-good ratchet: pakset regressions can never fail push/PR CI).
 #
 # Format: <pakset repo branch> = <full commit sha>
-master = bda8bde09f1d5644cda43998a4251366d5ee9a10
+master = 7215850ebc47f432f3b7e97201e9a508b5046cbf
 ex-15 = e0f36d66527b541c51fa70bc2b68dfcfb55d4090
