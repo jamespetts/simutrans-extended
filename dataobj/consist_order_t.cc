@@ -299,6 +299,7 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 			buf.append_fixed(desc.empty == true ? (uint8)1 : (uint8)0);
 			buf.append_fixed(desc.engine_type);
 			buf.append_fixed(desc.min_catering);
+			buf.append_fixed(desc.max_catering);
 			buf.append_fixed(desc.must_carry_class);
 			buf.append_fixed(desc.min_range);
 			buf.append_fixed(desc.max_range);
@@ -392,6 +393,7 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 			desc.empty = cbuffer_t::decode_uint8(p);
 			desc.engine_type = cbuffer_t::decode_uint8(p);
 			desc.min_catering = cbuffer_t::decode_uint8(p);
+			desc.max_catering = cbuffer_t::decode_uint8(p);
 			desc.must_carry_class = cbuffer_t::decode_uint8(p);
 			desc.min_range = cbuffer_t::decode_uint32(p);
 			desc.max_range = cbuffer_t::decode_uint32(p);
