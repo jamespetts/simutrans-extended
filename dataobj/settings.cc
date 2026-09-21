@@ -397,6 +397,11 @@ settings_t::settings_t() :
 	allow_insolvency  = 0;
 	allow_purchases_when_insolvent  = 0;
 
+	// Round-trip efficiencies used to derive the electricity-based running cost of
+	// battery and fuel-cell traction (see config/fuel.tab).
+	battery_round_trip_efficiency = 85;
+	fuel_cell_round_trip_efficiency = 40;
+
 	// Reversing settings
 	// @author: jamespetts
 	unit_reverse_time = 0;
@@ -2789,6 +2794,11 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		overdraft_percent_above_base_rate = max(0, interest_rate_percent - 8);
 	}
 	overdraft_percent_above_base_rate = contents.get_int("overdraft_percent_above_base_rate", overdraft_percent_above_base_rate);
+
+	// Round-trip efficiencies used to derive the electricity-based running cost of
+	// battery and fuel-cell traction (see config/fuel.tab).
+	battery_round_trip_efficiency = contents.get_int("battery_round_trip_efficiency", battery_round_trip_efficiency);
+	fuel_cell_round_trip_efficiency = contents.get_int("fuel_cell_round_trip_efficiency", fuel_cell_round_trip_efficiency);
 	// Check for misspelled version
 	allow_insolvency = contents.get_int("allow_bankruptsy", allow_insolvency);
 	// Check for deprecated version

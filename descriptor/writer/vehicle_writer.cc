@@ -51,7 +51,7 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	int i;
 	uint8  uv8;
 
-	int total_len = 145;
+	int total_len = 146;
 
 	// must be done here, since it may affect the len of the header!
 	string sound_str = ltrim( obj.get("sound") );
@@ -198,7 +198,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Standard 11, 0x800 - accommodation name
 	// Standard 11, 0x900 - multiple working type, staff specification, self-contained catering, fuel, overhauls, maintenance
 	// Standard 11, 0xA00 - battery round trip efficiency
-	version += 0xA00;
+	// Standard 11, 0xB00 - fuel cell round trip efficiency
+	version += 0xB00;
 
 	node.write_uint16(fp, version, pos);
 
@@ -1249,12 +1250,16 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	pos += sizeof(availability_decay_start_takeoffs);
 
 	// The battery round-trip efficiency as an integer percentage (e.g. 85 = 85%).
-	// Used only by battery traction, whose energy costs are derived from the
-	// electricity (fuel[electric]) entries in config/fuel.tab divided by this
-	// efficiency.
-	uint8 battery_round_trip_efficiency = obj.get_int("battery_round_trip_efficiency", 85); // Default: 85%
+	// A per-vehicle override; 0 means "not set" and the global default (simuconf.tab,
+	// else hard-coded) applies. Only used when battery traction has no fuel.tab entry.
+	uint8 battery_round_trip_efficiency = obj.get_int("battery_round_trip_efficiency", 0);
 	node.write_uint8(fp, battery_round_trip_efficiency, pos);
 	pos += sizeof(battery_round_trip_efficiency);
+
+	// As above, for fuel-cell traction.
+	uint8 fuel_cell_round_trip_efficiency = obj.get_int("fuel_cell_round_trip_efficiency", 0);
+	node.write_uint8(fp, fuel_cell_round_trip_efficiency, pos);
+	pos += sizeof(fuel_cell_round_trip_efficiency);
 
 
 	sint8 sound_str_len = sound_str.size();

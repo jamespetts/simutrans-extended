@@ -477,7 +477,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->freight_image_type = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version < 10)
+			if(extended_version < 11)
 			{
 				// NOTE: Extended version reset to 1 with incrementing of
 				// Standard version to 10.
@@ -631,6 +631,17 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					// divided by this efficiency; see battery_round_trip_efficiency
 					// in vehicle_desc.h for real-world reference values.
 					desc->battery_round_trip_efficiency = decode_uint8(p);
+				}
+				if (extended && extended_version >= 10)
+				{
+					// The fuel-cell round-trip efficiency as an integer
+					// percentage (e.g. 40 = 40%). Used only by fuel-cell
+					// traction, whose energy costs are derived from the
+					// electricity (fuel[electric]) entries divided by this
+					// efficiency (electricity -> hydrogen by electrolysis, then
+					// back to electricity by the fuel cell); see
+					// fuel_cell_round_trip_efficiency in vehicle_desc.h.
+					desc->fuel_cell_round_trip_efficiency = decode_uint8(p);
 				}
 				// We do not need the "else", as all of the new values are header initialised.
 			}

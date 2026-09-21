@@ -556,6 +556,12 @@ public:
 	bool allow_insolvency;
 	bool allow_purchases_when_insolvent;
 
+	// Round-trip efficiency used to derive the electricity-based running cost of
+	// battery and fuel-cell traction (see config/fuel.tab). A global default;
+	// per-vehicle .dat values override it (vehicle_desc_t).
+	uint8 battery_round_trip_efficiency;
+	uint8 fuel_cell_round_trip_efficiency;
+
 	// Reversing settings
 	//@author: jamespetts
 	uint32 unit_reverse_time;
@@ -1078,6 +1084,8 @@ public:
 	uint16 get_factory_max_years_obsolete() const { return factory_max_years_obsolete; }
 
 	sint16 get_overdraft_percent_above_base_rate() const { return overdraft_percent_above_base_rate; }
+	uint8 get_battery_round_trip_efficiency() const { return battery_round_trip_efficiency; }
+	uint8 get_fuel_cell_round_trip_efficiency() const { return fuel_cell_round_trip_efficiency; }
 	bool insolvency_allowed() const { return allow_insolvency; }
 	bool insolvent_purchases_allowed() const { return allow_purchases_when_insolvent; }
 
