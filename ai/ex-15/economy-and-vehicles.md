@@ -1,12 +1,12 @@
 ---
 status: reviewed
-verified: ex-15 @ a86452062
+verified: ex-15 @ 43d1ca6f3
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
 **Covers:** descriptor/vehicle_desc.*, vehicle/vehicle.*, vehicle/air_vehicle.cc, simdepot.cc,
 simconvoi.cc (maintenance/replace/finance), dataobj/replace_data.h, gui/replace_frame.*,
-gui/convoi_detail_t.*, simworld.{cc,h} (prices/fuel), player/finance.cc, dataobj/settings.*
+gui/convoi_detail_t.*, gui/prices_frame.*, simworld.{cc,h} (prices/fuel), player/finance.cc, dataobj/settings.*
 (maintenance intervals), descriptor/{reader,writer}/vehicle_*.cc, building_desc (depot capacity).
 
 Per-feature registry for the 15.x programme. Intent sources: forum threads 16980/17852/14991/22054
@@ -109,7 +109,7 @@ value.
   would misprice low-power vehicles)
   [FORUM:https://forum.simutrans.com/index.php/topic,14991.msg174482.html].
 
-## prices.tab: inflation, interest, corporation tax — IMPLEMENTED; display GUI ABSENT
+## prices.tab: inflation, interest, corporation tax — IMPLEMENTED
 
 - config/prices.tab: percentage factors indexed by year per price type, plus a "general" fallback;
   linear interpolation; 100 = current .dat prices. `karte_t::get_inflation_adjusted_price`;
@@ -122,8 +122,6 @@ value.
   overdraft interest (base_rate + overdraft_percent_above_base_rate setting).
 - prices_rdwr gated extended ≥ 15; pakset-dir override re-read on load. Forum confirms implemented
   on 15.x [FORUM:https://forum.simutrans.com/index.php/topic,22054.msg207373.html].
-- Gap: NO GUI reads karte_t::prices — the planned display of price factors/rates over time
-  [FORUM:https://forum.simutrans.com/index.php/topic,22054.msg202141.html] is outstanding.
 - Fuel and staff sit outside prices.tab (absolute yearly prices in their own .tab files).
 
 ## Vehicle replacer enhancements — MIXED
