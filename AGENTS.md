@@ -47,17 +47,36 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
 6. After significant code changes, PROPOSE updates to the affected `ai/` docs; the user
    reviews and approves all doc changes before commit. Update provenance records when
    updating docs.
-7. When unsure, write an open question into the relevant doc instead of a claim.
-8. Do *not* write outside the project directory unless absolutely unavoidable. This 
+7. When working on an area of the code covered by a stub in the docs, first expand the
+   doc to a full article by researching the code before doing the substantive work. In
+   any event, always ensure understanding of the relevant part(s) of the codebase before
+   making changes.
+8. When unsure, write an open question into the relevant doc instead of a claim.
+9. Do *not* write outside the project directory unless absolutely unavoidable. This 
    requires the user's explicit permission, which wastes the user's time. All temporary
    and scratch files (test working dirs, run logs, drafts, handoff notes) go in `ai/temp/`
    (gitignored). Clear `ai/temp/` at the end of a work session, EXCEPT the persistent
    performance-suite state under `ai/temp/perf/` (see `ai/performance.md`). At session start, if
    `ai/temp/` is non-empty, read any handoff notes there first.
-9. Any change made for testing only (temporary config values, diagnostic logging,
+10. Any change made for testing only (temporary config values, diagnostic logging,
    scaffolding, scratch data inside the repo) must carry an explicit comment containing
    the word TEST or TESTING in capital letters, so it is never mistaken for an intended
-   fix. Revert all such changes before finishing.
+   fix. Revert all such changes before the completion of the task. Inform the user at
+   every turn that TESTing code remains in case the user terminates the session earlier
+   than expected.
+11. All user facing text strings need to go through the translator::translate function exactly once.
+    Be careful not to pass translated text to a method that later translates it again before
+    display.
+12. When writing new code: 
+   (a) do not make provision for future but unplanned functionality;
+   (b) do not use std:: or similar collections or utilities where equivalent Simutrans collections or utilities exist;
+   (c) avoid unnecessary dependencies;
+   (d) avoid boilerplate code;
+   (e) remove any vestigial code before presenting code to the user;
+   (f) re-use existing Simutrans code where possible unless there should be a good reason (e.g. performance) to do otherwise; 
+   (g) prioritise performance over "clean" code or similar (but not over stability); 
+   (h) do not use non-ASCII characters in comments; and
+   (i) do not over-engineer: do not write code that does not actually need to be there.
 
 
 ## Commit messages
