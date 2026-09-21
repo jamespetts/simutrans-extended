@@ -12427,6 +12427,23 @@ sint64 karte_t::get_staff_salary(sint32 monthyear, uint8 staff_type) const
 	}
 }
 
+void karte_t::get_staff_type_description_key(uint8 staff_type, char* buf, size_t buflen)
+{
+	snprintf(buf, buflen, "staff_type_%i_description", (sint32)staff_type);
+}
+
+const char* karte_t::get_staff_type_description(uint8 staff_type)
+{
+	// Staff types are pakset-defined numbers with no names in the data model, so
+	// the descriptions live in the translation files under an indexed key. Where
+	// the key is untranslated (translate returns the key unchanged), report no
+	// description so callers can fall back to the plain "Staff type N" name.
+	char key[48];
+	get_staff_type_description_key(staff_type, key, sizeof(key));
+	const char* const translated = translator::translate(key);
+	return strcmp(translated, key) == 0 ? NULL : translated;
+}
+
 void karte_t::staff_init(const std::string& objfilename)
 {
 	tabfile_t staff_file;

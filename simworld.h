@@ -1139,6 +1139,14 @@ public:
 	static bool is_fuel_cost_defined(uint8 engine_type) { return engine_type < vehicle_desc_t::MAX_TRACTION_TYPE && fuel[engine_type].get_count() > 0; }
 	static bool is_staff_type_defined(uint8 staff_type) { return salaries.get(staff_type).get_count() > 0; }
 
+	// Translatable tooltip/description text for a pakset-defined staff type, for
+	// reuse across the UI. Looks up the "staff_type_<n>_description" translation
+	// key and returns the translated text, or NULL where no description exists.
+	static const char* get_staff_type_description(uint8 staff_type);
+
+	// Formats the translation key "staff_type_<n>_description" into buf (>= 48 bytes).
+	static void get_staff_type_description_key(uint8 staff_type, char* buf, size_t buflen);
+
 	void set_rands(uint8 num, uint32 val) { rands[num] = val; }
 	void inc_rands(uint8 num) { rands[num]++; }
 	inline void add_to_debug_sums(uint8 num, uint32 val) { debug_sums[num] += val; }

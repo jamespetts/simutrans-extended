@@ -103,6 +103,21 @@ prices_frame_t::prices_frame_t() :
 	tabs.add_listener(this);
 	sub_tabs_table.add_listener(this);
 	sub_tabs_charts.add_listener(this);
+
+	// Period selector: the most recent years, or the whole history since the game
+	// start (mutually exclusive, like a radio pair).
+	bt_recent.init(button_t::roundbox_state, "Recent");
+	bt_all_time.init(button_t::roundbox_state, "All time");
+	bt_recent.set_tooltip("Show only the most recent years.");
+	bt_all_time.set_tooltip("Show the whole history since the game began, sampled every few years.");
+	bt_recent.add_listener(this);
+	bt_all_time.add_listener(this);
+	bt_recent.pressed = true;
+	gui_aligned_container_t* const period_sel = add_table(2, 1);
+	period_sel->set_spacing(scr_size(D_H_SPACE, 0));
+	period_sel->add_component(&bt_recent);
+	period_sel->add_component(&bt_all_time);
+	end_table();
 	add_component(&tabs);
 
 	update_values();
@@ -148,6 +163,21 @@ bool prices_frame_t::fuel_series_in_use(uint8 engine_type) const
 		}
 	}
 	return false;
+}
+
+
+sint32 prices_frame_t::year_step() const
+{
+	if (!bt_all_time.pressed) {
+		return 1;
+	}
+	// Whole history: decimate the span from the game start to now so that about
+	// YEARS_DISPLAYED points are shown (rows are current_year, current_year-step,
+	// ...; the tail is clipped to the start year by the caller).
+	const sint32 current_year = welt->get_timeline_year_month() / 12;
+	const sint32 start_year = welt->get_settings().get_starting_year();
+	const sint32 span = max(0, current_year - start_year);
+	return max(1, (span + YEARS_DISPLAYED - 2) / (YEARS_DISPLAYED - 1));
 }
 
 
@@ -220,7 +250,7 @@ void prices_frame_t::build_series()
 			series_t& s = series[k++];
 			s.kind = sk_index;
 			s.id = pt;
-			s.name = translator::translate(index_series_display_key(pt));
+			s.name = index_series_display_key(pt);
 			s.color_idx = series_colors[col++ % 10];
 		}
 	}
@@ -244,7 +274,7 @@ void prices_frame_t::build_series()
 
 	{
 		uint8 col = 0;
-		for (uint8 et = 0; et < vehicle_desc_t::MAX_TRACTION_TYPE; et++) {
+	for (uint8 et = 0; et < vehicle_desc_t::MAX_TRACTION_TYPE; et++) {
 			if (et == vehicle_desc_t::battery || !karte_t::is_fuel_cost_defined(et) || !fuel_series_in_use(et)) {
 				continue;
 			}
@@ -269,7 +299,8 @@ void prices_frame_t::build_series()
 			s.kind = sk_staff;
 			s.id = (uint8)st;
 			snprintf(s.name_buf, sizeof(s.name_buf), "Staff type %i", (sint32)st);
-			s.name = translator::translate(s.name_buf);
+			s.name = s.name_buf;
+			karte_t::get_staff_type_description_key((uint8)st, s.desc_key, sizeof(s.desc_key));
 			s.color_idx = series_colors[col++ % 10];
 		}
 	}
@@ -314,7 +345,14 @@ void prices_frame_t::build_table(section_t& s)
 	grid->new_component<gui_table_header_t>("Year", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
 	for (uint8 c = 0; c < s.series_count; c++) {
 		series_t& ser = series[s.first_series + c];
-		grid->new_component<gui_table_header_t>(ser.name, SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+		gui_table_header_t* const h = grid->new_component<gui_table_header_t>(ser.name, SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+		if (ser.kind == sk_staff) {
+			const char* const desc = karte_t::get_staff_type_description(ser.id);
+			if (desc != NULL) {
+				// gui_label_t::set_tooltip does not translate, so pass the translated text.
+				h->set_tooltip(desc);
+			}
+		}
 	}
 
 	// One row per year, newest first; the year rows scroll vertically. Data rows
@@ -353,6 +391,11 @@ void prices_frame_t::build_chart(section_t& s)
 		b->background_color = color_idx_to_rgb(ser.color_idx);
 		b->pressed = true;
 		b->add_listener(this);
+		if (ser.kind == sk_staff && karte_t::get_staff_type_description(ser.id) != NULL) {
+			// button_t::set_tooltip translates, so pass the raw key (stored in the
+			// series, which lives as long as the window) rather than translated text.
+			b->set_tooltip(ser.desc_key);
+		}
 		ser.toggle = b;
 		placed++;
 	}
@@ -391,6 +434,7 @@ void prices_frame_t::update_values()
 	const sint32 start_monthyear = (sint32)welt->get_settings().get_starting_year() * 12 + (sint32)welt->get_settings().get_starting_month();
 	const sint32 start_year = welt->get_settings().get_starting_year();
 	const sint16 overdraft_margin = welt->get_settings().get_overdraft_percent_above_base_rate();
+	const sint32 step = year_step();
 
 	for (uint8 k = 0; k < MAX_KINDS; k++) {
 		section_t& s = sections[k];
@@ -399,28 +443,29 @@ void prices_frame_t::update_values()
 		}
 
 		s.chart.set_seed(current_year);
+		s.chart.set_x_axis_span(step);
 
 		for (uint8 j = 0; j < YEARS_DISPLAYED; j++) {
-			s.year_cells[j]->buf().printf("%i", current_year - (sint32)j);
+			s.year_cells[j]->buf().printf("%i", (sint32)max(start_year, current_year - (sint32)j * step));
 			s.year_cells[j]->update();
 		}
 
 		switch ((series_kind_t)k) {
 			case sk_index:
-				s.note_table.buf().printf("Price indices as %% of %i values.", start_year);
-				s.note_chart.buf().printf("Price indices as %% of %i values.", start_year);
+				s.note_table.buf().printf(translator::translate("Percentages of the %i value."), start_year);
+				s.note_chart.buf().printf(translator::translate("Percentages of the %i value."), start_year);
 				break;
 			case sk_rate:
-				s.note_table.buf().printf("Annual rates in %%.");
-				s.note_chart.buf().printf("Annual rates in %%.");
+				s.note_table.buf().append(translator::translate("Annual rates."));
+				s.note_chart.buf().append(translator::translate("Annual rates."));
 				break;
 			case sk_fuel:
-				s.note_table.buf().printf("Fuel cost per unit.");
-				s.note_chart.buf().printf("Fuel cost per unit.");
+				s.note_table.buf().append(translator::translate("Fuel cost per unit."));
+				s.note_chart.buf().append(translator::translate("Fuel cost per unit."));
 				break;
 			case sk_staff:
-				s.note_table.buf().printf("Monthly wage per staff member.");
-				s.note_chart.buf().printf("Monthly wage per staff member.");
+				s.note_table.buf().append(translator::translate("Monthly wage per staff member."));
+				s.note_chart.buf().append(translator::translate("Monthly wage per staff member."));
 				break;
 			default:
 				break;
@@ -439,7 +484,11 @@ void prices_frame_t::update_values()
 		}
 
 		for (uint8 j = 0; j < YEARS_DISPLAYED; j++) {
-			const sint32 monthyear = (j == 0) ? current_monthyear : (current_year - (sint32)j) * 12 + 11;
+			// Historical rows are valued at their December; the row representing the
+			// game's first year is valued exactly at the start month so it reads 100%
+			// rather than drifting with the interpolation across that first year.
+			const sint32 row_year = max(start_year, current_year - (sint32)j * step);
+			const sint32 monthyear = (j == 0) ? current_monthyear : (row_year == start_year ? start_monthyear : row_year * 12 + 11);
 			sint64 value = 0;
 
 			switch (s.kind) {
@@ -569,6 +618,13 @@ void prices_frame_t::fit_to_content()
 
 bool prices_frame_t::action_triggered(gui_action_creator_t* comp, value_t)
 {
+	if (comp == &bt_recent || comp == &bt_all_time) {
+		const bool all_time = comp == &bt_all_time;
+		bt_recent.pressed = !all_time;
+		bt_all_time.pressed = all_time;
+		update_values();
+		return true;
+	}
 	if (comp == &tabs || comp == &sub_tabs_table || comp == &sub_tabs_charts) {
 		fit_to_content();
 		return true;

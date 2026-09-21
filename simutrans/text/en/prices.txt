@@ -15,6 +15,9 @@ The window is only available when the timeline is enabled, since prices only cha
 The <em>Tables</em> tab lists values for the last 26 game years, newest first: one row per year, one column per series. The <em>Graphs</em> tab shows the same data as charts; click the coloured buttons below each chart heading to show or hide individual curves.
 </p>
 <p>
+Choose <em>Recent</em> to see the last few years, or <em>All time</em> to see the whole history since the game began: the years are then sampled every so many years (more widely the longer the game runs) so the number of rows stays roughly the same as the recent view. All-time values are indexed so the game's first year reads 100%.
+</p>
+<p>
 <em>Price indices</em> show the inflation factor applied to each type of price, as a percentage of its value in the first year of the game (100% = unchanged). The types are: General, Passenger fares, Mail rates, Goods rates, Vehicle purchase, Vehicle maintenance, Buildings, Infrastructure, City land and Country land.
 </p>
 <p>

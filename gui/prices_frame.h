@@ -43,6 +43,7 @@ private:
 		uint8 id;                 // price_type / rate_id_t / traction type / staff type
 		const char* name;         // translation key (static literal or name_buf)
 		char name_buf[64];        // storage for composed names (staff types)
+		char desc_key[48];        // storage for the staff-type description translation key
 		uint8 color_idx;
 		gui_chart_t* chart;
 		uint32 curve_id;
@@ -102,6 +103,12 @@ private:
 	gui_tab_panel_t sub_tabs_table;
 	gui_tab_panel_t sub_tabs_charts;
 
+	// "Recent" (last YEARS_DISPLAYED years) versus "all time" (since the game
+	// start, decimated): a mutually exclusive pair; bt_all_time.pressed selects
+	// the whole-history span.
+	button_t bt_recent;
+	button_t bt_all_time;
+
 	uint32 last_month;
 
 	// Frame decorations (border + tab headers + scrollbars) measured once on the
@@ -117,6 +124,11 @@ private:
 
 	// True when the fuel type has a non-zero cost anywhere in the displayed span.
 	bool fuel_series_in_use(uint8 engine_type) const;
+
+	// Number of years between two displayed rows: 1 for the recent view, or a
+	// larger step that decimates the whole-game span down to ~YEARS_DISPLAYED
+	// points for the all-time view.
+	sint32 year_step() const;
 
 	// Snap the window to the active view's content (tall narrow tables of varying
 	// width, short wide graphs); called on tab switches and once on the first draw.
