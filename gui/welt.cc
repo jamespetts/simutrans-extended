@@ -206,7 +206,8 @@ welt_gui_t::welt_gui_t(settings_t* const sets_par) :
 		new_component<gui_empty_t>();
 
 		// Factories
-		new_component_span<gui_label_t>("No. of Factories", 2);
+		//new_component_span<gui_label_t>("No. of Factories", 2); //leaving this commented-out code here for future translators to find
+		new_component_span<gui_label_t>("No. of Consumers", 2);
 		inp_other_industries.add_listener(this);
 		inp_other_industries.set_limits(0,16384);
 		inp_other_industries.set_value(abs(sets->get_factory_count()) );

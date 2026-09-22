@@ -877,7 +877,7 @@ public:
 	void remove_consumer(koord consumer_pos);
 
 	bool disconnect_consumer(koord consumer_pos);
-	bool disconnect_supplier(koord supplier_pos, fabrik_t *supplier=0);
+	bool disconnect_supplier(koord supplier_pos, fabrik_t *supplier=0, bool tell_me=true);
 
 	/**
 	 * adds a supplier
@@ -1106,7 +1106,7 @@ public:
 	/* adds a new supplier to this factory
 	 * fails if no matching goods are there
 	 */
-	bool add_supplier(fabrik_t* fab, const goods_desc_t* product=0);
+	bool add_supplier(fabrik_t* fab, const goods_desc_t* product=0, bool tell_me = true);
 
 	/* adds a new customer to this factory
 	 * fails if no matching goods are accepted
