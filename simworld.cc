@@ -9238,9 +9238,7 @@ void karte_t::recalc_idp() {
 		}
 	}
 
-	if (industry_density_proportion == 0) {
-		industry_density_proportion = ((sint64)consumer_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
-	}
+	
 
 	sint32 total_prod = 0;
 	sint32 total_cons = 0;
@@ -9254,14 +9252,22 @@ void karte_t::recalc_idp() {
 		}
 
 	}
-	uint32 average_overproduction = (uint32)((sint64)total_prod*100) / ((sint64)total_cons);
+	uint32 average_overproduction = (uint32)(((sint64)total_prod*100) / ((sint64)total_cons));
 
-	sint32 target_density = (consumer_density * average_overproduction) / 100;
+	uint32 target_density = (consumer_density * average_overproduction) / 100;
 
 	sint32 difference = target_density - consumer_density; //compensate for an increase in consumers increasing the overall industry density of the world
 	target_density = ((old_density - difference) * target_density) / old_density;
+	target_density = ((uint64)target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
 
-	industry_density_proportion = min(industry_density_proportion, ((sint64)target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS]);
+	if (industry_density_proportion == 0) { //if IDP isn't set, set it to whatever current consumer density is, or target density, whichever larger (to prevent shrinkage of consumers)
+		industry_density_proportion = ((uint64)consumer_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+		industry_density_proportion = max(industry_density_proportion, target_density);
+	}
+	else { //if IDP is already set then it is likely greater than target density, but keep it as a lower bound just in case
+		industry_density_proportion = min(industry_density_proportion, target_density);
+	}
+	
 	//this assumes that new consumer industries being added will have a similar amount of consumption per distribution weight as usual
 
 	DBG_MESSAGE("karte_t::load()::recalc_idp()", "old-method industry density: %ld, new industry density: %ld, new target density: %ld", old_density, consumer_density, target_density);
@@ -9527,6 +9533,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		if(file->get_extended_version() >= 11 && file->get_extended_revision() >= 67)
 		{
 			file->rdwr_long(industry_density_proportion);
+			DBG_MESSAGE("karte_t::load()", "industry density proportion loaded : % ld", industry_density_proportion);
 
 		}
 		else if (file->get_extended_revision() < 67) {
@@ -9605,6 +9612,9 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		else
 		{
 			file->rdwr_long(actual_industry_density);
+			DBG_MESSAGE("karte_t::load()", "actual industry density loaded: %ld", actual_industry_density);
+			recalc_actual_density();
+			DBG_MESSAGE("karte_t::load()", "FORCE RECALCED INDUSTRY DENSITY, NEW DENSITY: %ld", actual_industry_density);
 			if (file->get_extended_revision() < 67) {
 				recalc_actual_density();
 			}

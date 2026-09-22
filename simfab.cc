@@ -757,7 +757,7 @@ bool fabrik_t::disconnect_consumer(koord consumer_pos) //Returns true if must be
 	return false;
 }
 
-bool fabrik_t::disconnect_supplier(koord supplier_pos, fabrik_t* supplier) //Returns true if must be destroyed.
+bool fabrik_t::disconnect_supplier(koord supplier_pos, fabrik_t* supplier, bool tell_me) //Returns true if must be destroyed.
 {
 	if (supplier_pos != koord::invalid)
 	{
@@ -804,7 +804,7 @@ bool fabrik_t::disconnect_supplier(koord supplier_pos, fabrik_t* supplier) //Ret
 				for (uint32 j = 0; j < fab_desc->get_product_count(); j++)
 				{
 					if(unfilled_product == fab_desc->get_product(j)->get_output_type()) {
-						add_supplier(fab,unfilled_product);
+						add_supplier(fab,unfilled_product, tell_me);
 						unfulfilled_requirements.remove(unfilled_product);
 						k--;
 					}
@@ -4308,7 +4308,7 @@ void fabrik_t::add_all_suppliers()
 /* adds a new supplier to this factory
  * fails if no matching goods are there
  */
-bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product)
+bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product, bool tell_me)
 {
 	for(int i=0; i < desc->get_supplier_count(); i++) {
 		const factory_supplier_desc_t *supplier = desc->get_supplier(i);
@@ -4332,13 +4332,16 @@ bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product)
 							buf.printf(translator::translate("New shipping destination added to Factory %s (near to %s) for %s."), translator::translate(fab->get_name()), factorys_city->get_name(), translator::translate(product->get_name()));
 						}
 					// Fallback if there are no cities
+					
 					buf.printf(translator::translate("New shipping destination added to Factory %s for %s"), translator::translate(fab->get_name()), translator::translate(product->get_name()));
 					}
 				}else{
 					// TODO: Duplicate city-specific messages if this message appears often
 					buf.printf(translator::translate("New shipping destination added to Factory %s"), translator::translate(fab->get_name()));
 				}
-				welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
+				if (tell_me) {
+					welt->get_message()->add_message(buf, fab->get_pos().get_2d(), message_t::industry, CITY_KI, fab->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
+				}
 				return true;
 			}
 	}
