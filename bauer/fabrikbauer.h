@@ -145,13 +145,13 @@ public:
 	 * Counts up total production of a given good.
 	 * @returns actual amount of global production for the good
 	 */
-	static sint32 get_global_production(const goods_desc_t* good);
+	static sint32 get_global_production(const goods_desc_t* good, int depth = 0);
 
 	/**
 	 * Counts up total consumption of a good, taking into account downstream bottlenecks.
 	 * @returns actual amount of global consumption of the good.
 	 */
-	static sint32 get_global_consumption(const goods_desc_t* good);
+	static sint32 get_global_consumption(const goods_desc_t* good, int depth = 0);
 
 private:
 	/**
@@ -184,22 +184,26 @@ private:
 	/**
 	 * Adjusts the consumption of a factory taking into account its downstream consumers, using the output it has the highest % consumption of.
 	 * For instance, if a factory produces 100t of good A and 80t of good B, but good A has 10t of consumption and good B has 20t, then the overall adjustment is (20/80)=25%
+	 * A factory with no linked consumers needs its nominal consumption (it must be supplied before it can serve anyone).
+	 * @param depth recursion depth guard against goods/link cycles (see MAX_INDUSTRY_RECURSION_DEPTH in fabrikbauer.cc)
 	 * @returns consumption * the fraction of the factory's production that is actually used
 	 */
-	static sint32 adjust_input_consumption(const fabrik_t* factory, sint32 consumption);
+	static sint32 adjust_input_consumption(const fabrik_t* factory, sint32 consumption, int depth = 0);
 
 	/**
-	 * Adjusts the production of a factory's output taking into account its downstream consumers.
-	 * @returns the amount of the production of the good that is actually used
+	 * Leftover production of a factory's output after serving its downstream consumers.
+	 * @param depth recursion depth guard against goods/link cycles (see MAX_INDUSTRY_RECURSION_DEPTH in fabrikbauer.cc)
+	 * @returns the amount of the production of the good that is NOT used (i.e. still available)
 	 */
-	static sint32 adjust_input_consumption(const fabrik_t* factory, const goods_desc_t* good);
+	static sint32 adjust_input_consumption(const fabrik_t* factory, const goods_desc_t* good, int depth = 0);
 
 	/**
 	 * Adjusts the production of a factory's output taking into account its upstream suppliers, using the input it has the lowest % consumption of.
 	 * For instance, if a factory takes in 100t of good A and 80t of good B, but good A has 10t of production and good B has 20t, then the overall adjustment is (10/100)=10%
+	 * @param depth recursion depth guard against goods/link cycles (see MAX_INDUSTRY_RECURSION_DEPTH in fabrikbauer.cc)
 	 * @returns production * the fraction of the factory's production that is actually used
 	 */
-	static sint32 adjust_output_production(const fabrik_t* factory, const goods_desc_t* good);
+	static sint32 adjust_output_production(const fabrik_t* factory, const goods_desc_t* good, int depth = 0);
 
 	/**
 	 * Finds a valid position for a factory type, and deposits the position and rotation in the pointers provided.

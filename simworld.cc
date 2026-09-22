@@ -1571,6 +1571,9 @@ DBG_DEBUG("karte_t::init()","built timeline");
 				if (!factory_builder_t::increase_industry_density(false, false, false, FILL_MISSING_ONLY)) {
 					consecutive_consumer_failures++;
 				}
+				else {
+					consecutive_consumer_failures = 0;
+				}
 			}
 			consecutive_consumer_failures = 0;
 			consecutive_build_failures = 0;
@@ -1592,6 +1595,9 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	while (consecutive_build_failures < 3) {
 		if (!factory_builder_t::increase_industry_density(false, false, false, FILL_UNDERSUPPLIED)) {
 			consecutive_build_failures++;
+		}
+		else {
+			consecutive_build_failures = 0;
 		}
 	}
 	settings.set_factory_count( fab_list.get_count() );
@@ -4928,6 +4934,9 @@ void karte_t::new_month()
 			while (fill_missing_fails < 3) {
 				if (!factory_builder_t::increase_industry_density(true, false, false, FILL_MISSING_ONLY)) {
 					fill_missing_fails++;
+				}
+				else {
+					fill_missing_fails = 0;
 				}
 			}
 		}
@@ -9752,16 +9761,38 @@ void karte_t::recalc_idp() {
 		}
 
 	}
-	uint32 average_overproduction = (uint32)(((sint64)total_prod*100) / ((sint64)total_cons));
+	// Guard against zero total consumption (e.g. a save whose chains are broken, so every
+	// bottleneck-adjusted production is 0 and no good passes the filter above): fall back to
+	// neutral 100% rather than dividing by zero.
+	uint32 average_overproduction = 100;
+	if (total_cons > 0) {
+		average_overproduction = (uint32)(((sint64)total_prod*100) / ((sint64)total_cons));
+	}
 
-	uint32 target_density = (consumer_density * average_overproduction) / 100;
+	uint32 target_density = (uint32)(((sint64)consumer_density * average_overproduction) / 100);
 
-	sint32 difference = target_density - consumer_density; //compensate for an increase in consumers increasing the overall industry density of the world
-	target_density = ((old_density - difference) * target_density) / old_density;
-	target_density = ((uint64)target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+	if (old_density > 0) {
+		// Compensate for an increase in consumers increasing the overall industry density of the world.
+		// Signed 64-bit arithmetic throughout: the difference can exceed old_density (unbounded
+		// overproduction scaling with small total_cons), which wrapped the unsigned subtraction
+		// below to near UINT32_MAX and produced runaway industry growth.
+		sint64 difference = (sint64)target_density - (sint64)consumer_density;
+		sint64 adjusted = (((sint64)old_density - difference) * (sint64)target_density) / (sint64)old_density;
+		target_density = adjusted > 0 ? (uint32)adjusted : 0;
+	}
+	// else: a save with no non-power factories; keep the uncompensated target density.
+
+	const sint64 citizens = finance_history_month[0][WORLD_CITIZENS];
+	if (citizens <= 0) {
+		// No population figure to scale against (all densities are per million citizens):
+		// leave the loaded proportion untouched rather than dividing by zero.
+		DBG_MESSAGE("karte_t::load()::recalc_idp()", "world population is zero, keeping loaded industry density proportion: %ld", industry_density_proportion);
+		return;
+	}
+	target_density = (uint32)(((uint64)target_density * 1000000ll) / citizens);
 
 	if (industry_density_proportion == 0) { //if IDP isn't set, set it to whatever current consumer density is, or target density, whichever larger (to prevent shrinkage of consumers)
-		industry_density_proportion = ((uint64)consumer_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+		industry_density_proportion = (uint32)(((uint64)consumer_density * 1000000ll) / citizens);
 		industry_density_proportion = max(industry_density_proportion, target_density);
 	}
 	else { //if IDP is already set then it is likely greater than target density, but keep it as a lower bound just in case
@@ -10055,21 +10086,25 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		recalc_idp();
 	}
 	else if( file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) ) {
-		if(file->get_extended_version() >= 15)
+		if(file->get_extended_version() > 15 || (file->get_extended_version() == 15 && file->get_extended_revision() >= 1))
 		{
+			// Saves written by the consumption-centric industry generation rework (revision 1+):
+			// the stored proportion is already on the consumer-only basis, so no conversion is needed.
 			file->rdwr_long(industry_density_proportion);
 			DBG_MESSAGE("karte_t::load()", "industry density proportion loaded : % ld", industry_density_proportion);
 
 		}
-		else if (file-> get_extended_version() < 15) {
-
+		else if (file->get_extended_version() >= 11) {
+			// Pre-rework saves (base ex-15 revision 0 and the 11.x-14.x series): the stored proportion
+			// counts all industries, so convert it to the consumer-only basis.
 			file->rdwr_long(industry_density_proportion);
 			DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
-			//industry_density_proportion = industry_density_proportion / 10;
 			recalc_idp();
 		}
 		else
 		{
+			// 9.x-10.x series: strip the 0x8000 new-format tag (or scale the old low-precision integer),
+			// then convert to the consumer-only basis as above.
 			uint32 idp = 0;
 			file->rdwr_long(idp);
 			idp = (idp & 0x8000) != 0 ? idp & 0x7FFF : idp * 150;

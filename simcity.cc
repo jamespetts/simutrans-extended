@@ -4049,6 +4049,9 @@ void stadt_t::check_bau_factory(bool new_town)
 					if (!factory_builder_t::increase_industry_density(true, false, false, FILL_MISSING_ONLY)) {
 						fill_missing_fails++;
 					}
+					else {
+						fill_missing_fails = 0;
+					}
 				}
 
 

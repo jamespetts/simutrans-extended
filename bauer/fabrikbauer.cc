@@ -1384,12 +1384,26 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 										for (auto alt_supplier_koord : competing_consumer->get_suppliers(input_type)) {
 
 											const fabrik_t* alt_supplier = fabrik_t::get_fab(alt_supplier_koord);
-											alt_supplier_prod += alt_supplier->get_base_production() * alt_supplier->get_desc()->get_product(input_type)->get_factor();
+											const factory_product_desc_t* alt_product = alt_supplier ? alt_supplier->get_desc()->get_product(input_type) : NULL;
+											if (alt_product) {
+												alt_supplier_prod += alt_supplier->get_base_production() * alt_product->get_factor();
+											}
 										}
-										//competing consumer production * (supplier production / total production from all suppliers to the competing consumer)
-										used_output += ((sint64)competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()) *
-											((sint64)supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor())
-											/ (sint64)alt_supplier_prod;
+										// The link lists can be asymmetric (stale links); fall back to nominal
+										// figures where a descriptor lookup fails, as elsewhere in this file.
+										const factory_supplier_desc_t* competing_need = competing_consumer->get_desc()->get_supplier(input_type);
+										const factory_product_desc_t* supplier_product = supplier->get_desc()->get_product(input_type);
+										const sint64 competing_consumption = (sint64)competing_consumer->get_base_production() * (competing_need ? competing_need->get_consumption() : 1);
+										const sint64 supplier_share = (sint64)supplier->get_base_production() * (supplier_product ? supplier_product->get_factor() : 0);
+										if (alt_supplier_prod > 0) {
+											//competing consumer production * (supplier production / total production from all suppliers to the competing consumer)
+											used_output += competing_consumption * supplier_share / (sint64)alt_supplier_prod;
+										}
+										else {
+											// No alternative supply can be measured: charge the competing
+											// consumer's full nominal need to this supplier.
+											used_output += competing_consumption;
+										}
 										//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "used_output += %ld * %ld / %ld", (competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()), (supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor()), alt_supplier_prod);
 										//const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
 										//used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
@@ -1404,9 +1418,10 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							{
 								available_for_consumption += remaining_output;
 							}
-							else {
-								available_for_consumption += total_output_supplier * consumption_level / (used_output + consumption_level);
+							else if (used_output + consumption_level > 0) {
+								available_for_consumption += (sint32)((sint64)total_output_supplier * consumption_level / (used_output + consumption_level));
 							}
+							// else: both zero, so there is nothing to apportion; add nothing.
 							if((available_for_consumption * 8) > (consumption_level * 9)) //tolerate a little oversupply
 							{
 								// If the suppliers between them do supply enough of the product, do not list it as missing.
@@ -1446,8 +1461,10 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								sint32 global_production = get_global_production(input_type);
 								sint32 global_consumption = get_global_consumption(input_type);
 								if ((global_production * 8) > (global_consumption * 9)) { //tolerate a little bit of oversupply
-									//Weight is: total consumer weight * (production/consumption)
-									uint32 new_weight = (global_production * total_consumer_weight) / max(global_consumption, 1);
+									//Weight is: total consumer weight * (production/consumption).
+									//Widened to 64 bit: both factors grow with map size and with the
+									//number of matching factory types.
+									uint32 new_weight = (uint32)(((sint64)global_production * (sint64)total_consumer_weight) / max(global_consumption, 1));
 									if(!oversupplied_goods.update(input_type, max(new_weight, old_weight)))
 										oversupplied_goods.append(input_type, new_weight);
 
@@ -1690,13 +1707,20 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 				if(do_not_add_beyond_target_density && !consumer->is_electricity_producer())
 				{
 					// Make sure that consumer industries are not added beyond target density.
-					if ((consumer2 && 100U / consumer2->get_distribution_weight() > (welt->get_target_industry_density() - welt->get_actual_industry_density())
-						|| (!consumer2 && 100U / consumer->get_distribution_weight() > (welt->get_target_industry_density() - welt->get_actual_industry_density())))) {
+					// Signed comparison: when actual exceeds target the unsigned subtraction below
+					// wrapped, failing the cap open. A zero distribution weight would also divide
+					// by zero, so clamp it as in the load-time density recomputation.
+					const sint64 density_room = (sint64)welt->get_target_industry_density() - (sint64)welt->get_actual_industry_density();
+					const factory_desc_t* const capped_consumer = consumer2 ? consumer2 : consumer;
+					const uint32 added_density = 100U / max(capped_consumer->get_distribution_weight(), 1);
+					if ((sint64)added_density > density_room) {
 						continue;
 					}
 				}
 				koord3d pos, pos2;
-				int rotation, rotation2;
+				// Initialised: find_valid_factory_pos early-returns without writing rotation
+				// when a city-site type is requested but no cities exist yet.
+				int rotation = 0, rotation2 = 0;
 				find_valid_factory_pos(&pos, &rotation, consumer, ignore_climates);
 
 				if (consumer2) {
@@ -1777,7 +1801,9 @@ void factory_builder_t::find_valid_factory_pos(koord3d *pos, int *rotation, cons
 	const bool in_city = site == factory_desc_t::City || site == factory_desc_t::shore_city || site == factory_desc_t::river_city;
 	if (in_city && welt->get_cities().empty())
 	{
-		// we cannot build this factory here
+		// we cannot build this factory here; leave a defined rotation behind
+		// (callers must still check the position via welt->lookup before building).
+		*rotation = 0;
 		return;
 	}
 	koord testpos = in_city ? pick_any_weighted(welt->get_cities())->get_pos() : koord::koord_random(welt->get_size().x, welt->get_size().y);
@@ -1800,7 +1826,14 @@ sint32 factory_builder_t::get_global_oversupply(const goods_desc_t* good) {
 	return get_global_production(good) - get_global_consumption(good);
 }
 
-sint32 factory_builder_t::get_global_production(const goods_desc_t* good) {
+// Maximum recursion depth for the mutually recursive global supply/demand measurement
+// (get_global_consumption/get_global_production/adjust_output_production/adjust_input_consumption).
+// Real industry chains are only a few goods deep; anything beyond this is a goods cycle in the
+// pakset or a cyclic runtime link list, which previously meant unbounded mutual recursion
+// (deterministic stack overflow). Past the cap the cyclic contribution is treated as zero.
+static const int MAX_INDUSTRY_RECURSION_DEPTH = 32;
+
+sint32 factory_builder_t::get_global_production(const goods_desc_t* good, int depth) {
 	sint32 total_prod = 0;
 
 	for (auto const fab : welt->get_fab_list()) { //double-checking that there actually is overconsumption of the good
@@ -1809,14 +1842,17 @@ sint32 factory_builder_t::get_global_production(const goods_desc_t* good) {
 			if (factory_good == good) { //does this factory produce the good we want?
 				//const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
 				//const sint32 monthly_prod = fab->get_monthly_production(pfactor);
-				total_prod += adjust_output_production(fab, good);
+				total_prod += adjust_output_production(fab, good, depth);
 			}
 		}
 	}
 	return total_prod;
 }
 
-sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
+sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good, int depth) {
+	if (depth > MAX_INDUSTRY_RECURSION_DEPTH) {
+		return 0;
+	}
 	//DBG_MESSAGE("factory_builder_t::get_global_consumption()", "getting global consumption for good %s", good->get_name());
 	sint32 total_cons = 0;
 	for (auto const fab : welt->get_fab_list()) { //double-checking that there actually is overconsumption of the good
@@ -1830,9 +1866,9 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 					sint32 output_prod = 0;
 					sint32 output_cons = 0;
 					for (auto factory_output : fab->get_output()) {
-						sint32 this_cons = get_global_consumption(factory_output.get_typ());
+						sint32 this_cons = get_global_consumption(factory_output.get_typ(), depth + 1);
 						if (this_cons > 0) { //only count goods that are actually consumed at all (eg if a refinery exists purely to make fuel oil then unused gasoline production doesn't matter)
-							output_prod += get_global_production(factory_output.get_typ());
+							output_prod += get_global_production(factory_output.get_typ(), depth + 1);
 							output_cons += this_cons;
 						}
 
@@ -1855,14 +1891,21 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 	return total_cons;
 }
 
-sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 consumption) {
+sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 consumption, int depth) {
 	//uint32 adjusted_consumption = consumption;
+
+	// Past the recursion cap (goods cycle or cyclic link list), fall back to the nominal
+	// figure: no downstream adjustment can be computed.
+	if (depth > MAX_INDUSTRY_RECURSION_DEPTH) {
+		return consumption;
+	}
 
 	//adjust consumption_level for any consumers this factory is hooked up to (if applicable) since a factory with a low number of consumers won't need as many suppliers
 	if (!fab->get_desc()->is_consumer_only()) {
 		//uint32 prod = 0;
 		//uint32 cons= 0;
 		sint32 largest_adjusted = 0;
+		bool has_consumers = false;
 
 		for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
 			const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
@@ -1876,28 +1919,51 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 				if (!consumer) {
 					continue;
 				}
-				sint64 consumer_consumption = (sint64)adjust_input_consumption(consumer, consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption());
+				// The link lists can be asymmetric (stale links); the consumer may not
+				// accept this good at all, in which case it draws nothing through it.
+				const factory_supplier_desc_t* cons_supplier = consumer->get_desc()->get_supplier(output_type);
+				if (!cons_supplier) {
+					continue;
+				}
+				has_consumers = true;
+				sint64 consumer_consumption = (sint64)adjust_input_consumption(consumer, consumer->get_base_production() * cons_supplier->get_consumption(), depth + 1);
 				sint64 competing_supplier_prod = 0;
 				for (auto competing_supplier_koord : consumer->get_suppliers(output_type)) {
 					const fabrik_t* competing_supplier = fabrik_t::get_fab(competing_supplier_koord);
-					if (competing_supplier) {
-						competing_supplier_prod += (sint64)(competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor());
+					const factory_product_desc_t* competing_product = competing_supplier ? competing_supplier->get_desc()->get_product(output_type) : NULL;
+					if (competing_product) {
+						competing_supplier_prod += (sint64)(competing_supplier->get_base_production() * competing_product->get_factor());
 					}
 				}
-				output_cons += consumer_consumption * output_prod / competing_supplier_prod;
+				if (competing_supplier_prod > 0) {
+					output_cons += consumer_consumption * output_prod / competing_supplier_prod;
+				}
 			}
 			if (output_cons > output_prod) {
 				output_cons = output_prod;
 			}
-			const sint32 test_adjust = (sint32)(((sint64)consumption * output_cons) / output_prod);
-			largest_adjusted = max(largest_adjusted, test_adjust);
+			if (output_prod > 0) {
+				const sint32 test_adjust = (sint32)(((sint64)consumption * output_cons) / output_prod);
+				largest_adjusted = max(largest_adjusted, test_adjust);
+			}
+		}
+		if (!has_consumers) {
+			// A factory with no linked consumers at all (a normal transient state, e.g. a
+			// freshly built manufacturer) needs its nominal consumption: it must be supplied
+			// before it can serve anyone. Returning 0 here made partially-supplied stranded
+			// manufacturers invisible to the undersupply infill and starved new manufacturers
+			// of suppliers in build_chain_link.
+			return consumption;
 		}
 		return largest_adjusted;
 	}
 	return consumption;
 }
 
-sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, const goods_desc_t* good) {
+sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, const goods_desc_t* good, int depth) {
+	if (depth > MAX_INDUSTRY_RECURSION_DEPTH) {
+		return 0;
+	}
 	if (!fab->get_desc()->is_consumer_only()) {
 		//uint32 prod = 0;
 		//uint32 cons= 0;
@@ -1918,15 +1984,23 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, const go
 				if (!consumer) {
 					continue;
 				}
-				sint64 consumer_consumption = (sint64)adjust_input_consumption(consumer, consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption());
+				// See the overload above: asymmetric link lists must not be dereferenced.
+				const factory_supplier_desc_t* cons_supplier = consumer->get_desc()->get_supplier(output_type);
+				if (!cons_supplier) {
+					continue;
+				}
+				sint64 consumer_consumption = (sint64)adjust_input_consumption(consumer, consumer->get_base_production() * cons_supplier->get_consumption(), depth + 1);
 				sint64 competing_supplier_prod = 0;
 				for (auto competing_supplier_koord : consumer->get_suppliers(output_type)) {
 					const fabrik_t* competing_supplier = fabrik_t::get_fab(competing_supplier_koord);
-					if (competing_supplier) {
-						competing_supplier_prod += (sint64)(competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor());
+					const factory_product_desc_t* competing_product = competing_supplier ? competing_supplier->get_desc()->get_product(output_type) : NULL;
+					if (competing_product) {
+						competing_supplier_prod += (sint64)(competing_supplier->get_base_production() * competing_product->get_factor());
 					}
 				}
-				output_cons += consumer_consumption * output_prod / competing_supplier_prod;
+				if (competing_supplier_prod > 0) {
+					output_cons += consumer_consumption * output_prod / competing_supplier_prod;
+				}
 			}
 			output_cons = min(output_cons, output_prod);
 			largest_adjusted = output_prod - output_cons;
@@ -1937,7 +2011,7 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, const go
 	return 0;
 }
 
-sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const goods_desc_t* good) {
+sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const goods_desc_t* good, int depth) {
 	if (fab->get_desc()->is_consumer_only()) return 0;
 	sint32 output_prod = 0;
 	for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
@@ -1947,6 +2021,10 @@ sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const go
 			output_prod = fab->get_monthly_production(pfactor);
 			break;
 		}
+	}
+	if (depth > MAX_INDUSTRY_RECURSION_DEPTH) {
+		// Past the recursion cap: no bottleneck adjustment can be computed, use the nominal figure.
+		return output_prod;
 	}
 	if (!fab->get_desc()->is_producer_only()) {
 		sint32 lowest_prod = output_prod;
@@ -1962,7 +2040,7 @@ sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const go
 				return 0;
 			}
 
-			sint32 consumption_level = adjust_input_consumption(fab, fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1));
+			sint32 consumption_level = adjust_input_consumption(fab, fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1), depth + 1);
 			sint32 available_for_consumption = 0;
 
 			for (auto supplier_koord : suppliers)
@@ -1987,12 +2065,27 @@ sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const go
 								for (auto alt_supplier_koord : competing_consumer->get_suppliers(input_type)) {
 
 									const fabrik_t* alt_supplier = fabrik_t::get_fab(alt_supplier_koord);
-									alt_supplier_prod += alt_supplier->get_base_production() * alt_supplier->get_desc()->get_product(input_type)->get_factor();
+									const factory_product_desc_t* alt_product = alt_supplier ? alt_supplier->get_desc()->get_product(input_type) : NULL;
+									if (alt_product) {
+										alt_supplier_prod += alt_supplier->get_base_production() * alt_product->get_factor();
+									}
 								}
-								//competing consumer production * (supplier production / total production from all suppliers to the competing consumer)
-								used_output += ((sint64)competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()) *
-									((sint64)supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor())
-									/ (sint64)alt_supplier_prod;
+								// The link lists can be asymmetric (stale links); fall back to nominal
+								// figures where a descriptor lookup fails, as elsewhere in this file.
+								const factory_supplier_desc_t* competing_need = competing_consumer->get_desc()->get_supplier(input_type);
+								const factory_product_desc_t* supplier_product = supplier->get_desc()->get_product(input_type);
+								const sint64 competing_consumption = (sint64)competing_consumer->get_base_production() * (competing_need ? competing_need->get_consumption() : 1);
+								const sint64 supplier_share = (sint64)supplier->get_base_production() * (supplier_product ? supplier_product->get_factor() : 0);
+								if (alt_supplier_prod > 0) {
+									//competing consumer production * (supplier production / total production from all suppliers to the competing consumer)
+									used_output += competing_consumption * supplier_share / (sint64)alt_supplier_prod;
+								}
+								else {
+									// No alternative supply can be measured: charge the competing
+									// consumer's full nominal need to this supplier, as the base
+									// branch did before apportionment existed.
+									used_output += competing_consumption;
+								}
 								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "used_output += %ld * %ld / %ld", (competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()), (supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor()), alt_supplier_prod);
 								//const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
 								//used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
@@ -2006,12 +2099,19 @@ sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const go
 					{
 						available_for_consumption += remaining_output;
 					}
-					else { //if remaining_output is negative, we divvy up the total supplier output based on consumption level
-						available_for_consumption += total_output_supplier * consumption_level / (used_output + consumption_level);
+					else if (used_output + consumption_level > 0) { //if remaining_output is negative, we divvy up the total supplier output based on consumption level
+						available_for_consumption += (sint32)((sint64)total_output_supplier * consumption_level / (used_output + consumption_level));
 					}
+					// else: both zero, so there is nothing to apportion; add nothing.
 				}
 			}
-			lowest_prod = min(lowest_prod, ((sint64)lowest_prod * (sint64)available_for_consumption) / consumption_level);
+			if (consumption_level > 0) {
+				lowest_prod = min(lowest_prod, (sint32)(((sint64)lowest_prod * (sint64)available_for_consumption) / consumption_level));
+			}
+			else {
+				// No downstream need for this input at all: nothing of it can be produced effectively.
+				lowest_prod = 0;
+			}
 		}
 		//DBG_MESSAGE("factory_builder_t::adjust_output_production()", "adjust_output_production returning %ld (output_prod %ld) for good %s", lowest_prod, output_prod, good->get_name());
 		return lowest_prod;
