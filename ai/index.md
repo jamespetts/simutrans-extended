@@ -53,7 +53,8 @@ Note: the documents may be nested. Only top level documents are shown here.
 - [world-and-ground](world-and-ground.md) — read when touching the map/plan, ground tiles, ways, climates, terraforming, or place-finding.
 - [objects](objects.md) — read when touching obj/: things placed on tiles (buildings, signals, signs, trees, pedestrians, city cars, labels, piers, etc.).
 - [vehicles-and-convoys](vehicles-and-convoys.md) — read when touching vehicles, consists, convoys, depots, lines, or vehicle descriptors. **ex-15 hotspot.**
-- [economy-and-passengers](economy-and-passengers.md) — read when touching factories/industries, cities, goods, players/finance, or passenger generation.
+- [industry](industry.md) — read when touching factories/industries: factory descriptors & goods, the industry-density system, chain building and inter-factory linking, contracts mode, the production/consumption model, closure & upgrade, or industry generation. Keys its own nested docs.
+- [economy-and-passengers](economy-and-passengers.md) — read when touching cities & city growth, passenger/mail generation, players/finance, or fares. Factories/industries and goods → [industry](industry.md).
 - [routing-and-scheduling](routing-and-scheduling.md) — read when touching path exploration, routing, stops (halts), connections, or schedules. **ex-15 hotspot.**
 - [signals-and-blocks](signals-and-blocks.md) — read when touching signals, signalboxes, reservations, block working, or train movement authority. Sync-sensitive (AGENTS.md rule 5).
 

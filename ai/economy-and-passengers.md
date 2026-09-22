@@ -4,7 +4,7 @@ verified: none
 ---
 # Economy, finance & passengers
 
-**Covers:** simfab.*, simcity.*, simware.*, player/, bauer/fabrikbauer.*, bauer/hausbauer.* (shared with [objects](objects.md)), descriptor/factory_desc.*, descriptor/goods_desc.*, gui factory/city/money frames (→ [gui](gui.md)).
+**Covers:** simcity.*, simware.*, player/, bauer/hausbauer.* (shared with [objects](objects.md)), gui city/money frames (→ [gui](gui.md)). NOT covered here: factories/industries, factory & goods descriptors, industry density, chain building, contracts, closure/upgrade, industry generation → [industry](industry.md).
 
 ## Initial facts
 
@@ -15,10 +15,9 @@ verified: none
 
 ## Planned sections
 
-- Factory/industry model: production, chains, delivery (simfab; fabrikbauer).
-- Goods (simware) & category system (verify against descriptor/goods_desc).
 - Cities & growth (simcity; city buildings; passenger demand origins).
 - Passenger generation: Extended-specific mechanics & the efficiency work above [PRIOR → verify; ask the user].
+- Goods shipments (`simware_t`) in transit; the goods *descriptor* and category system live with the industry domain → [industry](industry.md).
 - Players & finance (player/): companies, public player, AI players (gui/ai_option as an indication), insolvency (local-only base-texts artefact "insolvency" as an indication).
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
@@ -27,7 +26,7 @@ verified: none
 - City road/house placement is driven by pattern rules in the pakset's `config/cityrules.tab`
   (`stadt_t::cityrules_init`; a `<user_dir>/cityrules.tab` overrides the pakset copy). Each rule's
   evaluation weight gates it at `simrand(8 + weight) == 0`: negative = more likely; `-8` → `rd=0`
-  → guaranteed AND consumes no RNG draw (`simrand(max<=1)` early-returns, utils/simrandom.cc:124).
+  → guaranteed AND consumes no RNG draw (`simrand` early-returns when `max<=1`, utils/simrandom.cc).
   [CODE master @ 206db8379]
 - Property-name history: the weight key was `house_N.chance`/`road_N.chance` until commit aa88e8679
   (2017-04) renamed it to `.distribution_weight` with no pakset updated — every Extended pakset still
