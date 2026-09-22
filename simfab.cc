@@ -4332,7 +4332,7 @@ bool fabrik_t::add_supplier(fabrik_t* fab, const goods_desc_t* product, bool tel
 							buf.printf(translator::translate("New shipping destination added to Factory %s (near to %s) for %s."), translator::translate(fab->get_name()), factorys_city->get_name(), translator::translate(product->get_name()));
 						}
 					// Fallback if there are no cities
-					
+
 					buf.printf(translator::translate("New shipping destination added to Factory %s for %s"), translator::translate(fab->get_name()), translator::translate(product->get_name()));
 					}
 				}else{
