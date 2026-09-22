@@ -9530,13 +9530,13 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		recalc_idp();
 	}
 	else if( file->get_extended_version() >= 9 && file->is_version_atleast(110, 6) ) {
-		if(file->get_extended_version() >= 11 && file->get_extended_revision() >= 67)
+		if(file->get_extended_version() >= 15)
 		{
 			file->rdwr_long(industry_density_proportion);
 			DBG_MESSAGE("karte_t::load()", "industry density proportion loaded : % ld", industry_density_proportion);
 
 		}
-		else if (file->get_extended_revision() < 67) {
+		else if (file-> get_extended_version() < 15) {
 
 			file->rdwr_long(industry_density_proportion);
 			DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
@@ -9549,8 +9549,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			file->rdwr_long(idp);
 			idp = (idp & 0x8000) != 0 ? idp & 0x7FFF : idp * 150;
 			industry_density_proportion = idp;
-			DBG_MESSAGE("karte_t::load()", "old industry density proportion loaded: %ld", industry_density_proportion);
-			//industry_density_proportion = industry_density_proportion / 10;
+			DBG_MESSAGE("karte_t::load()", "older industry density proportion loaded: %ld", industry_density_proportion);
 			recalc_idp();
 		}
 	}
@@ -9615,7 +9614,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 			DBG_MESSAGE("karte_t::load()", "actual industry density loaded: %ld", actual_industry_density);
 			recalc_actual_density();
 			DBG_MESSAGE("karte_t::load()", "FORCE RECALCED INDUSTRY DENSITY, NEW DENSITY: %ld", actual_industry_density);
-			if (file->get_extended_revision() < 67) {
+			if (file->get_extended_version() < 15) {
 				recalc_actual_density();
 			}
 		}
