@@ -54,7 +54,9 @@ class gui_line_label_t : public gui_aligned_container_t
 	uint16 old_seed = -1;
 
 public:
-	gui_line_label_t(linehandle_t line);
+	gui_line_label_t(linehandle_t line= linehandle_t());
+
+	void set_line(linehandle_t l) { line=l; }
 
 	void update_check();
 	void update();

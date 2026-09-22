@@ -21,6 +21,8 @@
 #include "../simtypes.h"
 #include "../utils/float32e8_t.h"
 #include "../simunits.h"
+#include "../tpl/inthashtable_tpl.h"
+#include "../utils/simstring.h"
 
 // GEAR_FACTOR: a gear of 1.0 is stored as 64
 #define GEAR_FACTOR 64
@@ -55,6 +57,9 @@ class vehicle_desc_t : public obj_desc_transport_related_t {
 	friend class vehicle_reader_t;
 	friend class vehicle_builder_t;
 
+	friend class consist_order_element_t;
+	friend class consist_order_t;
+
 public:
 	/**
 	 * Engine type
@@ -85,52 +90,168 @@ public:
 		only_at_end = (can_be_tail|unconnectable) // this type always be bidirectional=0
 	};
 
+	/**
+	 * Calculate numeric engine type from engine type string
+	 */
+	static vehicle_desc_t::engine_t get_engine_type(char const* const engine_type)
+	{
+		vehicle_desc_t::engine_t uv8 = vehicle_desc_t::unknown;
+
+		if (!STRICMP(engine_type, "diesel")) {
+			uv8 = vehicle_desc_t::diesel;
+		}
+		else if (!STRICMP(engine_type, "electric")) {
+			uv8 = vehicle_desc_t::electric;
+		}
+		else if (!STRICMP(engine_type, "steam")) {
+			uv8 = vehicle_desc_t::steam;
+		}
+		else if (!STRICMP(engine_type, "bio")) {
+			uv8 = vehicle_desc_t::bio;
+		}
+		else if (!STRICMP(engine_type, "sail")) {
+			uv8 = vehicle_desc_t::sail;
+		}
+		else if (!STRICMP(engine_type, "fuel_cell")) {
+			uv8 = vehicle_desc_t::fuel_cell;
+		}
+		else if (!STRICMP(engine_type, "hydrogene")) {
+			uv8 = vehicle_desc_t::hydrogene;
+		}
+		else if (!STRICMP(engine_type, "battery")) {
+			uv8 = vehicle_desc_t::battery;
+		}
+		else if (!STRICMP(engine_type, "petrol")) {
+			uv8 = vehicle_desc_t::petrol;
+		}
+		else if (!STRICMP(engine_type, "turbine")) {
+			uv8 = vehicle_desc_t::turbine;
+		}
+		else if (!STRICMP(engine_type, "unknown")) {
+			uv8 = vehicle_desc_t::unknown;
+		}
+
+		// printf("Engine type %s -> %d\n", engine_type, uv8);
+
+		return uv8;
+	}
+
+	static const char* get_engine_type_string(uint8 uv8)
+	{
+		switch (uv8)
+		{
+		case vehicle_desc_t::diesel:
+			return "diesel";
+
+		case vehicle_desc_t::steam:
+			return "steam";
+
+		case vehicle_desc_t::bio:
+			return "bio";
+
+		case vehicle_desc_t::sail:
+			return "sail";
+
+		case vehicle_desc_t::fuel_cell:
+			return "fuel cell";
+
+		case vehicle_desc_t::hydrogene:
+			return "hydrogene";
+
+		case vehicle_desc_t::petrol:
+			return "petrol";
+
+		case vehicle_desc_t::turbine:
+			return "turbine";
+
+		default:
+			return "unknown";
+		}
+	}
+
 private:
-	uint32 upgrade_price;         // Price if this vehicle is bought as an upgrade, not a new vehicle.
-	uint32 base_upgrade_price;    // Upgrade price (without scale factor)
-	uint16 *capacity;             // Payload (pointer to an array of capacities per class)
-	uint16 overcrowded_capacity;  // The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
-	uint32 weight;                // Weight in kg
-	uint32 power;                 // Power in kW
-	uint16 running_cost;          // Per kilometre cost
-	uint32 fixed_cost;            // Monthly cost @author: jamespetts, April 2009
-	uint32 base_fixed_cost;       // Monthly cost (without scale factor)
+	uint32 upgrade_price;						// Price if this vehicle is bought as an upgrade, not a new vehicle.
+	uint32 base_upgrade_price;					// Upgrade price (without scale factor)
+	uint16 *capacity;							// Payload (pointer to an array of capacities per class)
+	uint16 overcrowded_capacity;				// The capacity of a vehicle if overcrowded (usually expressed as the standing capacity).
+	uint32 weight;								// Weight in kg
+	uint32 power;								// Power in kW
+	uint16 running_cost;						// Per kilometre cost (maintenance, not fuel)
+	uint32 fixed_cost;							// Monthly cost @author: jamespetts, April 2009
+	uint32 base_fixed_cost;						// Monthly cost (without scale factor)
 
-	uint16 gear;                  // engine gear (power multiplier), 64=100
+	uint32 base_initial_overhaul_cost = 0;		// Overhaul cost (without scale factor and increase for multiple overhauls)
+	uint32 initial_overhaul_cost = 0;			// Overhaul cost (before increse for multiple overhauls)
+	uint32 base_max_overhaul_cost = 0;			// Overhaul cost (without scale factor after full increase for multiple overhauls)
+	uint32 max_overhaul_cost = 0;				// Overhaul cost (after full increase for multiple overhauls)
+	uint16 overhauls_before_max_cost = 0;		// The number of overhauls before the maximum overhaul cost is reached. 0: no change
+	uint32 max_distance_between_overhauls = 0;	// The maximum distance in km between overhauls. 0: no overhauls required
+	uint32 maintenance_interval_km = 0;			// The distance between maintenance depot visits (when the next depot visit will be triggered). 1.5x this will trigger an emergency depot visit wherever the convoy is on its schedule.
+	uint16 max_running_cost = 0xFFFFu;			// The maximum running cost of vehicles at max_distance_between_overhauls. Sigmoid interpolation between running_cost and this after availabiliuty_decay_start_km
+	uint32 max_takeoffs = 0;					// The maximum number of takeoffs (flight cycles) between overhauls for an aircraft. 0: unlimited
+	uint32 availability_decay_start_takeoffs = 0;// The number of takeoffs (flight cycles) after which availability begins to decay and running costs increase. 0: no decay
+	uint32 availability_decay_start_km = 0;		// The number of km since the last overhaul when the availability begins to decay and running costs increase. 0: no decay
+	uint8  starting_availability = 100;			// The percentage availablility of this vehicle when new. 100: needs no maintenance
+	uint8  minimum_availability = 100;			// The percentage availability of this vehicle when at max_distance_between_overhauls since the last overhaul 100: needs no maintenance
+	uint32 replenishment_seconds = 60;			// The number of seconds required for this vehicle to replenish (refuel) at a replenishment stop.
+	uint8 overhaul_month_tenths = 10;			// The length of time that this vehicle needs to be overhauled (using the long time scale)
 
-	uint8 len;                    // length (=8 is half a tile, the old default)
+	uint32 calibration_speed = 0;				// Used for calibrating the fuel consumption (km/h). 0 = fuel consumption does not vary with speed.
+												// A non-zero value represents the speed (assuming accelerating or physics limited to this speed)
+												// against which the fuel consumption per unit of distance is calibrated.
+
+	uint32 cut_off_speed = 0;					// The minimum speed below which fuel consumption per km does not reduce (km/h)
+
+	uint32 fuel_per_km = 0;						// Fuel cost calibrated according to the above. Not all powered vehicles (e.g. sailing ships) use fuel. The traction type records the fuel type.
+
+	uint16 gear;								// engine gear (power multiplier), 64=100
+
+	uint8 len;									// length (=8 is half a tile, the old default)
 	sint16 sound;
 
-	uint8 leader_count;           // all defined leading vehicles
-	uint8 trailer_count;          // all defined trailer
-	uint8 upgrades;               // The number of vehicles that are upgrades of this vehicle.
+	uint8 leader_count;							// all defined leading vehicles
+	uint8 trailer_count;						// all defined trailer
+	uint8 upgrades;								// The number of vehicles that are upgrades of this vehicle.
+	uint8 auto_upgrade_index = 255;				// The index of the vehicle upgrade to which this vehicle upgrades automatically during the first overhaul in which the upgrade is available. Default: 255: no auto upgrade
 
-	engine_t engine_type;         // diesel, steam, electric (requires electrified ways), fuel_cell, etc.
+	engine_t engine_type;						// diesel, steam, electric (requires electrified ways), fuel_cell, etc.
 
-	uint8 freight_image_type;     // number of freight images (displayed for different goods)
-	uint8 livery_image_type;      // Number of different liveries (@author: jamespetts, April 2011)
+	uint8 freight_image_type;					// number of freight images (displayed for different goods)
+	uint8 livery_image_type;					// Number of different liveries (@author: jamespetts, April 2011)
 
-	bool is_tilting;              // Whether it is a tilting train (can take corners at higher speeds). 0 for no, 1 for yes. Anything other than 1 is assumed to be no.
+	bool is_tilting = false;					// Whether it is a tilting train (can take corners at higher speeds).
 
 	way_constraints_of_vehicle_t way_constraints;
 
-	uint8 catering_level;            // The level of catering. 0 for no catering. Higher numbers for better catering.
+	uint8 catering_level = 0;					// The level of catering. 0 for no catering. Higher numbers for better catering.
+	bool self_contained_catering = false;		// Whether any catering provided by this vehicle is available to the whole consist or only this vehicle.
 
-	bool bidirectional = false;      // Whether must always travel in one direction
-	bool can_lead_from_rear = false; // Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
-	bool can_be_at_rear = true;      // Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
+	bool bidirectional = false;					// Whether must always travel in one direction
+	bool can_lead_from_rear = false;			// Whether vehicle can lead a convoy when it is at the rear.            Ranran: This parameter is obsolete and is now included in basic_constraint_next.
+	bool can_be_at_rear = true;					// Whether the vehicle may be at the rear of a convoy (default = true). Ranran: It is used to read the old pak, and the flag takes over to the basic_constraint_next.
 	uint8 basic_constraint_prev = can_be_head;
 	uint8 basic_constraint_next = can_be_tail;
 
-	uint8 *comfort;                  // How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
+	uint8 *comfort;								// How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
 
-	uint8 classes;                   // The number of different classes that this vehicle accommodates
-	uint8 accommodation_classes = 1; // total accommodations that this vehicle has
+	uint8 classes;								// The number of different classes that this vehicle accommodates
+	uint8 accommodation_classes = 1;			// total accommodations that this vehicle has
+
+	/**
+	 * Staff data.
+	 * Hashtable: key: staff cost type; value: number of staff for this vehicle.
+	 * Introduced for version 15
+	 */
+	typedef inthashtable_tpl<uint8, sint32, N_BAGS_SMALL> staff_map;
+	staff_map drivers;						// Staff who need to be present if the vehicle needs to be driven.
+	staff_map staff_hundredths;				// Other staff, expressed as a fraction of 100, but always rounded up to the nearest 100 to allow staff to be added incrementally if necessary.
+
+	uint8 multiple_working_type = 0;		// This determines whether multiple powered vehicles need drivers only in the first of them. If the numbers match (and are non-zero), then yes; otherwise, no.
 
 	/** The time that the vehicle takes to load
 	  * in ticks. Min: if no passengers/goods
 	  * board/alight; Max: if all passengers/goods
-	   * board/alight at once. Scaled linear
+	  * board/alight at once. Scaled linear
 	  * beween the two. Was just "loading_time"
 	  * before 10.0.
 	  * @author: jamespetts
@@ -153,14 +274,14 @@ private:
 
 	bool available_only_as_upgrade; // If true, can not be bought as new: only upgraded.
 
-	uint16 tractive_effort; // tractive effort / force in kN
-	uint16 brake_force;		// The brake force in kN
-							// (that is, vehicle brake force, not the force of the brakes on the wheels;
-							// this latter measure is commonly cited for deisel railway locomotives on
-							// Wikipedia, but is no use here).
+	uint16 tractive_effort;				// tractive effort / force in kN
+	uint16 brake_force;					// The brake force in kN
+										// (that is, vehicle brake force, not the force of the brakes on the wheels;
+										// this latter measure is commonly cited for deisel railway locomotives on
+										// Wikipedia, but is no use here).
 
-	float32e8_t air_resistance; // The "cf" value in physics calculations.
-	float32e8_t rolling_resistance; // The "fr" value in physics calculations.
+	float32e8_t air_resistance;			// The "cf" value in physics calculations.
+	float32e8_t rolling_resistance;		// The "fr" value in physics calculations.
 
 	// these values are not stored and therefore calculated in loaded():
 	// they are arrays having one element per speed in m/s:
@@ -194,14 +315,14 @@ private:
 	// Whether this vehicle may be allowed to pass under
 	// a restricted height bridge.
 	//@jamespetts January 2017
-	bool is_tall;
+	bool is_tall = false;
 
 	// if true, can not mix another goods in the same car.  @Ranran, July 2019(v14.6)
 	bool mixed_load_prohibition;
 
 	// If true, the vehicle is not bound by the speed limit of the underlying way.
 	// This is intended for use with fly boats.
-	bool override_way_speed;
+	bool override_way_speed = false;
 
 	// @author: Bernd Gabriel, Dec 12, 2009: called as last action in read_node()
 	void loaded();
@@ -626,10 +747,10 @@ public:
 	void fix_number_of_classes();
 	uint32 get_weight() const { return weight; }
 	uint32 get_max_loading_weight() const;
-	uint16 get_running_cost() const { return running_cost; }
-	uint16 get_running_cost(const class karte_t *welt) const; //Overloaded method - includes increase for obsolescence.
-	uint32 get_fixed_cost() const { return fixed_cost; }
-	uint32 get_fixed_cost(class karte_t *welt) const;  //Overloaded method - includes increase for obsolescence.
+	uint32 get_running_cost() const;
+	uint16 get_running_cost(const class karte_t *welt) const; // Overloaded method - includes increase for obsolescence.
+	uint32 get_fixed_cost() const;
+	uint32 get_fixed_cost(class karte_t *welt) const;  // Overloaded method - includes increase for obsolescence.
 	uint32 get_adjusted_monthly_fixed_cost() const; // includes increase for obsolescence and adjustment for monthly figures
 	sint16 get_sound() const { return sound; }
 	bool is_bidirectional() const { return bidirectional; }
@@ -637,10 +758,44 @@ public:
 	uint16 get_overcrowded_capacity() const { return overcrowded_capacity; }
 	uint32 get_min_loading_time() const { return get_total_capacity() > 0 ? min_loading_time : 0; }
 	uint32 get_max_loading_time() const { return get_total_capacity() > 0 ? max_loading_time : 0; }
-	uint32 get_upgrade_price() const { return upgrade_price; }
+	uint32 get_upgrade_price() const;
 	bool is_available_only_as_upgrade() const { return available_only_as_upgrade; }
 
 	uint16 get_traction_type() const { return (uint16)(1<<engine_type); }
+
+	uint8 get_multiple_working_type() const { return multiple_working_type; }
+	bool get_self_contained_catering() const { return self_contained_catering; }
+	uint32 get_calibration_speed() const { return calibration_speed; }
+	uint32 get_cut_off_speed() const { return cut_off_speed; }
+	uint32 get_fuel_per_km() const { return fuel_per_km; }
+	uint32 get_initial_overhaul_cost() const { return initial_overhaul_cost; }
+	uint32 get_max_overhaul_cost() const { return max_overhaul_cost; }
+	uint16 get_overhauls_before_max_cost() const { return overhauls_before_max_cost; }
+	uint32 get_max_distance_between_overhauls() const { return max_distance_between_overhauls; }
+	uint32 get_maintenance_interval_km() const { return maintenance_interval_km; }
+	uint32 get_max_running_cost() const;
+	uint32 get_max_running_cost(const karte_t* world) const; // Overloaded method to take obsolescence increase
+	uint32 get_max_takeoffs() const { return max_takeoffs; }
+	uint32 get_availability_decay_start_takeoffs() const { return availability_decay_start_takeoffs; }
+	uint32 get_availability_decay_start_km() const { return availability_decay_start_km; }
+	uint8 get_starting_availability() const { return starting_availability; }
+	uint8 get_minimum_availability() const { return minimum_availability; }
+	uint32 get_replenishment_seconds() const { return replenishment_seconds; }
+	uint8 get_overhaul_month_tenths() const { return overhaul_month_tenths; }
+
+	// Overrides from the object base for inflation
+	sint64 get_value() const;
+	sint64 get_base_price() const;
+
+	// Returns the type if available, otherwise returns NULL
+	const vehicle_desc_t* get_auto_upgrade_type() const;
+
+	uint32 get_total_staff() const;
+	uint32 get_total_staff_hundredths() const;
+	uint32 get_total_drivers() const;
+
+	uint32 get_staff_hundredths(uint8 index) const;
+	uint32 get_drivers(uint8 index) const;
 
 	uint8 get_adjusted_comfort(uint8 catering_level, uint8 g_class = 0) const
 	{
@@ -721,10 +876,9 @@ public:
 	*/
 	uint16 get_obsolete_year_month() const;
 
-	// Returns 2 in the near future. Use the judgment of 2 only when control the display of the future
-	uint8 is_future (const uint16 month_now) const
+	future_state is_future (const uint16 month_now) const
 	{
-		return (!month_now || (intro_date - month_now <= 0)) ? 0 : (intro_date - month_now < 12) ? 2 : 1;
+		return (!month_now || (intro_date - month_now <= 0)) ? current : (intro_date - month_now < 12) ? near_future : far_future;
 	}
 
 
@@ -809,8 +963,10 @@ public:
 	const way_constraints_of_vehicle_t& get_way_constraints() const { return way_constraints; }
 	void set_way_constraints(const way_constraints_of_vehicle_t& value) { way_constraints = value; }
 
-	/*The level of catering provided by this vehicle (0 if none)
-	*@author: jamespetts*/
+	/**
+	* The level of catering provided by this vehicle (0 if none)
+	* @author: jamespetts
+	*/
 	uint8 get_catering_level() const { return catering_level; }
 
 	uint32 get_way_wear_factor() const { return way_wear_factor; }
@@ -828,6 +984,13 @@ public:
 
 		fixed_cost = set_scale_generic<uint32>(base_fixed_cost, scale_factor);
 		if (base_fixed_cost && ! fixed_cost) fixed_cost = 1;
+
+		initial_overhaul_cost = set_scale_generic<uint32>(base_initial_overhaul_cost, scale_factor);
+		if (base_initial_overhaul_cost && !initial_overhaul_cost) initial_overhaul_cost = 1;
+
+		max_overhaul_cost = set_scale_generic<uint32>(base_max_overhaul_cost, scale_factor);
+		if (base_max_overhaul_cost && !initial_overhaul_cost) max_overhaul_cost = 1;
+
 #ifndef NETTOOL
 		if(max_loading_time_seconds != 65535)
 		{

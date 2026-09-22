@@ -57,6 +57,8 @@ private:
 	sint16 altitude_level; // for AFHP
 	sint16 landing_distance; // for AFHP
 
+	uint32 number_of_takeoffs = 0;
+
 	void calc_altitude_level(sint32 speed_limit_kmh){
 		altitude_level = max(5, speed_limit_kmh/33);
 		altitude_level = min(altitude_level, 30);
@@ -94,6 +96,12 @@ protected:
 	bool find_route_to_stop_position();
 
 	void unreserve_runway() OVERRIDE;
+
+	bool is_overhaul_needed() const OVERRIDE;
+
+	void overhaul() { number_of_takeoffs = 0; vehicle_t::overhaul(); }
+
+	uint8 get_availability() const OVERRIDE;
 
 public:
 	air_vehicle_t(loadsave_t *file, bool is_leading, bool is_last);
@@ -166,8 +174,6 @@ public:
 
 	bool is_on_ground() const { return flying_height==0  &&  !(state==circling  ||  state==flying); }
 
-	// Used for running cost calculations
-	bool is_using_full_power() const { return state != circling && state != taxiing; }
 	const char *is_deletable(const player_t *player) OVERRIDE;
 
 
@@ -179,6 +185,8 @@ public:
 	bool is_airport_too_close_to_the_edge() { return airport_too_close_to_the_edge; }
 	virtual sint32 get_takeoff_route_index() const OVERRIDE { return (sint32) takeoff; }
 	virtual sint32 get_touchdown_route_index() const OVERRIDE { return (sint32) touchdown; }
+
+	uint32 get_number_of_takeoffs() const { return number_of_takeoffs; }
 };
 
 #endif

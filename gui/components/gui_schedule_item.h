@@ -115,6 +115,8 @@ public:
 	void set_color(uint8 color_idx) { p_color_idx = color_idx; }
 	void set_highlight(bool yesno)  { highlight = yesno; }
 
+	koord3d get_entry_pos() const { return entry_pos; }
+
 	scr_size get_min_size() const OVERRIDE { return size; }
 	scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };

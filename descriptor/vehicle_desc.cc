@@ -9,9 +9,42 @@
 #include "../simworld.h"
 #include "../bauer/goods_manager.h"
 #include "../gui/gui_theme.h"
+#include "../dataobj/consist_order_t.h"
+
+uint32 vehicle_desc_t::get_running_cost() const
+{
+	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), running_cost, vehicle_maintenance) : running_cost;
+}
+
+uint32 vehicle_desc_t::get_max_running_cost() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), max_running_cost, vehicle_maintenance);
+}
+
+uint32 vehicle_desc_t::get_upgrade_price() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), upgrade_price, vehicle_maintenance);
+}
+
+uint32 vehicle_desc_t::get_fixed_cost() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), fixed_cost, vehicle_maintenance);
+}
+
+sint64 vehicle_desc_t::get_value() const
+{
+	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_value(), vehicle_purchase);
+}
+
+sint64 vehicle_desc_t::get_base_price() const
+{
+	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_base_price(), vehicle_purchase) : obj_desc_transport_related_t::get_base_price();
+}
 
 uint32 vehicle_desc_t::calc_running_cost(uint32 base_cost) const
 {
+	// Inflation is taken care of before we get here.
+
 	// No cost or no time line --> no obsolescence cost increase.
 	if (base_cost == 0 || !world()->use_timeline())
 	{
@@ -57,7 +90,12 @@ uint16 vehicle_desc_t::get_running_cost(const karte_t *) const
 	return calc_running_cost(get_running_cost());
 }
 
-uint32 vehicle_desc_t::get_fixed_cost(karte_t *) const
+uint32 vehicle_desc_t::get_max_running_cost(const karte_t* world) const
+{
+	return calc_running_cost(get_max_running_cost());
+}
+
+uint32 vehicle_desc_t::get_fixed_cost(karte_t*) const
 {
 	return calc_running_cost(get_fixed_cost());
 }
@@ -324,7 +362,7 @@ uint16 vehicle_desc_t::get_available_livery_count(karte_t *welt) const
 	}
 
 	vector_tpl<livery_scheme_t*>* schemes = welt->get_settings().get_livery_schemes();
-	ITERATE_PTR(schemes, i)
+	for(uint32 i = 0; i < schemes->get_count(); i++)
 	{
 		livery_scheme_t* scheme = schemes->get_element(i);
 		if (!scheme->is_available(welt->get_timeline_year_month()))
@@ -436,16 +474,16 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(overcrowded_capacity);
 	chk->input(base_fixed_cost);
 	chk->input(upgrades);
-	chk->input(is_tilting ? 1 : 0);
-	chk->input(mixed_load_prohibition ? 1 : 0);
-	chk->input(override_way_speed ? 1 : 0);
+	chk->input(is_tilting);
+	chk->input(mixed_load_prohibition);
+	chk->input(override_way_speed);
 	chk->input(basic_constraint_prev);
 	chk->input(basic_constraint_next);
 	chk->input(way_constraints.get_permissive());
 	chk->input(way_constraints.get_prohibitive());
-	chk->input(bidirectional ? 1 : 0);
-	//chk->input(can_lead_from_rear ? 1 : 0); // not used
-	//chk->input(can_be_at_rear ? 1 : 0);
+	chk->input(bidirectional);
+	//chk->input(can_lead_from_rear); // not used
+	//chk->input(can_be_at_rear);
 	for (uint32 i = 0; i < classes; i++)
 	{
 		chk->input(comfort[i]);
@@ -460,6 +498,29 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	const uint16 rr = (rolling_resistance * float32e8_t((uint32)100)).to_sint32();
 	chk->input(ar);
 	chk->input(rr);
+	chk->input(livery_image_type);
+	chk->input(base_initial_overhaul_cost);
+	chk->input(base_max_overhaul_cost);
+	chk->input(overhauls_before_max_cost);
+	chk->input(max_distance_between_overhauls);
+	chk->input(max_takeoffs);
+	chk->input(availability_decay_start_km);
+	chk->input(starting_availability);
+	chk->input(minimum_availability);
+	chk->input(calibration_speed);
+	chk->input(cut_off_speed);
+	chk->input(fuel_per_km);
+	chk->input(self_contained_catering);
+	chk->input(multiple_working_type);
+	chk->input(available_only_as_upgrade);
+	chk->input(is_tall);
+	chk->input(max_running_cost);
+	chk->input(replenishment_seconds);
+	chk->input(maintenance_interval_km);
+	chk->input(overhaul_month_tenths);
+	chk->input(availability_decay_start_takeoffs);
+
+	// TODO: Consider whether to add the staff detais here, too
 }
 
 uint8 vehicle_desc_t::get_interactivity() const
@@ -484,7 +545,7 @@ uint8 vehicle_desc_t::has_available_upgrade(uint16 month_now) const
 		{
 			return 2;
 		}
-		else if(!show_future && upgrade_desc && upgrade_desc->is_future(month_now)==2) {
+		else if(!show_future && upgrade_desc && upgrade_desc->is_future(month_now) == future_state::far_future) {
 			upgrade_state = 1;
 		}
 	}
@@ -641,4 +702,70 @@ void vehicle_desc_t::fix_basic_constraint()
 		}
 		basic_constraint_next &= ~unknown_constraint;
 	}
+}
+
+uint32 vehicle_desc_t::get_total_staff() const
+{
+	uint32 hundredths = 0;
+	for (auto hundredth : staff_hundredths)
+	{
+		hundredths += hundredth.value;
+	}
+	return (hundredths + 99) / 100;
+}
+
+uint32 vehicle_desc_t::get_total_staff_hundredths() const
+{
+	uint32 count = 0;
+	for (auto hundredth : staff_hundredths)
+	{
+		count += hundredth.value;
+	}
+	return count;
+}
+
+uint32 vehicle_desc_t::get_total_drivers() const
+{
+	uint32 count = 0;
+	for (auto driver : drivers)
+	{
+		count += driver.value;
+	}
+	return count;
+}
+
+uint32 vehicle_desc_t::get_staff_hundredths(uint8 index) const
+{
+	if (!staff_hundredths.is_contained(index))
+	{
+		return 0;
+	}
+
+	return staff_hundredths.get(index);
+}
+
+uint32 vehicle_desc_t::get_drivers(uint8 index) const
+{
+	if (!drivers.is_contained(index))
+	{
+		return 0;
+	}
+
+	return drivers.get(index);
+}
+
+const vehicle_desc_t* vehicle_desc_t::get_auto_upgrade_type() const
+{
+	if (auto_upgrade_index == 255)
+	{
+		return nullptr;
+	}
+
+	const vehicle_desc_t* vehicle_type = get_upgrades(auto_upgrade_index);
+	if (vehicle_type && !vehicle_type->is_available(world()->get_current_month()))
+	{
+		vehicle_type = nullptr;
+	}
+
+	return vehicle_type;
 }

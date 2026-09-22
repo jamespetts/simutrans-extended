@@ -881,6 +881,7 @@ void objlist_t::rdwr(loadsave_t *file, koord3d current_pos)
 							bd = new bahndepot_t( gb.get_pos(), gb.get_owner(), NULL );
 						}
 						bd->rdwr_vehicles(file);
+						bd->rdwr_maintenance_queue(file);
 						new_obj   = bd;
 						typ = new_obj->get_typ();
 						// do not remove from this position, since there will be nothing

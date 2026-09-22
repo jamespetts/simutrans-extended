@@ -591,4 +591,43 @@ uint64 sqrt_i64(uint64 num)
 	return res;
 }
 
+uint64 sigmoid(uint64 value, uint64 upper_bound)
+{
+	// This is a very spiky S curve, more like:
+	/*
+	 *		  ___
+	 *		 /
+	 *		/
+	 *     |
+	 *     |
+	 *     |
+	 *     |
+     *     |
+	 *     |
+	 *     |
+	 *     /
+	 * ___/
+	 */
+
+	// TODO: Implement a proper function
+
+	// First, compute the first half of the S curve
+	const uint64 first_part = ((value * value) / (upper_bound * upper_bound));
+
+	// Next, compute the second half - only if the value is > half the upper bound
+	uint64 second_part = 0;
+	if (value > (upper_bound / 2))
+	{
+		second_part = sqrt_i64(value) / sqrt_i64(upper_bound);
+	}
+	else
+	{
+		return first_part;
+	}
+
+	// Average the two if in the third quartile of the range
+	return (first_part + second_part) / 2;
+}
+
 #endif
+

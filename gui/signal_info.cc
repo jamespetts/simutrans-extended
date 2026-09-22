@@ -141,7 +141,7 @@ void signal_info_t::update_data()
 				if (km_to_signalbox < 1)
 				{
 					float m_to_signalbox = km_to_signalbox * 1000;
-					lb_sb_distance.buf().append(m_to_signalbox);
+					lb_sb_distance.buf().append((sint32)m_to_signalbox);
 					lb_sb_distance.buf().append("m");
 				}
 				else {

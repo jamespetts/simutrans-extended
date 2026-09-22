@@ -383,7 +383,7 @@ vector_tpl<convoihandle_t> const& depot_get_convoy_list(depot_t *depot)
 		return list;
 	}
 	// fill list
-	slist_tpl<convoihandle_t> const& slist = depot->get_convoy_list();
+	const slist_tpl<convoihandle_t>& slist = depot->get_convoy_list();
 
 	for(slist_tpl<convoihandle_t>::const_iterator i = slist.begin(), end = slist.end(); i!=end; ++i) {
 		list.append(*i);

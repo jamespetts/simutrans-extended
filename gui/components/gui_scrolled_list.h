@@ -94,6 +94,25 @@ public:
 
 	};
 
+	class buf_text_scrollitem_t : public gui_label_buf_t, public scrollitem_t
+	{
+	public:
+		buf_text_scrollitem_t(const char *t, PIXVAL const col) : gui_label_buf_t(col) {
+			set_text(t);
+		}
+
+		char const* get_text() const OVERRIDE { return get_text_pointer(); }
+
+		scr_size get_min_size() const OVERRIDE;
+		scr_size get_max_size() const OVERRIDE;
+
+		void set_text(char const *t) OVERRIDE { buf().append(t); update(); }
+
+		void draw(scr_coord pos) OVERRIDE;
+
+		using gui_label_buf_t::get_color;
+	};
+
 	// Currently, it is assumed to display a general-purpose symbol with a width of about 12px.
 	class img_label_scrollitem_t : public const_text_scrollitem_t
 	{

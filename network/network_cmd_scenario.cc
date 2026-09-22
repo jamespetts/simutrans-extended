@@ -58,6 +58,7 @@ bool nwc_scenario_t::execute(karte_t *welt)
 		return true;
 	}
 
+
 	if (env_t::server) {
 		switch (what) {
 			case CALL_SCRIPT:

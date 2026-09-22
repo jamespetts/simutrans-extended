@@ -1313,7 +1313,7 @@ const vector_tpl<const building_desc_t*>* hausbauer_t::get_citybuilding_list(con
 
 void hausbauer_t::new_month()
 {
-	FOR(vector_tpl<const building_desc_t*>, building, station_building)
+	for(auto const building : station_building)
 	{
 		const uint16 current_month = welt->get_timeline_year_month();
 		const uint16 intro_month = building->get_intro_year_month();

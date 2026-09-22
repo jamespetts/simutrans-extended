@@ -1,0 +1,12 @@
+<title>編成構成設定</title>
+
+<h1><strong>編成構成設定</strong></h1>
+
+<p>
+路線<a href="schedule.txt">スケジュール</a>では、それぞれの<a href="station.txt">駅</a>で<strong>編成構成</strong>を設定できます。<br>
+※<a href="linemanagement.txt">路線</a>に属していない単独編成では編成の構成を指定できません。<br>
+<br>
+編成は指定された駅で指定された構成要件を満たすまで待機します。<br>
+<br>
+<strong>編成構成設定</strong>は路線の<a href="schedule.txt">スケジュール</a>編集ウィンドウから開くことができます。</p>
+</p>

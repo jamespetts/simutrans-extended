@@ -93,7 +93,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_margin_t>(10);
 				new_component<gui_label_t>(bridge->get_desc()->get_name(), bridge->get_owner() ? color_idx_to_rgb(bridge->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_bridge = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(bridge->get_desc()->get_maintenance()) / 100.0;
+				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(bridge->get_desc()->get_maintenance()), infrastructure) / 100.0;
 				lb_bridge->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 				lb_bridge->update();
 
@@ -107,7 +107,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_margin_t>(10);
 				new_component<gui_label_t>(tunnel->get_desc()->get_name(), tunnel->get_owner() ? color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_tunnel = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
-				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()) / 100.0;
+				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()), infrastructure) / 100.0;
 				lb_tunnel->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile);
 				lb_tunnel->update();
 
@@ -122,7 +122,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			new_component<gui_margin_t>(10);
 			new_component<gui_label_t>(way->get_desc()->get_name(), way->get_owner() != NULL ? color_idx_to_rgb(way->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : SYSCOL_TEXT);
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(way->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
-			const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()) / 100.0;
+			const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()), infrastructure) / 100.0;
 			lb->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 			lb->update();
 
@@ -140,7 +140,8 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				}
 				new_component<gui_label_t>(wayobj->get_desc()->get_name(), color_idx_to_rgb(wayobj->get_owner()->get_player_color1() + env_t::gui_player_color_dark));
 				lb = new_component<gui_label_buf_t>(wayobj->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
-				const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(wayobj->get_desc()->get_maintenance()) / 100.0;
+				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(wayobj->get_desc()->get_maintenance()), infrastructure) / 100.0;
+
 				lb->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 				lb->update();
 				lb = new_component<gui_label_buf_t>(way->get_max_speed(true) != way->get_max_speed(false) ? COL_WARNING : SYSCOL_TEXT, gui_label_t::right);
@@ -376,7 +377,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				add_table(1,2)->set_spacing(scr_size(0,0));
 				{
 					lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::money_right);
-					const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance())/100.0;
+					const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()), infrastructure) / 100.0;
 					char maintenance_number[64];
 					money_to_string(maintenance_number, way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 					lb->buf().printf("%s", maintenance_number);
@@ -401,7 +402,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 					add_table(1,2)->set_spacing(scr_size(0,1));
 					{
 						lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::money_right);
-						const double maint_per_tile = (double)world()->calc_adjusted_monthly_figure(replacement_way->get_maintenance()) / 100.0;
+						const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(replacement_way->get_maintenance()), infrastructure) / 100.0;
 						char maintenance_number[64];
 						money_to_string(maintenance_number, way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 						lb->buf().printf("%s", maintenance_number);
@@ -426,7 +427,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 							change *= 10;
 							change /= 14;
 						}
-						money_to_string(maintenance_number, (double)world()->calc_adjusted_monthly_figure(change) / 100.0);
+						money_to_string(maintenance_number, (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(change), infrastructure) / 100.0);
 						lb->buf().printf("%s", maintenance_number);
 						lb->update();
 						if (change_percentage!=0) {

@@ -322,6 +322,12 @@ public:
 	sint32 calc_max_speed(const weight_summary_t &weight);
 
 	/**
+	 * Get maximum possible speed of convoy in km/h according to weight, power/force, inclination, etc.
+	 * Depends on vehicle, adverse and given weight, ignoring any extrinsic speed restrictions.
+	 */
+	sint32 calc_max_physical_speed(const weight_summary_t& weight);
+
+	/**
 	 * Get maximum pullable weight at given inclination of convoy in kg according to maximum force, allowed maximum speed and continuous power.
 	 * @param sin_alpha is 1000 times sin(inclination_angle). e.g. 50 == inclination of 2.8 per mille.
 	 * Depends on vehicle and adverse.

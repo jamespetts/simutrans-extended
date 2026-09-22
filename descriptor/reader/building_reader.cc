@@ -335,7 +335,7 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->allow_underground = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version > 6)
+			if(extended_version > 7)
 			{
 				dbg->fatal( "building_reader_t::read_node()","Incompatible pak file version for Simutrans-Extended, number %i", extended_version );
 			}
@@ -385,6 +385,12 @@ obj_desc_t * building_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				desc->pier_sub_1_mask=0;
 				desc->pier_sub_2_mask=0;
 				desc->pier_sub_needed=0;
+			}
+
+			if (extended_version >= 7)
+			{
+				// 15.x features - note that these all have defaults set in the header file, so no explicit initialisation is necessary for older versions.
+				desc->max_vehicles_under_maintenance = decode_uint16(p);
 			}
 		}
 		else
