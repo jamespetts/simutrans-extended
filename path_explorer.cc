@@ -193,7 +193,10 @@ void path_explorer_t::rdwr(loadsave_t* file)
 			uint16 tmp_best_line_idx;
 			uint16 tmp_best_convoy_idx;
 			uint16 tmp_alternative_seats;
-			// TODO: Consider whether to add comfort
+			// TODO: Consider whether to add comfort.
+			// Probably the best thing to do with comfort is have it modify the journey, waiting and transfer times:
+			// these would then be weights instead of times and be a composite value if comfort influenced routing
+			// were enabled.
 
 			uint32 connexion_table_count = compartment_t::connexion_list[i].connexion_table->get_count();
 			file->rdwr_long(connexion_table_count);
@@ -885,7 +888,7 @@ void path_explorer_t::compartment_t::step()
 			{
 				current_convoy = *i;
 				// only consider lineless convoys which support this compartment's goods catetory which are not in the depot
-				if (!current_convoy->in_depot() && !current_convoy->get_line().is_bound() && (catg >= 2 || current_convoy->carries_this_or_lower_class(catg, g_class)) && current_convoy->get_goods_catg_index().is_contained(catg) )
+				if (!current_convoy->in_depot() && !current_convoy->get_line().is_bound() && (catg >= 2 || current_convoy->carries_this_or_lower_class(catg, g_class)) && current_convoy->carries_this_category(catg) )
 				{
 					temp_linkage.convoy = current_convoy;
 					linkages->append(temp_linkage);
@@ -910,7 +913,7 @@ void path_explorer_t::compartment_t::step()
 				{
 					current_line = *j;
 					// only consider lines which support this compartment's goods category and, where applicable, class
-					if ( current_line->get_goods_catg_index().is_contained(catg) && (catg >= 2 || current_line->carries_this_or_lower_class(catg, g_class)) && current_line->count_convoys() > 0)
+					if ( current_line->carries_this_category(catg) && (catg >= 2 || current_line->carries_this_or_lower_class(catg, g_class)) && current_line->count_convoys() > 0)
 					{
 						temp_linkage.line = current_line;
 						linkages->append(temp_linkage);
@@ -959,13 +962,14 @@ void path_explorer_t::compartment_t::step()
 
 			minivec_tpl<halthandle_t> halt_list(64);
 			minivec_tpl<uint32> journey_time_list(64);
-			minivec_tpl<bool> recurrence_list(64);		// an array indicating whether certain halts have been processed already
+			// A vector indicating whether certain halts have been processed already as well as other flags
+			minivec_tpl<uint8> flag_list(64);
 
 			uint32 accumulated_journey_time;
 			haltestelle_t::connexions_map *catg_connexions;
 			haltestelle_t::connexion *new_connexion;
 
-			start = dr_time();	// start timing. Note that this was originally dr_time()
+			start = dr_time();	// start timing
 
 			// for each schedule of line / lineless convoy
 			while (phase_counter < linkages->get_count())
@@ -1000,27 +1004,228 @@ void path_explorer_t::compartment_t::step()
 
 				// create a list of reachable halts
 				bool reverse = false;
-				entry_count = current_schedule->is_mirrored() ? (current_schedule->get_count() * 2) - 2 : current_schedule->get_count();
 				halt_list.clear();
-				recurrence_list.clear();
+				flag_list.clear();
 
 				uint8 index = 0;
+				uint8 flag = 0;
 
-				while (entry_count-- && index < current_schedule->get_count())
+				const bool this_compartment_affected_by_consist_orders = current_schedule->has_consist_orders() &&
+					(!current_schedule->get_catg_carried_to().empty() ||
+						(ware_type == goods_manager_t::passengers && !current_schedule->get_passenger_min_class_carried_to().empty()) ||
+						(ware_type == goods_manager_t::mail && !current_schedule->get_mail_min_class_carried_to().empty()));
+
+				bool previous_is_carried_from_here = true;
+				bool previous_discharge_payload_and_set_down_only = false;
+				bool fragmented_schedule = false;
+
+				// If the schedule has consist orders that change what category/class that this schedule carries, check whether this category and class can be carried from the point of the first entry.
+				if(this_compartment_affected_by_consist_orders)
 				{
-					current_halt = haltestelle_t::get_halt(current_schedule->entries[index].pos, current_owner);
-
-					// Make sure that the halt found was built before refresh started and that it supports current goods category
-					if ( current_halt.is_bound() && current_halt->get_inauguration_time() < refresh_start_time && current_halt->is_enabled(ware_type) )
+					if (current_schedule->orders.is_contained(current_schedule->get_unique_id_from_entry(index)))
 					{
-						// Assign to halt list only if current halt supports this compartment's goods category
-						halt_list.append(current_halt, 64);
-						// Initialise the corresponding recurrence list entry to false
-						recurrence_list.append(false, 64);
+						if ((current_schedule->get_catg_carried_from().get(current_schedule->get_unique_id_from_entry(index)).is_contained(ware_type->get_catg_index())) &&
+							(ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class) ||
+							(ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class))
+						{
+							set_flag(flag, does_not_carry_to);
+						}
+						else
+						{
+							// Incompatible consist order at the first entry
+							set_flag(flag, does_not_carry_from);
+							previous_is_carried_from_here = false;
+						}
 					}
-
-					current_schedule->increment_index(&index, &reverse);
 				}
+
+				for (uint32 k = 0; k < (this_compartment_affected_by_consist_orders ? 2 : 1); k++)
+				{
+					index = 0;
+					reverse = false;
+					entry_count = current_schedule->is_mirrored() ? (current_schedule->get_count() * 2) - 2 : current_schedule->get_count();
+
+					while (entry_count-- && index < current_schedule->get_count())
+					{
+						flag = 0;
+						current_halt = haltestelle_t::get_halt(current_schedule->entries[index].pos, current_owner);
+
+						// Make sure that the halt found was built before refresh started and that it supports current goods category
+						if (current_halt.is_bound() && current_halt->get_inauguration_time() < refresh_start_time && current_halt->is_enabled(ware_type))
+						{
+							if (this_compartment_affected_by_consist_orders)
+							{
+								if (!previous_is_carried_from_here)
+								{
+									if (!reverse)
+									{
+										if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+										{
+											if (ware_type == goods_manager_t::passengers)
+											{
+												if (current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else if (ware_type == goods_manager_t::mail)
+											{
+												if (current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else
+											{
+												set_flag(flag, does_not_carry_to);
+											}
+										}
+									}
+									else
+									{
+										// Swap from and to for reverse.
+										if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+										{
+											if (ware_type == goods_manager_t::passengers)
+											{
+												if (current_schedule->get_passenger_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else if (ware_type == goods_manager_t::mail)
+											{
+												if (current_schedule->get_mail_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) <= g_class)
+												{
+													set_flag(flag, does_not_carry_to);
+												}
+											}
+											else
+											{
+												set_flag(flag, does_not_carry_to);
+											}
+										}
+									}
+								}
+								else
+								{
+									if (!reverse)
+									{
+										if (current_schedule->get_catg_carried_to().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_to().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+										{
+											// This cannot be an origin halt for this category
+											set_flag(flag, does_not_carry_from);
+										}
+										else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+										{
+											// This cannot be an origin halt for this class
+											set_flag(flag, does_not_carry_from);
+										}
+										else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_to().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+										{
+											set_flag(flag, does_not_carry_from);
+										}
+									}
+									else
+									{
+										// Swap from and to for reverse.
+										if (current_schedule->get_catg_carried_from().is_contained(current_schedule->entries[index].unique_entry_id) &&
+											current_schedule->get_catg_carried_from().get(current_schedule->entries[index].unique_entry_id).is_contained(ware_type->get_catg_index()))
+										{
+											// This cannot be an origin halt for this category
+											set_flag(flag, does_not_carry_from);
+										}
+										else if (ware_type == goods_manager_t::passengers && current_schedule->get_passenger_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+										{
+											// This cannot be an origin halt for this class
+											set_flag(flag, does_not_carry_from);
+										}
+										else if (ware_type == goods_manager_t::mail && current_schedule->get_mail_min_class_carried_from().get(current_schedule->get_unique_id_from_entry(index)) > g_class)
+										{
+											set_flag(flag, does_not_carry_from);
+										}
+									}
+								}
+							}
+
+							if (is_flag_set(flag, does_not_carry_from))
+							{
+								previous_is_carried_from_here = false;
+							}
+							else if (!previous_is_carried_from_here)
+							{
+								if (is_flag_set(flag, does_not_carry_to))
+								{
+									previous_is_carried_from_here = true;
+								}
+							}
+
+							if (k == 0)
+							{
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::set_down_only))
+								{
+									set_flag(flag, set_down_only);
+								}
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::pick_up_only))
+								{
+									set_flag(flag, pick_up_only);
+								}
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::lay_over))
+								{
+									set_flag(flag, layover);
+								}
+								if (current_schedule->entries[index].is_flag_set(schedule_entry_t::discharge_payload))
+								{
+									set_flag(flag, discharge_payload);
+									if (is_flag_set(flag, set_down_only) && !is_flag_set(flag, does_not_carry_from))
+									{
+										// If both discharge payload and set down only are engaged, we cannot route past this point.
+										set_flag(flag, does_not_carry_from);
+										previous_discharge_payload_and_set_down_only = true;
+										fragmented_schedule = true;
+									}
+									else if (!is_flag_set(flag, set_down_only))
+									{
+										if (previous_discharge_payload_and_set_down_only && !is_flag_set(flag, does_not_carry_from))
+										{
+											set_flag(flag, does_not_carry_to);
+										}
+										previous_discharge_payload_and_set_down_only = false;
+									}
+								}
+								else if(!is_flag_set(flag, set_down_only))
+								{
+									if (previous_discharge_payload_and_set_down_only && !is_flag_set(flag, does_not_carry_from))
+									{
+										set_flag(flag, does_not_carry_to);
+									}
+									previous_discharge_payload_and_set_down_only = false;
+								}
+
+								// Assign to halt list only if current halt supports this compartment's goods category
+								halt_list.append(current_halt, 64);
+
+								// Initialise the corresponding flag list entry without the recurrence flag set
+								flag_list.append(flag, 64);
+							}
+							else
+							{
+								// Second run - only update flags
+								if (flag_list.get_count() > index)
+								{
+									flag_list[index] |= flag;
+								}
+							}
+						}
+
+						current_schedule->increment_index(&index, &reverse);
+					}
+				}
+
+				fragmented_schedule |= this_compartment_affected_by_consist_orders;
 
 				// precalculate journey times between consecutive halts
 				// This is now only a fallback in case the point to point journey time data are not available.
@@ -1029,15 +1234,14 @@ void path_explorer_t::compartment_t::step()
 				journey_time_list.clear();
 				journey_time_list.append(0);	// reserve the first entry for the last journey time from last halt to first halt
 
-
 				for (uint8 i = 0; i < entry_count; ++i)
 				{
 					journey_time = 0;
-					const id_pair pair(halt_list[i].get_id(), halt_list[(i+1)%entry_count].get_id());
+					const id_pair pair(halt_list[i].get_id(), halt_list[(i + 1) % entry_count].get_id());
 
-					if ( current_linkage.line.is_bound() && current_linkage.line->get_average_journey_times().is_contained(pair) )
+					if (current_linkage.line.is_bound() && current_linkage.line->get_average_journey_times().is_contained(pair))
 					{
-						if(!halt_list[i].is_bound() || ! halt_list[(i+1)%entry_count].is_bound())
+						if (!halt_list[i].is_bound() || !halt_list[(i + 1) % entry_count].is_bound())
 						{
 							current_linkage.line->get_average_journey_times().remove(pair);
 							continue;
@@ -1047,9 +1251,9 @@ void path_explorer_t::compartment_t::step()
 							journey_time = current_linkage.line->get_average_journey_times().access(pair)->reduce();
 						}
 					}
-					else if ( current_linkage.convoy.is_bound() && current_linkage.convoy->get_average_journey_times().is_contained(pair) )
+					else if (current_linkage.convoy.is_bound() && current_linkage.convoy->get_average_journey_times().is_contained(pair))
 					{
-						if(!halt_list[i].is_bound() || ! halt_list[(i+1)%entry_count].is_bound())
+						if (!halt_list[i].is_bound() || !halt_list[(i + 1) % entry_count].is_bound())
 						{
 							current_linkage.convoy->get_average_journey_times().remove(pair);
 							continue;
@@ -1060,12 +1264,19 @@ void path_explorer_t::compartment_t::step()
 						}
 					}
 
-					if(journey_time == 0)
+					if (journey_time == 0)
 					{
 						// Zero here means that there are no journey time data even if the hashtable entry exists.
 						// Fallback to convoy's general average speed if a point-to-point average is not available.
-						const uint32 distance = shortest_distance(halt_list[i]->get_basis_pos(), halt_list[(i+1)%entry_count]->get_basis_pos());
+						const uint32 distance = shortest_distance(halt_list[i]->get_basis_pos(), halt_list[(i + 1) % entry_count]->get_basis_pos());
 						journey_time = world->travel_time_tenths_from_distance(distance, current_average_speed);
+					}
+
+					if (is_flag_set(flag_list[i], layover) || (is_flag_set(flag_list[i], discharge_payload) && !is_flag_set(flag_list[i], set_down_only)))
+					{
+						// If the previous stop is a layover, assume that we will always need to board the consist here even
+						// if we were already onboard. Thus, add the transfer time. Should we also add the waiting time?
+						journey_time += catg != goods_manager_t::passengers->get_catg_index() ? halt_list[i]->get_transshipment_time() : halt_list[i]->get_transfer_time();
 					}
 
 					// journey time from halt 0 to halt 1 is stored in journey_time_list[1]
@@ -1079,12 +1290,57 @@ void path_explorer_t::compartment_t::step()
 
 				// rebuild connexions for all halts in halt list
 				// for each origin halt
+				uint8 last_consist_order_stop_point_h = 255;
+				uint8 last_consist_order_start_point_h = 255;
+
+				if (fragmented_schedule)
+				{
+					// Deal with wrapping around the ends of schedules.
+					for (uint8 h = 0; h < entry_count; ++h)
+					{
+						if (is_flag_set(flag_list[h], does_not_carry_from))
+						{
+							last_consist_order_stop_point_h = h;
+						}
+						else if (is_flag_set(flag_list[h], does_not_carry_to))
+						{
+							last_consist_order_start_point_h = h;
+						}
+					}
+
+					if (last_consist_order_stop_point_h > last_consist_order_start_point_h)
+					{
+						last_consist_order_stop_point_h = 0;
+					}
+				}
+
 				for (uint8 h = 0; h < entry_count; ++h)
 				{
-					if ( recurrence_list[h] )
+					if (this_compartment_affected_by_consist_orders)
+					{
+						if (is_flag_set(flag_list[h], does_not_carry_from))
+						{
+							last_consist_order_stop_point_h = h;
+						}
+						else if (is_flag_set(flag_list[h], does_not_carry_to))
+						{
+							last_consist_order_start_point_h = h;
+						}
+					}
+
+					if (is_flag_set(flag_list[h], recurrence))
 					{
 						// skip this halt if it has already been processed
 						continue;
+					}
+
+					// Is the origin in the invalid zone?
+					if (fragmented_schedule)
+					{
+						if (h >= last_consist_order_stop_point_h && h < last_consist_order_start_point_h)
+						{
+							continue;
+						}
 					}
 
 					accumulated_journey_time = 0;
@@ -1094,80 +1350,122 @@ void path_explorer_t::compartment_t::step()
 					// any serving line/lineless convoy increments serving transport count
 					++connexion_list[ halt_list[h].get_id() ].serving_transport;
 
-					// for each target halt (origin halt is excluded)
-					for (uint8 i = 1,		t = (h + 1) % entry_count;
-						 i < entry_count;
-						 ++i,				t = (t + 1) % entry_count)
-					{
+					uint8 last_consist_order_stop_point_t = last_consist_order_stop_point_h;
+					uint8 last_consist_order_start_point_t = last_consist_order_start_point_h;
 
-						// Case : origin halt is encountered again
-						if ( halt_list[t] == halt_list[h] )
+					// for each target halt (origin halt is excluded)
+					for (uint8 i = 1, t = (h + 1) % entry_count;
+						i < entry_count;
+						++i, t = (t + 1) % entry_count)
+					{
+						if (fragmented_schedule)
+						{
+							if (is_flag_set(flag_list[t], does_not_carry_from))
+							{
+								last_consist_order_stop_point_t = t;
+							}
+							else if (is_flag_set(flag_list[t], does_not_carry_to))
+							{
+								last_consist_order_start_point_t = t;
+							}
+						}
+
+						// Case: origin halt is encountered again
+						if (halt_list[t] == halt_list[h])
 						{
 							// reset and process the next
 							accumulated_journey_time = 0;
 							// mark this halt in the recurrence list to avoid duplicated processing
-							recurrence_list[t] = true;
+							set_flag(flag_list[t], recurrence);
 							continue;
 						}
 
-						// Case : suitable halt
+						// Case: this destination halt is unreachable from this origin halt for this category/class
+						if (fragmented_schedule)
+						{
+							if (last_consist_order_stop_point_h < 255)
+							{
+								if ((t > last_consist_order_stop_point_t && (t < last_consist_order_start_point_t || last_consist_order_start_point_t < last_consist_order_stop_point_t)) ||
+									(last_consist_order_start_point_t < last_consist_order_stop_point_t && t < last_consist_order_start_point_t)) // Wrap around
+								{
+									// The destination is in the invalid zone
+									continue;
+								}
+								else if ((h < last_consist_order_start_point_t && t > h && t > last_consist_order_stop_point_t) ||
+									(t < h && (last_consist_order_start_point_t < last_consist_order_stop_point_t || h < last_consist_order_start_point_h))) // Wrap around
+								{
+									// The start point is in a different validity zone to the end point.
+									continue;
+								}
+							}
+						}
+
+						// Case: suitable halt
 						accumulated_journey_time += journey_time_list[t];
 
 						// Check the journey times to the connexion
 						id_pair halt_pair(halt_list[h].get_id(), halt_list[t].get_id());
-						new_connexion = new haltestelle_t::connexion;
-						new_connexion->waiting_time = halt_list[h]->get_average_waiting_time(halt_list[t], catg, g_class);
-						new_connexion->transfer_time = catg != goods_manager_t::passengers->get_catg_index() ? halt_list[h]->get_transshipment_time() : halt_list[h]->get_transfer_time();
-						if(current_linkage.line.is_bound())
+						if (is_flag_set(flag_list[h], set_down_only) || is_flag_set(flag_list[t], pick_up_only))
 						{
-							average_tpl<uint32>* ave = current_linkage.line->get_average_journey_times().access(halt_pair);
-							if(ave && ave->count > 0)
-							{
-								new_connexion->journey_time = ave->reduce();
-							}
-							else
-							{
-								// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
-								new_connexion->journey_time = accumulated_journey_time;
-							}
-						}
-						else if(current_linkage.convoy.is_bound())
-						{
-							average_tpl<uint32>* ave = current_linkage.convoy->get_average_journey_times().access(halt_pair);
-							if(ave && ave->count > 0)
-							{
-								new_connexion->journey_time = ave->reduce();
-							}
-							else
-							{
-								// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
-								new_connexion->journey_time = accumulated_journey_time;
-							}
-						}
-						new_connexion->best_convoy = current_linkage.convoy;
-						new_connexion->best_line = current_linkage.line;
-						new_connexion->alternative_seats = 0;
-
-						// Check whether this is the best connexion so far, and, if so, add it.
-						if( !catg_connexions->put(halt_list[t], new_connexion) )
-						{
-							// The key exists in the hashtable already - check whether this entry is better.
-							haltestelle_t::connexion* existing_connexion = catg_connexions->get(halt_list[t]);
-							if( existing_connexion->journey_time > new_connexion->journey_time )
-							{
-								// The new connexion is better - replace it.
-								new_connexion->alternative_seats = existing_connexion->alternative_seats;
-								delete existing_connexion;
-								catg_connexions->set(halt_list[t], new_connexion);
-							}
-							else
-							{
-								delete new_connexion;
-							}
+							// Skip this connexion
+							dbg->message("void path_explorer_t::compartment_t::step()", "Skipping step owing to schedule settings");
 						}
 						else
 						{
-							halt_list[h]->prepare_goods_list(catg);
+							new_connexion = new haltestelle_t::connexion;
+							new_connexion->waiting_time = halt_list[h]->get_average_waiting_time(halt_list[t], catg, g_class);
+							new_connexion->transfer_time = catg != goods_manager_t::passengers->get_catg_index() ? halt_list[h]->get_transshipment_time() : halt_list[h]->get_transfer_time();
+							if (current_linkage.line.is_bound())
+							{
+								average_tpl<uint32>* ave = current_linkage.line->get_average_journey_times().access(halt_pair);
+								if (ave && ave->count > 0)
+								{
+									new_connexion->journey_time = ave->reduce();
+								}
+								else
+								{
+									// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
+									new_connexion->journey_time = accumulated_journey_time;
+								}
+							}
+							else if (current_linkage.convoy.is_bound())
+							{
+								average_tpl<uint32>* ave = current_linkage.convoy->get_average_journey_times().access(halt_pair);
+								if (ave && ave->count > 0)
+								{
+									new_connexion->journey_time = ave->reduce();
+								}
+								else
+								{
+									// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
+									new_connexion->journey_time = accumulated_journey_time;
+								}
+							}
+							new_connexion->best_convoy = current_linkage.convoy;
+							new_connexion->best_line = current_linkage.line;
+							new_connexion->alternative_seats = 0;
+
+							// Check whether this is the best connexion so far, and, if so, add it.
+							if (!catg_connexions->put(halt_list[t], new_connexion))
+							{
+								// The key exists in the hashtable already - check whether this entry is better.
+								haltestelle_t::connexion* existing_connexion = catg_connexions->get(halt_list[t]);
+								if (existing_connexion->journey_time > new_connexion->journey_time)
+								{
+									// The new connexion is better - replace it.
+									new_connexion->alternative_seats = existing_connexion->alternative_seats;
+									delete existing_connexion;
+									catg_connexions->set(halt_list[t], new_connexion);
+								}
+								else
+								{
+									delete new_connexion;
+								}
+							}
+							else
+							{
+								halt_list[h]->prepare_goods_list(catg);
+							}
 						}
 					}
 				}
@@ -2057,7 +2355,7 @@ void path_explorer_t::compartment_t::reset_connexion_entry(const uint16 halt_id)
 {
 	if ( !connexion_list[halt_id].connexion_table->empty() )
 	{
-		FOR(haltestelle_t::connexions_map, const& iter, (*(connexion_list[halt_id].connexion_table)))
+		for(auto const iter : (*(connexion_list[halt_id].connexion_table)))
 		{
 			delete iter.value;
 		}
@@ -2448,7 +2746,7 @@ void path_explorer_t::compartment_t::connection_t::rdwr(loadsave_t* file)
 	{
 		uint32 cluster_map_count = cluster_map.get_count();
 		file->rdwr_long(cluster_map_count);
-		FOR(cluster_map_type, iter, cluster_map)
+		for(auto iter : cluster_map)
 		{
 			file->rdwr_short(iter.key);
 			iter.value->rdwr(file);

@@ -10,6 +10,7 @@
 #include "simwin.h"
 #include "gui_frame.h"
 #include "components/gui_button.h"
+#include "components/gui_colorbox.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_label.h"
 #include "components/gui_image.h"
@@ -24,6 +25,8 @@ class gui_vehicle_capacity_t : public gui_aligned_container_t
 {
 public:
 	gui_vehicle_capacity_t(const vehicle_desc_t *veh_type);
+
+	void init_table(const vehicle_desc_t *veh_type);
 };
 
 
@@ -45,24 +48,26 @@ private:
 
 	uint16 month_now; // auto update flag
 
+	gui_label_buf_t lb_name;
+	gui_image_t img_vehicle;
+	gui_vehicle_bar_t colorbar;
+
 	gui_tab_panel_t tabs;
 
 	button_t bt_prev, bt_next;
+
+	gui_vehicle_capacity_t cont_capacity;
 
 	gui_aligned_container_t cont_spec, cont_maintenance, cont_upgrade, cont_livery;
 	gui_scrollpane_t scroll_livery, scroll_upgrade;
 
 	void init_table();
+	void update_components();
 
 public:
 	vehicle_detail_t(const vehicle_desc_t *v);
 
-	// Inability to command gui_flame to update immediately from components on the flame
-	// because the order kills component itself
-	// thus leaving the update flag
-	static bool need_update;
-
-	void set_vehicle(const vehicle_desc_t *v) { need_update=true; veh_type = v; }
+	void set_vehicle(const vehicle_desc_t *v) { veh_type = v; update_components(); }
 	const vehicle_desc_t* get_vehicle() { return veh_type; }
 
 	const char *get_help_filename() const OVERRIDE {return "vehicle_detail.txt"; }

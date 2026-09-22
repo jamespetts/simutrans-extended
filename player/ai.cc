@@ -341,7 +341,7 @@ bool ai_t::built_update_headquarter()
 	// is the a suitable one?
 	if(desc!=NULL) {
 		// cost is negative!
-		sint64 const cost = welt->get_settings().cst_multiply_headquarter * desc->get_level() * desc->get_x() * desc->get_y();
+		sint64 const cost = welt->get_settings().get_cost_multiply_headquarter() * desc->get_level() * desc->get_x() * desc->get_y();
 		if(  finance->get_account_balance()+cost > finance->get_starting_money() ) {
 			// and enough money left ...
 			koord place = get_headquarter_pos();

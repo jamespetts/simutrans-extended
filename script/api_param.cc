@@ -559,7 +559,7 @@ namespace script_api {
 			v.minimum_loading,
 			v.waiting_time_shift,
 			v.spacing_shift,
-			v.reverse/*,
+			v.reverse,
 			v.flags,
 			v.unique_entry_id,
 			v.condition_bitfield_broadcaster,
@@ -568,7 +568,7 @@ namespace script_api {
 			v.target_id_couple,
 			v.target_id_uncouple,
 			v.target_unique_entry_uncouple,
-			v.max_speed_kmh*/);
+			v.max_speed_kmh);
 	}
 
 	SQInteger param<schedule_t*>::push(HSQUIRRELVM vm, schedule_t* const& v)

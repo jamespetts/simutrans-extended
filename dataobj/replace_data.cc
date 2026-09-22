@@ -18,14 +18,8 @@
 
 replace_data_t::replace_data_t()
 {
-	autostart = true;
-	retain_in_depot = false;
-	use_home_depot = false;
-	allow_using_existing_vehicles = true;
 	replacing_vehicles = new vector_tpl<const vehicle_desc_t *>;
 	replacing_convoys = new vector_tpl<convoihandle_t>();
-	number_of_convoys = 0;
-	clearing = false;
 }
 
 replace_data_t::replace_data_t(replace_data_t* copy_from)
@@ -61,43 +55,21 @@ replace_data_t::replace_data_t(loadsave_t *file)
 void replace_data_t::sprintf_replace(cbuffer_t &buf) const
 {
 	// First of all, general information
-	buf.append(autostart ? "1" : "0");
-	buf.append(retain_in_depot ? "1" : "0");
-	buf.append(use_home_depot ? "1" : "0");
-	buf.append(allow_using_existing_vehicles ? "1" : "0");
+	buf.append_bool(autostart);
+	buf.append_bool(retain_in_depot);
+	buf.append_bool(use_home_depot);
+	buf.append_bool(allow_using_existing_vehicles);
+	buf.append_fixed(replace_at);
 
-	// Secondly, the number of convoys. Use leading zeros
-	// to keep a constant number of characters.
-	sint8 zeros = 0;
-	if(number_of_convoys < 10)
-	{
-		zeros = 4;
-	}
-	else if(number_of_convoys < 100)
-	{
-		zeros = 3;
-	}
-	else if(number_of_convoys < 1000)
-	{
-		zeros = 2;
-	}
-	else if(number_of_convoys < 10000)
-	{
-		zeros = 1;
-	}
-	while(zeros > 0)
-	{
-		buf.append("0");
-		zeros--;
-	}
-	buf.append((int)number_of_convoys);
+	const uint16 number = number_of_convoys < 0 ? 0 : number_of_convoys; // Do we need this check?
+	buf.append_fixed(number);
 
 	// Finally, the replacing vehicles.
 	// Separate each name with the "|" character.
 	buf.append("|");
-	ITERATE_PTR(replacing_vehicles, n)
+	for(auto replacing_vehicle : *replacing_vehicles)
 	{
-		buf.append(replacing_vehicles->get_element(n)->get_name());
+		buf.append(replacing_vehicle->get_name());
 		buf.append("|");
 	}
 	// Terminating character
@@ -105,10 +77,10 @@ void replace_data_t::sprintf_replace(cbuffer_t &buf) const
 }
 
 
-bool replace_data_t::sscanf_replace(const char *ptr)
+bool replace_data_t::sscanf_replace(const char* ptr)
 {
-	const char *p = ptr;
-	// Firstly, get the general settings.
+	const char* p = ptr;
+	// First, get the general settings.
 	const char as[2] = { *p++, 0 };
 	autostart = atoi(as);
 	const char rid[2] = { *p++, 0 };
@@ -117,15 +89,20 @@ bool replace_data_t::sscanf_replace(const char *ptr)
 	use_home_depot = atoi(uhd);
 	const char auev[2] = { *p++, 0 };
 	allow_using_existing_vehicles = atoi(auev);
+	const char ra[2] = { *p++, 0 };
+	replace_at = atoi(ra);
 
-	//Secondly, get the number of replacing vehicles
-	char rv[6];
+
+	// Secondly, get the number of replacing vehicles (apparently deprecated)
+	/*char rv[6];
 	for(uint8 i = 0; i < 5; i ++)
 	{
 		rv[i] = *p++;
 	}
 	rv[5] = 0;
-	number_of_convoys = atoi(rv);
+	number_of_convoys = atoi(rv);*/
+
+	number_of_convoys = cbuffer_t::decode_uint16(p);
 
 	// Thirdly, get the replacing vehicles.
 	replacing_vehicles->clear();
@@ -182,15 +159,24 @@ void replace_data_t::rdwr(loadsave_t *file)
 	file->rdwr_bool(use_home_depot);
 	file->rdwr_bool(allow_using_existing_vehicles);
 
+	if (file->get_extended_version() >= 15)
+	{
+		file->rdwr_byte(replace_at);
+	}
+	else
+	{
+		replace_at = immediate;
+	}
+
 	uint16 replacing_vehicles_count;
 
 	if(file->is_saving())
 	{
 		replacing_vehicles_count = replacing_vehicles->get_count();
 		file->rdwr_short(replacing_vehicles_count);
-		ITERATE_PTR(replacing_vehicles, i)
+		for(auto replacing_vehicle : *replacing_vehicles)
 		{
-			const char *s = replacing_vehicles->get_element(i)->get_name();
+			const char *s = replacing_vehicle->get_name();
 			file->rdwr_str(s);
 		}
 	}
@@ -199,8 +185,8 @@ void replace_data_t::rdwr(loadsave_t *file)
 		file->rdwr_short(replacing_vehicles_count);
 		for(uint16 i = 0; i < replacing_vehicles_count; i ++)
 		{
-			char vehicle_name[256];
-			file->rdwr_str(vehicle_name, 256);
+			char vehicle_name[512];
+			file->rdwr_str(vehicle_name, 512);
 			const vehicle_desc_t* desc = vehicle_builder_t::get_info(vehicle_name);
 			if(desc == NULL)
 			{
@@ -218,7 +204,7 @@ void replace_data_t::rdwr(loadsave_t *file)
 	}
 }
 
-const vehicle_desc_t*  replace_data_t::get_replacing_vehicle(uint16 number) const
+const vehicle_desc_t* replace_data_t::get_replacing_vehicle(uint16 number) const
 {
 	return replacing_vehicles->get_element(number);
 
@@ -265,13 +251,13 @@ void replace_data_t::increment_convoys(convoihandle_t cnv)
 void replace_data_t::clear_all()
 {
 	clearing = true;
-	ITERATE_PTR(replacing_convoys, i)
+	for(auto replacing_convoy : *replacing_convoys)
 	{
-		if(replacing_convoys->get_element(i).is_bound())
+		if(replacing_convoy.is_bound())
 		{
-			replacing_convoys->get_element(i)->clear_replace();
-			replacing_convoys->get_element(i)->set_depot_when_empty(false);
-			replacing_convoys->get_element(i)->set_no_load(false);
+			replacing_convoy->clear_replace();
+			replacing_convoy->set_depot_when_empty(false);
+			replacing_convoy->set_no_load(false);
 		}
 	}
 	delete this;

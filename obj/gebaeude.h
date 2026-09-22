@@ -23,7 +23,7 @@ class planquadrat_t;
 /**
  * Asynchronous or synchronous animations for buildings.
  */
-class gebaeude_t : public obj_t, sync_steppable
+class gebaeude_t : public obj_t, public sync_steppable
 {
 private:
 	const building_tile_desc_t *tile;

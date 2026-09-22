@@ -151,7 +151,7 @@ class vehicle_class_manager_t : public gui_frame_t , private action_listener_t
 
 	cbuffer_t title_buf;
 
-	gui_label_buf_t lb_total_max_income, lb_total_running_cost, lb_total_maint;
+	gui_label_buf_t lb_total_max_income, lb_total_running_cost, lb_total_maint, lb_staff_cost;
 	button_t bt_init_fare;
 	gui_convoy_loading_info_t capacity_info;
 

@@ -7,14 +7,6 @@
 #define TPL_FIXED_LIST_TPL_H
 
 
-#ifndef ITERATE
-#define ITERATE(collection,enumerator) for(uint32 enumerator = 0; enumerator < (collection).get_count(); enumerator++)
-#endif
-
-#ifndef ITERATE_PTR
-#define ITERATE_PTR(collection,enumerator) for(uint32 enumerator = 0; enumerator < (collection)->get_count(); enumerator++)
-#endif
-
 #include <typeinfo>
 #include "../simtypes.h"
 #include "../simdebug.h"
@@ -38,7 +30,6 @@ template<class T, int N> class fixed_list_tpl
 {
 
 public:
-
 	fixed_list_tpl() : size(0), head(0), tail(0)/*, placeholder(0), placeholder_set(false)*/   { }
 
 	T get_element(uint8 e)

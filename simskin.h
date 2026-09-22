@@ -122,6 +122,8 @@ public:
 	static const skin_desc_t *mail_evaluation_icons;
 	/// @}
 
+	static const skin_desc_t *staff_cost;
+
 	/// images used to alert in line with message text
 	static const skin_desc_t *alerts;
 
@@ -154,6 +156,10 @@ public:
 	static const skin_desc_t *service_frequency;
 	/// image to indicate that the movement method is walking
 	static const skin_desc_t *on_foot;
+	/// image shown in schedule dialog
+	static const skin_desc_t *layover;
+	static const skin_desc_t *refuel;
+	static const skin_desc_t *ignore_choose;
 
 	/// image to clarify the function of buttons
 	static const skin_desc_t *open_window;

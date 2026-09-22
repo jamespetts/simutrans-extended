@@ -203,7 +203,8 @@ void signal_t::info(cbuffer_t & buf) const
 	if (desc->get_maintenance() > 0)
 	{
 		char maintenance_number[64];
-		money_to_string(maintenance_number, (double)welt->calc_adjusted_monthly_figure(desc->get_maintenance()) / 100.0);
+		money_to_string(maintenance_number, (double)welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(desc->get_maintenance()), infrastructure) / 100.0);
+
 		buf.printf("%s%s", translator::translate("maintenance"), ": ");
 		buf.append(maintenance_number);
 	}
@@ -1065,11 +1066,7 @@ void signal_t::calc_image()
 
 void signal_t::rdwr_signal(loadsave_t *file)
 {
-#ifdef SPECIAL_RESCUE_12_5
-	if(file->get_extended_version() >= 12 && file->is_saving())
-#else
 	if(file->get_extended_version() >= 12)
-#endif
 	{
 		signalbox.rdwr(file);
 
@@ -1080,19 +1077,12 @@ void signal_t::rdwr_signal(loadsave_t *file)
 		bool ignore_choose_full = ignore_choose;
 		file->rdwr_bool(ignore_choose_full);
 		ignore_choose = ignore_choose_full;
-#ifdef SPECIAL_RESCUE_12_6
-		if(file->is_saving())
-		{
-#endif
 		file->rdwr_bool(no_junctions_to_next_signal);
 		if (file->is_loading() && desc && desc->is_choose_sign())
 		{
 			no_junctions_to_next_signal = false;
 		}
 		file->rdwr_longlong(train_last_passed);
-#ifdef SPECIAL_RESCUE_12_6
-		}
-#endif
 	}
 
 	if(no_junctions_to_next_signal && desc && (desc->get_working_method() == time_interval || desc->get_working_method() == time_interval_with_telegraph) && (state == caution || state == caution_no_choose || state == danger))

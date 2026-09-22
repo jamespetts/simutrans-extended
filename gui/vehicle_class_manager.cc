@@ -460,6 +460,11 @@ void vehicle_class_manager_t::init(convoihandle_t cnv)
 		//translator::translate("tpo_income_pr_km_(full_convoy):")
 		//translator::translate("catering_income_pr_km_(full_convoy):")
 
+		new_component<gui_label_t>("monthly_staff_cost");
+		add_component(&lb_staff_cost);
+		new_component<gui_label_t>("/month");
+		new_component<gui_fill_t>();
+
 		new_component<gui_label_t>("monthly_maintenance_cost");
 		add_component(&lb_total_maint);
 		new_component<gui_label_t>("/month");
@@ -486,6 +491,7 @@ void vehicle_class_manager_t::init(convoihandle_t cnv)
 
 	lb_total_max_income.set_color(MONEY_PLUS);
 	lb_total_running_cost.set_color(MONEY_MINUS);
+	lb_staff_cost.set_color(MONEY_MINUS);
 	lb_total_maint.set_color(MONEY_MINUS);
 
 
@@ -625,6 +631,8 @@ void vehicle_class_manager_t::update_list()
 
 	lb_total_running_cost.buf().printf("%1.2f$", cnv->get_per_kilometre_running_cost()/100.0);
 	lb_total_running_cost.update();
+	lb_staff_cost.buf().printf("%1.2f$", cnv->get_salaries(100)/100.0);
+	lb_staff_cost.update();
 	lb_total_maint.buf().printf("%1.2f$", world()->calc_adjusted_monthly_figure(cnv->get_fixed_cost())/100.0);
 	lb_total_maint.update();
 

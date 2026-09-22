@@ -95,15 +95,15 @@ void goods_desc_t::set_scale(uint16)
 	scaled_values.clear();
 	uint16 new_price;
 	uint32 new_distance;
-	ITERATE(values, i)
+	for(auto value : values)
 	{
 		// There are three things going on here:
 		// (1) price is per km, divide by 1000 to get per meter
 		// (2) price is in simcents, multiply by 4096 to get "internal units"
 		// (3) all prices must be divided by 3 for silly historical reasons
 		// The choice of 4096 allows for less precision loss than otherwise
-		new_price = values[i].price * 4096 / 3000;
-		new_distance = values[i].to_distance * 1000;
+		new_price = value.price * 4096 / 3000;
+		new_distance = value.to_distance * 1000;
 		scaled_values.append(fare_stage_t(new_distance, new_price));
 	}
 }
@@ -123,20 +123,21 @@ void goods_desc_t::set_scale(uint16)
  * This is very different from the similarly-named routine in standard
  * @author: jamespetts, neroden
  */
-sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_distance) const
+sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_distance, bool ignore_inflation) const
 {
 	sint64 total_fare = 0;
 	uint16 per_meter_fare;
 	uint32 remaining_distance = distance_meters;
-	ITERATE(scaled_values, i)
+	uint32 i = 0;
+	for(auto scaled_value : scaled_values)
 	{
 		per_meter_fare = scaled_values[i].price;
-		if(i < scaled_values.get_count() - 1 && starting_distance >= scaled_values[i].to_distance)
+		if(i < scaled_values.get_count() - 1 && starting_distance >= scaled_value.to_distance)
 		{
 			starting_distance -= scaled_values[i].to_distance;
 			continue;
 		}
-		if(scaled_values[i].to_distance >= remaining_distance || i == scaled_values.get_count() - 1)
+		if(scaled_value.to_distance >= remaining_distance || i == scaled_values.get_count() - 1)
 		{
 			// The last item in the list must trigger the use of the full remaining distance.
 			total_fare += (sint64)per_meter_fare * remaining_distance;
@@ -145,16 +146,36 @@ sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_dista
 		else
 		{
 			total_fare += (sint64)per_meter_fare * (scaled_values[i].to_distance - starting_distance);
-			remaining_distance -= (scaled_values[i].to_distance - starting_distance);
+			remaining_distance -= (scaled_value.to_distance - starting_distance);
 			starting_distance = 0;
 		}
+		i++;
 	}
+
+	if (!ignore_inflation)
+	{
+		price_type pt;
+		if (get_index() == goods_manager_t::INDEX_PAS)
+		{
+			pt = passenger_fare;
+		}
+		else if (get_index() == goods_manager_t::INDEX_MAIL)
+		{
+			pt = mail_rate;
+		}
+		else
+		{
+			pt = goods_rate;
+		}
+		total_fare = world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), total_fare, pt);
+	}
+
 	return total_fare;
 }
 
 sint64 goods_desc_t::get_total_fare(uint32 distance_meters, uint32 starting_distance, uint8 comfort, uint8 catering_level, uint8 g_class, sint64 journey_tenths) const
 {
-	sint64 fare = get_base_fare(distance_meters, starting_distance);
+	sint64 fare = get_base_fare(distance_meters, starting_distance, true); // We compute inflation at the end here so that we do not need to compute inflation separately for catering revenues, etc..
 
 	// Apply the modifiers for passengers/mail: class, comfort and catering
 	if (get_index() == goods_manager_t::INDEX_PAS || get_index() == goods_manager_t::INDEX_MAIL)
@@ -221,13 +242,26 @@ sint64 goods_desc_t::get_total_fare(uint32 distance_meters, uint32 starting_dist
 
 				// TODO: Consider how to deal with TPO revenue in the future.
 
-				// Use the TPO revenue table.  It is a functional.
+				// Use the TPO revenue table. It is a functional.
 				fare += world()->get_settings().tpo_revenues(journey_tenths);
 			}
 		}
 	}
 
-	// TODO: Add inflation here
+	price_type pt;
+	if (get_index() == goods_manager_t::INDEX_PAS)
+	{
+		pt = passenger_fare;
+	}
+	else if (get_index() == goods_manager_t::INDEX_MAIL)
+	{
+		pt = mail_rate;
+	}
+	else
+	{
+		pt = goods_rate;
+	}
+	fare = world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), fare, pt);
 
 	return fare;
 }

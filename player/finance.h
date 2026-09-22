@@ -114,6 +114,7 @@ enum accounting_type_common {
 	ATC_INTEREST,				/// interest received/paid
 	ATC_SOFT_CREDIT_LIMIT,		/// soft credit limit (player cannot spend money)
 	ATC_HARD_CREDIT_LIMIT,		/// hard credit limit (player is insolvent)
+	ATC_TAX,					/// Corporation tax paid
 	ATC_MAX
 };
 
@@ -361,6 +362,26 @@ public:
 	}
 
 	/**
+	* Adds tax to accounting statistics.
+	*/
+	void book_tax(const sint64 amount)
+	{
+		com_year[0][ATC_TAX] += amount;
+		com_month[0][ATC_TAX] += amount;
+		account_balance += amount;
+	}
+
+	/**
+	* Adds tax to accounting statistics.
+	*/
+	void book_interest(const sint64 amount)
+	{
+		com_year[0][ATC_INTEREST] += amount;
+		com_month[0][ATC_INTEREST] += amount;
+		account_balance += amount;
+	}
+
+	/**
 	 * Accounts distance-based running costs
 	 * @param amount sum of money
 	 * @param wt way type
@@ -532,7 +553,12 @@ public:
 	void book_interest_monthly();
 
 	/**
-	 * Books amount of money to account (also known as konto)
+	 * Book corporation tax (monthy)
+	 */
+	void book_corporation_tax_monthly();
+
+	/**
+	 * Books amount of money to account
 	 */
 	void book_account(sint64 amount)
 	{
@@ -541,7 +567,7 @@ public:
 		com_year [0][ATC_CASH] = account_balance;
 		com_month[0][ATC_NETWEALTH] += amount;
 		com_year [0][ATC_NETWEALTH] += amount;
-		// BUG profit is not adjusted when calling this method
+		//FIXME: profit is not adjusted when calling this method
 	}
 
 	/**

@@ -63,10 +63,10 @@ class citylist_frame_t : public gui_frame_t, private action_listener_t
 	void fill_list();
 	void update_label();
 	/*
-     * All filter settings are static, so they are not reset each
-     * time the window closes.
-     */
-    static citylist_stats_t::sort_mode_t sortby;
+	 * All filter settings are static, so they are not reset each
+	 * time the window closes.
+	 */
+	static citylist_stats_t::sort_mode_t sortby;
 
  public:
     citylist_frame_t();

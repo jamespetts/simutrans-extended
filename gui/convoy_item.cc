@@ -12,19 +12,19 @@
 
 const char* convoy_scrollitem_t::get_text() const
 {
-	return cnv->get_name();
+	return cnv.is_bound() ? cnv->get_name() : "Convoy not found";
 }
 
 
 PIXVAL convoy_scrollitem_t::get_color() const
 {
-	return cnv->get_status_color();
+	return cnv.is_bound() ? (use_convoy_status_color ? cnv->get_status_color() : color) : SYSCOL_EDIT_TEXT_DISABLED;
 }
 
 
 void convoy_scrollitem_t::set_text(char const* const t)
 {
-	if(  t  &&  t[0]  &&  strcmp( t, cnv->get_name() )  ) {
+	if(  cnv.is_bound()  &&  t  &&  t[0]  &&  strcmp( t, cnv->get_name() )  ) {
 		// text changed => call tool
 		cbuffer_t buf;
 		buf.printf("c%u,%s", cnv.get_id(), t );
