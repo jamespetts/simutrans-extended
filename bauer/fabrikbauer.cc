@@ -1544,7 +1544,11 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							buf.printf( translator::translate("Factory chain extended\nfor %s near\n%s built with\n%i factories."), translator::translate(unlinked_consumer->get_name()), stadt_name, nr );
 							welt->get_message()->add_message(buf, unlinked_consumer->get_pos().get_2d(), message_t::industry, CITY_KI, unlinked_consumer->get_desc()->get_building()->get_tile(0)->get_background(0, 0, 0));
 						}
-						minimap_t::get_instance()->calc_map();
+						// Flag-only refresh: the bitmap is recomputed lazily at the next minimap
+						// draw (and unconditionally re-flagged by minimap_t::new_month() in the
+						// same month tick), so a full recompute per built chain would only burn
+						// synced-step time for no visible difference.
+						minimap_t::get_instance()->calc_map_size();
 						return nr;
 					}
 				}
