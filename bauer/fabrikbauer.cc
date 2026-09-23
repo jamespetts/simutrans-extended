@@ -1069,7 +1069,12 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 						if(welt->get_settings().using_fab_contracts()){
 							production_left-=fab->get_output(ware)->get_total_contracts();
 						}else{
-							for(auto const & consumer_pos : fab->get_consumers()) {
+							production_left = adjust_input_consumption(fab, ware);//adjust_input_consumption(fab, fab->get_base_production() * product_desc->get_factor());
+
+							//As it turns out, all of the below is redundant and drastically overestimates consumption due to not factoring in competing suppliers
+							//Thankfully, adjust_input_consumption does!
+
+							/*for (auto const& consumer_pos : fab->get_consumers()) {
 								if (production_left <= 0) break;
 								fabrik_t* const consumer = fabrik_t::get_fab(consumer_pos);
 								for(int supplier_num=0; supplier_num < consumer->get_desc()->get_supplier_count(); supplier_num++) {
@@ -1079,7 +1084,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 										break;
 									}
 								}
-							}
+							}*/
 						}
 
 						// here is actually capacity left (or sometimes just connect anyway)!
@@ -1167,7 +1172,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 			INT_CHECK("fabrikbauer 697");
 
 			DBG_MESSAGE("factory_builder_t::build_link", "Try to built supplier %s at (%i,%i) r=%i for %s.", producer_d->get_name(), build_pos.x, build_pos.y, rotate, info->get_name());
-			new_fabs_built_count += build_link(&parent_pos, producer_d, -1 /*random prodbase */, rotate, &build_pos, player, 10000, ignore_climates);
+			new_fabs_built_count += build_link(&parent_pos, producer_d, -1 /*random prodbase */, rotate, &build_pos, player, 0, ignore_climates);
 			suppliers_found ++;
 
 			INT_CHECK( "fabrikbauer 702" );
@@ -1282,7 +1287,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 		if(welt->get_settings().using_fab_contracts()){
 			for(auto fab : welt->get_fab_list()){
 				// First, re-link industries as necessary without building new.
-				if (fab->disconnect_supplier(koord::invalid)) // This does not remove anything, but checks for missing suppliers
+				if (fab->disconnect_supplier(koord::invalid, (fabrik_t *) 0, tell_me)) // This does not remove anything, but checks for missing suppliers
 				{
 					force_add_consumer = false;
 				}
@@ -1316,7 +1321,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			for(auto fab : welt->get_fab_list())
 			{
 				// First, re-link industries as necessary without building new.
-				if (fab->disconnect_supplier(koord::invalid)) // This does not remove anything, but checks for missing suppliers
+				if (fab->disconnect_supplier(koord::invalid, (fabrik_t*) 0, tell_me)) // This does not remove anything, but checks for missing suppliers
 				{
 					force_add_consumer = false;
 				}
@@ -1335,8 +1340,14 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 					auto suppliers = fab->get_suppliers(input_type);
 
 					if (suppliers.get_count() == 0) {
-						DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with 0 suppliers for input %s", fab->get_name(), input_type->get_name());
-						unlinked_consumers.append_unique(unlinked_consumer_t(fab, l));
+
+						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
+							if (fab->get_input()[i].get_typ() == input_type) {
+								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with 0 suppliers for input %s (i: %d)", fab->get_name(), input_type->get_name(), i);
+								unlinked_consumers.append(unlinked_consumer_t(fab, i));
+								break;
+							}
+						}
 						continue;
 					}
 
@@ -1385,7 +1396,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 									}
 								}
 							}
-							DBG_MESSAGE("factory_builder_t::increase_industry_density()", "checking supplier %s for good %s with production %ld (total competing consumers: %i, used output %ld)", supplier->get_name(), input_type->get_name(), total_output_supplier, supplier->get_consumers(input_type).get_count(), used_output);
+							//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "checking supplier %s for good %s with production %ld (total competing consumers: %i, used output %ld)", supplier->get_name(), input_type->get_name(), total_output_supplier, supplier->get_consumers(input_type).get_count(), used_output);
 
 							const sint32 remaining_output = total_output_supplier - (sint32)used_output;
 
@@ -1396,17 +1407,22 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							else {
 								available_for_consumption += total_output_supplier * consumption_level / (used_output + consumption_level);
 							}
-							if(available_for_consumption >= consumption_level)
+							if((available_for_consumption * 8) > (consumption_level * 9)) //tolerate a little oversupply
 							{
 								// If the suppliers between them do supply enough of the product, do not list it as missing.
 								missing_goods.remove(input_type);
 								uint32 old_weight = 0;
-								if (oversupplied_goods.is_contained(input_type))
+								if (oversupplied_goods.is_contained(input_type) )
 								{
+									int old_index = oversupplied_goods.index_of(input_type);
 
-									old_weight = oversupplied_goods.weight_at(oversupplied_goods.index_of(input_type));
+									if (old_index < oversupplied_goods.get_count() - 1) {
+										old_weight = oversupplied_goods.weight_at(old_index + 1) - oversupplied_goods.weight_at(old_index);
+									}
+									else {
+										old_weight = oversupplied_goods.get_sum_weight() - oversupplied_goods.weight_at(old_index);
+									}
 									// Avoid duplication
-									oversupplied_goods.remove(input_type);
 								}
 								// Get the total distribution_weight of consumers of this product
 								int total_consumer_weight = 0;
@@ -1429,9 +1445,13 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								//oversupplied_goods.append(input_type, max(old_weight, ((available_for_consumption * total_consumer_weight) / consumption_level))); // Middle ground between oversupply percentage and consumer weighting
 								sint32 global_production = get_global_production(input_type);
 								sint32 global_consumption = get_global_consumption(input_type);
-								if ((global_production - global_consumption) > 0 && global_consumption > 0) { //if global_consumption == 0, then that means the only downstream consumption of the good is from power stations and we should disregard it
-									oversupplied_goods.append_unique(input_type, (global_production * total_consumer_weight) / global_consumption);
-									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s to oversupplied_goods with weight %ld (new total weight: %ld)", input_type->get_name(), (global_production * total_consumer_weight) / global_consumption, oversupplied_goods.get_sum_weight());
+								if ((global_production * 8) > (global_consumption * 9)) { //tolerate a little bit of oversupply
+									//Weight is: total consumer weight * (production/consumption)
+									uint32 new_weight = (global_production * total_consumer_weight) / max(global_consumption, 1);
+									if(!oversupplied_goods.update(input_type, max(new_weight, old_weight)))
+										oversupplied_goods.append(input_type, new_weight);
+
+									DBG_MESSAGE("factory_builder_t::increase_industry_density()", "appending good %s (%ld/%ld ) to oversupplied_goods with weight %ld (new total weight: %ld, old weight: %ld, total consumer weight: %ld)", input_type->get_name(), global_production, global_consumption, new_weight, oversupplied_goods.get_sum_weight(), old_weight, total_consumer_weight);
 
 								}
 								else if (global_consumption == 0) {
@@ -1441,11 +1461,12 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 							}
 						}
 					} // Actual suppliers
-					if (available_for_consumption < consumption_level) {
+					if ((available_for_consumption * 9) < (consumption_level * 8) || available_for_consumption <= 0) { //tolerate a little undersupply
 						for (int i = 0; i < fab->get_desc()->get_supplier_count(); i++) {
-							if(fab->get_input()[i].get_typ() == input_type){
+							if (fab->get_input()[i].get_typ() == input_type) {
 								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "found undersupplied factory %s with %ld/%ld production for input %s", fab->get_name(), available_for_consumption, consumption_level, input_type->get_name());
 								unlinked_consumers.append_unique(unlinked_consumer_t(fab, i));
+								break;
 							}
 						}
 					}
@@ -1552,7 +1573,7 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 	// Determine whether to fill in oversupplied goods with a consumer industry, or generate one entirely randomly
 	const goods_desc_t* input_for_consumer = NULL;
 	//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "Oversupplied goods sum weight: %ld (%s)", oversupplied_goods.get_sum_weight(), oversupplied_goods.get_sum_weight() > 0 ? "true":"false");
-	if (!oversupplied_goods.empty() && (oversupplied_goods.get_sum_weight() > 0) && ((simrand(100, "factory_builder_t::increase_industry_density()") < 20) || force_consumer == 2))
+	if (!oversupplied_goods.empty() && (oversupplied_goods.get_sum_weight() > 0) && ((simrand(100, "factory_builder_t::increase_industry_density()") < 20) || force_consumer == CONSUMER_ONLY))
 	{
 		for (uint16 i = 0; i < oversupplied_goods.get_count(); i++) {
 			DBG_MESSAGE("factory_builder_t::increase_industry_density()", "oversupplied good: %s (weight %ld)", oversupplied_goods[i]->get_name(), oversupplied_goods.weight_at(i));
@@ -1562,13 +1583,20 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			const uint32 pick = simrand(oversupplied_goods.get_sum_weight(), "factory_builder_t::increase_industry_density()");
 			const goods_desc_t* new_input = oversupplied_goods.at_weight(pick);
 			if(get_global_oversupply(new_input) > 0){
-				if (force_consumer == CONSUMER_ONLY && get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input, false)) {
-					input_for_consumer = new_input;
+				if (force_consumer == CONSUMER_ONLY) {
+					if (get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input, false)){
+						input_for_consumer = new_input;
+						break;
+					}
+					else if (tries <= 3 && get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input)) {
+						input_for_consumer = new_input;
+						break;
+					}
 				}
-				else if (get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(),new_input) ){
+				else if (get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), new_input)) {
 					input_for_consumer = new_input;
+					break;
 				}
-				break;
 			}
 			tries--;
 		}
@@ -1607,6 +1635,23 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 			const goods_desc_t* good2 = NULL;
 			if(consumer)
 			{
+				//when adding manufacturers, we need to avoid adding new manufacturer types when existing manufacturers are underconsumed
+				//therefore: check if this manufacturer does not already exist in-world, and if so, check if there is already a consumer for input_for_consumer that exists and is underconsumed
+				bool fabtype_exists = false;
+				for (fabrik_t* fab : welt->get_fab_list()) {
+					if (fab->get_desc() == consumer) {
+						fabtype_exists = true;
+					}
+				}
+				if (!fabtype_exists) { //retry so we get a new consumer
+					if (force_consumer == CONSUMER_ONLY) {
+						consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer, false);
+					}
+					else {
+						consumer = get_random_consumer(no_electric == 0, ALL_CLIMATES, 65535, welt->get_timeline_year_month(), input_for_consumer);
+					}
+				}
+
 				DBG_MESSAGE("factory_builder_t::increase_industry_density()", "chose random consumer %s", consumer->get_name());
 				if (!consumer->is_consumer_only()) { //logic for making new manufacturers
 					//first we check if this consumer is making a good that is already overproduced, if so we just add a new consumer for that good (to prevent adding multiple undercapacity factories)
@@ -1667,16 +1712,27 @@ int factory_builder_t::increase_industry_density( bool tell_me, bool do_not_add_
 								nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 0, ignore_climates);
 								nr += build_link(&pos, consumer2, -1, rotation2, &pos2, welt->get_public_player(), 0, ignore_climates);
 
-								//cbuffer_t buf2;
-								//buf2.printf("Adding link for good2 %s with factory %s (real oversupply %ld).\n", good2->get_name(), consumer2->get_name(), get_real_oversupply(good2));
-								//welt->get_message()->add_message(buf2, pos2.get_2d(), message_t::industry, CITY_KI);
+								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "attempting to cross-connect consumer %s", consumer2->get_name());
+								fabrik_t* const consumer2_fab = fabrik_t::get_fab(pos2.get_2d());
+								for (int i = 0; i < consumer2->get_supplier_count(); i++) {
+									if (consumer2->get_supplier(i)->get_input_type() == good2 && nr > 0) {
+
+										build_chain_link(consumer2_fab, consumer2_fab->get_desc(), i, welt->get_public_player(), true); //cross-connect the consumer as well
+									}
+
+								}
 							}
-							else {
+							else if (consumer->is_consumer_only()) {
 								nr += build_link(NULL, consumer, -1 /* random prodbase */, rotation, &pos, welt->get_public_player(), 0, ignore_climates);
 
-								/*cbuffer_t buf;
-								buf.printf("Adding link for good %s with factory %s (real oversupply %ld).\n", input_for_consumer->get_name(), consumer->get_name(), get_real_oversupply(input_for_consumer));
-								welt->get_message()->add_message(buf, pos.get_2d(), message_t::industry, CITY_KI);*/
+								DBG_MESSAGE("factory_builder_t::increase_industry_density()", "attempting to cross-connect consumer %s", consumer->get_name());
+								for (int i = 0; i < consumer->get_supplier_count(); i++) {
+									if (consumer->get_supplier(i)->get_input_type() == input_for_consumer && nr > 0) {
+										fabrik_t* const consumer_fab = fabrik_t::get_fab(pos.get_2d());
+										build_chain_link(consumer_fab, consumer_fab->get_desc(), i, welt->get_public_player(), true); //cross-connect the consumer as well
+									}
+
+								}
 							}
 						}
 					}
@@ -1751,9 +1807,9 @@ sint32 factory_builder_t::get_global_production(const goods_desc_t* good) {
 		for (uint32 i = 0; i < fab->get_output().get_count(); i++) {
 			const goods_desc_t* factory_good = fab->get_output()[i].get_typ();
 			if (factory_good == good) { //does this factory produce the good we want?
-				const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
-				const sint32 monthly_prod = fab->get_monthly_production(pfactor);
-				total_prod += monthly_prod;
+				//const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
+				//const sint32 monthly_prod = fab->get_monthly_production(pfactor);
+				total_prod += adjust_output_production(fab, good);
 			}
 		}
 	}
@@ -1782,7 +1838,7 @@ sint32 factory_builder_t::get_global_consumption(const goods_desc_t* good) {
 
 					}
 					if (output_prod > 0) {
-						monthly_cons = (monthly_cons * output_cons) / output_prod;
+						monthly_cons = (sint32)(((sint64)monthly_cons * (sint64)output_cons) / (sint64)output_prod);
 					}
 					else {
 						monthly_cons = 0;
@@ -1833,12 +1889,137 @@ sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, sint32 c
 			if (output_cons > output_prod) {
 				output_cons = output_prod;
 			}
-			const sint32 test_adjust = (consumption * output_cons) / output_prod;
+			const sint32 test_adjust = (sint32)(((sint64)consumption * output_cons) / output_prod);
 			largest_adjusted = max(largest_adjusted, test_adjust);
 		}
 		return largest_adjusted;
 	}
 	return consumption;
+}
+
+sint32 factory_builder_t::adjust_input_consumption(const fabrik_t* fab, const goods_desc_t* good) {
+	if (!fab->get_desc()->is_consumer_only()) {
+		//uint32 prod = 0;
+		//uint32 cons= 0;
+		sint32 largest_adjusted = 0;
+
+		for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
+
+			const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
+			if (output_type != good) continue;
+
+			sint64 output_prod = (sint64)(fab->get_base_production() * fab->get_desc()->get_product(output_type)->get_factor()); //use sint64 to avoid
+			sint64 output_cons = 0;
+
+			for (auto consumer_koord : fab->get_consumers(output_type)) {
+				//for each consumer, sum up the production from competing suppliers, and add the leftover fraction to output_consumption
+				fabrik_t* consumer = fabrik_t::get_fab(consumer_koord);
+
+				if (!consumer) {
+					continue;
+				}
+				sint64 consumer_consumption = (sint64)adjust_input_consumption(consumer, consumer->get_base_production() * consumer->get_desc()->get_supplier(output_type)->get_consumption());
+				sint64 competing_supplier_prod = 0;
+				for (auto competing_supplier_koord : consumer->get_suppliers(output_type)) {
+					const fabrik_t* competing_supplier = fabrik_t::get_fab(competing_supplier_koord);
+					if (competing_supplier) {
+						competing_supplier_prod += (sint64)(competing_supplier->get_base_production() * competing_supplier->get_desc()->get_product(output_type)->get_factor());
+					}
+				}
+				output_cons += consumer_consumption * output_prod / competing_supplier_prod;
+			}
+			output_cons = min(output_cons, output_prod);
+			largest_adjusted = output_prod - output_cons;
+			break;
+		}
+		return largest_adjusted;
+	}
+	return 0;
+}
+
+sint32 factory_builder_t::adjust_output_production(const fabrik_t* fab, const goods_desc_t* good) {
+	if (fab->get_desc()->is_consumer_only()) return 0;
+	sint32 output_prod = 0;
+	for (uint16 i = 0; i < fab->get_desc()->get_product_count(); i++) {
+		const goods_desc_t* output_type = fab->get_desc()->get_product(i)->get_output_type();
+		if (output_type == good) {
+			const uint16 pfactor = fab->get_desc()->get_product(i)->get_factor();
+			output_prod = fab->get_monthly_production(pfactor);
+			break;
+		}
+	}
+	if (!fab->get_desc()->is_producer_only()) {
+		sint32 lowest_prod = output_prod;
+
+		for (uint32 i = 0; i < fab->get_input().get_count(); i++)
+		{
+			// Check the list of possible suppliers for this factory type.
+			const goods_desc_t* input_type = fab->get_input()[i].get_typ();
+			const factory_supplier_desc_t* supplier_type = fab->get_desc()->get_supplier(input_type);
+			auto suppliers = fab->get_suppliers(input_type);
+
+			if (suppliers.get_count() == 0) {
+				return 0;
+			}
+
+			sint32 consumption_level = adjust_input_consumption(fab, fab->get_base_production() * (supplier_type ? supplier_type->get_consumption() : 1));
+			sint32 available_for_consumption = 0;
+
+			for (auto supplier_koord : suppliers)
+			{
+				fabrik_t* supplier = fabrik_t::get_fab(supplier_koord);
+				if (!supplier)
+				{
+					continue;
+				}
+				if (auto consumer_type = supplier->get_desc()->get_product(input_type))
+				{
+					const sint32 total_output_supplier = supplier->get_base_production() * consumer_type->get_factor();
+
+					sint64 used_output = 0; //use 64 bit numbers to avoid overflow during the adjustment
+					for (auto competing_consumers : supplier->get_consumers(input_type))
+					{
+						if (const fabrik_t* competing_consumer = fabrik_t::get_fab(competing_consumers)) {
+							if (competing_consumer != fab) {
+
+								//sum up production from alternative suppliers to the competing consumer
+								sint32 alt_supplier_prod = 0;
+								for (auto alt_supplier_koord : competing_consumer->get_suppliers(input_type)) {
+
+									const fabrik_t* alt_supplier = fabrik_t::get_fab(alt_supplier_koord);
+									alt_supplier_prod += alt_supplier->get_base_production() * alt_supplier->get_desc()->get_product(input_type)->get_factor();
+								}
+								//competing consumer production * (supplier production / total production from all suppliers to the competing consumer)
+								used_output += ((sint64)competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()) *
+									((sint64)supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor())
+									/ (sint64)alt_supplier_prod;
+								//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "used_output += %ld * %ld / %ld", (competing_consumer->get_base_production() * competing_consumer->get_desc()->get_supplier(input_type)->get_consumption()), (supplier->get_base_production() * supplier->get_desc()->get_product(input_type)->get_factor()), alt_supplier_prod);
+								//const factory_supplier_desc_t* alternative_supplier_to_consumer = competing_consumer->get_desc()->get_supplier(input_type);
+								//used_output += competing_consumer->get_base_production() * (alternative_supplier_to_consumer ? alternative_supplier_to_consumer->get_consumption() : 1);
+							}
+						}
+					}
+					//DBG_MESSAGE("factory_builder_t::increase_industry_density()", "checking supplier %s for good %s with production %ld (total competing consumers: %i, used output %ld)", supplier->get_name(), input_type->get_name(), total_output_supplier, supplier->get_consumers(input_type).get_count(), used_output);
+
+					const sint32 remaining_output = total_output_supplier - (sint32)used_output;
+					if (remaining_output > 0)
+					{
+						available_for_consumption += remaining_output;
+					}
+					else { //if remaining_output is negative, we divvy up the total supplier output based on consumption level
+						available_for_consumption += total_output_supplier * consumption_level / (used_output + consumption_level);
+					}
+				}
+			}
+			lowest_prod = min(lowest_prod, ((sint64)lowest_prod * (sint64)available_for_consumption) / consumption_level);
+		}
+		//DBG_MESSAGE("factory_builder_t::adjust_output_production()", "adjust_output_production returning %ld (output_prod %ld) for good %s", lowest_prod, output_prod, good->get_name());
+		return lowest_prod;
+	}
+	else {
+		return output_prod;
+	}
+
 }
 
 

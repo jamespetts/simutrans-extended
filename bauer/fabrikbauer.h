@@ -135,6 +135,24 @@ public:
 
 	static bool power_stations_available();
 
+	/**
+	 * Checks 'real' overproduction of a given good, based on the total global production and total global consumption of it.
+	 * @returns actual amount of global production minus actual amount of global consumption of the good.
+	 */
+	static sint32 get_global_oversupply(const goods_desc_t* good);
+
+	/**
+	 * Counts up total production of a given good.
+	 * @returns actual amount of global production for the good
+	 */
+	static sint32 get_global_production(const goods_desc_t* good);
+
+	/**
+	 * Counts up total consumption of a good, taking into account downstream bottlenecks.
+	 * @returns actual amount of global consumption of the good.
+	 */
+	static sint32 get_global_consumption(const goods_desc_t* good);
+
 private:
 	/**
 	 * Checks if the site at @p pos is suitable for construction.
@@ -164,29 +182,24 @@ private:
 	static bool can_factory_tree_rotate( const factory_desc_t *desc );
 
 	/**
-	 * Checks 'real' overproduction of a given good, based on the total global production and total global consumption of it.
-	 * @returns actual amount of global production minus actual amount of global consumption of the good.
-	 */
-	static sint32 get_global_oversupply(const goods_desc_t* good);
-
-	/**
-	 * Counts up total production of a given good.
-	 * @returns actual amount of global production for the good
-	 */
-	static sint32 get_global_production(const goods_desc_t* good);
-
-	/**
-	 * Counts up total consumption of a good, taking into account downstream bottlenecks.
-	 * @returns actual amount of global consumption of the good.
-	 */
-	static sint32 get_global_consumption(const goods_desc_t* good);
-
-	/**
 	 * Adjusts the consumption of a factory taking into account its downstream consumers, using the output it has the highest % consumption of.
 	 * For instance, if a factory produces 100t of good A and 80t of good B, but good A has 10t of consumption and good B has 20t, then the overall adjustment is (20/80)=25%
 	 * @returns consumption * the fraction of the factory's production that is actually used
 	 */
 	static sint32 adjust_input_consumption(const fabrik_t* factory, sint32 consumption);
+
+	/**
+	 * Adjusts the production of a factory's output taking into account its downstream consumers.
+	 * @returns the amount of the production of the good that is actually used
+	 */
+	static sint32 adjust_input_consumption(const fabrik_t* factory, const goods_desc_t* good);
+
+	/**
+	 * Adjusts the production of a factory's output taking into account its upstream suppliers, using the input it has the lowest % consumption of.
+	 * For instance, if a factory takes in 100t of good A and 80t of good B, but good A has 10t of production and good B has 20t, then the overall adjustment is (10/100)=10%
+	 * @returns production * the fraction of the factory's production that is actually used
+	 */
+	static sint32 adjust_output_production(const fabrik_t* factory, const goods_desc_t* good);
 
 	/**
 	 * Finds a valid position for a factory type, and deposits the position and rotation in the pointers provided.
