@@ -9319,10 +9319,10 @@ void karte_t::recalc_idp() {
 
 	sint32 difference = target_density - consumer_density; //compensate for an increase in consumers increasing the overall industry density of the world
 	target_density = ((old_density - difference) * target_density) / old_density;
-	target_density = ((uint64)target_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+	target_density = ((uint64)target_density * 1000000ll) / max(finance_history_month[0][WORLD_CITIZENS], 1);
 
 	if (industry_density_proportion == 0) { //if IDP isn't set, set it to whatever current consumer density is, or target density, whichever larger (to prevent shrinkage of consumers)
-		industry_density_proportion = ((uint64)consumer_density * 1000000ll) / finance_history_month[0][WORLD_CITIZENS];
+		industry_density_proportion = ((uint64)consumer_density * 1000000ll) / max(finance_history_month[0][WORLD_CITIZENS], 1);
 		industry_density_proportion = max(industry_density_proportion, target_density);
 	}
 	else { //if IDP is already set then it is likely greater than target density, but keep it as a lower bound just in case
