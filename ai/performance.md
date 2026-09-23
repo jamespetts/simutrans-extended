@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 47d73a3
+verified: ex-15-industry-growth-test @ 7c379b4
 ---
 # Performance & profiling
 
@@ -36,6 +36,18 @@ and the pacing-side measurement plan in [frame-pacing-smoothness](frame-pacing-s
   one for the branch: **master → `simutrans\pak128.Britain-Ex-0.9.4`; ex-15 →
   `simutrans\pak128.Britain-Ex`** [RECOLLECTION:2026-09-09]. An ex-15 pakset fatals in the object
   readers on master and vice versa (scripts/run-smoke-tests.ps1 header).
+- **Month-boundary fixture:** `month-boundary.sve` (167 MB, same user save directory as above),
+  positioned just before a month change — the fixture to use for testing end-of-month routines
+  (`karte_t::new_month`, the industry-density infill, and any other monthly code). Pass it with
+  `-Save` (and `-Pakset` explicitly: the suite's branch→pakset default only recognises the
+  `ex-15`/`master` branch names, so any other branch must pass `-Pakset` itself).
+  Measured [EXECUTION-VERIFIED:2026-09-23 on ex-15-industry-growth-test @ 7c379b4, Profile
+  (server) build, ETW-traced]: the first boundary after load ran the industry deficit path
+  (actual 32 vs target 142) in ~3.7 s wall, closing actual to 56. ETW attribution: the time is
+  construction-dominated (`build_chain_link`, `find_random_construction_site` placement search,
+  `build_link`/`build_factory`; the `get_global_*`/`adjust_*` measurement layer is a small
+  minority) — a single main-thread stall per deficit month while actual converges on target,
+  not a recurring steady-state cost.
 - Loading the fixture with the master pakset produces no missing-object warnings (the pakset fully
   covers the 2023 save); ~30 one-time startup menu errors (tunnel-builder lookups) are expected
   noise, not yet investigated [RECOLLECTION:2026-09-09 user: do not investigate now].
