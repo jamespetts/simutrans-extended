@@ -9306,7 +9306,14 @@ void karte_t::recalc_idp() {
 		}
 
 	}
-	uint32 average_overproduction = (uint32)(((sint64)total_prod*100) / ((sint64)total_cons));
+	uint32 average_overproduction = 0;
+	if (total_cons != 0) {
+		average_overproduction = (uint32)(((uint64)total_prod * 100) / ((uint64)total_cons));
+	
+	}
+	else {
+		average_overproduction =  total_prod * 100
+	}
 
 	uint32 target_density = (consumer_density * average_overproduction) / 100;
 
