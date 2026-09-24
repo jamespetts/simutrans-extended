@@ -77,7 +77,7 @@ void gui_waytype_button_t::set_waytype(waytype_t wt)
 
 	set_tooltip(gui_waytype_tab_panel_t::get_translated_waytype_name(wt));
 
-	scr_coord_val x, y, w, h=0;
+	scr_coord_val x = 0, y = 0, w = 0, h = 0;
 	if (wt != invalid_wt) {
 
 		display_get_base_image_offset(skinverwaltung_t::get_waytype_skin(wt)->get_image_id(0), &x, &y, &w, &h);
