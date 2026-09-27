@@ -143,6 +143,7 @@ class cont_order_overview_t : public gui_aligned_container_t
 	waytype_t way_type;
 
 	uint32 old_count=0; // reflesh flag
+	uint32 old_mod_count=0; // reflesh flag for changes that keep the element count (slot reorder)
 
 	sint16 selected_index = 0; // target index from consist_order_frame_t
 
@@ -184,6 +185,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	cont_order_overview_t cont_order_overview;
 	gui_scrollpane_t scroll_order;
 	uint32 old_order_count = 0;
+	uint32 old_order_mod_count = 0;
 
 	// filter (common)
 	uint8 filter_catg=255; // all

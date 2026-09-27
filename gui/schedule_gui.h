@@ -245,6 +245,12 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	uint32 old_line_count;
 	uint32 last_schedule_count;
 
+	// Tracks for which schedule entry the couple/uncouple toggle modes were
+	// last set: update_selection() preserves the user's Line/Convoy mode
+	// within an entry (it rebuilds the selectors after every action) and
+	// resets it when another entry is shown.
+	uint8 last_toggle_stop = 255;
+
 	// set the correct tool now ...
 	void update_tool(bool set);
 

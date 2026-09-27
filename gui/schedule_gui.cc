@@ -1044,9 +1044,9 @@ void schedule_gui_t::build_table()
 			}
 			cont_settings_1.end_table();
 
-			cont_settings_2.set_table_frame(true);
-			cont_settings_2.set_table_layout(1, 0);
-			cont_settings_2.set_margin(scr_size(0, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
+		cont_settings_2.set_table_frame(true);
+		cont_settings_2.set_table_layout(1, 0);
+		cont_settings_2.set_margin(scr_size(D_H_SPACE, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
 			// Modify convoy button
 			if( !cnv.is_bound() ) {
 				cont_settings_2.add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
@@ -1103,7 +1103,7 @@ void schedule_gui_t::build_table()
 			cont_settings_2.add_table(3,2);
 			{
 				cont_settings_2.new_component<gui_vehicle_bar_t>(SYSCOL_UP_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(3, vehicle_desc_t::unknown_constraint, HAS_POWER|BIDIRECTIONAL);
-				cont_settings_2.new_component<gui_label_t>("wait_for_trigger")->set_tooltip(translator::translate("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy"));
+				cont_settings_2.new_component<gui_label_t>("wait_for_trigger")->set_tooltip(translator::translate("if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy_The_convoy_holding_here_is_the_receiver:_it_departs_once_a_sender_broadcasts_this_number_to_its_line._Waiting_and_sending_are_armed_separately_at_each_stop."));
 				conditional_depart.set_width(numimp_load.get_size().w);
 				conditional_depart.init(schedule->get_current_entry().condition_bitfield_receiver, 0, 15, 1);
 				conditional_depart.add_listener(this);
@@ -1111,7 +1111,7 @@ void schedule_gui_t::build_table()
 
 				// Condition broadcast
 				cont_settings_2.new_component<gui_vehicle_bar_t>(SYSCOL_DOWN_TRIANGLE, scr_size(VEHICLE_BAR_HEIGHT*2, VEHICLE_BAR_HEIGHT))->set_flags(vehicle_desc_t::unknown_constraint, 3, HAS_POWER|BIDIRECTIONAL);
-				cont_settings_2.new_component<gui_label_t>("broadcast_trigger_on_arrival")->set_tooltip(translator::translate("if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving"));
+				cont_settings_2.new_component<gui_label_t>("broadcast_trigger_on_arrival")->set_tooltip(translator::translate("if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving_The_convoy_arriving_here_is_the_sender:_the_target_line_below_is_notified._Waiting_and_sending_are_armed_separately_at_each_stop."));
 				condition_broadcast.set_width(60);
 				condition_broadcast.set_value(schedule->get_current_entry().condition_bitfield_broadcaster);
 				condition_broadcast.set_limits(0, 15);
@@ -1123,7 +1123,7 @@ void schedule_gui_t::build_table()
 
 			// trigger
 			cont_settings_2.new_component<gui_divider_t>();
-			cont_settings_2.new_component<gui_label_t>("condition_trigger")->set_tooltip("help_txt_condition_trigger");
+			cont_settings_2.new_component<gui_label_t>("condition_trigger")->set_tooltip(translator::translate("Select the line to be notified when this stop broadcasts its condition"));
 			cont_settings_2.add_table(2,1)->set_spacing(scr_size(0, 0));
 			{
 				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
@@ -1133,14 +1133,16 @@ void schedule_gui_t::build_table()
 			cont_settings_2.end_table();
 
 			cont_settings_2.new_component<gui_divider_t>();
-			cont_settings_2.new_component<gui_label_t>("couple target")->set_tooltip("help_txt_uncouple_target");
+			cont_settings_2.new_component<gui_label_t>("couple target")->set_tooltip(translator::translate("The line or consist that this consist couples with at this stop"));
 			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0,0));
 			{
 				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
 				bt_couple_is_line.add_listener(this);
 				bt_couple_is_cnv.add_listener(this);
 				bt_couple_is_line.init(button_t::roundbox_left_state, "Line");
+				bt_couple_is_line.set_tooltip(translator::translate("The couple target is a line"));
 				bt_couple_is_cnv.init(button_t::roundbox_right_state, "Convoy");
+				bt_couple_is_cnv.set_tooltip(translator::translate("The couple target is an individual convoy"));
 				cont_settings_2.add_component(&bt_couple_is_line);
 				cont_settings_2.add_component(&bt_couple_is_cnv);
 				cont_settings_2.new_component<gui_fill_t>();
@@ -1156,7 +1158,7 @@ void schedule_gui_t::build_table()
 
 			cont_settings_2.new_component<gui_divider_t>();
 
-			cont_settings_2.new_component<gui_label_t>("uncouple target")->set_tooltip("help_txt_uncouple_target");
+			cont_settings_2.new_component<gui_label_t>("uncouple target")->set_tooltip(translator::translate("The line or consist that the divided portion joins at this stop"));
 
 			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0, 0));
 			{
@@ -1164,7 +1166,9 @@ void schedule_gui_t::build_table()
 				bt_uncouple_is_line.add_listener(this);
 				bt_uncouple_is_cnv.add_listener(this);
 				bt_uncouple_is_line.init(button_t::roundbox_left_state, "Line");
+				bt_uncouple_is_line.set_tooltip(translator::translate("The uncouple target is a line"));
 				bt_uncouple_is_cnv.init(button_t::roundbox_right_state, "Convoy");
+				bt_uncouple_is_cnv.set_tooltip(translator::translate("The uncouple target is an individual convoy"));
 				cont_settings_2.add_component(&bt_uncouple_is_line);
 				cont_settings_2.add_component(&bt_uncouple_is_cnv);
 				cont_settings_2.new_component<gui_fill_t>();
@@ -1182,7 +1186,7 @@ void schedule_gui_t::build_table()
 			cont_settings_2.add_table(4, 1)->set_spacing(scr_size(0, 0));
 			{
 				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
-				cont_settings_2.new_component<gui_label_t>("target_entry_uncouple")->set_tooltip("help_txt_target_entry_uncouple");
+				cont_settings_2.new_component<gui_label_t>("target_entry_uncouple")->set_tooltip(translator::translate("The schedule entry at which the uncoupled portion continues"));
 				cont_settings_2.add_component(&cb_uncouple_target_entry);
 				cont_settings_2.new_component<gui_fill_t>();
 			}
@@ -1541,15 +1545,23 @@ void schedule_gui_t::update_selection()
 				condition_broadcast.set_value(schedule->get_current_entry().condition_bitfield_broadcaster);
 			}
 
+		if (current_stop != last_toggle_stop) {
+			// Showing another entry: drop the previous entry's toggle modes.
+			// Within an entry the user's Line/Convoy mode selection is kept:
+			// update_selection() runs after every action and rebuilds the
+			// selectors, so resetting here would unpress the toggles and
+			// disable the selectors before a target can ever be picked.
 			bt_couple_is_cnv.pressed = false;
 			bt_couple_is_line.pressed = false;
-			if (schedule->get_current_entry().target_id_couple) {
+			bt_uncouple_is_line.pressed = false;
+			bt_uncouple_is_cnv.pressed = false;
+			last_toggle_stop = current_stop;
+		}
+		if (schedule->get_current_entry().target_id_couple) {
 				bt_couple_is_line.pressed = !schedule->get_current_entry().is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv);
 				bt_couple_is_cnv.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv);
 			}
-			bt_uncouple_is_line.pressed = false;
-			bt_uncouple_is_cnv.pressed = false;
-			if (schedule->get_current_entry().target_id_uncouple) {
+		if (schedule->get_current_entry().target_id_uncouple) {
 				bt_uncouple_is_line.pressed = !schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv);
 				bt_uncouple_is_cnv.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv);
 			}
@@ -1660,14 +1672,14 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 			minimap_t::get_instance()->set_selected_cnv(cnv);
 		}
 	}
-	else if (!line_selector.is_dropped() && ((ev)->ev_code == MOUSE_WHEELUP || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_UP)) && schedule->entries.get_count()>1) {
+	else if (!line_selector.is_dropped() && !condition_line_selector.is_dropped() && !couple_target_selector.is_dropped() && !uncouple_target_selector.is_dropped() && !cb_uncouple_target_entry.is_dropped() && ((ev)->ev_code == MOUSE_WHEELUP || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_UP)) && schedule->entries.get_count()>1) {
 		if (schedule->get_current_stop()){
 			schedule->set_current_stop(schedule->get_current_stop()-1);
 			update_selection();
 		}
 		return true;
 	}
-	else if (!line_selector.is_dropped() && ((ev)->ev_code == MOUSE_WHEELDOWN || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_DOWN)) && schedule->entries.get_count()>1 && schedule->get_current_stop() < schedule->entries.get_count()) {
+	else if (!line_selector.is_dropped() && !condition_line_selector.is_dropped() && !couple_target_selector.is_dropped() && !uncouple_target_selector.is_dropped() && !cb_uncouple_target_entry.is_dropped() && ((ev)->ev_code == MOUSE_WHEELDOWN || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_DOWN)) && schedule->entries.get_count()>1 && schedule->get_current_stop() < schedule->entries.get_count()) {
 		schedule->set_current_stop(schedule->get_current_stop()+1);
 		update_selection();
 		return true;
@@ -1960,10 +1972,9 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		}
 		else if (comp == &bt_uncouple_is_cnv) {
 			bt_uncouple_is_cnv.pressed = !bt_uncouple_is_cnv.pressed;
-			bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
 			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
 			if (bt_uncouple_is_cnv.pressed) {
-				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
 				bt_uncouple_is_line.pressed = false;
 				update_target_convoy_selection(false, true);
 			}

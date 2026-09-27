@@ -191,11 +191,12 @@ bool gui_consist_order_shifter_t::action_triggered(gui_action_creator_t *comp, v
 	if (comp == &bt_remove) {
 		order->remove_order(slot_index);
 	}
-	if (comp == &bt_forward) {
-		//order->forward_element(slot_index);
+	if (comp == &bt_forward && slot_index > 0) {
+		order->move_element(slot_index, slot_index - 1);
 	}
 	if (comp == &bt_backward) {
-		//order->backward_element(slot_index);
+		// move_element ignores the out-of-range target when already last
+		order->move_element(slot_index, slot_index + 1);
 	}
 	return true;
 }
@@ -348,6 +349,7 @@ void cont_order_overview_t::init_table()
 {
 	remove_all();
 	old_count = order->get_count();
+	old_mod_count = order->get_mod_count();
 	set_table_layout(2,0);
 	set_alignment(ALIGN_TOP);
 	set_margin(scr_size(D_MARGIN_LEFT, 0), scr_size(D_MARGIN_RIGHT, D_SCROLLBAR_HEIGHT));
@@ -415,7 +417,7 @@ void gui_consist_order_element_t::draw(scr_coord offset)
 void cont_order_overview_t::draw(scr_coord offset)
 {
 	if (order) {
-		if (order->get_count() != old_count) {
+		if (order->get_count() != old_count || order->get_mod_count() != old_mod_count) {
 			init_table();
 		}
 		gui_aligned_container_t::draw(offset);
@@ -524,7 +526,7 @@ void consist_order_frame_t::init_table()
 
 	add_table(3,1);
 	{
-		new_component<gui_label_t>("clf_chk_waren");
+		new_component<gui_label_t>("clf_chk_waren")->set_tooltip(translator::translate("Show only vehicles carrying the selected type of goods"));
 		add_component(&freight_type_c);
 		new_component<gui_fill_t>();
 	}
@@ -551,6 +553,7 @@ void consist_order_frame_t::init_table()
 			cont_order_overview.set_selected_index(1);
 
 			bt_add_vehicle.init(button_t::roundbox, "Add vehicle");
+			bt_add_vehicle.set_tooltip(translator::translate("Add the selected vehicle to the consist order"));
 			bt_add_vehicle.enable( selected_vehicle!=NULL );
 			bt_add_vehicle.add_listener(this);
 			cont_picker_frame.add_component(&bt_add_vehicle);
@@ -567,7 +570,7 @@ void consist_order_frame_t::init_table()
 			bt_connectable_vehicle_filter.add_listener(this);
 			cont_picker_frame.add_component(&bt_connectable_vehicle_filter, 2);
 
-			cont_picker_frame.new_component<gui_label_t>("powered_filter");
+			cont_picker_frame.new_component<gui_label_t>("powered_filter")->set_tooltip(translator::translate("Show only powered or unpowered vehicles"));
 			for (uint8 i = 0; i < 3; i++) {
 				vp_powered_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vp_powered_filter_text[i]), SYSCOL_TEXT);
 			}
@@ -575,7 +578,7 @@ void consist_order_frame_t::init_table()
 			vp_powered_filter.add_listener(this);
 			cont_picker_frame.add_component(&vp_powered_filter);
 
-			cont_picker_frame.new_component<gui_label_t>("engine_type");
+			cont_picker_frame.new_component<gui_label_t>("engine_type")->set_tooltip(translator::translate("Show only vehicles with the selected engine type"));
 			engine_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All"), SYSCOL_TEXT);
 			for (uint8 i = 1; i < 11; i++) {
 				engine_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vehicle_builder_t::engine_type_names[(vehicle_desc_t::engine_t)i]), SYSCOL_TEXT);
@@ -613,7 +616,7 @@ void consist_order_frame_t::init_table()
 		{
 			cont_picker_frame.add_table(3, 2);
 			{
-				cont_picker_frame.new_component<gui_label_t>("cl_txt_sort");
+				cont_picker_frame.new_component<gui_label_t>("cl_txt_sort")->set_tooltip(translator::translate("Sort the vehicle list by the selected criterion"));
 				for (uint8 i = 0; i < vehicle_scrollitem_t::SORT_MODES; i++) {
 					vp_sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vp_sort_text[i]), SYSCOL_TEXT);
 				}
@@ -621,7 +624,7 @@ void consist_order_frame_t::init_table()
 				vp_sortedby.add_listener(this);
 				cont_picker_frame.add_component(&vp_sortedby);
 				bt_sort_order_veh.init(button_t::sortarrow_state, "");
-				bt_sort_order_veh.set_tooltip(translator::translate("hl_btn_sort_order"));
+				bt_sort_order_veh.set_tooltip(translator::translate("Toggle ascending/descending order"));
 				bt_sort_order_veh.add_listener(this);
 				bt_sort_order_veh.pressed = vehicle_scrollitem_t::sortreverse;
 				cont_picker_frame.add_component(&bt_sort_order_veh);
@@ -678,6 +681,7 @@ void consist_order_frame_t::init_table()
 			cont_convoy_copier.add_table(2,1)->set_alignment(ALIGN_TOP);
 			{
 				bt_show_hide_convoy_filter.init(button_t::roundbox, "+");
+				bt_show_hide_convoy_filter.set_tooltip(translator::translate("Show or hide the consist filter options"));
 				bt_show_hide_convoy_filter.set_width(display_get_char_width('+') + D_BUTTON_PADDINGS_X);
 				bt_show_hide_convoy_filter.add_listener(this);
 				cont_convoy_copier.add_component(&bt_show_hide_convoy_filter);
@@ -695,7 +699,7 @@ void consist_order_frame_t::init_table()
 
 			cont_convoy_copier.add_table(3,2);
 			{
-				cont_convoy_copier.new_component<gui_label_t>("cl_txt_sort");
+				cont_convoy_copier.new_component<gui_label_t>("cl_txt_sort")->set_tooltip(translator::translate("Sort the consist list by the selected criterion"));
 				// TODO: add sort option
 				//cc_sortedby
 				for (uint8 i = 0; i < 1; i++) {
@@ -705,7 +709,7 @@ void consist_order_frame_t::init_table()
 				cc_sortedby.add_listener(this);
 				cont_convoy_copier.add_component(&cc_sortedby);
 				bt_sort_order_cnv.init(button_t::sortarrow_state, "");
-				bt_sort_order_cnv.set_tooltip(translator::translate("hl_btn_sort_order"));
+				bt_sort_order_cnv.set_tooltip(translator::translate("Toggle ascending/descending order"));
 				bt_sort_order_cnv.add_listener(this);
 				bt_sort_order_cnv.pressed = false;
 				cont_convoy_copier.add_component(&bt_sort_order_cnv);
@@ -804,7 +808,7 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 		init_input_value_range();
 		update();
 	}
-	else if (order.get_count() != old_order_count) {
+	else if (order.get_count() != old_order_count || order.get_mod_count() != old_order_mod_count) {
 		build_vehicle_list();
 		init_input_value_range();
 	}
@@ -1025,6 +1029,7 @@ void consist_order_frame_t::build_vehicle_list()
 	scl_convoys.set_selection(-1);
 
 	old_order_count = order.get_count();
+	old_order_mod_count = order.get_mod_count();
 
 	// Vehicles that have already been determined to be unconnectable
 	slist_tpl<const vehicle_desc_t *>unconnectable_vehicles;

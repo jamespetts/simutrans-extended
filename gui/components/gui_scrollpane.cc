@@ -205,6 +205,13 @@ bool gui_scrollpane_t::infowin_event(const event_t *ev)
 		}
 
 		if(  !swallow  &&  b_can_drag  &&  (ev->ev_class == EVENT_CLICK || ev->ev_class == EVENT_DRAG)  ) {
+			// Never content-drag a gesture that started on scrollbar chrome:
+			// a near-miss press on/around the knob would otherwise page-jump
+			// and then drag the content inverted relative to scrollbar
+			// dragging (knob visibly jumps the wrong way).
+			if(  scroll_y.getroffen(ev->click_pos)  ||  scroll_x.getroffen(ev->click_pos)  ) {
+				return swallow;
+			}
 			// init dragging? (Android SDL starts dragging without preceeding click!)
 			if(!b_is_dragging) {
 				origin = ev->mouse_pos;

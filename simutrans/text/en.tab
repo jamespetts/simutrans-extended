@@ -6512,6 +6512,24 @@ wait_for_trigger
 Wait for trigger
 broadcast_trigger_on_arrival
 Broadcast trigger on arrival
+condition_trigger
+Trigger target line
+couple target
+Couple target
+uncouple target
+Uncouple target
+target_entry_uncouple
+Uncouple at stop
+line not found
+No line found
+convoy not found
+No consist found
+select_line_or_cnv_first
+Select line or consist...
+if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy_The_convoy_holding_here_is_the_receiver:_it_departs_once_a_sender_broadcasts_this_number_to_its_line._Waiting_and_sending_are_armed_separately_at_each_stop.
+If this is set, convoys will wait until this condition is broadcasted by another convoy. The convoy holding here is the receiver: it departs once a sender broadcasts this number to its line. Waiting and sending are armed separately at each stop.
+if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving_The_convoy_arriving_here_is_the_sender:_the_target_line_below_is_notified._Waiting_and_sending_are_armed_separately_at_each_stop.
+If this is set, the convoy will broadcast this condition to other convoys at this station when arriving. The convoy arriving here is the sender: the target line below is notified. Waiting and sending are armed separately at each stop.
 modify_consist
 Modify consist at this stop
 time shift
@@ -6542,6 +6560,12 @@ copy_consist_order
 Copy consist order
 open_consist_filter_option
 Consist filter options
+add_elem_at
+Insert here
+append_vde
+Insert here (alternative)
+Remove this vehicle from consist.
+Remove
 Set the order of this consist to the selected order
 Set the order of this consist to the selected order
 Limited to the same vehicle
@@ -6554,6 +6578,8 @@ Narrow down to consists that use this stop
 Include only consists that use this stop
 Exclude consists made up of one vehicle
 Exclude consists made up of only one vehicle
+Narrow down to only consists belonging to this line
+Include only consists belonging to this line
 Consist copier
 Copy consist
 Vehicle picker
@@ -6690,6 +6716,8 @@ availability
 Availability: 
 engine_type
 Traction type
+powered_filter
+Powered only
 TF_
 Max. tractive effort
 curb_weight
@@ -6710,6 +6738,8 @@ filter_by_line
 Filter by line
 entry_setting_1
 Details
+entry_setting_2
+Triggers and coupling
 helptxt_swap_schedule_entries
 Swap
 can_also_jump_to_the_coordinate_by_right-clicking_on_the_entry

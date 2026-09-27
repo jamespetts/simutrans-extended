@@ -9475,8 +9475,6 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 {
 	convoi_t::consist_order_process_result success = fail;
 
-	// FIXME: The consist order GUI is incorrectly putting different vehicle slots which should be consist_order_element_t objects into multiple vehicle_description objects in the same consist_order_element_t
-
 	// Overall scheme: assemble a vector of vehicles based on the priority of slots and whether it is driveable,
 	// then if, and only if driveable and complete, commit the result.
 

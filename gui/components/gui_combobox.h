@@ -77,6 +77,16 @@ public:
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
+	/**
+	 * Hit test. Extends the closed-box rect with the open droplist rect:
+	 * the list overflows this component (drawn below/above the closed box
+	 * and often wider than it), so without this, wheels and clicks over an
+	 * open list miss the combobox in container hit-testing whenever it does
+	 * not hold the focus, and fall through to whatever component is visually
+	 * underneath.
+	 */
+	bool getroffen(scr_coord p) OVERRIDE;
+
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void sort( int offset ) { droplist.sort( offset ); }

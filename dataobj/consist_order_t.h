@@ -241,6 +241,15 @@ protected:
 
 	vector_tpl<consist_order_element_t> orders;
 
+	/*
+	* Transient mutation counter for GUI refresh. Incremented by every
+	* consist_order_t-level mutator so views can detect changes (e.g. slot
+	* reordering) that do not alter the element count. Never serialised,
+	* never transmitted, never compared: it rides along with by-value copies
+	* but is only ever compared against itself in the GUI that owns the copy.
+	*/
+	uint32 mod_count = 0;
+
 public:
 
 	consist_order_element_t& access_order(uint32 element_number)
@@ -259,9 +268,12 @@ public:
 
 	uint32 get_count() const { return orders.get_count(); }
 
+	uint32 get_mod_count() const { return mod_count; }
+
 	void append(consist_order_element_t elem)
 	{
 		orders.append(elem);
+		mod_count++;
 		return;
 	}
 
@@ -273,11 +285,17 @@ public:
 		else {
 			orders.insert_at(pos, elem);
 		}
+		mod_count++;
 		return;
 	}
 
 	void append_vehicle_at(uint32 element_number, const vehicle_desc_t *v)
 	{
+		// NOTE: deliberately does not bump mod_count. Appending an
+		// alternative description to an existing slot is refreshed by the
+		// slot widget itself; creating a new slot changes the element count,
+		// which the views already watch. Bumping here would needlessly clear
+		// the vehicle-picker selection on every alternative added.
 		if (element_number < orders.get_count()) {
 			orders[element_number].append_vehicle(v);
 		}
@@ -292,8 +310,14 @@ public:
 	void remove_order(uint32 element_number)
 	{
 		orders.remove_at(element_number);
+		mod_count++;
 		return;
 	}
+
+	// Move the slot at index "from" so that it ends up at index "to",
+	// shifting the slots in between. Out-of-range indices and from == to
+	// are ignored. Used by the consist-order GUI slot-reorder buttons.
+	void move_element(uint32 from, uint32 to);
 
 	// Copy order from specific convoy
 	void set_convoy_order(convoihandle_t cnv);

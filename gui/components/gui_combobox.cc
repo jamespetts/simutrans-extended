@@ -51,6 +51,19 @@ gui_combobox_t::gui_combobox_t(gui_scrolled_list_t::item_compare_func cmp) :
 
 
 /**
+ * Hit test, extended with the open droplist rect (see header).
+ */
+bool gui_combobox_t::getroffen(scr_coord p)
+{
+	if (gui_component_t::getroffen(p)) {
+		return true;
+	}
+	// droplist pos is relative to this component's origin.
+	return droplist.is_visible() && droplist.getroffen(p - pos);
+}
+
+
+/**
  * Events are notified to GUI components via this method
  */
 bool gui_combobox_t::infowin_event(const event_t *ev)
@@ -100,7 +113,10 @@ DBG_MESSAGE("event","HOWDY!");
 		}
 	}
 	else if(  (IS_WHEELUP(ev)  ||  IS_WHEELDOWN(ev))  &&  droplist.getroffen(ev->mouse_pos)  ) {
-		// scroll the list
+		// scroll the list; always swallow: while the list is open and under
+		// the cursor, the wheel belongs to it exclusively, even at its
+		// scroll limits — otherwise it leaks to components visually
+		// underneath (e.g. the schedule list behind a wide dropdown).
 		event_t ev2 = *ev;
 		ev2.move_origin(droplist.get_pos());
 
@@ -357,11 +373,17 @@ void gui_combobox_t::set_pos(scr_coord pos_par)
 {
 	gui_component_t::set_pos( pos_par );
 
+	// Left-align the droplist with the closed box rather than centering it:
+	// a centered list wider than the box spills over neighbouring panes
+	// (e.g. a trigger dropdown spilling left over the schedule stop list),
+	// and the spilt list's own scrolling is then misread as the neighbour
+	// scrolling. Left-aligned, it can only spill rightward over harmless
+	// pane interior.
 	if(  opened_above  ) {
-		droplist.set_pos( scr_size( (get_size().w -droplist.get_size().w)/2, D_V_SPACE/4 - droplist.get_size().h) );
+		droplist.set_pos( scr_size( 0, D_V_SPACE/4 - droplist.get_size().h) );
 	}
 	else {
-		droplist.set_pos( scr_size( (get_size().w -droplist.get_size().w)/2, textinp.get_size().h) );
+		droplist.set_pos( scr_size( 0, textinp.get_size().h) );
 	}
 }
 

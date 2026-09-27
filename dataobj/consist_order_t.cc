@@ -59,6 +59,7 @@ bool consist_order_element_t::has_same_vehicle(const vehicle_desc_t *v) const
 void consist_order_t::set_convoy_order(convoihandle_t cnv)
 {
 	orders.clear();
+	mod_count++;
 	if( !cnv.is_bound() ) { return; }
 
 	// similar code in replace_frame_t::set_vehicles()
@@ -83,6 +84,20 @@ void consist_order_t::set_convoy_order(convoihandle_t cnv)
 		new_elem.append_vehicle(veh_tmp_list[i]->get_desc());
 		orders.append(new_elem);
 	}
+	mod_count++;
+}
+
+
+void consist_order_t::move_element(uint32 from, uint32 to)
+{
+	const uint32 count = orders.get_count();
+	if (from >= count || to >= count || from == to) {
+		return;
+	}
+	consist_order_element_t elem = orders[from];
+	orders.remove_at(from);
+	orders.insert_at(to, elem);
+	mod_count++;
 }
 
 
