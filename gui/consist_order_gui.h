@@ -35,6 +35,28 @@
 
 class consist_order_t;
 
+
+// Scrolled list with a content-driven default size. A plain scrolled list
+// reports almost no minimum size, so the table column holding it collapses to
+// the width of the sibling rows: items get clipped and a horizontal scrollbar
+// appears even at the default window size. This floors the width at the
+// widest item and the height at min_rows of the tallest item.
+class consist_list_t : public gui_scrolled_list_t
+{
+	uint8 min_rows;
+public:
+	consist_list_t(enum type t = windowskin, item_compare_func cmp = 0, uint8 rows = 6) : gui_scrolled_list_t(t, cmp), min_rows(rows) { }
+	scr_size get_min_size() const OVERRIDE;
+	// Unbounded maximum: the shared table max-height math caps a list row at
+	// one row, which strands all vertical surplus as void below the list and
+	// pins the pane small. The default size is still governed by the minimum.
+	scr_size get_max_size() const OVERRIDE { return scr_size(scr_size::inf.w, scr_size::inf.h); }
+	// Refresh after the content was rebuilt: reset the container to the new
+	// content, restore row breathing room (sort() zeroes the container
+	// margins), and restart at the top so no stale offset survives.
+	void refresh();
+};
+
 struct own_vehicle_t
 {
 	uint32 count = 0;
@@ -108,7 +130,7 @@ class gui_vehicle_description_element_t : public gui_aligned_container_t, privat
 	waytype_t way_type; // use for grid size and (player favorite) livery scheme
 
 	gui_colorbox_t state_prev, state_next;
-	//button_t bt_can_empty;
+	button_t bt_can_empty;
 
 	uint32 old_count = 0;
 	vector_tpl<gui_image_list_t::image_data_t*> vde_vec;
@@ -202,10 +224,11 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 
 	button_t bt_sort_order_veh, bt_show_hide_vehicle_filter, bt_connectable_vehicle_filter;
 	button_t bt_outdated, bt_obsolete, bt_show_unidirectional;
+	button_t bt_show_powered, bt_show_unpowered;
 	gui_label_t lb_open_vehicle_filter;
 	gui_aligned_container_t cont_picker_frame, cont_vehicle_filter;
-	gui_combobox_t vp_powered_filter, engine_filter, vp_sortedby;
-	gui_scrolled_list_t scl_vehicles;
+	gui_combobox_t engine_filter, vp_sortedby;
+	consist_list_t scl_vehicles;
 	void build_vehicle_list(); // also update convoy list
 	// Check if the vehicle is filtered by UI options
 	bool is_filtered(const vehicle_desc_t *veh_type);
@@ -226,7 +249,7 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	gui_convoy_formation_t formation;
 	gui_scrollpane_t scrollx_formation;
 	gui_aligned_container_t cont_convoy_copier;
-	gui_scrolled_list_t scl_convoys;
+	consist_list_t scl_convoys;
 	void update_convoy_info();
 
 	gui_tab_panel_t tabs;

@@ -12,7 +12,10 @@
 
 const char* convoy_scrollitem_t::get_text() const
 {
-	return cnv.is_bound() ? cnv->get_name() : "Convoy not found";
+	// Lowercase key: translator keys match byte-exactly including case, and
+	// en.tab carries "convoy not found" -> "No consist found" (user-approved
+	// consist terminology). A capital key would bypass it and show raw text.
+	return cnv.is_bound() ? cnv->get_name() : "convoy not found";
 }
 
 

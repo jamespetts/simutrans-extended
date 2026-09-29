@@ -32,6 +32,69 @@
 int vehicle_scrollitem_t::sort_mode = 0;
 bool vehicle_scrollitem_t::sortreverse = false;
 
+scr_size consist_list_t::get_min_size() const
+{
+	scr_size base = gui_scrolled_list_t::get_min_size();
+	scr_coord_val wide = 0, tall = 0;
+	for(  sint32 i = 0;  i < get_count();  i++  ) {
+		if(  const scrollitem_t* const item = get_element(i)  ) {
+			const scr_size m = item->get_min_size();
+			scr_coord_val w = m.w;
+			// Editable items report a fixed D_BUTTON_WIDTH instead of their
+			// text width (e.g. convoy names); floor at the real text width.
+			if(  const char* const t = item->get_text()  ) {
+				w = max(w, (scr_coord_val)(2 * D_H_SPACE + display_calc_proportional_string_len_width(t, strlen(t))));
+			}
+			wide = max(wide, w);
+			tall = max(tall, m.h);
+		}
+	}
+	if(  wide > 0  ) {
+		// Fit the widest item plus the list's own chrome: container side
+		// margins and the vertical scrollbar, which is normally visible.
+		wide += 2 * D_H_SPACE + D_SCROLLBAR_WIDTH;
+	}
+	else {
+		// Empty list: keep a sane absolute floor so the column never collapses.
+		wide = D_BUTTON_WIDTH * 2;
+	}
+	base.w = max(base.w, wide);
+	if(  tall > 0  ) {
+		base.h = max(base.h, min_rows * tall);
+	}
+	return base;
+}
+
+
+void consist_list_t::refresh()
+{
+	sort(0);
+	// Row breathing room: top margin above the first row plus a small gap
+	// between rows. sort() via reset_container_size() zeroes both.
+	container.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_H_SPACE, 0));
+	container.set_spacing(scr_size(D_H_SPACE, D_V_SPACE / 2));
+	container.set_size(container.get_min_size());
+	set_scroll_position(0, 0);
+}
+
+
+// Consist-copier list rows: identical to convoy rows except the empty-list
+// placeholder, which reads "Consist not found" here instead of the shared
+// "convoy not found" text used by the depot and line windows.
+class consist_scrollitem_t : public convoy_scrollitem_t
+{
+public:
+	consist_scrollitem_t(convoihandle_t c = convoihandle_t(), bool auto_text_color = false) : convoy_scrollitem_t(c, auto_text_color) { }
+	char const* get_text() const OVERRIDE;
+};
+
+
+char const* consist_scrollitem_t::get_text() const
+{
+	const convoihandle_t cnv = get_convoy();
+	return cnv.is_bound() ? cnv->get_name() : "Consist not found";
+}
+
 // sort option for Consist Copier
 // TODO: add sort option
 static const char *cc_sort_text[1] = {
@@ -46,13 +109,6 @@ static const char *vp_sort_text[vehicle_scrollitem_t::SORT_MODES] = {
 	"cl_btn_sort_max_speed",
 	"Intro. date",
 	"Role"
-};
-
-// filter option for Vehicle Picker
-static const char *vp_powered_filter_text[3] = {
-	"All",
-	"helptxt_powered_vehicle",
-	"helptxt_unpowered_vehicle"
 };
 
 
@@ -214,11 +270,14 @@ gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_ord
 		set_table_layout(1,0);
 		set_alignment(ALIGN_TOP);
 
-		//bt_can_empty.init(button_t::square_state, "");
-		//bt_can_empty.set_tooltip(translator::translate("This slot is skippable and no vehicles are allowed."));
-		//bt_can_empty.add_listener(this);
-		//add_component(&bt_can_empty);
-		new_component<gui_label_t>("chk_empty");
+		// Slot-level "may be empty" toggle (A3). The pre-rework widget was
+		// per-alternative, but this widget is per-slot, so the toggle reads
+		// and writes the empty flag on every alternative in the slot.
+		// square_automatic flips pressed itself; the handler only stores it.
+		bt_can_empty.init(button_t::square_automatic, "May be empty");
+		bt_can_empty.set_tooltip(translator::translate("Allow this slot to be left empty when the consist is assembled."));
+		bt_can_empty.add_listener(this);
+		add_component(&bt_can_empty);
 		new_component<gui_label_t>("btn_goods");
 
 		// constraints check indicator
@@ -262,7 +321,23 @@ void gui_vehicle_description_element_t::update()
 		//uint16 livery_scheme_index = world()->get_player(player_nr)->get_favorite_livery_scheme_index((uint8)simline_t::waytype_to_linetype(way_type));
 		consist_order_element_t elem = order->access_order(slot_index);
 		old_count = elem.get_count();
-		//bt_can_empty.pressed = elem.empty;
+		// Slot-level display: checked iff every alternative allows empty.
+		// Per-alternative controls await the B1 rule editor.
+		if (old_count == 0) {
+			bt_can_empty.pressed = false;
+			bt_can_empty.disable();
+		}
+		else {
+			bt_can_empty.enable();
+			bool all_empty = true;
+			for (uint32 i = 0; i < old_count; i++) {
+				if (!elem.get_vehicle_description(i).empty) {
+					all_empty = false;
+					break;
+				}
+			}
+			bt_can_empty.pressed = all_empty;
+		}
 
 		// update images
 		for (uint8 i = 0; i < elem.get_count(); i++) {
@@ -322,7 +397,14 @@ bool gui_vehicle_description_element_t::action_triggered(gui_action_creator_t *c
 {
 	if (order->get_count() <= slot_index) { return false; }
 
-	if (comp == &vde && slot_index < order->get_count()) {
+	if (comp == &bt_can_empty) {
+		// square_automatic has already flipped pressed; store it slot-wide.
+		consist_order_element_t &elem = order->access_order(slot_index);
+		for (uint32 i = 0; i < elem.get_count(); i++) {
+			elem.access_vehicle_description(i).set_empty(bt_can_empty.pressed);
+		}
+	}
+	else if (comp == &vde && slot_index < order->get_count()) {
 		if (p.i<0) {
 			uint32 index = -1 - p.i;
 			consist_order_element_t &elem = order->access_order(slot_index);
@@ -570,13 +652,25 @@ void consist_order_frame_t::init_table()
 			bt_connectable_vehicle_filter.add_listener(this);
 			cont_picker_frame.add_component(&bt_connectable_vehicle_filter, 2);
 
-			cont_picker_frame.new_component<gui_label_t>("powered_filter")->set_tooltip(translator::translate("Show only powered or unpowered vehicles"));
-			for (uint8 i = 0; i < 3; i++) {
-				vp_powered_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vp_powered_filter_text[i]), SYSCOL_TEXT);
-			}
-			vp_powered_filter.set_selection(0);
-			vp_powered_filter.add_listener(this);
-			cont_picker_frame.add_component(&vp_powered_filter);
+		cont_picker_frame.new_component<gui_label_t>("powered_filter")->set_tooltip(translator::translate("Show only powered or unpowered vehicles"));
+		// Two inclusive checkboxes preserve the old three dropdown states
+		// (both on = all, one on = only that class). square_automatic flips
+		// pressed itself; the filter only rebuilds the list.
+		cont_picker_frame.add_table(1,2);
+		{
+			bt_show_powered.init(button_t::square_automatic, "Show powered vehicles");
+			bt_show_powered.set_tooltip(translator::translate("Include powered vehicles in the list."));
+			bt_show_powered.pressed = true;
+			bt_show_powered.add_listener(this);
+			cont_picker_frame.add_component(&bt_show_powered);
+
+			bt_show_unpowered.init(button_t::square_automatic, "Show unpowered vehicles");
+			bt_show_unpowered.set_tooltip(translator::translate("Include unpowered vehicles in the list."));
+			bt_show_unpowered.pressed = true;
+			bt_show_unpowered.add_listener(this);
+			cont_picker_frame.add_component(&bt_show_unpowered);
+		}
+		cont_picker_frame.end_table();
 
 			cont_picker_frame.new_component<gui_label_t>("engine_type")->set_tooltip(translator::translate("Show only vehicles with the selected engine type"));
 			engine_filter.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("All"), SYSCOL_TEXT);
@@ -931,11 +1025,11 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if( comp==&vp_sortedby ) {
 		vehicle_scrollitem_t::sort_mode = v.i;
-		scl_vehicles.sort(0);
+		scl_vehicles.refresh();
 	}
 	else if( comp==&bt_sort_order_veh ) {
 		vehicle_scrollitem_t::sortreverse = !vehicle_scrollitem_t::sortreverse;
-		scl_vehicles.sort(0);
+		scl_vehicles.refresh();
 		bt_sort_order_veh.pressed = vehicle_scrollitem_t::sortreverse;
 	}
 	else if( comp==&bt_connectable_vehicle_filter ) {
@@ -954,7 +1048,8 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		bt_show_unidirectional.pressed ^= 1;
 		build_vehicle_list();
 	}
-	else if( comp==&vp_powered_filter || comp==&engine_filter ) {
+	else if( comp==&bt_show_powered || comp==&bt_show_unpowered || comp==&engine_filter ) {
+		// square_automatic buttons already flipped pressed; combos report selection.
 		build_vehicle_list();
 	}
 	else if( comp==&numimp_append_target ) {
@@ -1242,7 +1337,8 @@ void consist_order_frame_t::build_vehicle_list()
 	if( !own_vehicles.get_count() ) {
 		scl_vehicles.new_component<vehicle_scrollitem_t>(own_vehicle_t());
 	}
-	scl_vehicles.sort(0);
+	// NOTE: list refresh (sort + margins + scroll reset) happens once at the
+	// end of this function via refresh(), after both lists are filled.
 	if (!selected_vehicle) {
 		// close vehicle details
 		destroy_win(magic_vehicle_detail_for_consist_order);
@@ -1250,7 +1346,7 @@ void consist_order_frame_t::build_vehicle_list()
 
 	bool found=false;
 	for (auto &own_cnv : own_convoys) {
-		scl_convoys.new_component<convoy_scrollitem_t>(own_cnv, false);
+		scl_convoys.new_component<consist_scrollitem_t>(own_cnv, false);
 		// select the same one again
 		if (selected_convoy==own_cnv) {
 			scl_convoys.set_selection(scl_convoys.get_count()-1);
@@ -1258,8 +1354,13 @@ void consist_order_frame_t::build_vehicle_list()
 		}
 	}
 	if (!own_convoys.get_count()) {
-		scl_convoys.new_component<convoy_scrollitem_t>(convoihandle_t(), false);
+		scl_convoys.new_component<consist_scrollitem_t>(convoihandle_t(), false);
 	}
+	// Reset the containers to the current content and restart at the top;
+	// without the reset the convoy container keeps a stale (taller) size after
+	// filtering down, and without the scroll reset stale offsets push rows down.
+	scl_vehicles.refresh();
+	scl_convoys.refresh();
 	if (!found) {
 		// The selected one has been lost from the list. So turn off the display as well. Otherwise the execute button will cause confusion.
 		selected_convoy = convoihandle_t();
@@ -1272,15 +1373,16 @@ void consist_order_frame_t::build_vehicle_list()
 
 bool consist_order_frame_t::is_filtered(const vehicle_desc_t *veh_type)
 {
-	const int filter_powered_vehicle = vp_powered_filter.get_selection();
 	const int filter_engine_type = engine_filter.get_selection();
 	if (filter_catg != 255 && veh_type->get_freight_type()->get_catg_index() != filter_catg) {
 		return true;
 	}
-	if (filter_powered_vehicle == 1 && !veh_type->get_power()) {
+	// Inclusive pair, consistent with the outdated/obsolete toggles below:
+	// an unchecked class is hidden; both off shows nothing.
+	if (!bt_show_powered.pressed && veh_type->get_power()) {
 		return true;
 	}
-	else if (filter_powered_vehicle == 2 && veh_type->get_power()) {
+	else if (!bt_show_unpowered.pressed && !veh_type->get_power()) {
 		return true;
 	}
 	if (filter_engine_type > 0 && (uint8)veh_type->get_engine_type() != filter_engine_type - 1) {
