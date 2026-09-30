@@ -106,6 +106,19 @@ Rank on discovery; re-rank on triage.
   `#ifndef MULTI_THREAD` path and are unaffected). Re-rank to 1 if threads=1 on MT builds is
   considered a supported configuration.
 
+### Halt connexions skipped on load when goods categories change — priority 2
+
+- `haltestelle_t::rdwr` (simhalt.cc) sets `path_explorer_t::set_must_refresh_on_loading()`
+  when the saved `iteration_limit` differs from the current pakset (simhalt.cc:4689-4694).
+  The comment at `:4691-4692` states the data must still be read to advance the file
+  position, but the loading branch at `:4757-4788` skips `rdwr_long(connexions_map_count)`
+  and all entry reads when the flag is set [CODE master @ 0e5d0be48].
+- Consequence: file position desynchronises for all data after halts (convoys, players,
+  finance history, path explorer, private-car queue) whenever the pakset's goods
+  categories or classes changed since saving. Symmetric across peers with identical
+  file and pakset, so not a network join vector; single-player load corruption.
+  Recorded per user instruction 2026-09-30 for a separate fix session.
+
 ### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
 
 - Loading bb-10-sep-2023.sve (the performance-suite fixture) as a loopback server and issuing an
@@ -136,6 +149,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| First-join desync then clean rejoin (not a forum report: investigation 2026-09-30; see also 22203 below) | — | detailed investigation → [bug-first-join-desync](bug-first-join-desync.md); isolated to single-convoy speed divergence 3 frames after unpause; cause not yet isolated |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
@@ -168,6 +182,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |
 | Industry density cap fails open when actual exceeds target (not a forum report: code inspection) | — | BOTH branches, pre-existing; unsigned subtraction `get_target_industry_density() - get_actual_industry_density()` wraps in `factory_builder_t::increase_industry_density`, so `do_not_add_beyond_target_density` stops bounding; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
