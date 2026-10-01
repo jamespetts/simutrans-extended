@@ -58,6 +58,9 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
    scaffolding, scratch data inside the repo) must carry an explicit comment containing
    the word TEST or TESTING in capital letters, so it is never mistaken for an intended
    fix. Revert all such changes before finishing.
+10. All autonomously started game/binary test runs must pass the `-nomidi` flag (in
+    addition to `-nosound` where applicable), unless the task specifically concerns
+    music or sound. Background music from unattended runs disturbs the user's work.
 
 
 ## Commit messages
