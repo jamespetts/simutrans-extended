@@ -138,6 +138,7 @@ enum magic_numbers {
 	magic_consist_order_rdwr_dummy, // only used to load/save
 	magic_script_error,
 	magic_prices_frame,
+	magic_uncouple_entry_picker,
 	//magic_info_pointer, //unused
 	magic_max
 };

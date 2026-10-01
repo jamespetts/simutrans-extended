@@ -394,6 +394,105 @@ bool gui_schedule_entry_t::action_triggered(gui_action_creator_t *c, value_t )
 }
 
 
+bool gui_pickable_schedule_entry_t::infowin_event(const event_t *ev)
+{
+	if (IS_RIGHTCLICK(ev)) {
+		return gui_schedule_entry_t::infowin_event(ev);
+	}
+	if (IS_LEFTCLICK(ev)) {
+		// Child buttons first (posbutton etc.); the picker swallows their actions.
+		if (gui_aligned_container_t::infowin_event(ev)) {
+			return true;
+		}
+		// getroffen() takes parent-relative coordinates, but dispatch moved
+		// the origin to this row: add pos back. Without this, only a row at
+		// 0,0 can ever arm (verified via picker-row-TEST log: a press at
+		// row-relative (52,5) on the row at (0,19) tested the rect y 19-34).
+		if (getroffen(ev->click_pos + pos)) {
+			press_armed = true;
+			set_active(true);
+		}
+		// Never swallow the press: the scrollpane must still start
+		// content-drag, and wheel/drag scrolling keeps working.
+		return false;
+	}
+	if (IS_LEFTRELEASE(ev)) {
+		if (press_armed) {
+			press_armed = false;
+			set_active(false);
+			// Release events route by press position, so this row always
+			// sees its own release: commit only if the cursor never left.
+			if (getroffen(ev->mouse_pos + pos)) {
+				call_listeners(target_unique_id);
+			}
+			return true;
+		}
+		return false;
+	}
+	return gui_schedule_entry_t::infowin_event(ev);
+}
+
+
+bool gui_pickable_schedule_entry_t::action_triggered(gui_action_creator_t *, value_t)
+{
+	// del/swap are decorative in the picker: swallow everything from children.
+	// The only thing this row emits is the release commit (unique id).
+	return true;
+}
+
+
+uncouple_entry_picker_t::uncouple_entry_picker_t(player_t *pl, schedule_t *target_snapshot, halthandle_t halt, const char *target_name) :
+	gui_frame_t("", NULL),
+	target_schedule(target_snapshot),
+	player(pl),
+	scroll(&rows, true, true)
+{
+	set_owner(pl);
+	title.printf("%s: %s", translator::translate("Select target entry"), target_name);
+	set_name(title);
+
+	rows.set_table_layout(1, 0);
+	rows.set_margin(scr_size(0, 0), scr_size(0, 0));
+	rows.set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	for (uint8 i = 0; i < target_schedule->get_count(); i++) {
+		halthandle_t eh = haltestelle_t::get_halt(target_schedule->entries[i].pos, player);
+		if (eh.is_bound() && eh == halt) {
+			gui_pickable_schedule_entry_t *row = rows.new_component<gui_pickable_schedule_entry_t>(player, target_schedule->entries[i], i);
+			row->add_listener(this);
+		}
+	}
+
+	set_table_layout(1, 0);
+	set_margin(scr_size(0, D_V_SPACE), scr_size(D_H_SPACE, 0));
+
+	// Request the full row width: the default pane minimum (a standard
+	// dialog width) is narrower than a schedule-entry row, which would
+	// squeeze rows under the scrollbars and leave dead click zones.
+	scroll.set_min_width(rows.get_min_size().w);
+	scroll.set_maximize(true);
+	add_table(1, 1)->set_table_frame(true, true);
+	{
+		add_component(&scroll);
+	}
+	end_table();
+
+	set_resizemode(diagonal_resize);
+	reset_min_windowsize();
+	set_windowsize(get_min_windowsize());
+}
+
+
+bool uncouple_entry_picker_t::action_triggered(gui_action_creator_t *, value_t p)
+{
+	// Pickable rows swallow their child buttons' actions and emit nothing
+	// but the release commit, and nothing else listens to this window's
+	// rows: any action here is a row commit (picked unique entry id).
+	call_listeners(p);
+	destroy_win(this); // kill-list-deferred while inside event handling
+	return true;
+}
+
+
 // shows/deletes highlighting of tiles
 void schedule_gui_stats_t::highlight_schedule( schedule_t *markschedule, bool marking )
 {
@@ -1133,6 +1232,11 @@ void schedule_gui_t::build_table()
 			cont_settings_2.end_table();
 
 			cont_settings_2.new_component<gui_divider_t>();
+			bt_couple.init(button_t::square_automatic, "Couple at this stop");
+			bt_couple.set_tooltip("Couple with the selected line or consist at this stop.");
+			bt_couple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::couple);
+			bt_couple.add_listener(this);
+			cont_settings_2.add_component(&bt_couple);
 			cont_settings_2.new_component<gui_label_t>("couple target")->set_tooltip(translator::translate("The line or consist that this consist couples with at this stop"));
 			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0,0));
 			{
@@ -1141,8 +1245,8 @@ void schedule_gui_t::build_table()
 				bt_couple_is_cnv.add_listener(this);
 				bt_couple_is_line.init(button_t::roundbox_left_state, "Line");
 				bt_couple_is_line.set_tooltip(translator::translate("The couple target is a line"));
-				bt_couple_is_cnv.init(button_t::roundbox_right_state, "Convoy");
-				bt_couple_is_cnv.set_tooltip(translator::translate("The couple target is an individual convoy"));
+				bt_couple_is_cnv.init(button_t::roundbox_right_state, "Consist");
+				bt_couple_is_cnv.set_tooltip(translator::translate("The couple target is an individual consist"));
 				cont_settings_2.add_component(&bt_couple_is_line);
 				cont_settings_2.add_component(&bt_couple_is_cnv);
 				cont_settings_2.new_component<gui_fill_t>();
@@ -1158,6 +1262,11 @@ void schedule_gui_t::build_table()
 
 			cont_settings_2.new_component<gui_divider_t>();
 
+			bt_uncouple.init(button_t::square_automatic, "Divide at this stop");
+			bt_uncouple.set_tooltip("Divide this consist at this stop, with the divided portion joining the selected line or consist.");
+			bt_uncouple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple);
+			bt_uncouple.add_listener(this);
+			cont_settings_2.add_component(&bt_uncouple);
 			cont_settings_2.new_component<gui_label_t>("uncouple target")->set_tooltip(translator::translate("The line or consist that the divided portion joins at this stop"));
 
 			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0, 0));
@@ -1167,8 +1276,8 @@ void schedule_gui_t::build_table()
 				bt_uncouple_is_cnv.add_listener(this);
 				bt_uncouple_is_line.init(button_t::roundbox_left_state, "Line");
 				bt_uncouple_is_line.set_tooltip(translator::translate("The uncouple target is a line"));
-				bt_uncouple_is_cnv.init(button_t::roundbox_right_state, "Convoy");
-				bt_uncouple_is_cnv.set_tooltip(translator::translate("The uncouple target is an individual convoy"));
+				bt_uncouple_is_cnv.init(button_t::roundbox_right_state, "Consist");
+				bt_uncouple_is_cnv.set_tooltip(translator::translate("The uncouple target is an individual consist"));
 				cont_settings_2.add_component(&bt_uncouple_is_line);
 				cont_settings_2.add_component(&bt_uncouple_is_cnv);
 				cont_settings_2.new_component<gui_fill_t>();
@@ -1182,13 +1291,22 @@ void schedule_gui_t::build_table()
 			}
 			cont_settings_2.end_table();
 
-			cb_uncouple_target_entry.add_listener(this);
-			cont_settings_2.add_table(4, 1)->set_spacing(scr_size(0, 0));
+			bt_uncouple_entry_picker.init(button_t::roundbox, "Use this target schedule from...");
+			bt_uncouple_entry_picker.set_tooltip(translator::translate("The schedule entry at which the uncoupled portion continues"));
+			bt_uncouple_entry_picker.add_listener(this);
+			cont_settings_2.add_table(2, 1)->set_spacing(scr_size(0, 0));
 			{
 				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
-				cont_settings_2.new_component<gui_label_t>("target_entry_uncouple")->set_tooltip(translator::translate("The schedule entry at which the uncoupled portion continues"));
-				cont_settings_2.add_component(&cb_uncouple_target_entry);
-				cont_settings_2.new_component<gui_fill_t>();
+				cont_settings_2.add_component(&bt_uncouple_entry_picker);
+			}
+			cont_settings_2.end_table();
+			update_uncouple_entry_button();
+			cont_uncouple_entry.set_table_layout(1, 0);
+			update_uncouple_entry_display();
+			cont_settings_2.add_table(2, 1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				cont_settings_2.add_component(&cont_uncouple_entry);
 			}
 			cont_settings_2.end_table();
 
@@ -1290,7 +1408,7 @@ void schedule_gui_t::update_target_line_selection(bool condition, bool couple, b
 					uncouple_target_selector.new_component<line_scrollitem_t>(line);
 					if (line.get_id() == schedule->entries[current_stop].target_id_uncouple) {
 						uncouple_target_selector.set_selection(uncouple_target_selector.count_elements()-1);
-						update_uncouple_target_entries(line->get_schedule());
+						request_uncouple_entry_display();
 					}
 				}
 			}
@@ -1340,17 +1458,17 @@ void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple)
 				if (wt != connected_cnv->get_schedule()->get_waytype()) {
 					continue;
 				}
-				if ( couple  &&  bt_couple_is_line.pressed ) {
+				if ( couple  &&  bt_couple_is_cnv.pressed ) {
 					couple_target_selector.new_component<convoy_scrollitem_t>(connected_cnv, false);
 					if (connected_cnv.get_id() == schedule->entries[current_stop].target_id_couple) {
 						couple_target_selector.set_selection(couple_target_selector.count_elements() - 1);
 					}
 				}
-				if ( uncouple  &&  bt_uncouple_is_line.pressed ) {
+				if ( uncouple  &&  bt_uncouple_is_cnv.pressed ) {
 					uncouple_target_selector.new_component<convoy_scrollitem_t>(connected_cnv, false);
 					if (connected_cnv.get_id() == schedule->entries[current_stop].target_id_uncouple) {
 						uncouple_target_selector.set_selection(uncouple_target_selector.count_elements() - 1);
-						update_uncouple_target_entries(connected_cnv->get_schedule());
+						request_uncouple_entry_display();
 					}
 				}
 			}
@@ -1368,6 +1486,39 @@ void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple)
 	}
 }
 
+void schedule_gui_t::default_target_mode(bool &line_pressed, bool &cnv_pressed)
+{
+	line_pressed = false;
+	cnv_pressed = false;
+	if (!schedule->empty()) {
+		halthandle_t halt = haltestelle_t::get_halt(schedule->entries[schedule->get_current_stop()].pos, player);
+		if (halt.is_bound()) {
+			const waytype_t wt = schedule->get_waytype();
+			for (uint32 i = 0; i < halt->registered_lines.get_count(); i++) {
+				const linehandle_t line = halt->registered_lines[i];
+				if (line.is_bound() && wt == line->get_schedule()->get_waytype() && line != old_line) {
+					line_pressed = true;
+					break;
+				}
+			}
+			if (!line_pressed) {
+				for (uint32 i = 0; i < halt->registered_convoys.get_count(); i++) {
+					if (wt == halt->registered_convoys[i]->get_schedule()->get_waytype()) {
+						cnv_pressed = true;
+						break;
+					}
+				}
+			}
+		}
+	}
+	if (!line_pressed && !cnv_pressed) {
+		// Nothing eligible (or no halt info): consist mode shows the
+		// placeholder. The radio invariant (exactly one pressed) holds.
+		cnv_pressed = true;
+	}
+}
+
+
 void schedule_gui_t::disable_couple_target_selector(bool is_uncouple)
 {
 	if (is_uncouple) {
@@ -1384,8 +1535,11 @@ void schedule_gui_t::disable_couple_target_selector(bool is_uncouple)
 		uncouple_target_selector.set_selection(0);
 		uncouple_target_selector.disable();
 		schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 65535;
-		cb_uncouple_target_entry.clear_elements();
-		cb_uncouple_target_entry.set_visible(false);
+		uncouple_entry_row = NULL;
+		cont_uncouple_entry.set_visible(false);
+		update_uncouple_entry_button();
+		request_uncouple_entry_display();
+		close_uncouple_picker();
 	}
 	else {
 		couple_target_selector.clear_elements();
@@ -1403,26 +1557,66 @@ void schedule_gui_t::disable_couple_target_selector(bool is_uncouple)
 	}
 }
 
-void schedule_gui_t::update_uncouple_target_entries(schedule_t* sch)
+schedule_t* schedule_gui_t::get_uncouple_target_schedule()
 {
-	cb_uncouple_target_entry.clear_elements();
-	cb_uncouple_target_entry.set_selection(-1);
-	halthandle_t current_halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, player);
-	for (uint8 i = 0; i < sch->get_count(); i++) {
-		halthandle_t halt = haltestelle_t::get_halt(sch->entries[i].pos, player);
+	if (schedule->empty()) {
+		return NULL;
+	}
+	const schedule_entry_t &e = schedule->get_current_entry();
+	if (!e.target_id_uncouple) {
+		return NULL;
+	}
+	if (!e.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv)) {
+		linehandle_t line;
+		line.set_id(e.target_id_uncouple);
+		if (line.is_bound()) {
+			return line->get_schedule();
+		}
+	}
+	else {
+		convoihandle_t cnv;
+		cnv.set_id(e.target_id_uncouple);
+		if (cnv.is_bound()) {
+			return cnv->get_schedule();
+		}
+	}
+	return NULL;
+}
 
-		if (halt.is_bound() && halt == current_halt) {
-			cb_uncouple_target_entry.new_component<entry_index_scrollitem_t>(i, sch->entries[i]);
-			if (schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple==65535) {
-				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = sch->entries[i].unique_entry_id;
-				cb_uncouple_target_entry.set_selection( cb_uncouple_target_entry.count_elements()-1 );
-			}
-			else if (schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple == sch->entries[i].unique_entry_id) {
-				cb_uncouple_target_entry.set_selection( cb_uncouple_target_entry.count_elements()-1 );
+
+void schedule_gui_t::update_uncouple_entry_button()
+{
+	if (bt_uncouple_is_line.pressed) {
+		bt_uncouple_entry_picker.set_text("Use this target line from...");
+	}
+	else if (bt_uncouple_is_cnv.pressed) {
+		bt_uncouple_entry_picker.set_text("Use this target consist from...");
+	}
+	else {
+		bt_uncouple_entry_picker.set_text("Use this target schedule from...");
+	}
+	bt_uncouple_entry_picker.enable(get_uncouple_target_schedule() != NULL);
+}
+
+
+void schedule_gui_t::update_uncouple_entry_display()
+{
+	cont_uncouple_entry.remove_all();
+	uncouple_entry_row = NULL;
+	bool shown = false;
+	if (schedule_t* target = get_uncouple_target_schedule()) {
+		const uint16 uid = schedule->get_current_entry().target_unique_entry_uncouple;
+		for (uint8 i = 0; i < target->get_count(); i++) {
+			if (target->entries[i].unique_entry_id == uid) {
+				uncouple_entry_row = cont_uncouple_entry.new_component<gui_schedule_entry_t>(player, target->entries[i], i);
+				uncouple_entry_row->hide_swap_button();
+				uncouple_entry_row->add_listener(this);
+				shown = true;
+				break;
 			}
 		}
 	}
-	cb_uncouple_target_entry.set_visible(true);
+	cont_uncouple_entry.set_visible(shown);
 }
 
 void schedule_gui_t::update_selection()
@@ -1466,6 +1660,10 @@ void schedule_gui_t::update_selection()
 		bt_pickup_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only);
 		bt_setdown_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only);
 		bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
+		bt_couple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::couple);
+		bt_uncouple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple);
+		update_uncouple_entry_button();
+		request_uncouple_entry_display();
 		bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh != 65535);
 		numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
 		numimp_speed_limit.enable(bt_speed_limit.pressed);
@@ -1546,25 +1744,26 @@ void schedule_gui_t::update_selection()
 			}
 
 		if (current_stop != last_toggle_stop) {
-			// Showing another entry: drop the previous entry's toggle modes.
-			// Within an entry the user's Line/Convoy mode selection is kept:
-			// update_selection() runs after every action and rebuilds the
-			// selectors, so resetting here would unpress the toggles and
-			// disable the selectors before a target can ever be picked.
-			bt_couple_is_cnv.pressed = false;
-			bt_couple_is_line.pressed = false;
-			bt_uncouple_is_line.pressed = false;
-			bt_uncouple_is_cnv.pressed = false;
-			last_toggle_stop = current_stop;
-		}
-		if (schedule->get_current_entry().target_id_couple) {
+			// Showing another entry: restore the stored Line/Consist mode,
+			// or default it (radio behaviour: exactly one mode is always
+			// pressed). Within an entry the mode is kept: update_selection()
+			// runs after every action and rebuilds the selectors.
+			if (schedule->get_current_entry().target_id_couple) {
 				bt_couple_is_line.pressed = !schedule->get_current_entry().is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv);
 				bt_couple_is_cnv.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv);
 			}
-		if (schedule->get_current_entry().target_id_uncouple) {
+			else {
+				default_target_mode(bt_couple_is_line.pressed, bt_couple_is_cnv.pressed);
+			}
+			if (schedule->get_current_entry().target_id_uncouple) {
 				bt_uncouple_is_line.pressed = !schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv);
 				bt_uncouple_is_cnv.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv);
 			}
+			else {
+				default_target_mode(bt_uncouple_is_line.pressed, bt_uncouple_is_cnv.pressed);
+			}
+			last_toggle_stop = current_stop;
+		}
 
 			update_target_line_selection(true, bt_couple_is_line.pressed, bt_uncouple_is_line.pressed);
 			update_target_convoy_selection(bt_couple_is_cnv.pressed, bt_uncouple_is_cnv.pressed);
@@ -1624,6 +1823,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 
 		update_tool( false );
 		destroy_win(magic_consist_order); // it may creates data conflicts
+		close_uncouple_picker();
 		schedule->cleanup();
 		schedule->finish_editing();
 		// now apply the changes
@@ -1672,14 +1872,14 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 			minimap_t::get_instance()->set_selected_cnv(cnv);
 		}
 	}
-	else if (!line_selector.is_dropped() && !condition_line_selector.is_dropped() && !couple_target_selector.is_dropped() && !uncouple_target_selector.is_dropped() && !cb_uncouple_target_entry.is_dropped() && ((ev)->ev_code == MOUSE_WHEELUP || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_UP)) && schedule->entries.get_count()>1) {
+	else if (!line_selector.is_dropped() && !condition_line_selector.is_dropped() && !couple_target_selector.is_dropped() && !uncouple_target_selector.is_dropped() && ((ev->ev_class == EVENT_CLICK && (ev)->ev_code == MOUSE_WHEELUP) || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_UP)) && schedule->entries.get_count()>1) {
 		if (schedule->get_current_stop()){
 			schedule->set_current_stop(schedule->get_current_stop()-1);
 			update_selection();
 		}
 		return true;
 	}
-	else if (!line_selector.is_dropped() && !condition_line_selector.is_dropped() && !couple_target_selector.is_dropped() && !uncouple_target_selector.is_dropped() && !cb_uncouple_target_entry.is_dropped() && ((ev)->ev_code == MOUSE_WHEELDOWN || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_DOWN)) && schedule->entries.get_count()>1 && schedule->get_current_stop() < schedule->entries.get_count()) {
+	else if (!line_selector.is_dropped() && !condition_line_selector.is_dropped() && !couple_target_selector.is_dropped() && !uncouple_target_selector.is_dropped() && ((ev->ev_class == EVENT_CLICK && (ev)->ev_code == MOUSE_WHEELDOWN) || (ev->ev_class == EVENT_KEYBOARD && ev->ev_code == SIM_KEY_DOWN)) && schedule->entries.get_count()>1 && schedule->get_current_stop() < schedule->entries.get_count()) {
 		schedule->set_current_stop(schedule->get_current_stop()+1);
 		update_selection();
 		return true;
@@ -1693,6 +1893,9 @@ bool schedule_gui_t::action_triggered( gui_action_creator_t *comp, value_t p)
 {
 	if( player!=welt->get_active_player() || welt->get_active_player()->is_locked()) { return true; }
 DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_selector);
+	// Live picker window, if any (NULL when closed): its commit is handled
+	// in the chain below alongside the other components.
+	uncouple_entry_picker_t *open_picker = dynamic_cast<uncouple_entry_picker_t*>(win_get_magic(magic_uncouple_entry_picker));
 	if(comp == &bt_add) {
 		mode = adding;
 		bt_add.pressed = true;
@@ -1771,6 +1974,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 
 		if(  line >= 0 && line < schedule->get_count()  ) {
 			schedule->set_current_stop( line );
+			close_uncouple_picker(); // entry switch: picker snapshot is stale
 			if(  mode == removing  ) {
 				stats->highlight_schedule( schedule, false );
 				schedule->remove();
@@ -1934,52 +2138,70 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
 			}
 		}
-		else if (comp == &bt_couple_is_line) {
-			bt_couple_is_line.pressed = !bt_couple_is_line.pressed;
-			schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
-			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
-			if (bt_couple_is_line.pressed) {
-				bt_couple_is_cnv.pressed = false;
-				update_target_line_selection(false, true, false);
+		else if (comp == &bt_couple)
+		{
+			if (bt_couple.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::couple);
 			}
-			else {
-				disable_couple_target_selector();
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple);
+			}
+		}
+		else if (comp == &bt_uncouple)
+		{
+			if (bt_uncouple.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple);
+			}
+		}
+		// Line/Consist pairs are radios (the segmented pair is Simutrans'
+		// exclusive-choice widget; there is no round radio button): pressing
+		// one side always presses it and releases the other. There is no
+		// unpressed state; switching modes clears the other mode's target.
+		else if (comp == &bt_couple_is_line) {
+			if (!bt_couple_is_line.pressed) {
+				bt_couple_is_line.pressed = true;
+				bt_couple_is_cnv.pressed = false;
+				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+				update_target_line_selection(false, true, false);
 			}
 		}
 		else if (comp == &bt_couple_is_cnv) {
-			bt_couple_is_cnv.pressed = !bt_couple_is_cnv.pressed;
-			schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
-			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
-			if (bt_couple_is_cnv.pressed) {
+			if (!bt_couple_is_cnv.pressed) {
+				bt_couple_is_cnv.pressed = true;
 				bt_couple_is_line.pressed = false;
+				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
 				update_target_convoy_selection(true, false);
-			}
-			else {
-				disable_couple_target_selector();
 			}
 		}
 		else if (comp == &bt_uncouple_is_line) {
-			bt_uncouple_is_line.pressed = !bt_uncouple_is_line.pressed;
-			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
-			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-			if (bt_uncouple_is_line.pressed) {
+			if (!bt_uncouple_is_line.pressed) {
+				bt_uncouple_is_line.pressed = true;
 				bt_uncouple_is_cnv.pressed = false;
+				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
 				update_target_line_selection(false, false, true);
-			}
-			else {
-				disable_couple_target_selector(true);
+				update_uncouple_entry_button();
+				close_uncouple_picker();
 			}
 		}
 		else if (comp == &bt_uncouple_is_cnv) {
-			bt_uncouple_is_cnv.pressed = !bt_uncouple_is_cnv.pressed;
-			schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
-			schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-			if (bt_uncouple_is_cnv.pressed) {
+			if (!bt_uncouple_is_cnv.pressed) {
+				bt_uncouple_is_cnv.pressed = true;
 				bt_uncouple_is_line.pressed = false;
+				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
 				update_target_convoy_selection(false, true);
-			}
-			else {
-				disable_couple_target_selector(true);
+				update_uncouple_entry_button();
+				close_uncouple_picker();
 			}
 		}
 		else if (comp == &condition_line_selector) {
@@ -2027,7 +2249,9 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			int selection = p.i;
 			if (selection == 0) {
 				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
-				cb_uncouple_target_entry.set_visible(false);
+				update_uncouple_entry_button();
+				request_uncouple_entry_display();
+				close_uncouple_picker();
 				return true;
 			}
 			else {
@@ -2036,7 +2260,9 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 					if (item) {
 						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_line().get_id();
 						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-						update_uncouple_target_entries(item->get_line()->get_schedule());
+						update_uncouple_entry_button();
+						request_uncouple_entry_display();
+						close_uncouple_picker();
 						return true;
 					}
 				}
@@ -2045,18 +2271,62 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 					if (item) {
 						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_convoy().get_id();
 						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-						update_uncouple_target_entries(item->get_convoy()->get_schedule());
+						update_uncouple_entry_button();
+						request_uncouple_entry_display();
+						close_uncouple_picker();
 						return true;
 					}
 				}
 			}
 		}
-		else if (comp == &cb_uncouple_target_entry) {
-			int selection = p.i;
-			entry_index_scrollitem_t *item = dynamic_cast<entry_index_scrollitem_t*>(cb_uncouple_target_entry.get_element(selection));
-			if (item) {
-				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = item->unique_entry_id;
-				return true;
+		else if (comp == &bt_uncouple_entry_picker) {
+			// Open the target-entry picker over a snapshot of the live target schedule.
+			if (schedule_t* target = get_uncouple_target_schedule()) {
+				close_uncouple_picker(); // fresh, never stale
+				schedule_t* snap = target->copy();
+				halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, player);
+				cbuffer_t target_name;
+				const schedule_entry_t &e = schedule->get_current_entry();
+				if (!e.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv)) {
+					linehandle_t line;
+					line.set_id(e.target_id_uncouple);
+					if (line.is_bound()) {
+						target_name.printf("%s", line->get_name());
+					}
+				}
+				else {
+					convoihandle_t target_cnv;
+					target_cnv.set_id(e.target_id_uncouple);
+					if (target_cnv.is_bound()) {
+						target_name.printf("%s", target_cnv->get_name());
+					}
+				}
+				create_win({ -1, -1 }, new uncouple_entry_picker_t(player, snap, halt, target_name), w_info, magic_uncouple_entry_picker);
+				if (uncouple_entry_picker_t *win = dynamic_cast<uncouple_entry_picker_t*>(win_get_magic(magic_uncouple_entry_picker))) {
+					win->add_listener(this);
+					top_win(win);
+				}
+				else {
+					delete snap;
+				}
+			}
+		}
+		else if (open_picker && comp == open_picker) {
+			// Picker commit: store the picked unique entry id.
+			// (The picker closes itself.)
+			schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = (uint16)p.i;
+			request_uncouple_entry_display();
+		}
+		else if (comp == uncouple_entry_row) {
+			// Inline display row: red X clears the selection (swap is
+			// hidden); plain clicks on the row are ignored. Deferred:
+			// this handler runs inside the row's own dispatch, so the
+			// row must not be removed synchronously here.
+			if (p.i & DELETE_FLAG) {
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 65535;
+				uncouple_entry_row = NULL;
+				cont_uncouple_entry.set_visible(false);
+				request_uncouple_entry_display();
 			}
 		}
 		else if (comp == &bt_consist_order) {
@@ -2154,6 +2424,13 @@ void schedule_gui_t::init_line_selector()
 
 void schedule_gui_t::draw(scr_coord pos, scr_size size)
 {
+	// Deferred inline-display rebuild (see request_uncouple_entry_display):
+	// structural changes run here, outside any event dispatch, mirroring
+	// schedule_gui_stats_t::draw/update_schedule.
+	if (uncouple_display_dirty && schedule) {
+		uncouple_display_dirty = false;
+		update_uncouple_entry_display();
+	}
 	if (cnv.is_bound()) {
 		if (cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {
 			filter_btn_all_pas.enable();

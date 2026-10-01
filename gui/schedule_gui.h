@@ -23,6 +23,7 @@
 
 #include "../convoihandle_t.h"
 #include "../linehandle_t.h"
+#include "../halthandle_t.h"
 #include "../tpl/vector_tpl.h"
 
 
@@ -106,6 +107,12 @@ public:
 		update_label();
 	}
 
+	// Removal/addition buttons are meaningless in display-only uses
+	// (picker list, selected-entry display): hidden buttons collapse
+	// (invisible + non-rigid takes no space) and leave focus handling.
+	void hide_action_buttons() { bt_del.set_visible(false); bt_swap.set_visible(false); }
+	void hide_swap_button() { bt_swap.set_visible(false); }
+
 	void draw(scr_coord offset) OVERRIDE;
 	bool infowin_event(const event_t *ev) OVERRIDE;
 
@@ -113,23 +120,54 @@ public:
 };
 
 
-class entry_index_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
+/**
+ * One schedule-entry row with press/release commit semantics for the
+ * uncouple-target-entry picker: highlight on left press, commit the entry's
+ * unique id on release only if the cursor is still inside the row, cancel
+ * otherwise. Release events route by press position, so a press here and a
+ * release elsewhere can neither commit nor leave a stale highlight: this row
+ * always sees its own release.
+ * The del/swap child buttons keep working (handled before the row itself);
+ * their actions are swallowed by the picker window.
+ */
+class gui_pickable_schedule_entry_t : public gui_schedule_entry_t
 {
-	uint8 index;
+	// The schedule entry's stable identity, committed on valid release.
+	uint16 target_unique_id;
+	bool press_armed = false;
 
 public:
-	uint16 unique_entry_id;
-	entry_index_scrollitem_t(uint8 entry_index, schedule_entry_t entry) : gui_scrolled_list_t::const_text_scrollitem_t(NULL, SYSCOL_TEXT) {
-		index=entry_index;
-		unique_entry_id = entry.unique_entry_id;
-	}
+	gui_pickable_schedule_entry_t(player_t* pl, schedule_entry_t e, uint n) :
+		gui_schedule_entry_t(pl, e, n, false), target_unique_id(e.unique_entry_id) { hide_action_buttons(); }
 
-	char const* get_text() const OVERRIDE
-	{
-		static char str[3];
-		sprintf(str, "%u", index+1);
-		return str;
-	}
+	bool infowin_event(const event_t *ev) OVERRIDE;
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
+};
+
+
+/**
+ * Picker window for the uncouple target entry: shows the target line/convoy
+ * schedule's entries at the dividing halt as full schedule-entry rows (the
+ * same visual presentation as the schedule window's stop list). Built over a
+ * snapshot copy owned by the window. Commits the picked entry's unique id to
+ * its listeners, then closes itself (self-destroy is kill-list-deferred while
+ * inside event handling, so closing on commit is safe).
+ * Transient: default get_rdwr_id (magic_reserved) keeps it out of savegames.
+ */
+class uncouple_entry_picker_t : public gui_frame_t, public action_listener_t, public gui_action_creator_t
+{
+	schedule_t *target_schedule; // snapshot copy, owned
+	player_t *player;
+	cbuffer_t title;
+
+	gui_aligned_container_t rows;
+	gui_scrollpane_t scroll;
+
+public:
+	uncouple_entry_picker_t(player_t *pl, schedule_t *target_snapshot, halthandle_t halt, const char *target_name);
+	~uncouple_entry_picker_t() { delete target_schedule; }
+
+	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 };
 
 class schedule_gui_stats_t : public gui_aligned_container_t, action_listener_t, public gui_action_creator_t
@@ -226,17 +264,38 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	schedule_gui_stats_t *stats;
 	gui_scrollpane_t scroll;
 
+	button_t bt_couple, bt_uncouple;
 	button_t bt_couple_is_line, bt_couple_is_cnv;
 	button_t bt_uncouple_is_line, bt_uncouple_is_cnv;
 	gui_combobox_t condition_line_selector;
 	gui_combobox_t couple_target_selector;
 	gui_combobox_t uncouple_target_selector;
+	// Radio default for one Line/Consist pair: line mode if any eligible
+	// line calls at this halt, consist mode otherwise. Only used for the
+	// no-target-yet state; stored targets restore their own mode.
+	void default_target_mode(bool &line_pressed, bool &cnv_pressed);
 	void disable_couple_target_selector(bool is_uncouple=false);
 	void update_target_line_selection(bool condition, bool couple, bool uncouple);
 	void update_target_convoy_selection(bool couple, bool uncouple);
 
-	gui_combobox_t cb_uncouple_target_entry;
-	void update_uncouple_target_entries(schedule_t* sch);
+	// Opens the uncouple-target-entry picker; text follows the Line/Convoy
+	// toggle mode ("Use this target line/consist/schedule from...").
+	button_t bt_uncouple_entry_picker;
+	// Inline display of the selected target entry (one schedule-entry row).
+	// The red X clears the selection; plain clicks on the row are ignored.
+	// Rebuilds are draw-deferred (see request_uncouple_entry_display):
+	// handlers that run inside this container's own dispatch must never
+	// remove its rows synchronously (use-after-free of the dispatch's
+	// comp pointer, observed as 0xC00000FD in gui_container_t).
+	gui_aligned_container_t cont_uncouple_entry;
+	gui_schedule_entry_t *uncouple_entry_row = NULL;
+	bool uncouple_display_dirty = false;
+	void request_uncouple_entry_display() { uncouple_display_dirty = true; }
+	// Live target schedule of the current entry, or NULL if none/invalid.
+	schedule_t* get_uncouple_target_schedule();
+	void update_uncouple_entry_button();
+	void update_uncouple_entry_display();
+	void close_uncouple_picker() { destroy_win(magic_uncouple_entry_picker); }
 
 	gui_aligned_container_t cont_settings_1, cont_settings_2;
 	gui_tab_panel_t tabs;

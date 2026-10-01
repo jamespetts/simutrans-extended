@@ -6520,6 +6520,34 @@ uncouple target
 Uncouple target
 target_entry_uncouple
 Uncouple at stop
+Couple at this stop
+Couple at this stop
+Couple with the selected line or consist at this stop.
+Couple with the selected line or consist at this stop.
+Divide at this stop
+Divide at this stop
+Divide this consist at this stop, with the divided portion joining the selected line or consist.
+Divide this consist at this stop, with the divided portion joining the selected line or consist.
+Use this target line from:
+Use this target line from:
+Use this target consist from:
+Use this target consist from:
+Use this target schedule from:
+Use this target schedule from:
+Use this target line from...
+Use this target line from...
+Use this target consist from...
+Use this target consist from...
+Use this target schedule from...
+Use this target schedule from...
+Select target entry
+Select target entry
+Consist
+Consist
+The couple target is an individual consist
+The couple target is an individual consist
+The uncouple target is an individual consist
+The uncouple target is an individual consist
 line not found
 No line found
 convoy not found
@@ -6739,7 +6767,7 @@ Filter by line
 entry_setting_1
 Details
 entry_setting_2
-Triggers and coupling
+Consist re-formation
 helptxt_swap_schedule_entries
 Swap
 can_also_jump_to_the_coordinate_by_right-clicking_on_the_entry
