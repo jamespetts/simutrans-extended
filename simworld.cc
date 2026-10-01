@@ -2572,6 +2572,14 @@ sint32 karte_t::get_parallel_operations() const
 		po = env_t::num_threads - 1;
 	}
 
+	// Clamp to a minimum of 1: with threads = 1 the fallback would be 0,
+	// which is used as a divisor below (passenger/mail and route
+	// unreservation splits) and would crash.
+	if (po < 1)
+	{
+		po = 1;
+	}
+
 	return po;
 #endif
 }
@@ -4541,7 +4549,7 @@ void karte_t::sync_step(uint32 delta_t, bool do_sync_step, bool display )
 	debug_sums[1] = 0; // Convoy sums multiplied by convoy id
 	debug_sums[2] = 0; // "Einwhoner"
 	debug_sums[3] = 0; // Number of buildings
-	debug_sums[4] = env_t::num_threads; // Number of threads
+	debug_sums[4] = 0; // (was: Number of threads; removed so peers with different local thread counts stay in sync)
 	debug_sums[5] = 0; // Passengers/mail generated this step
 	debug_sums[6] = 0; // Transferring cargoes before passenger generation
 	debug_sums[7] = 0; // Transferring cargoes after passenger generation
@@ -8603,11 +8611,15 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "saved messages");
 		{
 			if (env_t::networkmode)
 			{
-				if (env_t::server)
-				{
-					sint32 po = env_t::num_threads - 1;
-					file->rdwr_long(po);
-				}
+			if (env_t::server)
+			{
+				// Store the effective work-split size (clamped to >= 1) rather
+				// than num_threads - 1, which would be 0 for threads = 1 and
+				// would be silently discarded by the client-side adoption
+				// (parallel_operations must be > 0 to take effect).
+				sint32 po = get_parallel_operations();
+				file->rdwr_long(po);
+			}
 				else
 				{
 					file->rdwr_long(parallel_operations);
@@ -10221,13 +10233,19 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		}
 #endif
 
+#ifdef MULTI_THREAD
+		// Value of get_parallel_operations() while the halt constructors ran
+		// above; compared against the adopted value below.
+		const sint32 po_before_halt_sizing = get_parallel_operations();
+#endif
 		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 13)
 		{
 			if (env_t::networkmode)
 			{
 				if (env_t::server)
 				{
-					sint32 po = env_t::num_threads - 1;
+					// As above: store the effective work-split size, clamped to >= 1.
+					sint32 po = get_parallel_operations();
 					file->rdwr_long(po);
 					parallel_operations = 0;
 				}
@@ -10243,6 +10261,27 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 				parallel_operations = -1;
 			}
 		}
+
+#ifdef MULTI_THREAD
+		// Halts constructed during this load were sized from the pre-adoption
+		// parallel-operations value. The adopted value (server's work split on a
+		// network client) drives all worker indexing and drain loops, so any
+		// halt whose array is now too small must be grown; otherwise its cargo
+		// would be read and written out of bounds by the passenger/mail
+		// workers.
+		{
+			const sint32 new_slots = get_parallel_operations() + 2;
+			// haltestelle_t::haltestelle_t(loadsave_t*) sized the arrays as
+			// max(po_before + 2, env_t::num_threads + 1), so only grow.
+			if (new_slots > max(po_before_halt_sizing + 2, env_t::num_threads + 1))
+			{
+				for (auto const halt : haltestelle_t::get_alle_haltestellen())
+				{
+					halt->resize_transferring_cargoes(new_slots);
+				}
+			}
+		}
+#endif
 	}
 
 #ifndef MULTI_THREAD

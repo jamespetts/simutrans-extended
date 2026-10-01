@@ -520,6 +520,16 @@ private:
 	void check_transferring_cargoes();
 
 public:
+	/**
+	 * Reallocates the per-thread transferring cargo slot array to the given
+	 * size. Called during world load, immediately after the parallel
+	 * operations value has been adopted (it may exceed the value used when
+	 * the halt was constructed). All entries sit in slot 0 at that point
+	 * (rdwr merges all slots into slot 0); the implementation moves the
+	 * slot-0 vector rather than copying.
+	 */
+	void resize_transferring_cargoes(sint32 new_slot_count);
+
 	// Added by : Knightly
 	void swap_connexions(const uint8 category, const uint8 g_class, haltestelle_t::connexions_map* &cxns)
 	{

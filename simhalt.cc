@@ -532,6 +532,26 @@ haltestelle_t::haltestelle_t(koord k, player_t* player)
 }
 
 
+void haltestelle_t::resize_transferring_cargoes(sint32 new_slot_count)
+{
+#ifdef MULTI_THREAD
+	assert(new_slot_count >= 2);
+
+	// When this is called (world load, after the parallel-operations value
+	// has been adopted), every entry sits in slot 0 — rdwr merged all slots
+	// into slot 0 while loading, and no passenger has been processed yet —
+	// so we can transfer the slot-0 buffer itself rather than copying any
+	// elements, and the other (empty) slots destruct to nothing.
+	vector_tpl<transferring_cargo_t>* neu = new vector_tpl<transferring_cargo_t>[new_slot_count];
+	swap(neu[0], transferring_cargoes[0]);
+	delete[] transferring_cargoes;
+	transferring_cargoes = neu;
+#else
+	(void)new_slot_count;
+#endif
+}
+
+
 haltestelle_t::~haltestelle_t()
 {
 	assert(self.is_bound());
