@@ -140,6 +140,29 @@ Rank on discovery; re-rank on triage.
 - User decision 2026-09-07: leave unfixed for now — very low priority; fix-or-delete undecided
   [RECOLLECTION:2026-09-07] (→ [threading](threading.md)).
 
+### recalc_transitions climate-byte data race (TSan mapgen) — priority 3
+
+- `karte_t::recalc_transitions_loop` run under `world_xy_loop` reads neighbouring tiles'
+  `planquadrat_t::climate_data` byte via `get_climate()` (simplan.h:129, neighbour read at
+  simworld.cc:10764) while another slice's worker read-modify-writes the same byte via
+  `set_climate_transition_flag()` (simplan.h:147, own-tile write at simworld.cc:10794);
+  `grund_t::calc_image()`'s neighbour-climate reads (boden/grund.cc:1217) share the exposure.
+  Root cause: climate (bits 0–2), transition flag (bit 3) and corners (bits 4–7) share one
+  `uint8` (simplan.h:49), so the row-slice callback writes state other slices read —
+  violating the map-loop invariant (→ [threading](threading.md)). Same code on both branches
+  [CODE ex-15 @ cafd18e1e; CODE master @ 0e5d0be48].
+- Observed as an intermittent TSan-smoke failure (mapgen `small-s5` abort after 3 race
+  reports; neighbouring runs with identical code go green — timing-dependent row-boundary
+  overlap). Value-benign in practice: the writer preserves the climate bits, per-tile results
+  are deterministic, and the race cannot deadlock (no waits, locks, or control-flow dependence
+  in the callback); non-sanitizer builds are unaffected. Only the non-blocking TSan job fails.
+- Open questions: (1) whether to fix at all — removes UB and CI noise, but the defect is
+  benign and the failing gate is non-blocking; (2) if so, how — Option A: serialize the two
+  `world_xy_loop(&karte_t::recalc_transitions_loop, 0)` calls (simworld.cc:3139 new-world
+  path, simworld.cc:9915 old-save load path; ~5 lines, strictly fewer threaded moving parts)
+  vs Option B: two-phase parallel compute/apply (keeps parallelism but is complicated by
+  `calc_image()`'s own neighbour reads, which would need snapshot plumbing or a serial apply).
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -242,6 +265,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| recalc_transitions climate-byte data race (not a forum report: TSan CI triage) | — | detailed entry above; both branches; intermittent non-blocking-TSan failure only, value-benign, cannot deadlock; whether/how to fix open |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | Industry-generation rework: persisted density discarded + contradictory overload docs (not a forum report: code inspection) | — | rework branch only; `karte_t::load` reads `actual_industry_density` then recomputes it unconditionally (and duplicates the call under a condition that can never add anything), so the persisted datum is never honoured; `factory_builder_t::adjust_input_consumption(fab, good)` returns the amount NOT used while its declaration documents the amount used; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |
