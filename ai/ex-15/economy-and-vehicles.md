@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 43d1ca6f3
+verified: ex-15 @ fd60082b6
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -162,5 +162,8 @@ value.
 
 ## Open questions
 
-- Inflation audit: verify every cost/revenue booking path against the requirement above — deferred
-  as a separate future task [RECOLLECTION:2026-09-07].
+- Inflation audit: starting-money paths are done — company endowment, takeover refund (on the
+  target's founding-year basis, derived from company age), net-wealth warning threshold and the
+  server-announce figure are all inflation-adjusted; founding month/year is shown in the finance
+  window and player list (derived from company age, no stored datum). Every other cost/revenue
+  booking path still needs verification against the requirement above [CODE ex-15 @ fd60082b6].
