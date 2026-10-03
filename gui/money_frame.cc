@@ -625,6 +625,17 @@ money_frame_t::money_frame_t(player_t *player) :
 	}
 	end_table();
 
+	// company founding date, derived from the company age (exact, so set once here)
+	{
+		add_table(2, 1);
+		new_component<gui_label_t>("Estd.");
+		gui_label_buf_t *founding = new_component<gui_label_buf_t>();
+		const uint32 founding_month = welt->get_current_month() - player->get_player_age();
+		founding->buf().printf("%s %u", translator::get_month_name(founding_month % 12), founding_month / 12);
+		founding->update();
+		end_table();
+	}
+
 	// tab panels
 	// tab (month/year)
 	year_month_tabs.add_tab( &container_year, translator::translate("Years"));
@@ -836,7 +847,7 @@ void money_frame_t::update_labels()
 		warn.buf().append(translator::translate("Credit limit exceeded"));
 		warn.set_visible(true);
 	}
-	else if (player->get_finance()->get_history_com_year(0, ATC_NETWEALTH) * 10 < welt->get_settings().get_starting_money(welt->get_current_month() / 12))
+	else if (player->get_finance()->get_history_com_year(0, ATC_NETWEALTH) * 10 < welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->get_settings().get_starting_money(welt->get_current_month() / 12), general))
 	{
 		warn.set_color(MONEY_MINUS);
 		warn.buf().append( translator::translate("Net wealth near zero") );

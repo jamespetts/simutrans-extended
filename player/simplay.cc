@@ -1382,9 +1382,12 @@ sint64 player_t::calc_takeover_cost() const
 	if(adopt_liabilities){
 		// Refund the free starting capital on company takeover.
 		// This represents a situation in which the starting capital is a non-interest-bearing available to each company only exactly once.
+		// The refund is the starting capital applicable when the target company was founded
+		// (derived from its age), not the current year's figure.
 		// Do not add this cost when the company is in liquidation as discussed in the forums, although this re-enables a free-money-generator exploit.
 		// TODO: Reconsider this whenever a more sophisticated loan system is implemented.
-		cost += welt->get_settings().get_starting_money(welt->get_last_year());
+		const uint32 founding_month = welt->get_current_month() - player_age;
+		cost += welt->get_inflation_adjusted_price(founding_month, welt->get_settings().get_starting_money((sint16)(founding_month / 12)), general);
 	}
 
 	if (adopt_liabilities || finance->get_account_balance() > 0) {

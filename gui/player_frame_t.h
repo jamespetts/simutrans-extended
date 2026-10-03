@@ -49,7 +49,8 @@ private:
 	uint8 old_player_nr; // player changed => need update
 
 	gui_label_buf_t
-		*ai_income[MAX_PLAYER_COUNT-1]; // Income labels
+		*ai_income[MAX_PLAYER_COUNT-1], // Income labels
+		*etd_founded[MAX_PLAYER_COUNT-1]; // Founding-date labels
 
 	button_t
 		player_active[MAX_PLAYER_COUNT-2-1],     // AI on/off button

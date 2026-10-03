@@ -79,7 +79,7 @@ gameinfo_t::gameinfo_t(karte_t *welt) :
 	settings_t const& s = welt->get_settings();
 	freeplay = s.is_freeplay();
 	use_timeline = welt->get_timeline_year_month()!=0;
-	current_starting_money = s.get_starting_money(welt->get_last_year());
+	current_starting_money = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), s.get_starting_money(welt->get_last_year()), general);
 
 	current_year_month = welt->get_current_month();
 	bits_per_month = s.get_bits_per_month();

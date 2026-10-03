@@ -24,7 +24,9 @@ finance_t::finance_t(player_t * _player, karte_t * _world) :
 	player(_player),
 	world(_world)
 {
-	account_balance = world->get_settings().get_starting_money(world->get_last_year());
+	// Starting money is inflation-adjusted so its purchasing power follows config/prices.tab
+	// (the nominal simuconf figures are in year-1900 prices); old saves keep their stored value.
+	account_balance = world->get_inflation_adjusted_price(world->get_timeline_year_month(), world->get_settings().get_starting_money(world->get_last_year()), general);
 	starting_money = account_balance;
 	account_overdrawn = 0;
 

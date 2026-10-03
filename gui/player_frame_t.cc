@@ -97,7 +97,7 @@ ki_kontroll_t::ki_kontroll_t() :
 	old_player_nr = welt->get_active_player_nr();
 	set_table_layout(1,0);
 
-	add_table(8, 0);
+	add_table(9, 0);
 
 	const bool has_locked_icon =
 		(  skinverwaltung_t::gadget
@@ -118,10 +118,12 @@ ki_kontroll_t::ki_kontroll_t() :
 	new_component<gui_image_t>(skinverwaltung_t::gadget ? skinverwaltung_t::gadget->get_image_id(SKIN_GADGET_LOCKED) : IMG_EMPTY, 0, ALIGN_CENTER_V, true)->set_tooltip(translator::translate("Name/password"));
 	new_component_span<gui_label_t>("Access", 4);
 	new_component<gui_label_t>("Cash", SYSCOL_TEXT, gui_label_t::right);
+	new_component<gui_label_t>("Estd.", SYSCOL_TEXT, gui_label_t::left);
 
 	new_component_span<gui_border_t>(2);
 	new_component<gui_border_t>();
 	new_component_span<gui_border_t>(4);
+	new_component<gui_border_t>();
 	new_component<gui_border_t>();
 
 	for(int i=0; i<MAX_PLAYER_COUNT-1; i++) {
@@ -191,6 +193,10 @@ ki_kontroll_t::ki_kontroll_t() :
 		// Income label
 		ai_income[i] = new_component<gui_label_buf_t>(MONEY_PLUS, gui_label_t::money_right);
 		ai_income[i]->set_rigid(true);
+
+		// Founding-date label (left blank for the public player and empty slots)
+		etd_founded[i] = new_component<gui_label_buf_t>();
+		etd_founded[i]->set_rigid(true);
 
 		// takeover buttons for takeovers table
 		take_over_player[i].init(button_t::roundbox, translator::translate("take_over"), scr_coord(0,0), D_BUTTON_SIZE);
@@ -613,8 +619,21 @@ void ki_kontroll_t::update_income()
 				money_to_string(str, player->calc_takeover_cost() / 100, true);
 				lb_take_over_cost[i].buf().append(str);
 			}
+
+			// Founding date, derived from the company age, is omitted for the public player.
+			// The "Estd." prefix lives in the column header, so rows carry only month and year.
+			etd_founded[i]->buf().clear();
+			if (i != PUBLIC_PLAYER_NR) {
+				const uint32 founding_month = welt->get_current_month() - player->get_player_age();
+				etd_founded[i]->buf().printf("%s %u", translator::get_month_name(founding_month % 12), founding_month / 12);
+			}
+			etd_founded[i]->set_visible(true);
+		}
+		else {
+			etd_founded[i]->set_visible(false);
 		}
 		ai_income[i]->update();
+		etd_founded[i]->update();
 		lb_take_over_cost[i].update();
 	}
 }

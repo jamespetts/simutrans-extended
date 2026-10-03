@@ -654,6 +654,8 @@ player_finance_display_account = 1
 # You can adjust all the cost in the game, that are not inside some pak file
 #
 
+# Note: starting money is inflation-adjusted in-game using config/prices.tab,
+# so the amounts below are based to year-1900 prices (1900 = 100% in prices.tab).
 # Starting money of the player. Given in Credit cents (1/100 Cr)
 #starting_money = 20000000
 
