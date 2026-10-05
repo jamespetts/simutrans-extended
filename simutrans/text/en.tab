@@ -6515,7 +6515,7 @@ Wait for trigger
 broadcast_trigger_on_arrival
 Broadcast trigger on arrival
 condition_trigger
-Trigger target line
+Trigger target
 couple target
 Couple target
 uncouple target
@@ -6560,6 +6560,32 @@ if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another
 If this is set, convoys will wait until this condition is broadcasted by another convoy. The convoy holding here is the receiver: it departs once a sender broadcasts this number to its line. Waiting and sending are armed separately at each stop.
 if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving_The_convoy_arriving_here_is_the_sender:_the_target_line_below_is_notified._Waiting_and_sending_are_armed_separately_at_each_stop.
 If this is set, the convoy will broadcast this condition to other convoys at this station when arriving. The convoy arriving here is the sender: the target line below is notified. Waiting and sending are armed separately at each stop.
+Send trigger on arrival
+Send trigger on arrival
+If this is set, the consist broadcasts its condition number to the target line or consist when arriving at this stop.
+If this is set, the consist broadcasts its condition number to the target line or consist when arriving at this stop.
+Before wait
+Before wait
+The consist waits for the trigger before carrying out the scheduled waiting and loading time
+The consist waits for the trigger before carrying out the scheduled waiting and loading time
+After wait
+After wait
+The consist carries out the scheduled waiting and loading time first, then waits for the trigger before departing
+The consist carries out the scheduled waiting and loading time first, then waits for the trigger before departing
+Select the line or consist to be notified when this stop broadcasts its condition
+Select the line or consist to be notified when this stop broadcasts its condition
+The trigger target is a line
+The trigger target is a line
+The trigger target is an individual consist
+The trigger target is an individual consist
+Clear stored triggers on departure
+Clear stored triggers on departure
+If this is set, all stored triggers are discarded when the consist departs; otherwise only the triggers waited for here are discarded.
+If this is set, all stored triggers are discarded when the consist departs; otherwise only the triggers waited for here are discarded.
+Trigger one consist only
+Trigger one consist only
+If this is set, only the earliest-arriving waiting consist on the target line is released.
+If this is set, only the earliest-arriving waiting consist on the target line is released.
 modify_consist
 Modify consist at this stop
 time shift

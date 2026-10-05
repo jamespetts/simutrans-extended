@@ -267,6 +267,9 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	button_t bt_couple, bt_uncouple;
 	button_t bt_couple_is_line, bt_couple_is_cnv;
 	button_t bt_uncouple_is_line, bt_uncouple_is_cnv;
+	button_t bt_send_trigger, bt_cond_before_wait, bt_cond_after_wait;
+	button_t bt_trigger_is_line, bt_trigger_is_cnv;
+	button_t bt_clear_triggers_on_dep, bt_trigger_one_only;
 	gui_combobox_t condition_line_selector;
 	gui_combobox_t couple_target_selector;
 	gui_combobox_t uncouple_target_selector;
@@ -275,8 +278,16 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	// no-target-yet state; stored targets restore their own mode.
 	void default_target_mode(bool &line_pressed, bool &cnv_pressed);
 	void disable_couple_target_selector(bool is_uncouple=false);
+	// Greys controls whose data the runtime never reads while disarmed:
+	// receiver number and clear-on-departure need Before/After; broadcaster
+	// number, trigger target controls and one-only need Send (one-only also
+	// needs a line target); couple/uncouple targets need their arm flag.
+	// Stored values are preserved while greyed. Called from
+	// update_selection() after the selectors are rebuilt, and from the arm
+	// checkbox handlers so checking takes effect immediately.
+	void update_arm_gating();
 	void update_target_line_selection(bool condition, bool couple, bool uncouple);
-	void update_target_convoy_selection(bool couple, bool uncouple);
+	void update_target_convoy_selection(bool couple, bool uncouple, bool condition);
 
 	// Opens the uncouple-target-entry picker; text follows the Line/Convoy
 	// toggle mode ("Use this target line/consist/schedule from...").
@@ -304,10 +315,10 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	uint32 old_line_count;
 	uint32 last_schedule_count;
 
-	// Tracks for which schedule entry the couple/uncouple toggle modes were
-	// last set: update_selection() preserves the user's Line/Convoy mode
-	// within an entry (it rebuilds the selectors after every action) and
-	// resets it when another entry is shown.
+	// Tracks for which schedule entry the couple/uncouple/trigger toggle
+	// modes were last set: update_selection() preserves the user's
+	// Line/Consist mode within an entry (it rebuilds the selectors after
+	// every action) and resets it when another entry is shown.
 	uint8 last_toggle_stop = 255;
 
 	// set the correct tool now ...

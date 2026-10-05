@@ -467,8 +467,11 @@ uncouple_entry_picker_t::uncouple_entry_picker_t(player_t *pl, schedule_t *targe
 
 	// Request the full row width: the default pane minimum (a standard
 	// dialog width) is narrower than a schedule-entry row, which would
-	// squeeze rows under the scrollbars and leave dead click zones.
-	scroll.set_min_width(rows.get_min_size().w);
+	// squeeze rows under the scrollbars and leave dead click zones. The
+	// vertical scrollbar chrome is added on top: without it the content
+	// area ends up one scrollbar narrower than the longest row and the
+	// horizontal bar impinges on the stop list.
+	scroll.set_min_width(rows.get_min_size().w + D_SCROLLBAR_WIDTH);
 	scroll.set_maximize(true);
 	add_table(1, 1)->set_table_frame(true, true);
 	{
@@ -1220,9 +1223,46 @@ void schedule_gui_t::build_table()
 			}
 			cont_settings_2.end_table();
 
+			// Wait for the trigger before or after the scheduled waiting and
+			// loading time: one segmented pair, one or neither pressed, never
+			// both (same widget system as the Line/Consist pairs below).
+			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0,0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
+				bt_cond_before_wait.add_listener(this);
+				bt_cond_after_wait.add_listener(this);
+				bt_cond_before_wait.init(button_t::roundbox_left_state, "Before wait");
+				bt_cond_before_wait.set_tooltip(translator::translate("The consist waits for the trigger before carrying out the scheduled waiting and loading time"));
+				bt_cond_after_wait.init(button_t::roundbox_right_state, "After wait");
+				bt_cond_after_wait.set_tooltip(translator::translate("The consist carries out the scheduled waiting and loading time first, then waits for the trigger before departing"));
+				cont_settings_2.add_component(&bt_cond_before_wait);
+				cont_settings_2.add_component(&bt_cond_after_wait);
+				cont_settings_2.new_component<gui_fill_t>();
+			}
+			cont_settings_2.end_table();
+
 			// trigger
 			cont_settings_2.new_component<gui_divider_t>();
-			cont_settings_2.new_component<gui_label_t>("condition_trigger")->set_tooltip(translator::translate("Select the line to be notified when this stop broadcasts its condition"));
+			bt_send_trigger.init(button_t::square_automatic, "Send trigger on arrival");
+			bt_send_trigger.set_tooltip("If this is set, the consist broadcasts its condition number to the target line or consist when arriving at this stop.");
+			bt_send_trigger.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::send_trigger);
+			bt_send_trigger.add_listener(this);
+			cont_settings_2.add_component(&bt_send_trigger);
+			cont_settings_2.new_component<gui_label_t>("condition_trigger")->set_tooltip(translator::translate("Select the line or consist to be notified when this stop broadcasts its condition"));
+			cont_settings_2.add_table(4,1)->set_spacing(scr_size(0,0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
+				bt_trigger_is_line.add_listener(this);
+				bt_trigger_is_cnv.add_listener(this);
+				bt_trigger_is_line.init(button_t::roundbox_left_state, "Line");
+				bt_trigger_is_line.set_tooltip(translator::translate("The trigger target is a line"));
+				bt_trigger_is_cnv.init(button_t::roundbox_right_state, "Consist");
+				bt_trigger_is_cnv.set_tooltip(translator::translate("The trigger target is an individual consist"));
+				cont_settings_2.add_component(&bt_trigger_is_line);
+				cont_settings_2.add_component(&bt_trigger_is_cnv);
+				cont_settings_2.new_component<gui_fill_t>();
+			}
+			cont_settings_2.end_table();
 			cont_settings_2.add_table(2,1)->set_spacing(scr_size(0, 0));
 			{
 				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH << 1);
@@ -1230,6 +1270,16 @@ void schedule_gui_t::build_table()
 				cont_settings_2.add_component(&condition_line_selector);
 			}
 			cont_settings_2.end_table();
+			bt_clear_triggers_on_dep.init(button_t::square_automatic, "Clear stored triggers on departure");
+			bt_clear_triggers_on_dep.set_tooltip("If this is set, all stored triggers are discarded when the consist departs; otherwise only the triggers waited for here are discarded.");
+			bt_clear_triggers_on_dep.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::clear_stored_triggers_on_dep);
+			bt_clear_triggers_on_dep.add_listener(this);
+			cont_settings_2.add_component(&bt_clear_triggers_on_dep);
+			bt_trigger_one_only.init(button_t::square_automatic, "Trigger one consist only");
+			bt_trigger_one_only.set_tooltip("If this is set, only the earliest-arriving waiting consist on the target line is released.");
+			bt_trigger_one_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::trigger_one_only);
+			bt_trigger_one_only.add_listener(this);
+			cont_settings_2.add_component(&bt_trigger_one_only);
 
 			cont_settings_2.new_component<gui_divider_t>();
 			bt_couple.init(button_t::square_automatic, "Couple at this stop");
@@ -1363,13 +1413,13 @@ void schedule_gui_t::update_tool(bool set)
 void schedule_gui_t::update_target_line_selection(bool condition, bool couple, bool uncouple)
 {
 	if (!schedule->empty()) {
-		if(condition) condition_line_selector.clear_elements();
+		if(condition && bt_trigger_is_line.pressed) condition_line_selector.clear_elements();
 		if (couple)   couple_target_selector.clear_elements();
 		if (uncouple) uncouple_target_selector.clear_elements();
 		const uint8 current_stop = schedule->get_current_stop();
 		halthandle_t halt = haltestelle_t::get_halt(schedule->entries[current_stop].pos, player);
 		if (halt.is_bound()) {
-			if (condition) {
+			if (condition && bt_trigger_is_line.pressed) {
 				condition_line_selector.enable();
 				condition_line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
 				condition_line_selector.set_selection(0);
@@ -1392,7 +1442,7 @@ void schedule_gui_t::update_target_line_selection(bool condition, bool couple, b
 					continue;
 				}
 				if (line == old_line) { continue; }
-				if (condition) {
+				if (condition && bt_trigger_is_line.pressed) {
 					condition_line_selector.new_component<line_scrollitem_t>(line);
 					if (line.get_id() == schedule->entries[current_stop].target_id_condition_trigger) {
 						condition_line_selector.set_selection(condition_line_selector.count_elements()-1);
@@ -1412,7 +1462,7 @@ void schedule_gui_t::update_target_line_selection(bool condition, bool couple, b
 					}
 				}
 			}
-			if ( condition  &&  condition_line_selector.count_elements()==1 ) {
+			if ( condition  &&  bt_trigger_is_line.pressed  &&  condition_line_selector.count_elements()==1 ) {
 				condition_line_selector.clear_elements();
 				condition_line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("line not found"), SYSCOL_TEXT_INACTIVE);
 				condition_line_selector.set_selection(0);
@@ -1433,11 +1483,12 @@ void schedule_gui_t::update_target_line_selection(bool condition, bool couple, b
 	}
 }
 
-void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple)
+void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple, bool condition)
 {
 	if (!schedule->empty()) {
 		if (couple)   couple_target_selector.clear_elements();
 		if (uncouple) uncouple_target_selector.clear_elements();
+		if (condition && bt_trigger_is_cnv.pressed) condition_line_selector.clear_elements();
 		const uint8 current_stop = schedule->get_current_stop();
 		halthandle_t halt = haltestelle_t::get_halt(schedule->entries[current_stop].pos, player);
 		if (halt.is_bound()) {
@@ -1450,6 +1501,11 @@ void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple)
 				uncouple_target_selector.enable();
 				uncouple_target_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
 				uncouple_target_selector.set_selection(0);
+			}
+			if (condition && bt_trigger_is_cnv.pressed) {
+				condition_line_selector.enable();
+				condition_line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------------------------"), SYSCOL_TEXT_INACTIVE);
+				condition_line_selector.set_selection(0);
 			}
 
 			waytype_t wt = schedule->get_waytype();
@@ -1471,12 +1527,24 @@ void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple)
 						request_uncouple_entry_display();
 					}
 				}
+				if ( condition  &&  bt_trigger_is_cnv.pressed ) {
+					condition_line_selector.new_component<convoy_scrollitem_t>(connected_cnv, false);
+					if (connected_cnv.get_id() == schedule->entries[current_stop].target_id_condition_trigger) {
+						condition_line_selector.set_selection(condition_line_selector.count_elements() - 1);
+					}
+				}
 			}
 			if ( couple  &&  couple_target_selector.count_elements()==1 ) {
 				disable_couple_target_selector();
 			}
 			if ( uncouple  &&  uncouple_target_selector.count_elements()==1 ) {
 				disable_couple_target_selector(true);
+			}
+			if ( condition  &&  bt_trigger_is_cnv.pressed  &&  condition_line_selector.count_elements()==1 ) {
+				condition_line_selector.clear_elements();
+				condition_line_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("convoy not found"), SYSCOL_TEXT_INACTIVE);
+				condition_line_selector.set_selection(0);
+				condition_line_selector.disable();
 			}
 		}
 		else {
@@ -1557,6 +1625,44 @@ void schedule_gui_t::disable_couple_target_selector(bool is_uncouple)
 	}
 }
 
+
+void schedule_gui_t::update_arm_gating()
+{
+	if (schedule->empty()) {
+		return;
+	}
+	const schedule_entry_t &e = schedule->get_current_entry();
+	const bool waiting = e.is_flag_set(schedule_entry_t::conditional_depart_before_wait)
+		|| e.is_flag_set(schedule_entry_t::conditional_depart_after_wait);
+	const bool sending = e.is_flag_set(schedule_entry_t::send_trigger);
+	conditional_depart.enable(waiting);
+	bt_clear_triggers_on_dep.enable(waiting);
+	condition_broadcast.enable(sending);
+	bt_trigger_is_line.enable(sending);
+	bt_trigger_is_cnv.enable(sending);
+	// trigger_one_only releases waiting consists on a target line; it has
+	// no effect when the target is one consist.
+	bt_trigger_one_only.enable(sending && bt_trigger_is_cnv.pressed);
+	if (!sending) {
+		// Leave the selector state set by update_target_*_selection when
+		// armed (it is disabled there when no target is eligible).
+		condition_line_selector.disable();
+	}
+	const bool coupling = e.is_flag_set(schedule_entry_t::couple);
+	bt_couple_is_line.enable(coupling);
+	bt_couple_is_cnv.enable(coupling);
+	if (!coupling) {
+		couple_target_selector.disable();
+	}
+	const bool dividing = e.is_flag_set(schedule_entry_t::uncouple);
+	bt_uncouple_is_line.enable(dividing);
+	bt_uncouple_is_cnv.enable(dividing);
+	if (!dividing) {
+		uncouple_target_selector.disable();
+		bt_uncouple_entry_picker.disable();
+	}
+}
+
 schedule_t* schedule_gui_t::get_uncouple_target_schedule()
 {
 	if (schedule->empty()) {
@@ -1604,15 +1710,20 @@ void schedule_gui_t::update_uncouple_entry_display()
 	cont_uncouple_entry.remove_all();
 	uncouple_entry_row = NULL;
 	bool shown = false;
-	if (schedule_t* target = get_uncouple_target_schedule()) {
-		const uint16 uid = schedule->get_current_entry().target_unique_entry_uncouple;
-		for (uint8 i = 0; i < target->get_count(); i++) {
-			if (target->entries[i].unique_entry_id == uid) {
-				uncouple_entry_row = cont_uncouple_entry.new_component<gui_schedule_entry_t>(player, target->entries[i], i);
-				uncouple_entry_row->hide_swap_button();
-				uncouple_entry_row->add_listener(this);
-				shown = true;
-				break;
+	// The picked stop has no greyed rendering (its colours belong to
+	// update_label()), so it is hidden while Divide is unchecked; the
+	// stored pick is preserved and reappears on arming.
+	if (schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple)) {
+		if (schedule_t* target = get_uncouple_target_schedule()) {
+			const uint16 uid = schedule->get_current_entry().target_unique_entry_uncouple;
+			for (uint8 i = 0; i < target->get_count(); i++) {
+				if (target->entries[i].unique_entry_id == uid) {
+					uncouple_entry_row = cont_uncouple_entry.new_component<gui_schedule_entry_t>(player, target->entries[i], i);
+					uncouple_entry_row->hide_swap_button();
+					uncouple_entry_row->add_listener(this);
+					shown = true;
+					break;
+				}
 			}
 		}
 	}
@@ -1662,6 +1773,11 @@ void schedule_gui_t::update_selection()
 		bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
 		bt_couple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::couple);
 		bt_uncouple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple);
+		bt_send_trigger.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::send_trigger);
+		bt_cond_before_wait.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait);
+		bt_cond_after_wait.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_after_wait);
+		bt_clear_triggers_on_dep.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::clear_stored_triggers_on_dep);
+		bt_trigger_one_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::trigger_one_only);
 		update_uncouple_entry_button();
 		request_uncouple_entry_display();
 		bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh != 65535);
@@ -1762,11 +1878,19 @@ void schedule_gui_t::update_selection()
 			else {
 				default_target_mode(bt_uncouple_is_line.pressed, bt_uncouple_is_cnv.pressed);
 			}
+			if (schedule->get_current_entry().target_id_condition_trigger) {
+				bt_trigger_is_line.pressed = !schedule->get_current_entry().is_flag_set(schedule_entry_t::cond_trigger_is_line_or_cnv);
+				bt_trigger_is_cnv.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::cond_trigger_is_line_or_cnv);
+			}
+			else {
+				default_target_mode(bt_trigger_is_line.pressed, bt_trigger_is_cnv.pressed);
+			}
 			last_toggle_stop = current_stop;
 		}
 
 			update_target_line_selection(true, bt_couple_is_line.pressed, bt_uncouple_is_line.pressed);
-			update_target_convoy_selection(bt_couple_is_cnv.pressed, bt_uncouple_is_cnv.pressed);
+			update_target_convoy_selection(bt_couple_is_cnv.pressed, bt_uncouple_is_cnv.pressed, bt_trigger_is_cnv.pressed);
+			update_arm_gating();
 			if (!bt_couple_is_cnv.pressed && !bt_couple_is_line.pressed) {
 				disable_couple_target_selector();
 			}
@@ -2143,22 +2267,38 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			if (bt_couple.pressed)
 			{
 				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::couple);
+				// Re-arming must leave the selector exactly as
+				// update_selection() would: repopulate for the preserved
+				// mode first (this also re-enables a selector that
+				// gating disabled while disarmed), then gate. The mode
+				// arguments are mutually exclusive, as in
+				// update_selection(): passing true to both would let the
+				// second call wipe the first call's list.
+				update_target_line_selection(false, bt_couple_is_line.pressed, false);
+				update_target_convoy_selection(bt_couple_is_cnv.pressed, false, false);
 			}
 			else
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple);
 			}
+			update_arm_gating();
 		}
 		else if (comp == &bt_uncouple)
 		{
 			if (bt_uncouple.pressed)
 			{
 				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple);
+				update_target_line_selection(false, false, bt_uncouple_is_line.pressed);
+				update_target_convoy_selection(false, bt_uncouple_is_cnv.pressed, false);
+				update_uncouple_entry_button();
 			}
 			else
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple);
 			}
+			update_arm_gating();
+			// Refresh the picked-stop display (hidden while disarmed).
+			request_uncouple_entry_display();
 		}
 		// Line/Consist pairs are radios (the segmented pair is Simutrans'
 		// exclusive-choice widget; there is no round radio button): pressing
@@ -2179,7 +2319,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				bt_couple_is_line.pressed = false;
 				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
-				update_target_convoy_selection(true, false);
+				update_target_convoy_selection(true, false, false);
 			}
 		}
 		else if (comp == &bt_uncouple_is_line) {
@@ -2199,7 +2339,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				bt_uncouple_is_line.pressed = false;
 				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
-				update_target_convoy_selection(false, true);
+				update_target_convoy_selection(false, true, false);
 				update_uncouple_entry_button();
 				close_uncouple_picker();
 			}
@@ -2211,13 +2351,111 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				return true;
 			}
 			else {
-				line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(condition_line_selector.get_element(selection));
-				if (item) {
-					schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = item->get_line().get_id();
-					// A line target is selected: ensure the line/convoy flag has line polarity.
-					schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::cond_trigger_is_line_or_cnv);
-					return true;
+				if (bt_trigger_is_line.pressed) {
+					line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(condition_line_selector.get_element(selection));
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = item->get_line().get_id();
+						// A line target is selected: ensure the line/convoy flag has line polarity.
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::cond_trigger_is_line_or_cnv);
+						return true;
+					}
 				}
+				else if (bt_trigger_is_cnv.pressed) {
+					convoy_scrollitem_t *item = (convoy_scrollitem_t*)condition_line_selector.get_element(selection);
+					if (item) {
+						schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = item->get_convoy().get_id();
+						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::cond_trigger_is_line_or_cnv);
+						return true;
+					}
+				}
+			}
+		}
+		else if (comp == &bt_send_trigger)
+		{
+			if (bt_send_trigger.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::send_trigger);
+				// As above: repopulate for the preserved mode, then gate.
+				update_target_line_selection(bt_trigger_is_line.pressed, false, false);
+				update_target_convoy_selection(false, false, bt_trigger_is_cnv.pressed);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::send_trigger);
+			}
+			update_arm_gating();
+		}
+		// Before/after pair: one or neither pressed, never both (roundbox
+		// state buttons do not flip themselves, so pressed is set here).
+		else if (comp == &bt_cond_before_wait) {
+			if (bt_cond_before_wait.pressed) {
+				bt_cond_before_wait.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::conditional_depart_before_wait);
+			}
+			else {
+				bt_cond_before_wait.pressed = true;
+				bt_cond_after_wait.pressed = false;
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::conditional_depart_before_wait);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::conditional_depart_after_wait);
+			}
+			update_arm_gating();
+		}
+		else if (comp == &bt_cond_after_wait) {
+			if (bt_cond_after_wait.pressed) {
+				bt_cond_after_wait.pressed = false;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::conditional_depart_after_wait);
+			}
+			else {
+				bt_cond_after_wait.pressed = true;
+				bt_cond_before_wait.pressed = false;
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::conditional_depart_after_wait);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::conditional_depart_before_wait);
+			}
+			update_arm_gating();
+		}
+		// Trigger-target Line/Consist pair: exclusive, exactly one pressed
+		// (same convention as the couple/uncouple pairs); switching clears
+		// the stored target.
+		else if (comp == &bt_trigger_is_line) {
+			if (!bt_trigger_is_line.pressed) {
+				bt_trigger_is_line.pressed = true;
+				bt_trigger_is_cnv.pressed = false;
+				schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = 0;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::cond_trigger_is_line_or_cnv);
+				update_target_line_selection(true, false, false);
+				update_arm_gating();
+			}
+		}
+		else if (comp == &bt_trigger_is_cnv) {
+			if (!bt_trigger_is_cnv.pressed) {
+				bt_trigger_is_cnv.pressed = true;
+				bt_trigger_is_line.pressed = false;
+				schedule->entries[schedule->get_current_stop()].target_id_condition_trigger = 0;
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::cond_trigger_is_line_or_cnv);
+				update_target_convoy_selection(false, false, true);
+				update_arm_gating();
+			}
+		}
+		else if (comp == &bt_clear_triggers_on_dep)
+		{
+			if (bt_clear_triggers_on_dep.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::clear_stored_triggers_on_dep);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::clear_stored_triggers_on_dep);
+			}
+		}
+		else if (comp == &bt_trigger_one_only)
+		{
+			if (bt_trigger_one_only.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::trigger_one_only);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::trigger_one_only);
 			}
 		}
 		else if (comp == &couple_target_selector) {
