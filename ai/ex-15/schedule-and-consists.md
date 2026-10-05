@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ bdcdd358d
+verified: ex-15 @ 97cd8a50d
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -54,8 +54,9 @@ explorer's treatment of consist orders.
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg193643.html]); no warning UI when
   facilities are removed after a schedule is set.
 - **Conditional skip** — depot entries skipped when `!convoi_t::is_maintenance_needed()`; non-depot
-  entries skipped when loading level is 0 (`convoi_t::advance_schedule`). Set only programmatically
-  (auto-appended home-depot entry in `create_schedule`; tool_generic 'l'); no GUI control.
+  entries skipped when loading level is 0 (`convoi_t::advance_schedule`). GUI control ("Conditional
+  skip" checkbox in schedule entry settings 1; halt and depot entries; disabled with stored value
+  preserved at waypoints).
 - **Ignore choose sign** — `rail_vehicle_t::activate_choose_signal`, `road_vehicle_t::hop_check`;
   GUI control + "[IC]" prefix + skin.
 - **Trigger runtime** — `convoi_t::AWAITING_TRIGGER` state; receiver bitfield matching in the step
@@ -119,7 +120,7 @@ explorer's treatment of consist orders.
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
-  reachable in play subject to the runtime gaps below. Still without GUI: conditional_skip,
+  reachable in play subject to the runtime gaps below. Still without GUI:
   rule-based alternative controls, tag controls, lineless-convoy order editing, consist-order
   window persistence, loose-vehicle pool listing, livery copying, copier sort options.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
