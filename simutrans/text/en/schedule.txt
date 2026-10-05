@@ -31,6 +31,39 @@ To use this feature, click on a stop in the list to select it, then use arrow bu
 <em>Tip:</em> Use this feature to cause convoys to spaced evenly throughout a line, reducing waiting times. 
 </p>
 <p>
+<em>Conditional skip:</em> If this is set, the stop is skipped when there is nothing to do there: a depot visit is skipped unless maintenance is needed, and a station stop is skipped when the consist is empty. This option has no effect at waypoints.
+</p>
+<p>
+<em>Speed limit:</em> If enabled, the consist may not exceed the given speed in km/h on its way to this stop.
+</p>
+<p>
+<em>Pick up only / set down only / discharge payload:</em> These restrict loading at the selected stop: load but do not unload, unload but do not load, or fully unload everything on board.
+</p>
+<p>
+<em>Force range stop:</em> This marks the stop as a range stop for replenishment. (Automatic replenishment visits are not yet implemented.)
+</p>
+<p>
+<em>Lay over:</em> If this is set, the consist is fully unloaded and parked in layover at this stop, and no crew salaries are charged for the layover period. This requires a station building that permits layover, and is only available where one exists.
+</p>
+<p>
+<em>Ignore choose on arrival:</em> If this is set, choose signals are ignored while the consist is heading to this destination.
+</p>
+<p>
+<em>Wait for trigger (Before / After wait):</em> If either is set, the consist waits at this stop until the selected condition number (0-15) has been broadcast by another consist: either before carrying out the scheduled waiting and loading time, or after it.
+</p>
+<p>
+<em>Send trigger on arrival:</em> If this is set, the consist broadcasts its condition number to the selected line or consist when arriving at this stop. <em>Clear stored triggers on departure:</em> If this is set, all stored triggers are discarded when the consist departs; otherwise only the triggers waited for here are discarded. <em>Trigger one consist only:</em> If this is set, only the earliest-arriving waiting consist on the target line is released.
+</p>
+<p>
+<em>Couple at this stop:</em> The consist takes up suitable vehicles from the selected line or consist at this stop; a joining consist left with no vehicles is removed. The other vehicles must already be waiting there: no synchronised meeting is arranged, and a failed coupling is ignored.
+</p>
+<p>
+<em>Divide at this stop:</em> This selects the line or consist that the divided-off portion of the consist is to join, and the schedule entry from which that portion continues. (The dividing manoeuvre itself is not yet implemented.)
+</p>
+<p>
+<em>Modify consist at this stop</em> (line schedules only): This defines the end-state consist for the selected schedule entry: on arrival, vehicles are added, removed or substituted during a shunting pause to match the specified order.
+</p>
+<p>
 <em>Mirror schedule:</em> If this option is selected, the convoys using this schedule will reverse the direction in which they follow the schedule when they get to the end of it. So, for example, if a line has the schedule A>B>C, if this button is not selected, the convoy will go A>B>C>A>B>C, etc. If this is selected, the convoy will instead travel A>B>C>B>A>B, etc.<br>
 <em>Tip:</em> If this option is used with trains on double-track railways, the game will automatically work out which direction platform should be used, but this does mean that the exact platform cannot always be specified when this option is enabled.
 </p>

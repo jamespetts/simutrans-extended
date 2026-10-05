@@ -233,6 +233,7 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	button_t bt_add, bt_insert, bt_consist_order; // stop management
 	button_t bt_bidirectional, bt_mirror, bt_same_spacing_shift;
 	button_t bt_wait_for_time, bt_discharge_payload, bt_setdown_only, bt_pickup_only;
+	button_t bt_conditional_skip;
 	button_t bt_ignore_choose, bt_lay_over, bt_range_stop, bt_speed_limit;
 	button_t filter_btn_all_pas, filter_btn_all_mails, filter_btn_all_freights;
 

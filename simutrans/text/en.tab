@@ -6586,6 +6586,12 @@ Trigger one consist only
 Trigger one consist only
 If this is set, only the earliest-arriving waiting consist on the target line is released.
 If this is set, only the earliest-arriving waiting consist on the target line is released.
+Conditional skip
+Conditional skip
+If this is set, this stop is skipped when there is nothing to do here: a depot visit is skipped unless maintenance is needed, and a station stop is skipped when the consist is empty.
+If this is set, this stop is skipped when there is nothing to do here: a depot visit is skipped unless maintenance is needed, and a station stop is skipped when the consist is empty.
+Conditional skip has no effect at a waypoint.
+Conditional skip has no effect at a waypoint.
 modify_consist
 Modify consist at this stop
 time shift

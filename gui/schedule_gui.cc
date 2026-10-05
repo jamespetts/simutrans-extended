@@ -995,6 +995,13 @@ void schedule_gui_t::build_table()
 				bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
 				bt_discharge_payload.add_listener(this);
 				cont_settings_1.add_component(&bt_discharge_payload);
+
+				cont_settings_1.new_component<gui_margin_t>(D_H_SPACE);
+				bt_conditional_skip.init(button_t::square_automatic, "Conditional skip");
+				bt_conditional_skip.set_tooltip("If this is set, this stop is skipped when there is nothing to do here: a depot visit is skipped unless maintenance is needed, and a station stop is skipped when the consist is empty.");
+				bt_conditional_skip.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
+				bt_conditional_skip.add_listener(this);
+				cont_settings_1.add_component(&bt_conditional_skip);
 			}
 			cont_settings_1.end_table();
 
@@ -1771,6 +1778,9 @@ void schedule_gui_t::update_selection()
 		bt_pickup_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only);
 		bt_setdown_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only);
 		bt_discharge_payload.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload);
+		bt_conditional_skip.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
+		bt_conditional_skip.enable();
+		bt_conditional_skip.set_tooltip("If this is set, this stop is skipped when there is nothing to do here: a depot visit is skipped unless maintenance is needed, and a station stop is skipped when the consist is empty.");
 		bt_couple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::couple);
 		bt_uncouple.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::uncouple);
 		bt_send_trigger.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::send_trigger);
@@ -1918,6 +1928,18 @@ void schedule_gui_t::update_selection()
 			bt_setdown_only.disable();
 			bt_pickup_only.disable();
 			bt_wait_for_time.disable();
+			// Conditional skip stays usable on depot entries (skip the
+			// visit unless maintenance is needed); waypoints keep the
+			// stored value but cannot use it.
+			bt_conditional_skip.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
+			if (is_depot) {
+				bt_conditional_skip.enable();
+				bt_conditional_skip.set_tooltip("If this is set, this stop is skipped when there is nothing to do here: a depot visit is skipped unless maintenance is needed, and a station stop is skipped when the consist is empty.");
+			}
+			else {
+				bt_conditional_skip.disable();
+				bt_conditional_skip.set_tooltip("Conditional skip has no effect at a waypoint.");
+			}
 
 			// tab2 componets
 			cont_settings_2.set_visible(false);
@@ -2260,6 +2282,16 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			else
 			{
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::force_range_stop);
+			}
+		}
+		else if (comp == &bt_conditional_skip) {
+			if (bt_conditional_skip.pressed)
+			{
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::conditional_skip);
+			}
+			else
+			{
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::conditional_skip);
 			}
 		}
 		else if (comp == &bt_couple)
