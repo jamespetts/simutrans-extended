@@ -176,6 +176,8 @@ public:
 
 	void init_table();
 
+	void set_waytype(waytype_t wt) { way_type = wt; }
+
 	void draw(scr_coord offset) OVERRIDE;
 
 	void set_selected_index(sint16 new_index = 0) {
@@ -266,6 +268,12 @@ public:
 	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=65535);
 
 	void init(schedule_t *schedule, uint16 unique_entry_id);
+
+	// Rebind to another schedule/entry (e.g. the button was pressed in a
+	// second schedule window): saves unsaved edits to the old target first,
+	// then rebuilds the entry-dependent display. Leaves the window untouched
+	// when the new entry has no halt (waypoint/depot tile).
+	void retarget(schedule_t *schedule, uint16 unique_entry_id);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 

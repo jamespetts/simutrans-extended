@@ -1156,24 +1156,24 @@ void schedule_gui_t::build_table()
 		cont_settings_2.set_table_frame(true);
 		cont_settings_2.set_table_layout(1, 0);
 		cont_settings_2.set_margin(scr_size(D_H_SPACE, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
-			// Modify convoy button
-			if( !cnv.is_bound() ) {
-				cont_settings_2.add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
-				{
-					bt_consist_order.init(button_t::roundbox_state, "modify_consist", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
-					bt_consist_order.set_tooltip("modify_the_consist_at_this_schedule_entry");
-					if (skinverwaltung_t::open_window) {
-						bt_consist_order.set_image(skinverwaltung_t::open_window->get_image_id(0));
-						bt_consist_order.set_image_position_right(true);
-					}
-					bt_consist_order.add_listener(this);
-					bt_consist_order.pressed = false;
-					cont_settings_2.add_component(&bt_consist_order);
-					lb_consist_order_modified.init("(*)", scr_coord(0,0), SYSCOL_TEXT_HIGHLIGHT);
-					cont_settings_2.add_component(&lb_consist_order_modified);
+			// Modify consist button (line and convoy schedules: the runtime
+			// supports convoy-level orders; per-entry visibility is handled
+			// by cont_settings_2 in update_selection).
+			cont_settings_2.add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
+			{
+				bt_consist_order.init(button_t::roundbox_state, "modify_consist", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
+				bt_consist_order.set_tooltip("modify_the_consist_at_this_schedule_entry");
+				if (skinverwaltung_t::open_window) {
+					bt_consist_order.set_image(skinverwaltung_t::open_window->get_image_id(0));
+					bt_consist_order.set_image_position_right(true);
 				}
-				cont_settings_2.end_table();
+				bt_consist_order.add_listener(this);
+				bt_consist_order.pressed = false;
+				cont_settings_2.add_component(&bt_consist_order);
+				lb_consist_order_modified.init("(*)", scr_coord(0,0), SYSCOL_TEXT_HIGHLIGHT);
+				cont_settings_2.add_component(&lb_consist_order_modified);
 			}
+			cont_settings_2.end_table();
 
 			cont_settings_2.add_table(3,0)->set_spacing(scr_size(0,0));
 			{
@@ -2601,13 +2601,17 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		}
 		else if (comp == &bt_consist_order) {
 			// Opens new window to alter the consist order
+			const uint16 entry_id = schedule->entries[schedule->get_current_stop()].unique_entry_id;
 			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
 			if (!win) {
-				create_win({ -1, -1 }, new consist_order_frame_t(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id), w_info, magic_consist_order);
+				create_win({ -1, -1 }, new consist_order_frame_t(player, schedule, entry_id), w_info, magic_consist_order);
+				win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
 			}
 			else {
-				//win->init(player, schedule, schedule->entries[schedule->get_current_stop()].unique_entry_id);
-				//win->init(schedule->entries[schedule->get_current_stop()].unique_entry_id);
+				// Re-target the singleton to this schedule/entry (saves
+				// any unsaved edits to the previous target first, even on
+				// a same-entry-id schedule switch).
+				win->retarget(schedule, entry_id);
 			}
 			top_win(win);
 		}

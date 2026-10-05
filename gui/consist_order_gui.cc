@@ -540,12 +540,34 @@ void consist_order_frame_t::save_order()
 
 void consist_order_frame_t::init(schedule_t *schedule, uint16 entry_id)
 {
-	this->schedule = schedule;
-	if (unique_entry_id != 65535 && unique_entry_id != entry_id) {
+	// Save unsaved edits to the previous target first: save_order() writes
+	// through the member schedule pointer, so this must run before rebinding
+	// (including a same-entry-id switch between two schedules).
+	if (unique_entry_id != 65535 && (unique_entry_id != entry_id || this->schedule != schedule)) {
 		save_order();
 	}
+	this->schedule = schedule;
 	unique_entry_id = entry_id;
 	order = schedule->orders.get(unique_entry_id);
+}
+
+
+void consist_order_frame_t::retarget(schedule_t *schedule, uint16 entry_id)
+{
+	// Waypoint/depot-tile entries have no halt and cannot carry a consist
+	// order: keep showing the current target instead of rebinding to nothing
+	// (update() destroys the window on an unbound halt).
+	if (!haltestelle_t::get_halt(schedule->entries[schedule->get_current_stop()].pos, player).is_bound()) {
+		return;
+	}
+	init(schedule, entry_id);
+	cont_order_overview.set_waytype(schedule->get_waytype());
+	update();
+	cont_order_overview.set_selected_index(0);
+	build_vehicle_list();
+	init_input_value_range();
+	reset_min_windowsize();
+	resize(scr_size(0,0));
 }
 
 void consist_order_frame_t::init_table()

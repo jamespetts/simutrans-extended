@@ -61,7 +61,7 @@ To use this feature, click on a stop in the list to select it, then use arrow bu
 <em>Divide at this stop:</em> This selects the line or consist that the divided-off portion of the consist is to join, and the schedule entry from which that portion continues. (The dividing manoeuvre itself is not yet implemented.)
 </p>
 <p>
-<em>Modify consist at this stop</em> (line schedules only): This defines the end-state consist for the selected schedule entry: on arrival, vehicles are added, removed or substituted during a shunting pause to match the specified order.
+<em>Modify consist at this stop</em>: This defines the end-state consist for the selected schedule entry: on arrival, vehicles are added, removed or substituted during a shunting pause to match the specified order. Available in line and convoy schedules.
 </p>
 <p>
 <em>Mirror schedule:</em> If this option is selected, the convoys using this schedule will reverse the direction in which they follow the schedule when they get to the end of it. So, for example, if a line has the schedule A>B>C, if this button is not selected, the convoy will go A>B>C>A>B>C, etc. If this is selected, the convoy will instead travel A>B>C>B>A>B, etc.<br>
