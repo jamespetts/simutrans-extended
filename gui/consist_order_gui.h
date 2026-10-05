@@ -132,6 +132,8 @@ class gui_vehicle_description_element_t : public gui_aligned_container_t, privat
 	gui_colorbox_t state_prev, state_next;
 	button_t bt_can_empty;
 	button_t bt_add_rule;
+	gui_label_buf_t lb_catg;
+	gui_label_t *rule_header = nullptr;
 
 	// Rule-based alternatives (specific_vehicle == nullptr) in this slot are listed
 	// here with an edit/remove row each; rebuilt by update(). rule_alt_indices maps
@@ -300,42 +302,43 @@ public:
 
 
 // Rule editor window (singleton): edits the hard-constraint ranges of one
-// rule-based alternative (specific_vehicle == nullptr) in the consist window's
-// working copy. All edits apply immediately; the order is committed with the
-// schedule like any other consist edit.
+// rule-based alternative (specific_vehicle == nullptr). All edits go to a
+// working copy, committed to the consist window's order only by OK.
 class consist_rule_editor_t : public gui_frame_t, private action_listener_t
 {
+public:
+	enum { LINE_COUNT = 15 };
+
+private:
+	player_t *player = nullptr;
 	consist_order_t *order = nullptr;
 	uint32 slot_index = 0;
 	uint32 alt_index = 0;
+
+	// Working copy: committed to the order only by OK.
+	vehicle_description_element edit_elem;
+	uint8 edit_catg = 0;
 
 	gui_combobox_t engine_selector;
 	gui_combobox_t catg_selector;
 	vector_tpl<uint8> catg_values; // combo selection -> slot catg_index
 	button_t bt_empty;
-	gui_numberinput_t num_catering_min, num_catering_max, num_class;
-	gui_numberinput_t num_range_min, num_range_max;
-	gui_numberinput_t num_brake_min, num_brake_max;
-	gui_numberinput_t num_power_min, num_power_max;
-	gui_numberinput_t num_effort_min, num_effort_max;
-	gui_numberinput_t num_speed_min, num_speed_max;
-	gui_numberinput_t num_weight_min, num_weight_max;
-	gui_numberinput_t num_axle_min, num_axle_max;
-	gui_numberinput_t num_capacity_min, num_capacity_max;
-	gui_numberinput_t num_runcost_min, num_runcost_max;
-	gui_numberinput_t num_fixcost_min, num_fixcost_max;
-	gui_numberinput_t num_fuel_min, num_fuel_max;
-	gui_numberinput_t num_staff_min, num_staff_max;
-	gui_numberinput_t num_drivers_min, num_drivers_max;
+	button_t bt_ok, bt_cancel;
+	button_t bt_use[LINE_COUNT];
+	gui_numberinput_t num_min[LINE_COUNT], num_max[LINE_COUNT];
 
+	bool structured() const;
 	bool valid() const;
-	vehicle_description_element* target();
+	void get_line(uint8 line, uint32 &mn, uint32 &mx) const;
+	void set_line(uint8 line, uint32 mn, uint32 mx);
+	bool line_constrained(uint8 line) const;
+	void refresh_line(uint8 line);
 	void refresh();
 
 public:
-	consist_rule_editor_t(consist_order_t *order_, uint32 slot, uint32 alt);
+	consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt);
 
-	void retarget(consist_order_t *order_, uint32 slot, uint32 alt);
+	void retarget(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 

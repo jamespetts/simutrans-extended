@@ -130,11 +130,13 @@ public:
 	// Append a rule-based alternative (no specific vehicle: the hard-constraint
 	// ranges select the vehicle). Enforced (empty=false) so the rule actually
 	// constrains matching; use set_empty afterwards for an optional slot.
+	// Engine defaults to "any" (MAX_TRACTION_TYPE, the matcher wildcard).
 	void append_rule()
 	{
 		vehicle_description_element rule;
 		rule.specific_vehicle = nullptr;
 		rule.empty = false;
+		rule.engine_type = vehicle_desc_t::MAX_TRACTION_TYPE;
 		vehicle_description.append(rule);
 	}
 

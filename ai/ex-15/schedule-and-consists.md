@@ -105,9 +105,10 @@ explorer's treatment of consist orders.
   (`set_convoy_order`, reversed-consist handling), vehicle picker with filters; edits apply
   per schedule entry from line and convoy schedule windows (singleton re-targets between
   them, saving unsaved edits first). Rule-based alternatives are edited in the
-  `consist_rule_editor_t` singleton (full hard-constraint range editor per alternative, slot
-  category selector, per-alternative empty toggle) — INCOMPLETE: no tag controls, window
-  rdwr disabled. Livery copying in set_convoy_order explicitly unsupported.
+  `consist_rule_editor_t` singleton (per-line limit checkboxes, OK/Cancel commit onto a
+  working copy, any-engine option, slot category selector, per-alternative empty toggle)
+  — INCOMPLETE: no tag controls, window rdwr disabled. Livery copying in
+  set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.

@@ -3816,8 +3816,8 @@ bool vehicle_t::matches_consist_order_element(const consist_order_element_t& ele
 		return false;
 	}
 
-	// Check the rules
-	if (vde.engine_type == desc->get_engine_type() &&
+	// Check the rules (a rule engine_type of MAX_TRACTION_TYPE means "any engine")
+	if ((vde.engine_type == vehicle_desc_t::MAX_TRACTION_TYPE || vde.engine_type == desc->get_engine_type()) &&
 		vde.min_catering <= desc->get_catering_level() && vde.max_catering >= desc->get_catering_level() &&
 
 		vde.must_carry_class <= get_min_class() &&
