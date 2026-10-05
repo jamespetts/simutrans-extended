@@ -163,6 +163,15 @@ Rank on discovery; re-rank on triage.
   vs Option B: two-phase parallel compute/apply (keeps parallelism but is complicated by
   `calc_image()`'s own neighbour reads, which would need snapshot plumbing or a serial apply).
 
+### Way maintenance accounting defects (GitHub issue 689 triage) — priority 1
+
+- Symptom: [GitHub issue 689](https://github.com/jamespetts/simutrans-extended/issues/689) reports billion-scale "Infrastructure maintenance" bills (e.g. $6.2bn in year 2000) after using intercity roads, bankrupting companies. Intercity roads become player-owned when upgraded [CODE ex-15 @ 0f0ba6efa: bauer/wegbauer.cc:2757-2759].
+- [EXECUTION-VERIFIED:2026-10-03] on ex-15 @ 0f0ba6efa with TEST-only logging (reverted afterwards): loading bb6-apr-2010.sve and simulating to the next month boundary shows monthly infrastructure deductions of $45M–$4.2B across established players, drawn from `maintenance[]` accumulators of 23M–2.1B base units (e.g. player 7: 2149938790 base → 419324061601 cents deducted; public player: 623612721 → 121629425103), with balances down to -932283696294716317 cents. Renewal events in the same run bill $9k–$48k per tile (e.g. `city_road→city_road-sma price=910312`, `TramTrack-92lb→TramTrack-98lb price=1456500`): the renewal PRICE formula is not the billion-scale source. Load-time `finish_rd` multiplicity measured 4598 calls over 4599 ways on demo.sve (1.0x): no load multiplication. Deduction arithmetic is single-inflation (deduction/base ≈ 195 = month-scale × general index).
+- No unbounded inflator found in current code: the confirmed defects below are real but each is bounded and small per event, so the dominant inflator behind the observed 2.1e9-scale accumulators is still unidentified.
+- Contributing small leaks, code defects [CODE ex-15 @ 0f0ba6efa]: same-owner road upgrade double-counts the new maintenance (`set_desc` at boden/wege/weg.cc:170-182, then `finish_rd` at bauer/wegbauer.cc:2770); city adoption drops ownership without removing the builder's maintenance (bauer/wegbauer.cc:2751-2754); track upgrades change ownership with no maintenance transfer at all (bauer/wegbauer.cc:2918-2934, no `finish_rd`); renewal bills a price computed before `replacement_way` is finalised (boden/wege/weg.cc:1447 vs 1458/1465/1471, billed :1478).
+- Ruled out: renewal price formula, `finish_rd` load multiplicity, tolls (separate `ATV_TOLL_*` category, simconvoi.cc:852-877).
+- To close this entry, the reporter's savegame and binary version are needed. Related evidence: demo.sve's public balance (-$7.8B) is ~1000x inconsistent with its recent interest/history flows, pointing to an uncategorised historical lump or a historical-build artefact.
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -200,6 +209,8 @@ confirms they affect current builds in live games.
 | Industry-generation rework: unguarded divisions (not a forum report: code inspection) | — | rework branch only; crash. Two families: the apportionment helpers (`adjust_input_consumption`, `adjust_output_production`, `increase_industry_density`) and `karte_t::recalc_idp` at save load — the latter's zero-consumption case is made more likely by the rework's own switch to bottleneck-adjusted global production; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 | Industry-generation rework: unmemoised mutual recursion, no cycle guard (not a forum report: code inspection) | — | rework branch only; `get_global_consumption` / `get_global_production` / `adjust_output_production` / `adjust_input_consumption` recurse with no visited set or depth cap — stack overflow if a goods cycle exists, else combinatorial cost inside the synced step; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 | Industry-generation rework: save-load density basis wrong for its own version series (not a forum report: code inspection) | — | rework branch only; the legacy Extended-series IDP conversion branch is unreachable, and with no `EX_SAVE_MINOR` bump base-branch saves are indistinguishable from rework saves so they skip conversion entirely — wrong density state, sustained runaway infill. AGENTS.md rule 5 applies; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
+
+| [ex-15] billion-scale infrastructure maintenance billing (not a forum report: GitHub issue 689 triage, code + execution 2026-10-03) | — | detailed entry above; economy-breaking money destruction into receivership; dominant inflator unidentified, small leaks confirmed |
 
 ## P2 — medium
 
@@ -279,6 +290,9 @@ confirms they affect current builds in live games.
 | [Unable to compile Extended in Arch's MinGW cross-compilation toolchain](https://forum.simutrans.com/index.php/topic,21401.0.html) | 2022 | likely stale — CI MinGW builds pass; verify |
 | [The lines of the combobox collapse and overlap in one line](https://forum.simutrans.com/index.php/topic,21776.0.html) | 2022 | |
 | [Line Management Charts — wrong maximum numbers](https://forum.simutrans.com/index.php/topic,21691.0.html) | 2022 | |
+
+| Dead `current_way_better_cost` + inverted condition in `weg_t::renew` public-road fallback (not a forum report: code inspection 2026-10-03) | — | boden/wege/weg.cc:1492-1503: `current_way_better_cost` is computed but never used, and `default_way_is_better_than_current_way &= !no_worse_stats` clears the flag exactly when the default road is genuinely better, so owned public-right-of-way tiles never upgrade to the default road on that path [CODE ex-15 @ 0f0ba6efa] |
+| Upgrade-cost display monthly-scales one-off costs (not a forum report: code inspection 2026-10-03) | — | gui/way_info.cc:579,585 applies `calc_adjusted_monthly_figure` to one-off construction costs while the booking paths do not monthly-scale them, so displayed upgrade costs mismatch actual charges [CODE ex-15 @ 0f0ba6efa] |
 
 ## P4 — very low / backlog
 
