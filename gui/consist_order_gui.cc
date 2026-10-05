@@ -272,7 +272,14 @@ static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_descriptio
 	if (rule.must_carry_class) {
 		if ((catg == goods_manager_t::INDEX_PAS || catg == goods_manager_t::INDEX_MAIL)
 			&& rule.must_carry_class < goods_manager_t::get_classes_catg_index(catg)) {
-			buf.printf(", %s+", goods_manager_t::get_default_accommodation_class_name(catg, rule.must_carry_class));
+			const char *name = goods_manager_t::get_translated_wealth_name(catg, rule.must_carry_class);
+			if (name && name[0]) {
+				buf.append(", ");
+				buf.append(name);
+			}
+			else {
+				buf.printf(", class %u+", rule.must_carry_class);
+			}
 		}
 		else {
 			buf.printf(", class %u+", rule.must_carry_class);
@@ -573,17 +580,11 @@ cont_order_overview_t::cont_order_overview_t(consist_order_t *order, waytype_t w
 }
 
 
-// Number inputs hold sint32 only, while most rule bounds are uint32 with
-// "no limit" defaults above SINT32_MAX. A checked line never holds an unlimited
-// bound (checking installs a finite default), so SINT32_MAX is never displayed.
+// Number inputs hold sint32 only, and every line's editable range is bounded
+// well below that (see rule_line_defs::edit_max), so no sentinel is displayed.
 static sint32 show_u32_bound(uint32 v)
 {
 	return v >= (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)v;
-}
-
-static uint32 store_u32_bound(sint32 v, uint32 maxv)
-{
-	return v >= SINT32_MAX_VALUE ? maxv : (uint32)max(v, 0);
 }
 
 
@@ -609,29 +610,30 @@ enum rule_line_index {
 
 struct rule_line_def_t {
 	const char *name;
-	uint32 type_max;
-	uint8 default_min;
-	sint32 default_max;
+	uint32 type_max;    // value meaning "no limit" in the data
+	uint32 edit_max;    // largest value offered in the number inputs
+	uint32 default_min; // finite range installed when a line is ticked
+	uint32 default_max;
 };
 
 // Finite defaults are arbitrary starting points for newly checked lines,
 // per user request; the user narrows them as needed.
 static const rule_line_def_t rule_line_defs[consist_rule_editor_t::LINE_COUNT] = {
-	{ "Minimum class carried", 255, 1, 1 },
-	{ "Catering level", 255, 0, 255 },
-	{ "Range (km)", UINT32_MAX_VALUE, 0, 1000 },
-	{ "Brake force (kN)", 65535, 0, 500 },
-	{ "Power (kW)", UINT32_MAX_VALUE, 0, 2000 },
-	{ "Tractive effort (kN)", UINT32_MAX_VALUE, 0, 500 },
-	{ "Top speed (km/h)", UINT32_MAX_VALUE, 0, 200 },
-	{ "Weight (t)", UINT32_MAX_VALUE, 0, 1000 },
-	{ "Axle load (t)", UINT32_MAX_VALUE, 0, 30 },
-	{ "Capacity", 65535, 0, 200 },
-	{ "Running cost", UINT32_MAX_VALUE, 0, 1000000 },
-	{ "Fixed cost", UINT32_MAX_VALUE, 0, 1000000 },
-	{ "Fuel per km", UINT32_MAX_VALUE, 0, 100000 },
-	{ "Staff", UINT32_MAX_VALUE, 0, 10000 },
-	{ "Drivers", UINT32_MAX_VALUE, 0, 10 },
+	{ "Minimum class carried", 255, 255, 1, 1 },
+	{ "Catering level", 5, 5, 1, 5 },
+	{ "Range (km)", UINT32_MAX_VALUE, 999999, 0, 1000 },
+	{ "Brake force (kN)", 65535, 65535, 0, 500 },
+	{ "Power (kW)", UINT32_MAX_VALUE, 999999, 0, 2000 },
+	{ "Tractive effort (kN)", UINT32_MAX_VALUE, 999999, 0, 500 },
+	{ "Top speed (km/h)", UINT32_MAX_VALUE, 9999, 0, 200 },
+	{ "Weight (t)", UINT32_MAX_VALUE, 99999, 0, 1000 },
+	{ "Axle load (t)", UINT32_MAX_VALUE, 9999, 0, 30 },
+	{ "Capacity", 65535, 65535, 0, 200 },
+	{ "Running cost", UINT32_MAX_VALUE, 99999999, 0, 1000000 },
+	{ "Fixed cost", UINT32_MAX_VALUE, 99999999, 0, 1000000 },
+	{ "Fuel per km", UINT32_MAX_VALUE, 9999999, 0, 100000 },
+	{ "Staff", UINT32_MAX_VALUE, 999999, 0, 10000 },
+	{ "Drivers", UINT32_MAX_VALUE, 999, 0, 10 },
 };
 
 
@@ -690,11 +692,11 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 	}
 	end_table();
 
-	// One checkbox row per constrainable range: unchecked means unconstrained
-	// (0 to maximum) with greyed-out inputs; checking installs a default range.
-	// A maximum at its type limit shows a greyed "unlimited" instead of the number.
+	// One checkbox row per constrainable line. Unticked: the inputs are replaced
+	// by a greyed "any", so no sentinel ("unlimited") number is ever displayed.
+	// Ticked: a finite default range is installed for the user to narrow.
 	for (uint8 l = 1; l < LINE_COUNT; l++) {
-		add_table(4,1);
+		add_table(3,1);
 		{
 			bt_use[l].init(button_t::square_automatic, rule_line_defs[l].name);
 			bt_use[l].set_tooltip(translator::translate("Constrain this line (unchecked means any value)"));
@@ -704,9 +706,9 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 			add_component(&num_min[l]);
 			num_max[l].add_listener(this);
 			add_component(&num_max[l]);
-			lb_unlimited[l].set_color(SYSCOL_EDIT_TEXT_DISABLED);
-			lb_unlimited[l].set_text("unlimited");
-			add_component(&lb_unlimited[l]);
+			lb_any[l].set_color(SYSCOL_TEXT_WEAK);
+			lb_any[l].set_text(translator::translate("any"));
+			add_component(&lb_any[l]);
 		}
 		end_table();
 	}
@@ -744,6 +746,7 @@ void consist_rule_editor_t::retarget(player_t *player_, consist_order_t *order_,
 	if (structured()) {
 		edit_elem = order->access_order(slot_index).get_vehicle_description(alt_index);
 		edit_catg = order->access_order(slot_index).get_catg_index();
+		init_line_used();
 	}
 	refresh();
 	reset_min_windowsize();
@@ -814,12 +817,15 @@ void consist_rule_editor_t::set_line(uint8 line, uint32 mn, uint32 mx)
 }
 
 
-bool consist_rule_editor_t::line_constrained(uint8 line) const
+// Seed the explicit per-line flags from the stored bounds on first display, so
+// an existing constrained rule shows as ticked. Class is a dropdown, not a row.
+void consist_rule_editor_t::init_line_used()
 {
-	uint32 mn = 0, mx = 0;
-	get_line(line, mn, mx);
-	// Class is a single value: 0 means unrestricted (so it can be unchecked).
-	return line == line_class ? mn != 0 : (mn != 0 || mx != rule_line_defs[line].type_max);
+	for (uint8 l = 1; l < LINE_COUNT; l++) {
+		uint32 mn = 0, mx = 0;
+		get_line(l, mn, mx);
+		line_used[l] = (mn != 0 || mx != rule_line_defs[l].type_max);
+	}
 }
 
 
@@ -828,25 +834,30 @@ void consist_rule_editor_t::refresh_line(uint8 line)
 	if (line == line_class) {
 		return; // class uses the dropdown, handled in refresh()
 	}
-	const uint32 tmax = rule_line_defs[line].type_max;
-	const sint32 cap = tmax >= (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)tmax;
-	const bool on = line_constrained(line);
+	const rule_line_def_t &def = rule_line_defs[line];
+	const bool on = line_used[line];
 	bt_use[line].pressed = on;
 	uint32 mn = 0, mx = 0;
 	get_line(line, mn, mx);
+	// Inputs only exist while the line constrains; "any" stands in otherwise.
+	num_min[line].set_visible(on);
+	num_max[line].set_visible(on);
+	lb_any[line].set_visible(!on);
+	if (!on) {
+		return;
+	}
+	// Input ranges: 0 to the line's editable maximum (never a sentinel), and the
+	// stored "no limit" maximum is shown as the editable maximum.
+	const sint32 cap = (sint32)def.edit_max;
 	num_min[line].set_limits(0, cap);
-	num_min[line].set_value(show_u32_bound(mn));
-	num_min[line].enable(on);
-	num_min[line].set_color(SYSCOL_EDIT_TEXT);
 	num_max[line].set_limits(0, cap);
-	num_max[line].set_value(show_u32_bound(mx));
-	num_max[line].enable(on);
+	num_min[line].set_value((sint32)min(mn, def.edit_max));
+	num_max[line].set_value((sint32)min(from_data(line, mx), def.edit_max));
+	num_min[line].enable(true);
+	num_max[line].enable(true);
+	// Restore normal colouring (a previous validate() may have reddened it).
+	num_min[line].set_color(SYSCOL_EDIT_TEXT);
 	num_max[line].set_color(SYSCOL_EDIT_TEXT);
-	// A maximum at (or above) its representable limit shows a greyed
-	// "unlimited" instead of the number, so no MAXINT is ever displayed.
-	const bool unlimited = mx >= (tmax >= (uint32)SINT32_MAX_VALUE ? (uint32)SINT32_MAX_VALUE : tmax);
-	num_max[line].set_visible(!unlimited);
-	lb_unlimited[line].set_visible(unlimited);
 }
 
 
@@ -877,8 +888,24 @@ void consist_rule_editor_t::refresh()
 }
 
 
-// Class options follow the slot category: named accommodation classes for
-// passengers/mail, otherwise the class indices some pool vehicle can carry.
+// Data-side helpers mapping between the stored "no limit" sentinel and the
+// bounded range the inputs can express.
+uint32 consist_rule_editor_t::to_data(uint8 line, uint32 v) const
+{
+	return v >= rule_line_defs[line].edit_max ? rule_line_defs[line].type_max : v;
+}
+
+uint32 consist_rule_editor_t::from_data(uint8 line, uint32 v) const
+{
+	return v >= rule_line_defs[line].type_max ? rule_line_defs[line].edit_max : v;
+}
+
+
+// Class options follow the slot category. Passengers/mail use the canonical
+// pakset class names (p_class[]/m_class[], e.g. "Low", "Medium"); the pakset
+// decides how many there are, so nothing here assumes five. Class 0 is the
+// lowest class and, as a minimum, means "unrestricted" (the matcher treats
+// must_carry_class 0 as no constraint), so it is offered as that instead.
 uint8 consist_rule_editor_t::class_option_count() const
 {
 	if (edit_catg == goods_manager_t::INDEX_PAS || edit_catg == goods_manager_t::INDEX_MAIL) {
@@ -900,26 +927,25 @@ uint8 consist_rule_editor_t::class_option_count() const
 void consist_rule_editor_t::rebuild_class_list()
 {
 	class_selector.clear_elements();
-	clear_ptr_vector(class_name_store);
+	clear_ptr_vector(class_numeric_labels);
+	const bool named = (edit_catg == goods_manager_t::INDEX_PAS || edit_catg == goods_manager_t::INDEX_MAIL);
 	class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Unrestricted"), SYSCOL_TEXT);
 	const uint8 count = class_option_count();
-	for (uint8 i = 0; i < count; i++) {
-		const char *name = nullptr;
-		if ((edit_catg == goods_manager_t::INDEX_PAS || edit_catg == goods_manager_t::INDEX_MAIL)
-			&& i < goods_manager_t::get_classes_catg_index(edit_catg)) {
-			name = goods_manager_t::get_default_accommodation_class_name(edit_catg, i);
-		}
-		cbuffer_t *entry = new cbuffer_t();
+	// Selection N means class N (0 = unrestricted), so options run 1..count-1.
+	for (uint8 i = 1; i < count; i++) {
+		const char *name = named ? goods_manager_t::get_translated_wealth_name(edit_catg, i) : NULL;
 		if (name && name[0]) {
-			entry->printf("%s+", translator::translate(name));
+			class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(name), SYSCOL_TEXT);
 		}
 		else {
+			cbuffer_t *entry = new cbuffer_t();
 			entry->printf("Class %u+", i);
+			class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>((const char *)*entry, SYSCOL_TEXT);
+			// The combo stores the pointer, so the text must outlive it.
+			class_numeric_labels.append(entry);
 		}
-		class_name_store.append(entry);
-		class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>((const char *)*entry, SYSCOL_TEXT);
 	}
-	class_selector.set_selection(min(edit_elem.must_carry_class, count));
+	class_selector.set_selection(min(edit_elem.must_carry_class, count ? count - 1 : 0));
 }
 
 
@@ -942,16 +968,6 @@ bool consist_rule_editor_t::pool_desc_ok(const vehicle_desc_t *desc) const
 }
 
 
-// Class carries the matcher approximation: the rule class must be below the
-// vehicle's class count. This never false-reds: the runtime additionally needs
-// the instance's class reassignments to cooperate (see get_min_class), which a
-// descriptor check cannot prove.
-bool consist_rule_editor_t::class_ok(const vehicle_desc_t *desc, uint8 rule_class) const
-{
-	return rule_class < desc->get_number_of_classes();
-}
-
-
 // Whether some pool vehicle can satisfy one checked line of the working copy,
 // keeping the other lines and the engine/category context. An empty rule
 // alternative matches trivially at runtime, so it is always satisfiable.
@@ -959,6 +975,9 @@ bool consist_rule_editor_t::rule_line_matchable(uint8 line) const
 {
 	if (edit_elem.empty) {
 		return true;
+	}
+	if (waytype == invalid_wt) {
+		return true; // no pool to check against: do not block the player
 	}
 	vehicle_description_element probe = edit_elem;
 	for (uint8 l = 0; l < LINE_COUNT; l++) {
@@ -993,7 +1012,11 @@ bool consist_rule_editor_t::rule_line_matchable(uint8 line) const
 		if (!vehicle_t::desc_matches_rule(desc, edit_catg, probe)) {
 			continue;
 		}
-		if (!class_ok(desc, probe.must_carry_class)) {
+		// Class carries the matcher approximation: the rule class must be below
+		// the vehicle's class count. This never false-reds; the runtime also
+		// needs the instance's class reassignments to cooperate, which a
+		// descriptor check cannot prove.
+		if (probe.must_carry_class && probe.must_carry_class >= desc->get_number_of_classes()) {
 			continue;
 		}
 		return true;
@@ -1011,9 +1034,11 @@ void consist_rule_editor_t::validate()
 	bool first = true;
 	reason_buf.clear();
 	for (uint8 l = 0; l < LINE_COUNT; l++) {
-		const bool active = l == line_class ? edit_elem.must_carry_class != 0 : line_constrained(l);
+		const bool active = l == line_class ? edit_elem.must_carry_class != 0 : line_used[l];
 		const bool ok = !active || rule_line_matchable(l);
-		if (l != line_class) {
+		if (l != line_class && line_used[l]) {
+			// gui_numberinput_t::set_value() repaints itself on every change
+			// (and greys when disabled), so the red marking is re-applied last.
 			num_min[l].set_color(ok ? SYSCOL_EDIT_TEXT : color_idx_to_rgb(COL_RED));
 			num_max[l].set_color(ok ? SYSCOL_EDIT_TEXT : color_idx_to_rgb(COL_RED));
 			bt_use[l].set_tooltip(ok
@@ -1026,7 +1051,7 @@ void consist_rule_editor_t::validate()
 				reason_buf.append(", ");
 			}
 			first = false;
-			reason_buf.append(l == line_class ? translator::translate("Minimum class carried") : translator::translate(rule_line_defs[l].name));
+			reason_buf.append(translator::translate(rule_line_defs[l].name));
 		}
 	}
 	bt_ok.enable(all_ok);
@@ -1096,8 +1121,15 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 		for (uint8 l = 1; l < LINE_COUNT; l++) {
 			if (comp == &bt_use[l]) {
 				// square_automatic has already flipped pressed.
-				if (bt_use[l].pressed) {
-					set_line(l, rule_line_defs[l].default_min, rule_line_defs[l].default_max);
+				line_used[l] = bt_use[l].pressed;
+				if (line_used[l]) {
+					// Only install the default if the line is not already constrained,
+					// so re-ticking never discards a range the user set by hand.
+					uint32 mn = 0, mx = 0;
+					get_line(l, mn, mx);
+					if (mn == 0 && mx == rule_line_defs[l].type_max) {
+						set_line(l, rule_line_defs[l].default_min, rule_line_defs[l].default_max);
+					}
 				}
 				else {
 					set_line(l, 0, rule_line_defs[l].type_max);
@@ -1109,8 +1141,8 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 			if (comp == &num_min[l] || comp == &num_max[l]) {
 				uint32 mn = 0, mx = 0;
 				get_line(l, mn, mx);
-				mn = store_u32_bound(num_min[l].get_value(), rule_line_defs[l].type_max);
-				mx = store_u32_bound(num_max[l].get_value(), rule_line_defs[l].type_max);
+				mn = to_data(l, (uint32)max(num_min[l].get_value(), 0));
+				mx = to_data(l, (uint32)max(num_max[l].get_value(), 0));
 				set_line(l, mn, mx);
 				refresh_line(l);
 				validate();

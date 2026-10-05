@@ -57,6 +57,13 @@ private:
 	bool wrapping : 1;
 	bool b_enabled : 1;
 	bool no_tooltip : 1;
+	bool has_custom_color : 1;
+
+	PIXVAL custom_color = 0;
+
+	// Single place that decides the text colour, so enable/disable and custom
+	// colours cannot fight each other.
+	void apply_color();
 
 	// since only the last will prevail
 	static char tooltip[256];
@@ -76,8 +83,10 @@ public:
 	sint32 get_value();
 	void set_value(sint32);
 
-	// text colour (e.g. to mark invalid values)
-	void set_color(PIXVAL col) { textinp.set_color(col); }
+	// Override the text colour (e.g. to mark invalid values). Note that
+	// set_value() reapplies its own colour on every value change, so callers
+	// that want a persistent colour must re-apply it afterwards.
+	void set_color(PIXVAL col) { custom_color = col; has_custom_color = true; apply_color(); }
 
 	/**
 	 * digits: length of textbuffer
@@ -117,7 +126,7 @@ public:
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 
 	void enable() { b_enabled = true; set_focusable(true); bt_left.enable(); bt_right.enable(); set_value(value); }
-	void disable() { b_enabled = false; set_focusable(false); bt_left.disable(); bt_right.disable(); set_value(value); }
+	void disable() { b_enabled = false; set_focusable(false); bt_left.disable(); bt_right.disable(); apply_color(); }
 	bool enabled() const { return b_enabled; }
 	bool is_focusable() OVERRIDE { return b_enabled && gui_component_t::is_focusable(); }
 	void enable( bool yesno ) {

@@ -39,6 +39,7 @@ gui_numberinput_t::gui_numberinput_t() :
 	wrap_mode( true );
 	b_enabled = true;
 	no_tooltip = false;
+	has_custom_color = false;
 	digits = 5;
 
 	set_size( scr_size( D_BUTTON_WIDTH, D_EDIT_HEIGHT ) );
@@ -70,6 +71,20 @@ scr_size gui_numberinput_t::get_min_size() const
 }
 
 
+void gui_numberinput_t::apply_color()
+{
+	if( !b_enabled ) {
+		textinp.set_color( SYSCOL_EDIT_TEXT_DISABLED );
+	}
+	else if( has_custom_color ) {
+		textinp.set_color( custom_color );
+	}
+	else {
+		textinp.set_color( SYSCOL_EDIT_TEXT );
+	}
+}
+
+
 void gui_numberinput_t::set_value(sint32 new_value)
 {
 	// range check
@@ -85,7 +100,13 @@ void gui_numberinput_t::set_value(sint32 new_value)
 		sprintf(textbuffer, "%d", new_value);
 		textinp.set_text(textbuffer, 20);
 	}
-	textinp.set_color( value == new_value ? (b_enabled ? SYSCOL_EDIT_TEXT : SYSCOL_EDIT_TEXT_DISABLED) : color_idx_to_rgb(COL_RED) );
+	if( value != new_value ) {
+		// value was clamped: out of the editable range
+		textinp.set_color( color_idx_to_rgb(COL_RED) );
+	}
+	else {
+		apply_color();
+	}
 	value = new_value;
 }
 

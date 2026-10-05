@@ -324,24 +324,32 @@ private:
 	gui_combobox_t catg_selector;
 	vector_tpl<uint8> catg_values; // combo selection -> slot catg_index
 	gui_combobox_t class_selector;
-	vector_tpl<cbuffer_t*> class_name_store; // stable text for numeric class entries
+	vector_tpl<cbuffer_t*> class_numeric_labels; // stable text for unnamed class entries
 	button_t bt_empty;
 	button_t bt_ok, bt_cancel;
 	cbuffer_t reason_buf; // stable text for the OK-button tooltip
 	button_t bt_use[LINE_COUNT];
 	gui_numberinput_t num_min[LINE_COUNT], num_max[LINE_COUNT];
-	gui_label_t lb_unlimited[LINE_COUNT]; // greyed "unlimited" shown instead of a maximum at its type limit
+	// Shown (greyed) in place of the inputs when a line is not constraining, so
+	// the "no limit" sentinel never has to be displayed as a number.
+	gui_label_t lb_any[LINE_COUNT];
+	// Explicit per-line "this line constrains" state. Deliberately NOT derived
+	// from the stored bounds: a line can be meaningfully constrained while its
+	// bounds still read 0/max (catering 0-5 being the obvious case), and
+	// deriving state from values made such ticks revert immediately.
+	bool line_used[LINE_COUNT];
 
 	bool structured() const;
 	bool valid() const;
 	void get_line(uint8 line, uint32 &mn, uint32 &mx) const;
 	void set_line(uint8 line, uint32 mn, uint32 mx);
-	bool line_constrained(uint8 line) const;
+	uint32 to_data(uint8 line, uint32 v) const;
+	uint32 from_data(uint8 line, uint32 v) const;
+	void init_line_used();
 	void refresh_line(uint8 line);
 	uint8 class_option_count() const;
 	void rebuild_class_list();
 	bool pool_desc_ok(const vehicle_desc_t *desc) const;
-	bool class_ok(const vehicle_desc_t *desc, uint8 rule_class) const;
 	bool rule_line_matchable(uint8 line) const;
 	void validate();
 	void refresh();
