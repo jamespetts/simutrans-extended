@@ -840,9 +840,11 @@ void consist_rule_editor_t::init_line_used()
 }
 
 
-// Repair a stored rule that cannot be satisfied (e.g. bounds written by an
-// earlier version as 0..0): widen the offending line to the attainable pool
-// span, so opening the editor never presents a rule that is red on arrival.
+// Repair a stored rule whose bounds are unusable: either the range excludes the
+// entire pool, or it is degenerate (empty, or exactly 0..0 — the value written
+// by an earlier build before pool-derived defaults existed). Widening to the
+// attainable pool span means opening the editor never presents a rule that is
+// red on arrival or full of meaningless zeros.
 void consist_rule_editor_t::sanitise_lines()
 {
 	vector_tpl<const vehicle_desc_t*> pool;
@@ -851,7 +853,13 @@ void consist_rule_editor_t::sanitise_lines()
 		return;
 	}
 	for (uint8 l = 1; l < LINE_COUNT; l++) {
-		if (!line_used[l] || rule_line_matchable(l)) {
+		if (!line_used[l]) {
+			continue;
+		}
+		uint32 mn = 0, mx = 0;
+		get_line(l, mn, mx);
+		const bool degenerate = (mn > mx) || (mn == 0 && mx == 0);
+		if (!degenerate && rule_line_matchable(l)) {
 			continue;
 		}
 		uint32 pmn = 0, pmx = 0;
