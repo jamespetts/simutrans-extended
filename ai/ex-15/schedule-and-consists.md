@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ a49791fdb
+verified: ex-15 @ bdcdd358d
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -115,11 +115,13 @@ explorer's treatment of consist orders.
   Gaps: no GUI listing of vehicles available to couple; emptied layover convoys linger until
   `new_month` self-destruct; SHUNTING can overwrite LAYOVER without deregistering (stale
   laid_over entry); `// TODO: Add code to find a suitable home depot`.
-- **Trigger/couple GUI wiring** — no setters exist for send_trigger,
+- **Trigger/couple GUI wiring** — schedule-window arming covers send_trigger,
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
-  trigger_one_only, couple, uncouple → those runtime paths are unreachable in normal play. All are
-  still planned for 15.x, awaiting GUI wiring [RECOLLECTION:2026-09-07]; gui/schedule_gui.h carries
-  a "UI TODO" for exactly these.
+  trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
+  enablement gating that preserves stored values while disarmed); those runtime paths are
+  reachable in play subject to the runtime gaps below. Still without GUI: conditional_skip,
+  rule-based alternative controls, tag controls, lineless-convoy order editing, consist-order
+  window persistence, loose-vehicle pool listing, livery copying, copier sort options.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
@@ -169,7 +171,9 @@ explorer's treatment of consist orders.
 4. Freight continuity across splits/joins (fares/apportionment in unload_cargo/load_cargo,
    ware_t routing data).
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
-6. Solver completeness + GUI/solver data-shape FIXME; GUI wiring for the unwired flags.
+6. Solver completeness; GUI wiring for the remaining unwired controls (conditional skip,
+   rule-based alternatives, tags, lineless-convoy editing, window persistence, loose-vehicle pool,
+   livery, copier sort).
 
 ## Open questions
 
