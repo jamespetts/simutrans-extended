@@ -81,73 +81,6 @@ struct vehicle_description_element
 	uint32 max_drivers = UINT32_MAX_VALUE;
 	uint32 min_drivers = 0;
 
-	/*
-	* These rules define which of available
-	* vehicles are to be preferred, and do
-	* not affect what vehicles will be selected
-	* if <=1 vehicles matching the above rules
-	* are available
-	*
-	* The order of the priorities can be customised
-	* by changing the position of each of the preferences
-	* in the array. The default order is that in which
-	* the elements are arranged above.
-	*
-	* + Where the vehicle is a goods carrying vehicle: otherwise, this is ignored
-	*
-	* NOTE: This feature is currently unimplemented. This seems to conflict with the
-	* priority order of vehicle description elements in the consist order elements.
-	* It is hard to imagine how this might be implemented.
-	* Query whether this should be removed.
-	*/
-
-	enum rule_flag
-	{
-		prefer_high_capacity			= (1u << 0),
-		prefer_high_power				= (1u << 1),
-		prefer_high_tractive_effort		= (1u << 2),
-		prefer_high_brake_force			= (1u << 3),
-		prefer_high_speed				= (1u << 4),
-		prefer_high_running_cost		= (1u << 5),
-		prefer_high_fixed_cost			= (1u << 6),
-		prefer_high_fuel_consumption	= (1u << 7),
-		prefer_high_driver_numbers		= (1u << 8),
-		prefer_high_staff_hundredths	= (1u << 9),
-		prefer_low_capacity				= (1u << 10),
-		prefer_low_power				= (1u << 11),
-		prefer_low_tractive_effort		= (1u << 12),
-		prefer_low_brake_force			= (1u << 13),
-		prefer_low_speed				= (1u << 14),
-		prefer_low_running_cost			= (1u << 15),
-		prefer_low_fixed_cost			= (1u << 16),
-		prefer_low_fuel_consumption		= (1u << 17),
-		prefer_low_driver_numbers		= (1u << 18),
-		prefer_low_staff_hundredths		= (1u << 19)
-	};
-
-	static const uint8 max_rule_flags = 20u;
-
-	uint32 rule_flags[max_rule_flags]
-	{ prefer_high_capacity,
-		prefer_high_power,
-		prefer_high_tractive_effort,
-		prefer_high_speed,
-		prefer_high_running_cost,
-		prefer_high_fixed_cost,
-		prefer_high_fuel_consumption,
-		prefer_high_driver_numbers,
-		prefer_high_staff_hundredths,
-		prefer_low_capacity,
-		prefer_low_power,
-		prefer_low_tractive_effort,
-		prefer_low_speed,
-		prefer_low_running_cost,
-		prefer_low_fixed_cost,
-		prefer_low_fuel_consumption,
-		prefer_low_driver_numbers,
-		prefer_low_staff_hundredths
-	};
-
 	void set_empty(bool yesno) { empty=yesno; }
 
 	bool operator!= (const vehicle_description_element& other) const;
@@ -190,7 +123,20 @@ public:
 
 	uint8 get_catg_index() const { return catg_index; }
 
+	void set_catg_index(uint8 catg) { catg_index = catg; }
+
 	void append_vehicle(const vehicle_desc_t *v);
+
+	// Append a rule-based alternative (no specific vehicle: the hard-constraint
+	// ranges select the vehicle). Enforced (empty=false) so the rule actually
+	// constrains matching; use set_empty afterwards for an optional slot.
+	void append_rule()
+	{
+		vehicle_description_element rule;
+		rule.specific_vehicle = nullptr;
+		rule.empty = false;
+		vehicle_description.append(rule);
+	}
 
 	void remove_vehicle_description_at(uint32 description_index)
 	{
@@ -269,6 +215,10 @@ public:
 	uint32 get_count() const { return orders.get_count(); }
 
 	uint32 get_mod_count() const { return mod_count; }
+
+	// Bump the mutation counter without structural change: rule-editor value
+	// edits refresh the GUI views, which watch the counter.
+	void touch() { mod_count++; }
 
 	void append(consist_order_element_t elem)
 	{

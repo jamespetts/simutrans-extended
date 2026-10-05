@@ -160,6 +160,13 @@ PIXVAL consist_order_t::get_constraint_state_color(uint32 element_number, bool r
 
 void consist_order_t::rdwr(loadsave_t* file)
 {
+	// The rule preference flags were removed in Extended 15.2 (they were serialised
+	// but never evaluated at runtime). Pre-15.2 files (Extended 15 revision 0-1) still
+	// carry 20 uint32 values per alternative, read and discarded below.
+	const bool old_rule_flags_shape = file->get_extended_version() == 15 && file->get_extended_revision() < 2;
+	// Number of flag values per alternative in the pre-15.2 shape.
+	const uint32 old_rule_flag_count = 20;
+
 	file->rdwr_short(tags_to_clear);
 
 	uint32 orders_count = orders.get_count();
@@ -215,9 +222,13 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_long(vehicle_description.max_drivers);
 				file->rdwr_long(vehicle_description.min_drivers);
 
-				for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
-				{
-					file->rdwr_long(vehicle_description.rule_flags[i]);
+				if (old_rule_flags_shape) {
+					// Write zeros so that older builds can still read saves written for an older target revision.
+					for(uint32 i = 0; i < old_rule_flag_count; i ++)
+					{
+						uint32 zero = 0;
+						file->rdwr_long(zero);
+					}
 				}
 			}
 		}
@@ -283,9 +294,13 @@ void consist_order_t::rdwr(loadsave_t* file)
 				file->rdwr_long(vehicle_description.max_drivers);
 				file->rdwr_long(vehicle_description.min_drivers);
 
-				for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
-				{
-					file->rdwr_long(vehicle_description.rule_flags[i]);
+				if (old_rule_flags_shape) {
+					// Discard the removed preference flags.
+					for(uint32 i = 0; i < old_rule_flag_count; i ++)
+					{
+						uint32 discard = 0;
+						file->rdwr_long(discard);
+					}
 				}
 
 				order.vehicle_description.append(vehicle_description);
@@ -342,11 +357,6 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 			buf.append_fixed(desc.min_staff_hundredths);
 			buf.append_fixed(desc.max_drivers);
 			buf.append_fixed(desc.min_drivers);
-
-			for(uint32 i = 0; i < vehicle_description_element::max_rule_flags; i ++)
-			{
-				buf.append_fixed(desc.rule_flags[i]);
-			}
 		}
 	}
 }
@@ -436,11 +446,6 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 			desc.min_staff_hundredths = cbuffer_t::decode_uint32(p);
 			desc.max_drivers = cbuffer_t::decode_uint32(p);
 			desc.min_drivers = cbuffer_t::decode_uint32(p);
-
-			for (uint32 k = 0; k < vehicle_description_element::max_rule_flags; k++)
-			{
-				desc.rule_flags[k] = cbuffer_t::decode_uint32(p);
-			}
 
 			element.vehicle_description.append(desc);
 		}
@@ -534,14 +539,6 @@ bool vehicle_description_element::operator!= (const vehicle_description_element&
 		min_staff_hundredths != other.min_staff_hundredths ||
 		max_drivers != other.max_drivers ||
 		min_drivers != other.min_drivers;
-
-	for (uint32 i = 0; i < max_rule_flags; i++)
-	{
-		if (rule_flags[i] != other.rule_flags[i])
-		{
-			return true;
-		}
-	}
 
 	return return_value;
 }
