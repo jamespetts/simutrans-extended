@@ -100,11 +100,10 @@ explorer's treatment of consist orders.
   then collected into a new layover convoy). Matching: `vehicle_t::matches_consist_order_element`
   (rules evaluated except preferences; enforces can_lead/can_follow). SHUNTING state with
   `shunting_time_seconds` setting. GUI `consist_order_frame_t`: order overview, consist copier
-  (`set_convoy_order`, reversed-consist handling), vehicle picker with filters, per-slot
-  "may be empty" toggle, slot reorder controls — INCOMPLETE: no rule-based-alternative
-  controls (specific vehicles only), no tag
-  controls, window rdwr disabled. Opens from line and convoy schedule windows (singleton
-  re-targets between them, saving unsaved edits first). rule_flags preferences serialised but
+  (`set_convoy_order`, reversed-consist handling), vehicle picker with filters; edits apply
+  per schedule entry from line and convoy schedule windows (singleton re-targets between
+  them, saving unsaved edits first) — INCOMPLETE: no rule-based-alternative
+  controls (specific vehicles only), no tag controls, window rdwr disabled. rule_flags preferences serialised but
   never evaluated; keep-or-remove undecided [RECOLLECTION:2026-09-07]. Livery copying in
   set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
