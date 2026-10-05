@@ -258,6 +258,45 @@ bool gui_consist_order_shifter_t::action_triggered(gui_action_creator_t *comp, v
 }
 
 
+// Compact one-line description of a rule-based alternative for the slot list.
+static void rule_summary(cbuffer_t &buf, const vehicle_description_element &rule)
+{
+	buf.clear();
+	buf.append(translator::translate("Rule"));
+	buf.append(" (");
+	const uint8 engine = rule.engine_type < 11 ? rule.engine_type : 10;
+	buf.append(translator::translate(vehicle_builder_t::engine_type_names[engine]));
+	if (rule.must_carry_class) {
+		buf.printf(", class %u+", rule.must_carry_class);
+	}
+	uint32 limits = 0;
+	if (rule.min_catering || rule.max_catering != 255) limits++;
+	if (rule.min_range || rule.max_range != UINT32_MAX_VALUE) limits++;
+	if (rule.min_brake_force || rule.max_brake_force != 65535) limits++;
+	if (rule.min_power || rule.max_power != UINT32_MAX_VALUE) limits++;
+	if (rule.min_tractive_effort || rule.max_tractive_effort != UINT32_MAX_VALUE) limits++;
+	if (rule.min_topspeed || rule.max_topspeed != UINT32_MAX_VALUE) limits++;
+	if (rule.min_weight || rule.max_weight != UINT32_MAX_VALUE) limits++;
+	if (rule.min_axle_load || rule.max_axle_load != UINT32_MAX_VALUE) limits++;
+	if (rule.min_capacity || rule.max_capacity != 65535) limits++;
+	if (rule.min_running_cost || rule.max_running_cost != UINT32_MAX_VALUE) limits++;
+	if (rule.min_fixed_cost || rule.max_fixed_cost != UINT32_MAX_VALUE) limits++;
+	if (rule.min_fuel_per_km || rule.max_fuel_per_km != UINT32_MAX_VALUE) limits++;
+	if (rule.min_staff_hundredths || rule.max_staff_hundredths != UINT32_MAX_VALUE) limits++;
+	if (rule.min_drivers || rule.max_drivers != UINT32_MAX_VALUE) limits++;
+	if (limits) {
+		buf.printf(", %u limits", limits);
+	}
+	else {
+		buf.append(translator::translate(", match-all"));
+	}
+	if (rule.empty) {
+		buf.append(translator::translate(", may be empty"));
+	}
+	buf.append(")");
+}
+
+
 gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_order_t *order_, uint32 index, waytype_t wt) :
 	vde(&vde_vec),
 	scrolly(&vde, false, true)
@@ -298,7 +337,6 @@ gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_ord
 		vde.set_max_width(grid.x+ 2 * gui_image_list_t::BORDER);
 		vde.add_listener(this);
 
-		update();
 		scrolly.set_maximize(true);
 		// image list height
 		scrolly.set_min_height(grid.y+D_H_SPACE*2);
@@ -311,6 +349,20 @@ gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_ord
 			new_component<gui_fill_t>(false, true);
 		}
 		end_table();
+
+		// Rule-based alternatives (specific_vehicle == nullptr) cannot be shown
+		// as images: they are listed with an edit row each below.
+		new_component<gui_label_t>("Rule-based alternatives:");
+		rule_table = new_component<gui_aligned_container_t>();
+		rule_table->set_table_layout(1,0);
+		rule_table->set_alignment(ALIGN_TOP);
+
+		bt_add_rule.init(button_t::roundbox, "Add rule");
+		bt_add_rule.set_tooltip(translator::translate("Add a rule-based alternative to this slot"));
+		bt_add_rule.add_listener(this);
+		add_component(&bt_add_rule);
+
+		update();
 	}
 }
 
@@ -322,7 +374,7 @@ void gui_vehicle_description_element_t::update()
 		consist_order_element_t elem = order->access_order(slot_index);
 		old_count = elem.get_count();
 		// Slot-level display: checked iff every alternative allows empty.
-		// Per-alternative controls await the B1 rule editor.
+		// Individual alternatives are edited in the rule editor window.
 		if (old_count == 0) {
 			bt_can_empty.pressed = false;
 			bt_can_empty.disable();
@@ -352,10 +404,46 @@ void gui_vehicle_description_element_t::update()
 				img_data->interactivity = veh_type->get_interactivity();
 				vde_vec.append(img_data);
 			}
-			else {
-				break;
-			}
+			// Rule-based alternatives (specific_vehicle == nullptr) are listed below, not as images.
 		}
+
+		// rebuild the rule-alternative rows
+		rule_table->remove_all();
+		rule_alt_indices.clear();
+		rule_edit_buttons.clear();
+		rule_remove_buttons.clear();
+		for (uint32 i = 0; i < elem.get_count(); i++) {
+			if (elem.get_vehicle_description(i).specific_vehicle) {
+				continue;
+			}
+			rule_alt_indices.append(i);
+			rule_table->add_table(3,1);
+			{
+				cbuffer_t summary;
+				rule_summary(summary, elem.get_vehicle_description(i));
+				gui_label_buf_t *lb = rule_table->new_component<gui_label_buf_t>();
+				lb->buf().append(summary);
+				lb->update();
+				rule_table->add_component(lb);
+
+				button_t *bt_edit = rule_table->new_component<button_t>();
+				bt_edit->init(button_t::roundbox, "Edit");
+				bt_edit->set_tooltip(translator::translate("Edit the rules of this alternative"));
+				bt_edit->add_listener(this);
+				rule_table->add_component(bt_edit);
+				rule_edit_buttons.append(bt_edit);
+
+				button_t *bt_del = rule_table->new_component<button_t>();
+				bt_del->init(button_t::box, "X");
+				bt_del->background_color = color_idx_to_rgb(COL_RED);
+				bt_del->set_tooltip(translator::translate("Remove this alternative"));
+				bt_del->add_listener(this);
+				rule_table->add_component(bt_del);
+				rule_remove_buttons.append(bt_del);
+			}
+			rule_table->end_table();
+		}
+		rule_table->set_size(rule_table->get_min_size());
 
 		// update connection statuses
 		state_prev.set_color(order->get_constraint_state_color(slot_index, false));
@@ -382,6 +470,19 @@ void gui_vehicle_description_element_t::show_vehicle_detail(uint32 index)
 	}
 }
 
+
+void gui_vehicle_description_element_t::open_rule_editor(uint32 alt_index)
+{
+	consist_rule_editor_t *win = dynamic_cast<consist_rule_editor_t*>(win_get_magic(magic_consist_rule_editor));
+	if (!win) {
+		create_win(new consist_rule_editor_t(order, slot_index, alt_index), w_info, magic_consist_rule_editor);
+	}
+	else {
+		win->retarget(order, slot_index, alt_index);
+		top_win(win, false);
+	}
+}
+
 void gui_vehicle_description_element_t::draw(scr_coord offset)
 {
 	if (slot_index < order->get_count()) {
@@ -404,6 +505,12 @@ bool gui_vehicle_description_element_t::action_triggered(gui_action_creator_t *c
 			elem.access_vehicle_description(i).set_empty(bt_can_empty.pressed);
 		}
 	}
+	else if (comp == &bt_add_rule) {
+		consist_order_element_t &elem = order->access_order(slot_index);
+		elem.append_rule();
+		order->touch();
+		open_rule_editor(elem.get_count() - 1);
+	}
 	else if (comp == &vde && slot_index < order->get_count()) {
 		if (p.i<0) {
 			uint32 index = -1 - p.i;
@@ -416,6 +523,20 @@ bool gui_vehicle_description_element_t::action_triggered(gui_action_creator_t *c
 			show_vehicle_detail((uint32)p.i);
 		}
 	}
+	else {
+		for (uint32 k = 0; k < rule_edit_buttons.get_count(); k++) {
+			if (comp == rule_edit_buttons[k]) {
+				open_rule_editor(rule_alt_indices[k]);
+				break;
+			}
+			if (comp == rule_remove_buttons[k]) {
+				consist_order_element_t &elem = order->access_order(slot_index);
+				elem.remove_vehicle_description_at(rule_alt_indices[k]);
+				order->touch();
+				break;
+			}
+		}
+	}
 	return true;
 }
 
@@ -425,6 +546,461 @@ cont_order_overview_t::cont_order_overview_t(consist_order_t *order, waytype_t w
 	this->order = order;
 	way_type = wt;
 	init_table();
+}
+
+
+// Number inputs hold sint32 only, while most rule bounds are uint32 with
+// "no limit" defaults above SINT32_MAX. SINT32_MAX input means unlimited;
+// anything higher is not representable (truncated with a comment in code).
+static sint32 show_u32_bound(uint32 v)
+{
+	return v >= (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)v;
+}
+
+static uint32 store_u32_bound(sint32 v, uint32 maxv)
+{
+	return v >= SINT32_MAX_VALUE ? maxv : (uint32)max(v, 0);
+}
+
+
+consist_rule_editor_t::consist_rule_editor_t(consist_order_t *order_, uint32 slot, uint32 alt) :
+	gui_frame_t(translator::translate("Rule-based alternative"))
+{
+	set_table_layout(1,0);
+	set_alignment(ALIGN_TOP);
+
+	add_table(2,1);
+	{
+		new_component<gui_label_t>("Engine type");
+		for (uint8 i = 0; i < 11; i++) {
+			engine_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(vehicle_builder_t::engine_type_names[i]), SYSCOL_TEXT);
+		}
+		engine_selector.add_listener(this);
+		add_component(&engine_selector);
+	}
+	end_table();
+
+	add_table(2,1);
+	{
+		new_component<gui_label_t>("Goods category of this slot");
+		catg_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("none"), SYSCOL_TEXT);
+		catg_values.append(goods_manager_t::INDEX_NONE);
+		for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
+			if (i == goods_manager_t::INDEX_NONE) {
+				continue;
+			}
+			const goods_desc_t* info = goods_manager_t::get_info_catg_index(i);
+			catg_selector.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(info->get_catg_name()), SYSCOL_TEXT, info->get_catg_symbol());
+			catg_values.append(i);
+		}
+		catg_selector.add_listener(this);
+		add_component(&catg_selector);
+	}
+	end_table();
+
+	bt_empty.init(button_t::square_automatic, "May be empty");
+	bt_empty.set_tooltip(translator::translate("Allow this alternative to be left empty when the consist is assembled."));
+	bt_empty.add_listener(this);
+	add_component(&bt_empty);
+
+	add_table(2,1);
+	{
+		new_component<gui_label_t>("Minimum class carried");
+		num_class.add_listener(this);
+		add_component(&num_class);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Catering level");
+		num_catering_min.add_listener(this);
+		add_component(&num_catering_min);
+		num_catering_max.add_listener(this);
+		add_component(&num_catering_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Range (km)");
+		num_range_min.add_listener(this);
+		add_component(&num_range_min);
+		num_range_max.add_listener(this);
+		add_component(&num_range_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Brake force (kN)");
+		num_brake_min.add_listener(this);
+		add_component(&num_brake_min);
+		num_brake_max.add_listener(this);
+		add_component(&num_brake_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Power (kW)");
+		num_power_min.add_listener(this);
+		add_component(&num_power_min);
+		num_power_max.add_listener(this);
+		add_component(&num_power_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Tractive effort (kN)");
+		num_effort_min.add_listener(this);
+		add_component(&num_effort_min);
+		num_effort_max.add_listener(this);
+		add_component(&num_effort_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Top speed (km/h)");
+		num_speed_min.add_listener(this);
+		add_component(&num_speed_min);
+		num_speed_max.add_listener(this);
+		add_component(&num_speed_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Weight (t)");
+		num_weight_min.add_listener(this);
+		add_component(&num_weight_min);
+		num_weight_max.add_listener(this);
+		add_component(&num_weight_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Axle load (t)");
+		num_axle_min.add_listener(this);
+		add_component(&num_axle_min);
+		num_axle_max.add_listener(this);
+		add_component(&num_axle_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Capacity");
+		num_capacity_min.add_listener(this);
+		add_component(&num_capacity_min);
+		num_capacity_max.add_listener(this);
+		add_component(&num_capacity_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Running cost");
+		num_runcost_min.add_listener(this);
+		add_component(&num_runcost_min);
+		num_runcost_max.add_listener(this);
+		add_component(&num_runcost_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Fixed cost");
+		num_fixcost_min.add_listener(this);
+		add_component(&num_fixcost_min);
+		num_fixcost_max.add_listener(this);
+		add_component(&num_fixcost_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Fuel per km");
+		num_fuel_min.add_listener(this);
+		add_component(&num_fuel_min);
+		num_fuel_max.add_listener(this);
+		add_component(&num_fuel_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Staff");
+		num_staff_min.add_listener(this);
+		add_component(&num_staff_min);
+		num_staff_max.add_listener(this);
+		add_component(&num_staff_max);
+	}
+	end_table();
+
+	add_table(3,1);
+	{
+		new_component<gui_label_t>("Drivers");
+		num_drivers_min.add_listener(this);
+		add_component(&num_drivers_min);
+		num_drivers_max.add_listener(this);
+		add_component(&num_drivers_max);
+	}
+	end_table();
+
+	retarget(order_, slot, alt);
+	set_resizemode(diagonal_resize);
+	reset_min_windowsize();
+	set_windowsize(get_min_windowsize());
+	resize(scr_size(0,0));
+}
+
+
+void consist_rule_editor_t::retarget(consist_order_t *order_, uint32 slot, uint32 alt)
+{
+	order = order_;
+	slot_index = slot;
+	alt_index = alt;
+	refresh();
+	reset_min_windowsize();
+	resize(scr_size(0,0));
+}
+
+
+bool consist_rule_editor_t::valid() const
+{
+	return order != nullptr
+		&& slot_index < order->get_count()
+		&& alt_index < order->access_order(slot_index).get_count()
+		&& order->access_order(slot_index).get_vehicle_description(alt_index).specific_vehicle == nullptr;
+}
+
+
+vehicle_description_element* consist_rule_editor_t::target()
+{
+	return valid() ? &order->access_order(slot_index).access_vehicle_description(alt_index) : nullptr;
+}
+
+
+void consist_rule_editor_t::refresh()
+{
+	vehicle_description_element *t = target();
+	if (!t) {
+		return;
+	}
+	engine_selector.set_selection(t->engine_type < 11 ? t->engine_type : 10);
+
+	consist_order_element_t &elem = order->access_order(slot_index);
+	sint32 sel = 0;
+	for (uint32 i = 0; i < catg_values.get_count(); i++) {
+		if (catg_values[i] == elem.get_catg_index()) {
+			sel = i;
+			break;
+		}
+	}
+	catg_selector.set_selection(sel);
+
+	bt_empty.pressed = t->empty;
+
+	num_class.set_limits(0, 255);
+	num_class.set_value(t->must_carry_class);
+
+	num_catering_min.set_limits(0, 255);
+	num_catering_min.set_value(t->min_catering);
+	num_catering_max.set_limits(0, 255);
+	num_catering_max.set_value(t->max_catering);
+
+	num_range_min.set_limits(0, SINT32_MAX_VALUE);
+	num_range_min.set_value(show_u32_bound(t->min_range));
+	num_range_max.set_limits(0, SINT32_MAX_VALUE);
+	num_range_max.set_value(show_u32_bound(t->max_range));
+
+	num_brake_min.set_limits(0, 65535);
+	num_brake_min.set_value(t->min_brake_force);
+	num_brake_max.set_limits(0, 65535);
+	num_brake_max.set_value(t->max_brake_force);
+
+	num_power_min.set_limits(0, SINT32_MAX_VALUE);
+	num_power_min.set_value(show_u32_bound(t->min_power));
+	num_power_max.set_limits(0, SINT32_MAX_VALUE);
+	num_power_max.set_value(show_u32_bound(t->max_power));
+
+	num_effort_min.set_limits(0, SINT32_MAX_VALUE);
+	num_effort_min.set_value(show_u32_bound(t->min_tractive_effort));
+	num_effort_max.set_limits(0, SINT32_MAX_VALUE);
+	num_effort_max.set_value(show_u32_bound(t->max_tractive_effort));
+
+	num_speed_min.set_limits(0, SINT32_MAX_VALUE);
+	num_speed_min.set_value(show_u32_bound(t->min_topspeed));
+	num_speed_max.set_limits(0, SINT32_MAX_VALUE);
+	num_speed_max.set_value(show_u32_bound(t->max_topspeed));
+
+	num_weight_min.set_limits(0, SINT32_MAX_VALUE);
+	num_weight_min.set_value(show_u32_bound(t->min_weight));
+	num_weight_max.set_limits(0, SINT32_MAX_VALUE);
+	num_weight_max.set_value(show_u32_bound(t->max_weight));
+
+	num_axle_min.set_limits(0, SINT32_MAX_VALUE);
+	num_axle_min.set_value(show_u32_bound(t->min_axle_load));
+	num_axle_max.set_limits(0, SINT32_MAX_VALUE);
+	num_axle_max.set_value(show_u32_bound(t->max_axle_load));
+
+	num_capacity_min.set_limits(0, 65535);
+	num_capacity_min.set_value(t->min_capacity);
+	num_capacity_max.set_limits(0, 65535);
+	num_capacity_max.set_value(t->max_capacity);
+
+	num_runcost_min.set_limits(0, SINT32_MAX_VALUE);
+	num_runcost_min.set_value(show_u32_bound(t->min_running_cost));
+	num_runcost_max.set_limits(0, SINT32_MAX_VALUE);
+	num_runcost_max.set_value(show_u32_bound(t->max_running_cost));
+
+	num_fixcost_min.set_limits(0, SINT32_MAX_VALUE);
+	num_fixcost_min.set_value(show_u32_bound(t->min_fixed_cost));
+	num_fixcost_max.set_limits(0, SINT32_MAX_VALUE);
+	num_fixcost_max.set_value(show_u32_bound(t->max_fixed_cost));
+
+	num_fuel_min.set_limits(0, SINT32_MAX_VALUE);
+	num_fuel_min.set_value(show_u32_bound(t->min_fuel_per_km));
+	num_fuel_max.set_limits(0, SINT32_MAX_VALUE);
+	num_fuel_max.set_value(show_u32_bound(t->max_fuel_per_km));
+
+	num_staff_min.set_limits(0, SINT32_MAX_VALUE);
+	num_staff_min.set_value(show_u32_bound(t->min_staff_hundredths));
+	num_staff_max.set_limits(0, SINT32_MAX_VALUE);
+	num_staff_max.set_value(show_u32_bound(t->max_staff_hundredths));
+
+	num_drivers_min.set_limits(0, SINT32_MAX_VALUE);
+	num_drivers_min.set_value(show_u32_bound(t->min_drivers));
+	num_drivers_max.set_limits(0, SINT32_MAX_VALUE);
+	num_drivers_max.set_value(show_u32_bound(t->max_drivers));
+}
+
+
+void consist_rule_editor_t::draw(scr_coord pos, scr_size size)
+{
+	if (!valid()) {
+		destroy_win(this);
+		return;
+	}
+	gui_frame_t::draw(pos, size);
+}
+
+
+bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	vehicle_description_element *t = target();
+	if (!t) {
+		return false;
+	}
+	if (comp == &engine_selector) {
+		t->engine_type = (uint8)engine_selector.get_selection();
+	}
+	else if (comp == &catg_selector) {
+		const sint32 sel = catg_selector.get_selection();
+		if (sel >= 0 && (uint32)sel < catg_values.get_count()) {
+			order->access_order(slot_index).set_catg_index(catg_values[sel]);
+		}
+	}
+	else if (comp == &bt_empty) {
+		// square_automatic has already flipped pressed; store it.
+		t->set_empty(bt_empty.pressed);
+	}
+	else if (comp == &num_class) {
+		t->must_carry_class = (uint8)clamp(num_class.get_value(), 0, 255);
+	}
+	else if (comp == &num_catering_min) {
+		t->min_catering = (uint8)clamp(num_catering_min.get_value(), 0, 255);
+	}
+	else if (comp == &num_catering_max) {
+		t->max_catering = (uint8)clamp(num_catering_max.get_value(), 0, 255);
+	}
+	else if (comp == &num_range_min) {
+		t->min_range = store_u32_bound(num_range_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_range_max) {
+		t->max_range = store_u32_bound(num_range_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_brake_min) {
+		t->min_brake_force = (uint16)clamp(num_brake_min.get_value(), 0, 65535);
+	}
+	else if (comp == &num_brake_max) {
+		t->max_brake_force = (uint16)clamp(num_brake_max.get_value(), 0, 65535);
+	}
+	else if (comp == &num_power_min) {
+		t->min_power = store_u32_bound(num_power_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_power_max) {
+		t->max_power = store_u32_bound(num_power_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_effort_min) {
+		t->min_tractive_effort = store_u32_bound(num_effort_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_effort_max) {
+		t->max_tractive_effort = store_u32_bound(num_effort_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_speed_min) {
+		t->min_topspeed = store_u32_bound(num_speed_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_speed_max) {
+		t->max_topspeed = store_u32_bound(num_speed_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_weight_min) {
+		t->min_weight = store_u32_bound(num_weight_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_weight_max) {
+		t->max_weight = store_u32_bound(num_weight_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_axle_min) {
+		t->min_axle_load = store_u32_bound(num_axle_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_axle_max) {
+		t->max_axle_load = store_u32_bound(num_axle_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_capacity_min) {
+		t->min_capacity = (uint16)clamp(num_capacity_min.get_value(), 0, 65535);
+	}
+	else if (comp == &num_capacity_max) {
+		t->max_capacity = (uint16)clamp(num_capacity_max.get_value(), 0, 65535);
+	}
+	else if (comp == &num_runcost_min) {
+		t->min_running_cost = store_u32_bound(num_runcost_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_runcost_max) {
+		t->max_running_cost = store_u32_bound(num_runcost_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_fixcost_min) {
+		t->min_fixed_cost = store_u32_bound(num_fixcost_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_fixcost_max) {
+		t->max_fixed_cost = store_u32_bound(num_fixcost_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_fuel_min) {
+		t->min_fuel_per_km = store_u32_bound(num_fuel_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_fuel_max) {
+		t->max_fuel_per_km = store_u32_bound(num_fuel_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_staff_min) {
+		t->min_staff_hundredths = store_u32_bound(num_staff_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_staff_max) {
+		t->max_staff_hundredths = store_u32_bound(num_staff_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_drivers_min) {
+		t->min_drivers = store_u32_bound(num_drivers_min.get_value(), UINT32_MAX_VALUE);
+	}
+	else if (comp == &num_drivers_max) {
+		t->max_drivers = store_u32_bound(num_drivers_max.get_value(), UINT32_MAX_VALUE);
+	}
+	else {
+		return false;
+	}
+	order->touch();
+	return false;
 }
 
 void cont_order_overview_t::init_table()
@@ -562,6 +1138,7 @@ void consist_order_frame_t::retarget(schedule_t *schedule, uint16 entry_id)
 	}
 	init(schedule, entry_id);
 	cont_order_overview.set_waytype(schedule->get_waytype());
+	destroy_win(magic_consist_rule_editor);
 	update();
 	cont_order_overview.set_selected_index(0);
 	build_vehicle_list();
@@ -661,6 +1238,10 @@ void consist_order_frame_t::init_table()
 			bt_add_vehicle.enable( selected_vehicle!=NULL );
 			bt_add_vehicle.add_listener(this);
 			cont_picker_frame.add_component(&bt_add_vehicle);
+			bt_add_rule_slot.init(button_t::roundbox, "Add rule slot");
+			bt_add_rule_slot.set_tooltip(translator::translate("Add a new slot with a rule-based alternative"));
+			bt_add_rule_slot.add_listener(this);
+			cont_picker_frame.add_component(&bt_add_rule_slot);
 			cont_picker_frame.new_component<gui_fill_t>();
 		}
 		cont_picker_frame.end_table();
@@ -935,6 +1516,8 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 bool consist_order_frame_t::infowin_event(const event_t *ev)
 {
 	if (ev->ev_class == INFOWIN && ev->ev_code == WIN_CLOSE) {
+		// The editor edits this window's working copy; it must not outlive it.
+		destroy_win(magic_consist_rule_editor);
 		save_order();
 		return false;
 	}
@@ -1109,6 +1692,18 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		}
 
 		init_input_value_range();
+	}
+	else if( comp==&bt_add_rule_slot ) {
+		uint32 append_target_index = (uint32)numimp_append_target.get_value();
+		if (append_target_index<1 || append_target_index > order.get_count()+1) {
+			append_target_index=order.get_count()+1;
+		}
+		consist_order_element_t new_elem;
+		new_elem.append_rule();
+		order.insert_at(append_target_index-1, new_elem);
+		order.touch();
+		init_input_value_range();
+		open_rule_editor(&order, append_target_index-1, 0);
 	}
 	// others
 	else if (comp == &tabs) {
@@ -1452,6 +2047,19 @@ void consist_order_frame_t::update()
 	init_input_value_range();
 	lb_halt.update();
 	resize(scr_size(0,0));
+}
+
+
+void consist_order_frame_t::open_rule_editor(consist_order_t *edit_order, uint32 slot_index, uint32 alt_index)
+{
+	consist_rule_editor_t *win = dynamic_cast<consist_rule_editor_t*>(win_get_magic(magic_consist_rule_editor));
+	if (!win) {
+		create_win(new consist_rule_editor_t(edit_order, slot_index, alt_index), w_info, magic_consist_rule_editor);
+	}
+	else {
+		win->retarget(edit_order, slot_index, alt_index);
+		top_win(win, false);
+	}
 }
 
 

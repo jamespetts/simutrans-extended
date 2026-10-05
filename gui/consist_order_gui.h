@@ -131,11 +131,21 @@ class gui_vehicle_description_element_t : public gui_aligned_container_t, privat
 
 	gui_colorbox_t state_prev, state_next;
 	button_t bt_can_empty;
+	button_t bt_add_rule;
+
+	// Rule-based alternatives (specific_vehicle == nullptr) in this slot are listed
+	// here with an edit/remove row each; rebuilt by update(). rule_alt_indices maps
+	// each row to the alternative index within the slot.
+	gui_aligned_container_t *rule_table = nullptr;
+	vector_tpl<uint32> rule_alt_indices;
+	vector_tpl<button_t*> rule_edit_buttons;
+	vector_tpl<button_t*> rule_remove_buttons;
 
 	uint32 old_count = 0;
 	vector_tpl<gui_image_list_t::image_data_t*> vde_vec;
 	gui_vehicle_element_list_t vde;
 	void show_vehicle_detail(uint32 index);
+	void open_rule_editor(uint32 alt_index);
 
 	gui_scrollpane_t scrolly;
 
@@ -223,6 +233,8 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	gui_combobox_t edit_action_selector;
 	void init_input_value_range();
 	button_t bt_add_vehicle;
+	button_t bt_add_rule_slot;
+	void open_rule_editor(consist_order_t *order, uint32 slot_index, uint32 alt_index);
 
 	button_t bt_sort_order_veh, bt_show_hide_vehicle_filter, bt_connectable_vehicle_filter;
 	button_t bt_outdated, bt_obsolete, bt_show_unidirectional;
@@ -284,6 +296,50 @@ public:
 	void open_vehicle_detail(const vehicle_desc_t* veh_type) const;
 
 	//uint32 get_rdwr_id() OVERRIDE { return magic_consist_order; }
+};
+
+
+// Rule editor window (singleton): edits the hard-constraint ranges of one
+// rule-based alternative (specific_vehicle == nullptr) in the consist window's
+// working copy. All edits apply immediately; the order is committed with the
+// schedule like any other consist edit.
+class consist_rule_editor_t : public gui_frame_t, private action_listener_t
+{
+	consist_order_t *order = nullptr;
+	uint32 slot_index = 0;
+	uint32 alt_index = 0;
+
+	gui_combobox_t engine_selector;
+	gui_combobox_t catg_selector;
+	vector_tpl<uint8> catg_values; // combo selection -> slot catg_index
+	button_t bt_empty;
+	gui_numberinput_t num_catering_min, num_catering_max, num_class;
+	gui_numberinput_t num_range_min, num_range_max;
+	gui_numberinput_t num_brake_min, num_brake_max;
+	gui_numberinput_t num_power_min, num_power_max;
+	gui_numberinput_t num_effort_min, num_effort_max;
+	gui_numberinput_t num_speed_min, num_speed_max;
+	gui_numberinput_t num_weight_min, num_weight_max;
+	gui_numberinput_t num_axle_min, num_axle_max;
+	gui_numberinput_t num_capacity_min, num_capacity_max;
+	gui_numberinput_t num_runcost_min, num_runcost_max;
+	gui_numberinput_t num_fixcost_min, num_fixcost_max;
+	gui_numberinput_t num_fuel_min, num_fuel_max;
+	gui_numberinput_t num_staff_min, num_staff_max;
+	gui_numberinput_t num_drivers_min, num_drivers_max;
+
+	bool valid() const;
+	vehicle_description_element* target();
+	void refresh();
+
+public:
+	consist_rule_editor_t(consist_order_t *order_, uint32 slot, uint32 alt);
+
+	void retarget(consist_order_t *order_, uint32 slot, uint32 alt);
+
+	void draw(scr_coord pos, scr_size size) OVERRIDE;
+
+	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
 };
 
 #endif
