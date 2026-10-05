@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ a26cd18a0
+verified: ex-15 @ 6b8cbf3a4
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -92,8 +92,10 @@ explorer's treatment of consist orders.
   `consist_order_element_t` (slot: catg_index, tag fields, prioritised alternatives) →
   `vehicle_description_element` (a specific vehicle, or rules: engine_type, min/max range,
   catering, classes, power, tractive effort, topspeed, weight, axle load, capacity, running/fixed
-  cost, fuel, staff, drivers; plus rule_flags preferences). Hierarchy per
-  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202971.html]. Solver:
+  cost, fuel, staff, drivers). Hierarchy per
+  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202971.html]. The former
+  `rule_flags` preference system was removed in Extended 15.2 (serialised but never evaluated;
+  pre-15.2 values are read and discarded on load). Solver:
   `convoi_t::process_consist_order` (single-pass heuristic matching with one pass-over retry;
   in-code FIXME: the GUI stores slots in the wrong container shape) +
   `commit_recombined_consist` (add/remove/substitute/move vehicles; displaced vehicles force-unloaded
@@ -102,10 +104,10 @@ explorer's treatment of consist orders.
   `shunting_time_seconds` setting. GUI `consist_order_frame_t`: order overview, consist copier
   (`set_convoy_order`, reversed-consist handling), vehicle picker with filters; edits apply
   per schedule entry from line and convoy schedule windows (singleton re-targets between
-  them, saving unsaved edits first) — INCOMPLETE: no rule-based-alternative
-  controls (specific vehicles only), no tag controls, window rdwr disabled. rule_flags preferences serialised but
-  never evaluated; keep-or-remove undecided [RECOLLECTION:2026-09-07]. Livery copying in
-  set_convoy_order explicitly unsupported.
+  them, saving unsaved edits first). Rule-based alternatives are edited in the
+  `consist_rule_editor_t` singleton (full hard-constraint range editor per alternative, slot
+  category selector, per-alternative empty toggle) — INCOMPLETE: no tag controls, window
+  rdwr disabled. Livery copying in set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -120,7 +122,7 @@ explorer's treatment of consist orders.
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
   reachable in play subject to the runtime gaps below. Still without GUI:
-  rule-based alternative controls, tag controls, consist-order
+  tag controls, consist-order
   window persistence, loose-vehicle pool listing, livery copying, copier sort options.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
@@ -171,8 +173,8 @@ explorer's treatment of consist orders.
 4. Freight continuity across splits/joins (fares/apportionment in unload_cargo/load_cargo,
    ware_t routing data).
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
-6. Solver completeness; GUI wiring for the remaining unwired controls (rule-based
-   alternatives, tags, window persistence, loose-vehicle pool, livery, copier sort).
+6. Solver completeness; GUI wiring for the remaining unwired controls (tags,
+   window persistence, loose-vehicle pool, livery, copier sort).
 
 ## Open questions
 
@@ -180,6 +182,4 @@ explorer's treatment of consist orders.
   empty slots via the per-slot toggle but not rule-based slots).
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):
   naming suggests inverted ordering; intended semantics unresolved — left open deliberately
-  [RECOLLECTION:2026-09-07].
-- Rule-based alternatives / rule_flags preferences: keep or remove? Undecided
   [RECOLLECTION:2026-09-07].
