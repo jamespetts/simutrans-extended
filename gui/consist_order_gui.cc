@@ -1176,17 +1176,16 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 				if (line_used[l]) {
 					// Default to the real span of this attribute across available
 					// vehicles of this way type (the minimum and maximum attainable
-					// values), not the hard-coded type ceilings.
+					// values), not the hard-coded type ceilings. A degenerate scan
+					// result (no vehicle, or all vehicles equal to the attribute's
+					// zero default) falls back to a sane finite range, so a ticked
+					// line never narrows itself to "0..0" and validates.
 					uint32 pmn = 0, pmx = 0;
-					if (pool_attr_bounds(l, pmn, pmx)) {
+					if (pool_attr_bounds(l, pmn, pmx) && (pmx > 0 || pmn > 0)) {
 						set_line(l, pmn, pmx);
 					}
 					else {
-						uint32 mn = 0, mx = 0;
-						get_line(l, mn, mx);
-						if (mn == 0 && mx == rule_line_defs[l].type_max) {
-							set_line(l, rule_line_defs[l].default_min, rule_line_defs[l].default_max);
-						}
+						set_line(l, rule_line_defs[l].default_min, rule_line_defs[l].default_max);
 					}
 				}
 				else {
