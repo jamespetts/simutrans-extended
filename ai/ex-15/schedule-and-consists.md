@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 97cd8a50d
+verified: ex-15 @ a26cd18a0
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -100,11 +100,11 @@ explorer's treatment of consist orders.
   then collected into a new layover convoy). Matching: `vehicle_t::matches_consist_order_element`
   (rules evaluated except preferences; enforces can_lead/can_follow). SHUNTING state with
   `shunting_time_seconds` setting. GUI `consist_order_frame_t`: order overview, consist copier
-  (`set_convoy_order`, reversed-consist handling), vehicle picker with filters — INCOMPLETE: slot
-  reorder buttons stubbed, no rule-based-alternative controls (specific vehicles only), no tag
-  controls, "slot may be empty" commented out, window rdwr disabled, opens only from line schedule
-  windows. Consist-order editing for lineless convoys is intended but unbuilt (the runtime fully
-  supports convoy-level orders) [RECOLLECTION:2026-09-07]. rule_flags preferences serialised but
+  (`set_convoy_order`, reversed-consist handling), vehicle picker with filters, per-slot
+  "may be empty" toggle, slot reorder controls — INCOMPLETE: no rule-based-alternative
+  controls (specific vehicles only), no tag
+  controls, window rdwr disabled. Opens from line and convoy schedule windows (singleton
+  re-targets between them, saving unsaved edits first). rule_flags preferences serialised but
   never evaluated; keep-or-remove undecided [RECOLLECTION:2026-09-07]. Livery copying in
   set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
@@ -121,7 +121,7 @@ explorer's treatment of consist orders.
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
   reachable in play subject to the runtime gaps below. Still without GUI:
-  rule-based alternative controls, tag controls, lineless-convoy order editing, consist-order
+  rule-based alternative controls, tag controls, consist-order
   window persistence, loose-vehicle pool listing, livery copying, copier sort options.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
@@ -172,14 +172,13 @@ explorer's treatment of consist orders.
 4. Freight continuity across splits/joins (fares/apportionment in unload_cargo/load_cargo,
    ware_t routing data).
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
-6. Solver completeness; GUI wiring for the remaining unwired controls (conditional skip,
-   rule-based alternatives, tags, lineless-convoy editing, window persistence, loose-vehicle pool,
-   livery, copier sort).
+6. Solver completeness; GUI wiring for the remaining unwired controls (rule-based
+   alternatives, tags, window persistence, loose-vehicle pool, livery, copier sort).
 
 ## Open questions
 
-- "Empty slot" semantics (vehicle_description_element defaults empty=true; GUI cannot produce
-  rule-based/empty slots).
+- "Empty slot" semantics (vehicle_description_element defaults empty=true; GUI produces
+  empty slots via the per-slot toggle but not rule-based slots).
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):
   naming suggests inverted ordering; intended semantics unresolved — left open deliberately
   [RECOLLECTION:2026-09-07].
