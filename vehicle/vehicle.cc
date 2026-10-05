@@ -3816,7 +3816,10 @@ bool vehicle_t::desc_matches_rule(const vehicle_desc_t *desc, uint8 catg_index, 
 		vde.min_topspeed <= desc->get_topspeed() && vde.max_topspeed >= desc->get_topspeed() &&
 
 		vde.min_weight <= desc->get_weight() && vde.max_weight >= desc->get_weight() &&
-		vde.max_axle_load <= desc->get_axle_load() && vde.max_axle_load &&
+		// Axle load must lie within the allowed window. (The original compared
+		// max_axle_load <= axle_load and never consulted min_axle_load, which
+		// also broke the rule editor's attainability check.)
+		vde.min_axle_load <= desc->get_axle_load() && vde.max_axle_load >= desc->get_axle_load() &&
 
 		vde.min_capacity <= desc->get_total_capacity() && vde.max_capacity >= desc->get_total_capacity() &&
 

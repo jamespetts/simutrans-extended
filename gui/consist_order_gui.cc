@@ -860,13 +860,12 @@ void consist_rule_editor_t::refresh_line(uint8 line)
 	if (!on) {
 		return;
 	}
-	// Input ranges: 0 to the line's editable maximum (never a sentinel), and the
-	// stored "no limit" maximum is shown as the editable maximum.
-	const sint32 cap = (sint32)def.edit_max;
+	const uint32 cap_u = max((uint32)1, line_edit_max[line]);
+	const sint32 cap = (sint32)min(cap_u, (uint32)SINT32_MAX_VALUE);
 	num_min[line].set_limits(0, cap);
 	num_max[line].set_limits(0, cap);
-	num_min[line].set_value((sint32)min(mn, def.edit_max));
-	num_max[line].set_value((sint32)min(from_data(line, mx), def.edit_max));
+	num_min[line].set_value((sint32)min(mn, (uint32)cap));
+	num_max[line].set_value((sint32)min(mx, (uint32)cap));
 	num_min[line].enable(true);
 	num_max[line].enable(true);
 	// Restore normal colouring (a previous validate() may have reddened it).
@@ -895,23 +894,20 @@ void consist_rule_editor_t::refresh()
 
 	rebuild_class_list();
 
+	// Size the per-line inputs to the real vehicle pool: a line's maximum is
+	// the largest value that exists among buyable/newly-available vehicles,
+	// so defaults and the visible "top" are attainable figures.
+	for (uint8 l = 1; l < LINE_COUNT; l++) {
+		uint32 pmn = 0, pmx = 0;
+		line_edit_max[l] = pool_attr_bounds(l, pmn, pmx) && pmx > 0
+			? pmx
+			: rule_line_defs[l].edit_max;
+	}
+
 	for (uint8 l = 1; l < LINE_COUNT; l++) {
 		refresh_line(l);
 	}
 	validate();
-}
-
-
-// Data-side helpers mapping between the stored "no limit" sentinel and the
-// bounded range the inputs can express.
-uint32 consist_rule_editor_t::to_data(uint8 line, uint32 v) const
-{
-	return v >= rule_line_defs[line].edit_max ? rule_line_defs[line].type_max : v;
-}
-
-uint32 consist_rule_editor_t::from_data(uint8 line, uint32 v) const
-{
-	return v >= rule_line_defs[line].type_max ? rule_line_defs[line].edit_max : v;
 }
 
 
@@ -979,6 +975,47 @@ bool consist_rule_editor_t::pool_desc_ok(const vehicle_desc_t *desc) const
 		return false;
 	}
 	return true;
+}
+
+
+// Span of one attribute across all pool vehicles (introduce-able now or in
+// the past, not retired, of this way type and category). Used for tick
+// defaults and input maxima so every displayed bound is attainable.
+bool consist_rule_editor_t::pool_attr_bounds(uint8 line, uint32 &mn, uint32 &mx) const
+{
+	if (waytype == invalid_wt) {
+		return false;
+	}
+	mn = UINT32_MAX_VALUE;
+	mx = 0;
+	bool found = false;
+	for (auto const desc : vehicle_builder_t::get_info(waytype)) {
+		if (!pool_desc_ok(desc)) {
+			continue;
+		}
+		uint32 v = 0;
+		switch (line) {
+			case line_catering: v = desc->get_catering_level(); break;
+			case line_range:    v = desc->get_range(); break;
+			case line_brake:    v = desc->get_brake_force(); break;
+			case line_power:    v = desc->get_power(); break;
+			case line_effort:   v = desc->get_tractive_effort(); break;
+			case line_speed:    v = desc->get_topspeed(); break;
+			case line_weight:   v = desc->get_weight(); break;
+			case line_axle:     v = desc->get_axle_load(); break;
+			case line_capacity: v = (uint32)desc->get_total_capacity(); break;
+			case line_runcost:  v = desc->get_running_cost(); break;
+			case line_fixcost:  v = desc->get_fixed_cost(); break;
+			case line_fuel:     v = desc->get_fuel_per_km(); break;
+			case line_staff:    v = desc->get_total_staff_hundredths(); break;
+			case line_drivers:  v = desc->get_total_drivers(); break;
+			default: return false;
+		}
+		if (!found || v < mn) mn = v;
+		if (!found || v > mx) mx = v;
+		found = true;
+	}
+	return found;
 }
 
 
@@ -1137,12 +1174,19 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 				// square_automatic has already flipped pressed.
 				line_used[l] = bt_use[l].pressed;
 				if (line_used[l]) {
-					// Only install the default if the line is not already constrained,
-					// so re-ticking never discards a range the user set by hand.
-					uint32 mn = 0, mx = 0;
-					get_line(l, mn, mx);
-					if (mn == 0 && mx == rule_line_defs[l].type_max) {
-						set_line(l, rule_line_defs[l].default_min, rule_line_defs[l].default_max);
+					// Default to the real span of this attribute across available
+					// vehicles of this way type (the minimum and maximum attainable
+					// values), not the hard-coded type ceilings.
+					uint32 pmn = 0, pmx = 0;
+					if (pool_attr_bounds(l, pmn, pmx)) {
+						set_line(l, pmn, pmx);
+					}
+					else {
+						uint32 mn = 0, mx = 0;
+						get_line(l, mn, mx);
+						if (mn == 0 && mx == rule_line_defs[l].type_max) {
+							set_line(l, rule_line_defs[l].default_min, rule_line_defs[l].default_max);
+						}
 					}
 				}
 				else {
@@ -1160,8 +1204,11 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 			if (comp == &num_min[l] || comp == &num_max[l]) {
 				uint32 mn = 0, mx = 0;
 				get_line(l, mn, mx);
-				mn = to_data(l, (uint32)max(num_min[l].get_value(), 0));
-				mx = to_data(l, (uint32)max(num_max[l].get_value(), 0));
+				mn = (uint32)max(num_min[l].get_value(), 0);
+				mx = (uint32)max(num_max[l].get_value(), 0);
+				// Keep the stored range inside the pool span so it is attainable.
+				if (mn > line_edit_max[l]) mn = line_edit_max[l];
+				if (mx > line_edit_max[l]) mx = line_edit_max[l];
 				set_line(l, mn, mx);
 				refresh_line(l);
 				validate();

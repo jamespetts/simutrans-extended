@@ -343,8 +343,6 @@ private:
 	bool valid() const;
 	void get_line(uint8 line, uint32 &mn, uint32 &mx) const;
 	void set_line(uint8 line, uint32 mn, uint32 mx);
-	uint32 to_data(uint8 line, uint32 v) const;
-	uint32 from_data(uint8 line, uint32 v) const;
 	void init_line_used();
 	void refresh_line(uint8 line);
 	uint8 class_option_count() const;
@@ -353,6 +351,13 @@ private:
 	bool rule_line_matchable(uint8 line) const;
 	void validate();
 	void refresh();
+	// Per-line span (min and max) of the named attribute over all pool vehicles
+	// of this slot's way type and category; used for default ticking values and
+	// to cap the input range, so all bounds shown are attainable.
+	bool pool_attr_bounds(uint8 line, uint32 &mn, uint32 &mx) const;
+	// Editable maximum per line (= pool maximum for that attribute, falling back
+	// to the static default), so inputs are never wider than the real range.
+	uint32 line_edit_max[LINE_COUNT];
 
 public:
 	consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt);
