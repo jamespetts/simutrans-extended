@@ -216,6 +216,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Consist-order rule min/max bounds dropped asymmetrically in the matcher (not a forum report: code inspection 2026-10-05) | — | ex-15; `vehicle_t::desc_matches_rule` checks `vde.max_axle_load` twice and never `vde.min_axle_load`, and omits `min_topspeed`; both persist through the rule-editor validator, which reuses that function, so the GUI cannot flag them. Left unfixed pending user decision on intended semantics. → [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md) |
 | Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |

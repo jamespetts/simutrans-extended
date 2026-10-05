@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 4ca50165e
+verified: ex-15 @ 90a70a3ee
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -105,8 +105,12 @@ explorer's treatment of consist orders.
   (`set_convoy_order`, reversed-consist handling), vehicle picker with filters; edits apply
   per schedule entry from line and convoy schedule windows (singleton re-targets between
   them, saving unsaved edits first). Rule-based alternatives are edited in the
-  `consist_rule_editor_t` singleton (per-line limit checkboxes, OK/Cancel commit onto a
-  working copy, any-engine option, slot category selector, per-alternative empty toggle)
+  `consist_rule_editor_t` singleton (per-line limit checkboxes whose unchecked state means
+  unconstrained, OK/Cancel commit onto a working copy, any-traction option, goods category
+  incl. an any-category wildcard (`consist_order_element_t::any_catg_index`, skipped in
+  matching and in `parse_orders`' carried-category tables), named minimum-class dropdown,
+  per-alternative empty toggle, and pool matchability validation that greys OK with a
+  reason when no vehicle can satisfy a checked line)
   — INCOMPLETE: no tag controls, window rdwr disabled. Livery copying in
   set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
