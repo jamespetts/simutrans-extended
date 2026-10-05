@@ -594,14 +594,6 @@ cont_order_overview_t::cont_order_overview_t(consist_order_t *order, waytype_t w
 }
 
 
-// Number inputs hold sint32 only, and every line's editable range is bounded
-// well below that (see rule_line_defs::edit_max), so no sentinel is displayed.
-static sint32 show_u32_bound(uint32 v)
-{
-	return v >= (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)v;
-}
-
-
 // One checkbox row per constrainable line in the rule editor, in
 // consist_rule_editor_t::bt_use/num_min/num_max order.
 enum rule_line_index {
@@ -706,6 +698,10 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 	}
 	end_table();
 
+	// Shows how many vehicles the rule can draw on; makes an empty pool obvious
+	// instead of every line simply turning red.
+	add_component(&lb_pool);
+
 	// One checkbox row per constrainable line. Unticked: the inputs are replaced
 	// by a greyed "any", so no sentinel ("unlimited") number is ever displayed.
 	// Ticked: a finite default range is installed for the user to narrow.
@@ -761,6 +757,7 @@ void consist_rule_editor_t::retarget(player_t *player_, consist_order_t *order_,
 		edit_elem = order->access_order(slot_index).get_vehicle_description(alt_index);
 		edit_catg = order->access_order(slot_index).get_catg_index();
 		init_line_used();
+		sanitise_lines();
 	}
 	refresh();
 	reset_min_windowsize();
@@ -843,12 +840,36 @@ void consist_rule_editor_t::init_line_used()
 }
 
 
+// Repair a stored rule that cannot be satisfied (e.g. bounds written by an
+// earlier version as 0..0): widen the offending line to the attainable pool
+// span, so opening the editor never presents a rule that is red on arrival.
+void consist_rule_editor_t::sanitise_lines()
+{
+	vector_tpl<const vehicle_desc_t*> pool;
+	collect_pool(pool);
+	if (pool.empty()) {
+		return;
+	}
+	for (uint8 l = 1; l < LINE_COUNT; l++) {
+		if (!line_used[l] || rule_line_matchable(l)) {
+			continue;
+		}
+		uint32 pmn = 0, pmx = 0;
+		if (pool_attr_bounds(l, pmn, pmx) && (pmx > 0 || pmn > 0)) {
+			set_line(l, pmn, pmx);
+		}
+		else {
+			set_line(l, rule_line_defs[l].default_min, rule_line_defs[l].default_max);
+		}
+	}
+}
+
+
 void consist_rule_editor_t::refresh_line(uint8 line)
 {
 	if (line == line_class) {
 		return; // class uses the dropdown, handled in refresh()
 	}
-	const rule_line_def_t &def = rule_line_defs[line];
 	const bool on = line_used[line];
 	bt_use[line].pressed = on;
 	uint32 mn = 0, mx = 0;
@@ -894,9 +915,19 @@ void consist_rule_editor_t::refresh()
 
 	rebuild_class_list();
 
-	// Size the per-line inputs to the real vehicle pool: a line's maximum is
-	// the largest value that exists among buyable/newly-available vehicles,
-	// so defaults and the visible "top" are attainable figures.
+	// Vehicles the rule can draw on (fleet + buyable new), and the per-line
+	// spans over that pool.
+	vector_tpl<const vehicle_desc_t*> pool;
+	collect_pool(pool);
+	lb_pool.buf().clear();
+	if (pool.empty()) {
+		lb_pool.buf().append(translator::translate("No vehicles of this way type and category are available."));
+	}
+	else {
+		lb_pool.buf().printf("%s: %u", translator::translate("Available vehicles"), pool.get_count());
+	}
+	lb_pool.update();
+
 	for (uint8 l = 1; l < LINE_COUNT; l++) {
 		uint32 pmn = 0, pmx = 0;
 		line_edit_max[l] = pool_attr_bounds(l, pmn, pmx) && pmx > 0
@@ -916,19 +947,33 @@ void consist_rule_editor_t::refresh()
 // decides how many there are, so nothing here assumes five. Class 0 is the
 // lowest class and, as a minimum, means "unrestricted" (the matcher treats
 // must_carry_class 0 as no constraint), so it is offered as that instead.
-uint8 consist_rule_editor_t::class_option_count() const
+// The Any wildcard uses the passenger classes, as those are the canonical ones;
+// a specific non-passenger/mail goods category has no meaningful class.
+uint8 consist_rule_editor_t::class_name_catg() const
 {
 	if (edit_catg == goods_manager_t::INDEX_PAS || edit_catg == goods_manager_t::INDEX_MAIL) {
-		return goods_manager_t::get_classes_catg_index(edit_catg);
+		return edit_catg;
 	}
+	if (edit_catg == consist_order_element_t::any_catg_index) {
+		return goods_manager_t::INDEX_PAS;
+	}
+	return 255; // no class
+}
+
+
+uint8 consist_rule_editor_t::class_option_count() const
+{
+	const uint8 catg = class_name_catg();
+	if (catg != 255) {
+		return goods_manager_t::get_classes_catg_index(catg);
+	}
+	// Unclassified category: allow up to the largest class count any pool
+	// vehicle declares (its class constraint simply never matches).
 	uint8 m = 0;
-	if (waytype != invalid_wt) {
-		for (auto const desc : vehicle_builder_t::get_info(waytype)) {
-			if (edit_catg == consist_order_element_t::any_catg_index
-				|| desc->get_freight_type()->get_catg_index() == edit_catg) {
-				m = max(m, desc->get_number_of_classes());
-			}
-		}
+	vector_tpl<const vehicle_desc_t*> pool;
+	collect_pool(pool);
+	for (auto const desc : pool) {
+		m = max(m, desc->get_number_of_classes());
 	}
 	return m;
 }
@@ -938,12 +983,13 @@ void consist_rule_editor_t::rebuild_class_list()
 {
 	class_selector.clear_elements();
 	clear_ptr_vector(class_numeric_labels);
-	const bool named = (edit_catg == goods_manager_t::INDEX_PAS || edit_catg == goods_manager_t::INDEX_MAIL);
+	const uint8 catg = class_name_catg();
+	const bool named = (catg != 255);
 	class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Unrestricted"), SYSCOL_TEXT);
 	const uint8 count = class_option_count();
 	// Selection N means class N (0 = unrestricted), so options run 1..count-1.
 	for (uint8 i = 1; i < count; i++) {
-		const char *name = named ? goods_manager_t::get_translated_wealth_name(edit_catg, i) : NULL;
+		const char *name = named ? goods_manager_t::get_translated_wealth_name(catg, i) : NULL;
 		if (name && name[0]) {
 			class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(name), SYSCOL_TEXT);
 		}
@@ -961,13 +1007,11 @@ void consist_rule_editor_t::rebuild_class_list()
 
 // Pool membership for validation: this waytype, introduced (not in the future);
 // retired vehicles count as "in the past". Without a timeline, everything counts.
-bool consist_rule_editor_t::pool_desc_ok(const vehicle_desc_t *desc) const
+// Way type and category must match the rule's slot. The Any wildcard accepts
+// any category.
+bool consist_rule_editor_t::desc_way_cat_ok(const vehicle_desc_t *desc) const
 {
-	if (waytype == invalid_wt) {
-		return false;
-	}
-	if (world()->get_settings().get_use_timeline()
-		&& desc->get_intro_year_month() > world()->get_current_month()) {
+	if (waytype == invalid_wt || desc->get_waytype() != waytype) {
 		return false;
 	}
 	if (edit_catg != consist_order_element_t::any_catg_index
@@ -978,21 +1022,68 @@ bool consist_rule_editor_t::pool_desc_ok(const vehicle_desc_t *desc) const
 }
 
 
+// Buyable new: with the timeline on, only vehicles already introduced count.
+bool consist_rule_editor_t::desc_buyable_ok(const vehicle_desc_t *desc) const
+{
+	return desc_way_cat_ok(desc)
+		&& (!world()->get_settings().get_use_timeline()
+			|| desc->get_intro_year_month() <= world()->get_current_month());
+}
+
+
+// The vehicles a rule may draw on: the player's own fleet (convoys and depots),
+// plus anything currently buyable new. Deduplicated by descriptor.
+void consist_rule_editor_t::collect_pool(vector_tpl<const vehicle_desc_t*> &out) const
+{
+	out.clear();
+	if (waytype == invalid_wt) {
+		return;
+	}
+	for (auto const desc : vehicle_builder_t::get_info(waytype)) {
+		if (desc_buyable_ok(desc) && !out.is_contained(desc)) {
+			out.append(desc);
+		}
+	}
+	if (player != nullptr) {
+		for (auto const cnv : world()->convoys()) {
+			if (!cnv.is_bound() || cnv->get_owner() != player) {
+				continue;
+			}
+			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
+				const vehicle_desc_t *desc = cnv->get_vehicle(i)->get_desc();
+				if (desc && desc_way_cat_ok(desc) && !out.is_contained(desc)) {
+					out.append(desc);
+				}
+			}
+		}
+		for (auto const dep : depot_t::get_depot_list()) {
+			if (dep->get_owner() != player) {
+				continue;
+			}
+			for (auto const veh : dep->get_vehicle_list()) {
+				const vehicle_desc_t *desc = veh->get_desc();
+				if (desc && desc_way_cat_ok(desc) && !out.is_contained(desc)) {
+					out.append(desc);
+				}
+			}
+		}
+	}
+}
+
+
 // Span of one attribute across all pool vehicles (introduce-able now or in
 // the past, not retired, of this way type and category). Used for tick
 // defaults and input maxima so every displayed bound is attainable.
 bool consist_rule_editor_t::pool_attr_bounds(uint8 line, uint32 &mn, uint32 &mx) const
 {
-	if (waytype == invalid_wt) {
+	vector_tpl<const vehicle_desc_t*> pool;
+	collect_pool(pool);
+	if (pool.empty()) {
 		return false;
 	}
 	mn = UINT32_MAX_VALUE;
 	mx = 0;
-	bool found = false;
-	for (auto const desc : vehicle_builder_t::get_info(waytype)) {
-		if (!pool_desc_ok(desc)) {
-			continue;
-		}
+	for (auto const desc : pool) {
 		uint32 v = 0;
 		switch (line) {
 			case line_catering: v = desc->get_catering_level(); break;
@@ -1011,11 +1102,10 @@ bool consist_rule_editor_t::pool_attr_bounds(uint8 line, uint32 &mn, uint32 &mx)
 			case line_drivers:  v = desc->get_total_drivers(); break;
 			default: return false;
 		}
-		if (!found || v < mn) mn = v;
-		if (!found || v > mx) mx = v;
-		found = true;
+		if (v < mn) mn = v;
+		if (v > mx) mx = v;
 	}
-	return found;
+	return true;
 }
 
 
@@ -1033,33 +1123,29 @@ bool consist_rule_editor_t::rule_line_matchable(uint8 line) const
 	vehicle_description_element probe = edit_elem;
 	for (uint8 l = 0; l < LINE_COUNT; l++) {
 		if (l != line) {
-			// Relax: class to 0, ranges to 0/type-max.
+			// Relax every line other than the one under test.
 			switch (l) {
 				case line_class: probe.must_carry_class = 0; break;
-					case line_catering: probe.min_catering = 0; probe.max_catering = 255; break;
-					case line_range: probe.min_range = 0; probe.max_range = UINT32_MAX_VALUE; break;
-					case line_brake: probe.min_brake_force = 0; probe.max_brake_force = 65535; break;
-					case line_power: probe.min_power = 0; probe.max_power = UINT32_MAX_VALUE; break;
-					case line_effort: probe.min_tractive_effort = 0; probe.max_tractive_effort = UINT32_MAX_VALUE; break;
-					case line_speed: probe.min_topspeed = 0; probe.max_topspeed = UINT32_MAX_VALUE; break;
-					case line_weight: probe.min_weight = 0; probe.max_weight = UINT32_MAX_VALUE; break;
-					case line_axle: probe.min_axle_load = 0; probe.max_axle_load = UINT32_MAX_VALUE; break;
-					case line_capacity: probe.min_capacity = 0; probe.max_capacity = 65535; break;
-					case line_runcost: probe.min_running_cost = 0; probe.max_running_cost = UINT32_MAX_VALUE; break;
-					case line_fixcost: probe.min_fixed_cost = 0; probe.max_fixed_cost = UINT32_MAX_VALUE; break;
-					case line_fuel: probe.min_fuel_per_km = 0; probe.max_fuel_per_km = UINT32_MAX_VALUE; break;
-					case line_staff: probe.min_staff_hundredths = 0; probe.max_staff_hundredths = UINT32_MAX_VALUE; break;
-					default: probe.min_drivers = 0; probe.max_drivers = UINT32_MAX_VALUE; break;
-				}
+				case line_catering: probe.min_catering = 0; probe.max_catering = 255; break;
+				case line_range: probe.min_range = 0; probe.max_range = UINT32_MAX_VALUE; break;
+				case line_brake: probe.min_brake_force = 0; probe.max_brake_force = 65535; break;
+				case line_power: probe.min_power = 0; probe.max_power = UINT32_MAX_VALUE; break;
+				case line_effort: probe.min_tractive_effort = 0; probe.max_tractive_effort = UINT32_MAX_VALUE; break;
+				case line_speed: probe.min_topspeed = 0; probe.max_topspeed = UINT32_MAX_VALUE; break;
+				case line_weight: probe.min_weight = 0; probe.max_weight = UINT32_MAX_VALUE; break;
+				case line_axle: probe.min_axle_load = 0; probe.max_axle_load = UINT32_MAX_VALUE; break;
+				case line_capacity: probe.min_capacity = 0; probe.max_capacity = 65535; break;
+				case line_runcost: probe.min_running_cost = 0; probe.max_running_cost = UINT32_MAX_VALUE; break;
+				case line_fixcost: probe.min_fixed_cost = 0; probe.max_fixed_cost = UINT32_MAX_VALUE; break;
+				case line_fuel: probe.min_fuel_per_km = 0; probe.max_fuel_per_km = UINT32_MAX_VALUE; break;
+				case line_staff: probe.min_staff_hundredths = 0; probe.max_staff_hundredths = UINT32_MAX_VALUE; break;
+				default: probe.min_drivers = 0; probe.max_drivers = UINT32_MAX_VALUE; break;
+			}
 		}
 	}
-	if (waytype == invalid_wt) {
-		return false;
-	}
-	for (auto const desc : vehicle_builder_t::get_info(waytype)) {
-		if (!pool_desc_ok(desc)) {
-			continue;
-		}
+	vector_tpl<const vehicle_desc_t*> pool;
+	collect_pool(pool);
+	for (auto const desc : pool) {
 		if (!vehicle_t::desc_matches_rule(desc, edit_catg, probe)) {
 			continue;
 		}
@@ -1081,6 +1167,21 @@ void consist_rule_editor_t::validate()
 	if (!structured()) {
 		return;
 	}
+	vector_tpl<const vehicle_desc_t*> pool;
+	collect_pool(pool);
+	if (pool.empty()) {
+		// No vehicles to test against: nothing can be judged attainable, so do
+		// not red every line. OK is blocked with the real reason instead.
+		for (uint8 l = 1; l < LINE_COUNT; l++) {
+			if (line_used[l]) {
+				num_min[l].set_color(SYSCOL_EDIT_TEXT);
+				num_max[l].set_color(SYSCOL_EDIT_TEXT);
+			}
+		}
+		bt_ok.disable();
+		bt_ok.set_tooltip(translator::translate("No vehicles of this way type and category are available."));
+		return;
+	}
 	bool all_ok = true;
 	bool first = true;
 	reason_buf.clear();
@@ -1094,7 +1195,7 @@ void consist_rule_editor_t::validate()
 			num_max[l].set_color(ok ? SYSCOL_EDIT_TEXT : color_idx_to_rgb(COL_RED));
 			bt_use[l].set_tooltip(ok
 				? translator::translate("Constrain this line (unchecked means any value)")
-				: translator::translate("No vehicle available now or in the past can meet these limits"));
+				: translator::translate("No available vehicle can meet these limits"));
 		}
 		if (!ok) {
 			all_ok = false;

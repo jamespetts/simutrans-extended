@@ -325,6 +325,7 @@ private:
 	vector_tpl<uint8> catg_values; // combo selection -> slot catg_index
 	gui_combobox_t class_selector;
 	vector_tpl<cbuffer_t*> class_numeric_labels; // stable text for unnamed class entries
+	gui_label_buf_t lb_pool; // diagnostic: how many vehicles the rule can draw on
 	button_t bt_empty;
 	button_t bt_ok, bt_cancel;
 	cbuffer_t reason_buf; // stable text for the OK-button tooltip
@@ -344,10 +345,20 @@ private:
 	void get_line(uint8 line, uint32 &mn, uint32 &mx) const;
 	void set_line(uint8 line, uint32 mn, uint32 mx);
 	void init_line_used();
+	void sanitise_lines();
 	void refresh_line(uint8 line);
+	// Category whose class names are meaningful for this rule: the slot's own
+	// category for passengers/mail, passengers for the Any wildcard, and 255
+	// (no class) for a specific non-classed goods category.
+	uint8 class_name_catg() const;
 	uint8 class_option_count() const;
 	void rebuild_class_list();
-	bool pool_desc_ok(const vehicle_desc_t *desc) const;
+	// The vehicles a rule may draw on: the player's own fleet plus anything of
+	// this way type/category currently buyable new (timeline-aware). Empty when
+	// nothing matches.
+	void collect_pool(vector_tpl<const vehicle_desc_t*> &out) const;
+	bool desc_way_cat_ok(const vehicle_desc_t *desc) const;
+	bool desc_buyable_ok(const vehicle_desc_t *desc) const;
 	bool rule_line_matchable(uint8 line) const;
 	void validate();
 	void refresh();
