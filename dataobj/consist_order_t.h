@@ -119,6 +119,11 @@ protected:
 public:
 	consist_order_element_t() { vehicle_description.clear(); }
 
+	// Wildcard category: skips the category check in matching. Slots with this
+	// category contribute nothing to the path-explorer carried-category tables,
+	// as the carried set cannot be known in advance.
+	static const uint8 any_catg_index = 255;
+
 	uint32 get_count() const { return vehicle_description.get_count(); }
 
 	uint8 get_catg_index() const { return catg_index; }

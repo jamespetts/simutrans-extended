@@ -1332,6 +1332,10 @@ void schedule_t::parse_orders()
 		for (uint32 i = 0; i < order.value.get_count(); i++)
 		{
 			const uint8 catg_index = order.value.get_order(i).get_catg_index();
+			if (catg_index == consist_order_element_t::any_catg_index) {
+				// The carried set of a wildcard slot cannot be known in advance.
+				continue;
+			}
 			category_vector.append(catg_index);
 
 			if (goods_manager_t::passengers->get_catg_index() == catg_index)

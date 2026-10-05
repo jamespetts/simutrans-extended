@@ -314,6 +314,7 @@ private:
 	consist_order_t *order = nullptr;
 	uint32 slot_index = 0;
 	uint32 alt_index = 0;
+	waytype_t waytype = invalid_wt;
 
 	// Working copy: committed to the order only by OK.
 	vehicle_description_element edit_elem;
@@ -322,10 +323,14 @@ private:
 	gui_combobox_t engine_selector;
 	gui_combobox_t catg_selector;
 	vector_tpl<uint8> catg_values; // combo selection -> slot catg_index
+	gui_combobox_t class_selector;
+	vector_tpl<cbuffer_t*> class_name_store; // stable text for numeric class entries
 	button_t bt_empty;
 	button_t bt_ok, bt_cancel;
+	cbuffer_t reason_buf; // stable text for the OK-button tooltip
 	button_t bt_use[LINE_COUNT];
 	gui_numberinput_t num_min[LINE_COUNT], num_max[LINE_COUNT];
+	gui_label_t lb_unlimited[LINE_COUNT]; // greyed "unlimited" shown instead of a maximum at its type limit
 
 	bool structured() const;
 	bool valid() const;
@@ -333,12 +338,18 @@ private:
 	void set_line(uint8 line, uint32 mn, uint32 mx);
 	bool line_constrained(uint8 line) const;
 	void refresh_line(uint8 line);
+	uint8 class_option_count() const;
+	void rebuild_class_list();
+	bool pool_desc_ok(const vehicle_desc_t *desc) const;
+	bool class_ok(const vehicle_desc_t *desc, uint8 rule_class) const;
+	bool rule_line_matchable(uint8 line) const;
+	void validate();
 	void refresh();
 
 public:
-	consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt);
+	consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt);
 
-	void retarget(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt);
+	void retarget(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 

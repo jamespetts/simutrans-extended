@@ -34,6 +34,8 @@ class schiene_t;
 class strasse_t;
 //class karte_ptr_t;
 class consist_order_element_t;
+struct vehicle_description_element;
+class vehicle_desc_t;
 
 
 // for aircraft:
@@ -566,6 +568,12 @@ public:
 	// equivalent method in the vehicle_desc object, but we need to check the actual
 	// classes of this vehicle as they may have been reassigned.
 	bool matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const;
+
+	// Descriptor-level core of the rule check above (excluding the instance
+	// class-reassignment check): also used by the consist-order rule editor to
+	// validate that some vehicle can satisfy a rule. any_catg_index skips the
+	// category check; MAX_TRACTION_TYPE skips the engine check.
+	static bool desc_matches_rule(const vehicle_desc_t *desc, uint8 catg_index, const vehicle_description_element &vde);
 
 #ifdef INLINE_OBJ_TYPE
 protected:

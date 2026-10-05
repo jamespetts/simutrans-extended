@@ -3792,6 +3792,44 @@ void vehicle_t::un_mothball()
 	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
 }
 
+bool vehicle_t::desc_matches_rule(const vehicle_desc_t *desc, uint8 catg_index, const vehicle_description_element &vde)
+{
+	if (catg_index != consist_order_element_t::any_catg_index
+		&& catg_index != desc->get_freight_type()->get_catg_index())
+	{
+		return false;
+	}
+
+	// A rule engine_type of MAX_TRACTION_TYPE means "any engine".
+	if (vde.engine_type != vehicle_desc_t::MAX_TRACTION_TYPE
+		&& vde.engine_type != desc->get_engine_type())
+	{
+		return false;
+	}
+
+	return vde.min_catering <= desc->get_catering_level() && vde.max_catering >= desc->get_catering_level() &&
+
+		vde.min_brake_force <= desc->get_brake_force() && vde.max_brake_force >= desc->get_brake_force() &&
+		vde.min_range <= desc->get_range() && vde.max_range >= desc->get_range() &&
+		vde.min_power <= desc->get_power() && vde.max_power >= desc->get_power() &&
+		vde.min_tractive_effort <= desc->get_tractive_effort() && vde.max_tractive_effort >= desc->get_tractive_effort() &&
+		vde.min_topspeed <= desc->get_topspeed() && vde.max_topspeed >= desc->get_topspeed() &&
+
+		vde.min_weight <= desc->get_weight() && vde.max_weight >= desc->get_weight() &&
+		vde.max_axle_load <= desc->get_axle_load() && vde.max_axle_load &&
+
+		vde.min_capacity <= desc->get_total_capacity() && vde.max_capacity >= desc->get_total_capacity() &&
+
+		vde.min_running_cost <= desc->get_running_cost() && vde.max_running_cost >= desc->get_running_cost() &&
+		vde.min_fixed_cost <= desc->get_fixed_cost() && vde.max_fixed_cost >= desc->get_fixed_cost() &&
+
+		vde.min_fuel_per_km <= desc->get_fuel_per_km() && vde.max_fuel_per_km >= desc->get_fuel_per_km() &&
+
+		vde.min_staff_hundredths <= desc->get_total_staff_hundredths() && vde.max_staff_hundredths >= desc->get_total_staff_hundredths() &&
+		vde.min_drivers <= desc->get_total_drivers() && vde.max_drivers >= desc->get_total_drivers();
+}
+
+
 bool vehicle_t::matches_consist_order_element(const consist_order_element_t& element, uint32 priority) const
 {
 	if (priority >= element.get_count())
@@ -3811,38 +3849,8 @@ bool vehicle_t::matches_consist_order_element(const consist_order_element_t& ele
 		return true;
 	}
 
-	if (element.get_catg_index() != desc->get_freight_type()->get_catg_index())
-	{
-		return false;
-	}
-
-	// Check the rules (a rule engine_type of MAX_TRACTION_TYPE means "any engine")
-	if ((vde.engine_type == vehicle_desc_t::MAX_TRACTION_TYPE || vde.engine_type == desc->get_engine_type()) &&
-		vde.min_catering <= desc->get_catering_level() && vde.max_catering >= desc->get_catering_level() &&
-
-		vde.must_carry_class <= get_min_class() &&
-
-		vde.min_brake_force <= desc->get_brake_force() && vde.max_brake_force >= desc->get_brake_force() &&
-		vde.min_range <= desc->get_range() && vde.max_range >= desc->get_range() &&
-		vde.min_power <= desc->get_power() && vde.max_power >= desc->get_power() &&
-		vde.min_tractive_effort <= desc->get_tractive_effort() && vde.max_tractive_effort >= desc->get_tractive_effort() &&
-		vde.min_topspeed <= desc->get_topspeed() && vde.max_topspeed >= desc->get_topspeed() &&
-
-		vde.min_weight <= desc->get_weight() && vde.max_weight >= desc->get_weight() &&
-		vde.max_axle_load <= desc->get_axle_load() && vde.max_axle_load &&
-
-		vde.min_capacity <= desc->get_total_capacity() && vde.max_capacity >= desc->get_total_capacity() &&
-
-		vde.min_running_cost <= desc->get_running_cost() && vde.max_running_cost >= desc->get_running_cost() &&
-		vde.min_fixed_cost <= desc->get_fixed_cost() && vde.max_fixed_cost >= desc->get_fixed_cost() &&
-
-		vde.min_fuel_per_km <= desc->get_fuel_per_km() && vde.max_fuel_per_km >= desc->get_fuel_per_km() &&
-
-		vde.min_staff_hundredths <= desc->get_total_staff_hundredths() && vde.max_staff_hundredths >= desc->get_total_staff_hundredths() &&
-		vde.min_drivers <= desc->get_total_drivers() && vde.max_drivers >= desc->get_total_drivers())
-	{
-		return true;
-	}
-
-	return false;
+	// must_carry_class needs the instance (accommodations may be reassigned);
+	// the descriptor-level remainder lives in desc_matches_rule.
+	return desc_matches_rule(desc, element.get_catg_index(), vde)
+		&& vde.must_carry_class <= get_min_class();
 }

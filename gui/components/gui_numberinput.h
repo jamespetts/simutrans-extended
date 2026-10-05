@@ -76,6 +76,9 @@ public:
 	sint32 get_value();
 	void set_value(sint32);
 
+	// text colour (e.g. to mark invalid values)
+	void set_color(PIXVAL col) { textinp.set_color(col); }
+
 	/**
 	 * digits: length of textbuffer
 	 */

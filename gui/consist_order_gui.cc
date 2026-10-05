@@ -259,7 +259,7 @@ bool gui_consist_order_shifter_t::action_triggered(gui_action_creator_t *comp, v
 
 
 // Compact one-line description of a rule-based alternative for the slot list.
-static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_description_element &rule)
+static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_description_element &rule, uint8 catg)
 {
 	buf.clear();
 	buf.printf("%s %u (", translator::translate("Rule"), number);
@@ -270,7 +270,13 @@ static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_descriptio
 		buf.append(translator::translate(vehicle_builder_t::engine_type_names[rule.engine_type + 1]));
 	}
 	if (rule.must_carry_class) {
-		buf.printf(", class %u+", rule.must_carry_class);
+		if ((catg == goods_manager_t::INDEX_PAS || catg == goods_manager_t::INDEX_MAIL)
+			&& rule.must_carry_class < goods_manager_t::get_classes_catg_index(catg)) {
+			buf.printf(", %s+", goods_manager_t::get_default_accommodation_class_name(catg, rule.must_carry_class));
+		}
+		else {
+			buf.printf(", class %u+", rule.must_carry_class);
+		}
 	}
 	uint32 limits = 0;
 	if (rule.min_catering || rule.max_catering != 255) limits++;
@@ -316,7 +322,7 @@ gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_ord
 		// per-alternative, but this widget is per-slot, so the toggle reads
 		// and writes the empty flag on every alternative in the slot.
 		// square_automatic flips pressed itself; the handler only stores it.
-		bt_can_empty.init(button_t::square_automatic, "May be empty");
+		bt_can_empty.init(button_t::square_automatic, "This slot may be empty");
 		bt_can_empty.set_tooltip(translator::translate("Allow this slot to be left empty when the consist is assembled."));
 		bt_can_empty.add_listener(this);
 		add_component(&bt_can_empty);
@@ -438,7 +444,7 @@ void gui_vehicle_description_element_t::update()
 			rule_table->add_table(3,1);
 			{
 				cbuffer_t summary;
-				rule_summary(summary, ++rule_no, elem.get_vehicle_description(i));
+				rule_summary(summary, ++rule_no, elem.get_vehicle_description(i), elem.get_catg_index());
 				gui_label_buf_t *lb = rule_table->new_component<gui_label_buf_t>();
 				lb->buf().append(summary);
 				lb->update();
@@ -452,8 +458,7 @@ void gui_vehicle_description_element_t::update()
 				rule_edit_buttons.append(bt_edit);
 
 				button_t *bt_del = rule_table->new_component<button_t>();
-				bt_del->init(button_t::box, "X");
-				bt_del->background_color = color_idx_to_rgb(COL_RED);
+				bt_del->init(button_t::roundbox, "Remove");
 				bt_del->set_tooltip(translator::translate("Remove this rule alternative from the slot"));
 				bt_del->add_listener(this);
 				rule_table->add_component(bt_del);
@@ -494,10 +499,10 @@ void gui_vehicle_description_element_t::open_rule_editor(uint32 alt_index)
 {
 	consist_rule_editor_t *win = dynamic_cast<consist_rule_editor_t*>(win_get_magic(magic_consist_rule_editor));
 	if (!win) {
-		create_win(new consist_rule_editor_t(world()->get_active_player(), order, slot_index, alt_index), w_info, magic_consist_rule_editor);
+		create_win(new consist_rule_editor_t(world()->get_active_player(), order, slot_index, alt_index, way_type), w_info, magic_consist_rule_editor);
 	}
 	else {
-		win->retarget(world()->get_active_player(), order, slot_index, alt_index);
+		win->retarget(world()->get_active_player(), order, slot_index, alt_index, way_type);
 		top_win(win, false);
 	}
 }
@@ -630,7 +635,7 @@ static const rule_line_def_t rule_line_defs[consist_rule_editor_t::LINE_COUNT] =
 };
 
 
-consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt) :
+consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt) :
 	gui_frame_t(translator::translate("Set vehicle by rules"))
 {
 	player = player_;
@@ -641,7 +646,7 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 
 	add_table(2,1);
 	{
-		new_component<gui_label_t>("Engine type");
+		new_component<gui_label_t>("Traction type");
 		// Index 0 is "any" (matcher wildcard); the rest follow the engine enum.
 		engine_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Any"), SYSCOL_TEXT);
 		for (uint8 i = 0; i < 10; i++) {
@@ -654,7 +659,9 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 
 	add_table(2,1);
 	{
-		new_component<gui_label_t>("Goods category of this slot");
+		new_component<gui_label_t>("Goods category");
+		catg_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Any"), SYSCOL_TEXT);
+		catg_values.append(consist_order_element_t::any_catg_index);
 		catg_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("none"), SYSCOL_TEXT);
 		catg_values.append(goods_manager_t::INDEX_NONE);
 		for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
@@ -670,15 +677,24 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 	}
 	end_table();
 
-	bt_empty.init(button_t::square_automatic, "May be empty");
+	bt_empty.init(button_t::square_automatic, "This alternative may be empty");
 	bt_empty.set_tooltip(translator::translate("Allow this alternative to be left empty when the consist is assembled."));
 	bt_empty.add_listener(this);
 	add_component(&bt_empty);
 
-	// One checkbox row per constrainable line: unchecked means unconstrained
+	add_table(2,1);
+	{
+		new_component<gui_label_t>("Minimum class carried");
+		class_selector.add_listener(this);
+		add_component(&class_selector);
+	}
+	end_table();
+
+	// One checkbox row per constrainable range: unchecked means unconstrained
 	// (0 to maximum) with greyed-out inputs; checking installs a default range.
-	for (uint8 l = 0; l < LINE_COUNT; l++) {
-		add_table(3,1);
+	// A maximum at its type limit shows a greyed "unlimited" instead of the number.
+	for (uint8 l = 1; l < LINE_COUNT; l++) {
+		add_table(4,1);
 		{
 			bt_use[l].init(button_t::square_automatic, rule_line_defs[l].name);
 			bt_use[l].set_tooltip(translator::translate("Constrain this line (unchecked means any value)"));
@@ -686,13 +702,11 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 			add_component(&bt_use[l]);
 			num_min[l].add_listener(this);
 			add_component(&num_min[l]);
-			if (l == line_class) {
-				new_component<gui_empty_t>();
-			}
-			else {
-				num_max[l].add_listener(this);
-				add_component(&num_max[l]);
-			}
+			num_max[l].add_listener(this);
+			add_component(&num_max[l]);
+			lb_unlimited[l].set_color(SYSCOL_EDIT_TEXT_DISABLED);
+			lb_unlimited[l].set_text("unlimited");
+			add_component(&lb_unlimited[l]);
 		}
 		end_table();
 	}
@@ -710,7 +724,7 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 	}
 	end_table();
 
-	retarget(player_, order_, slot, alt);
+	retarget(player_, order_, slot, alt, wt);
 	set_resizemode(diagonal_resize);
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
@@ -718,13 +732,14 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 }
 
 
-void consist_rule_editor_t::retarget(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt)
+void consist_rule_editor_t::retarget(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt)
 {
 	player = player_;
 	set_owner(player);
 	order = order_;
 	slot_index = slot;
 	alt_index = alt;
+	waytype = wt;
 	// Edit a copy; OK writes it back, Cancel (or re-targeting) discards it.
 	if (structured()) {
 		edit_elem = order->access_order(slot_index).get_vehicle_description(alt_index);
@@ -803,12 +818,16 @@ bool consist_rule_editor_t::line_constrained(uint8 line) const
 {
 	uint32 mn = 0, mx = 0;
 	get_line(line, mn, mx);
-	return mn != 0 || mx != rule_line_defs[line].type_max;
+	// Class is a single value: 0 means unrestricted (so it can be unchecked).
+	return line == line_class ? mn != 0 : (mn != 0 || mx != rule_line_defs[line].type_max);
 }
 
 
 void consist_rule_editor_t::refresh_line(uint8 line)
 {
+	if (line == line_class) {
+		return; // class uses the dropdown, handled in refresh()
+	}
 	const uint32 tmax = rule_line_defs[line].type_max;
 	const sint32 cap = tmax >= (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)tmax;
 	const bool on = line_constrained(line);
@@ -818,11 +837,16 @@ void consist_rule_editor_t::refresh_line(uint8 line)
 	num_min[line].set_limits(0, cap);
 	num_min[line].set_value(show_u32_bound(mn));
 	num_min[line].enable(on);
-	if (line != line_class) {
-		num_max[line].set_limits(0, cap);
-		num_max[line].set_value(show_u32_bound(mx));
-		num_max[line].enable(on);
-	}
+	num_min[line].set_color(SYSCOL_EDIT_TEXT);
+	num_max[line].set_limits(0, cap);
+	num_max[line].set_value(show_u32_bound(mx));
+	num_max[line].enable(on);
+	num_max[line].set_color(SYSCOL_EDIT_TEXT);
+	// A maximum at (or above) its representable limit shows a greyed
+	// "unlimited" instead of the number, so no MAXINT is ever displayed.
+	const bool unlimited = mx >= (tmax >= (uint32)SINT32_MAX_VALUE ? (uint32)SINT32_MAX_VALUE : tmax);
+	num_max[line].set_visible(!unlimited);
+	lb_unlimited[line].set_visible(unlimited);
 }
 
 
@@ -844,8 +868,177 @@ void consist_rule_editor_t::refresh()
 
 	bt_empty.pressed = edit_elem.empty;
 
-	for (uint8 l = 0; l < LINE_COUNT; l++) {
+	rebuild_class_list();
+
+	for (uint8 l = 1; l < LINE_COUNT; l++) {
 		refresh_line(l);
+	}
+	validate();
+}
+
+
+// Class options follow the slot category: named accommodation classes for
+// passengers/mail, otherwise the class indices some pool vehicle can carry.
+uint8 consist_rule_editor_t::class_option_count() const
+{
+	if (edit_catg == goods_manager_t::INDEX_PAS || edit_catg == goods_manager_t::INDEX_MAIL) {
+		return goods_manager_t::get_classes_catg_index(edit_catg);
+	}
+	uint8 m = 0;
+	if (waytype != invalid_wt) {
+		for (auto const desc : vehicle_builder_t::get_info(waytype)) {
+			if (edit_catg == consist_order_element_t::any_catg_index
+				|| desc->get_freight_type()->get_catg_index() == edit_catg) {
+				m = max(m, desc->get_number_of_classes());
+			}
+		}
+	}
+	return m;
+}
+
+
+void consist_rule_editor_t::rebuild_class_list()
+{
+	class_selector.clear_elements();
+	clear_ptr_vector(class_name_store);
+	class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Unrestricted"), SYSCOL_TEXT);
+	const uint8 count = class_option_count();
+	for (uint8 i = 0; i < count; i++) {
+		const char *name = nullptr;
+		if ((edit_catg == goods_manager_t::INDEX_PAS || edit_catg == goods_manager_t::INDEX_MAIL)
+			&& i < goods_manager_t::get_classes_catg_index(edit_catg)) {
+			name = goods_manager_t::get_default_accommodation_class_name(edit_catg, i);
+		}
+		cbuffer_t *entry = new cbuffer_t();
+		if (name && name[0]) {
+			entry->printf("%s+", translator::translate(name));
+		}
+		else {
+			entry->printf("Class %u+", i);
+		}
+		class_name_store.append(entry);
+		class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>((const char *)*entry, SYSCOL_TEXT);
+	}
+	class_selector.set_selection(min(edit_elem.must_carry_class, count));
+}
+
+
+// Pool membership for validation: this waytype, introduced (not in the future);
+// retired vehicles count as "in the past". Without a timeline, everything counts.
+bool consist_rule_editor_t::pool_desc_ok(const vehicle_desc_t *desc) const
+{
+	if (waytype == invalid_wt) {
+		return false;
+	}
+	if (world()->get_settings().get_use_timeline()
+		&& desc->get_intro_year_month() > world()->get_current_month()) {
+		return false;
+	}
+	if (edit_catg != consist_order_element_t::any_catg_index
+		&& desc->get_freight_type()->get_catg_index() != edit_catg) {
+		return false;
+	}
+	return true;
+}
+
+
+// Class carries the matcher approximation: the rule class must be below the
+// vehicle's class count. This never false-reds: the runtime additionally needs
+// the instance's class reassignments to cooperate (see get_min_class), which a
+// descriptor check cannot prove.
+bool consist_rule_editor_t::class_ok(const vehicle_desc_t *desc, uint8 rule_class) const
+{
+	return rule_class < desc->get_number_of_classes();
+}
+
+
+// Whether some pool vehicle can satisfy one checked line of the working copy,
+// keeping the other lines and the engine/category context. An empty rule
+// alternative matches trivially at runtime, so it is always satisfiable.
+bool consist_rule_editor_t::rule_line_matchable(uint8 line) const
+{
+	if (edit_elem.empty) {
+		return true;
+	}
+	vehicle_description_element probe = edit_elem;
+	for (uint8 l = 0; l < LINE_COUNT; l++) {
+		if (l != line) {
+			// Relax: class to 0, ranges to 0/type-max.
+			switch (l) {
+				case line_class: probe.must_carry_class = 0; break;
+					case line_catering: probe.min_catering = 0; probe.max_catering = 255; break;
+					case line_range: probe.min_range = 0; probe.max_range = UINT32_MAX_VALUE; break;
+					case line_brake: probe.min_brake_force = 0; probe.max_brake_force = 65535; break;
+					case line_power: probe.min_power = 0; probe.max_power = UINT32_MAX_VALUE; break;
+					case line_effort: probe.min_tractive_effort = 0; probe.max_tractive_effort = UINT32_MAX_VALUE; break;
+					case line_speed: probe.min_topspeed = 0; probe.max_topspeed = UINT32_MAX_VALUE; break;
+					case line_weight: probe.min_weight = 0; probe.max_weight = UINT32_MAX_VALUE; break;
+					case line_axle: probe.min_axle_load = 0; probe.max_axle_load = UINT32_MAX_VALUE; break;
+					case line_capacity: probe.min_capacity = 0; probe.max_capacity = 65535; break;
+					case line_runcost: probe.min_running_cost = 0; probe.max_running_cost = UINT32_MAX_VALUE; break;
+					case line_fixcost: probe.min_fixed_cost = 0; probe.max_fixed_cost = UINT32_MAX_VALUE; break;
+					case line_fuel: probe.min_fuel_per_km = 0; probe.max_fuel_per_km = UINT32_MAX_VALUE; break;
+					case line_staff: probe.min_staff_hundredths = 0; probe.max_staff_hundredths = UINT32_MAX_VALUE; break;
+					default: probe.min_drivers = 0; probe.max_drivers = UINT32_MAX_VALUE; break;
+				}
+		}
+	}
+	if (waytype == invalid_wt) {
+		return false;
+	}
+	for (auto const desc : vehicle_builder_t::get_info(waytype)) {
+		if (!pool_desc_ok(desc)) {
+			continue;
+		}
+		if (!vehicle_t::desc_matches_rule(desc, edit_catg, probe)) {
+			continue;
+		}
+		if (!class_ok(desc, probe.must_carry_class)) {
+			continue;
+		}
+		return true;
+	}
+	return false;
+}
+
+
+void consist_rule_editor_t::validate()
+{
+	if (!structured()) {
+		return;
+	}
+	bool all_ok = true;
+	bool first = true;
+	reason_buf.clear();
+	for (uint8 l = 0; l < LINE_COUNT; l++) {
+		const bool active = l == line_class ? edit_elem.must_carry_class != 0 : line_constrained(l);
+		const bool ok = !active || rule_line_matchable(l);
+		if (l != line_class) {
+			num_min[l].set_color(ok ? SYSCOL_EDIT_TEXT : color_idx_to_rgb(COL_RED));
+			num_max[l].set_color(ok ? SYSCOL_EDIT_TEXT : color_idx_to_rgb(COL_RED));
+			bt_use[l].set_tooltip(ok
+				? translator::translate("Constrain this line (unchecked means any value)")
+				: translator::translate("No vehicle available now or in the past can meet these limits"));
+		}
+		if (!ok) {
+			all_ok = false;
+			if (!first) {
+				reason_buf.append(", ");
+			}
+			first = false;
+			reason_buf.append(l == line_class ? translator::translate("Minimum class carried") : translator::translate(rule_line_defs[l].name));
+		}
+	}
+	bt_ok.enable(all_ok);
+	if (all_ok) {
+		bt_ok.set_tooltip(translator::translate("Apply these rules"));
+	}
+	else {
+		cbuffer_t full;
+		full.printf("%s %s", translator::translate("Cannot apply: no matching vehicle for:"), (const char *)reason_buf);
+		reason_buf.clear();
+		reason_buf.append(full);
+		bt_ok.set_tooltip(reason_buf);
 	}
 }
 
@@ -868,16 +1061,24 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 	if (comp == &engine_selector) {
 		const sint32 sel = engine_selector.get_selection();
 		edit_elem.engine_type = sel <= 0 ? vehicle_desc_t::MAX_TRACTION_TYPE : (uint8)(sel - 1);
+		validate();
 	}
 	else if (comp == &catg_selector) {
 		const sint32 sel = catg_selector.get_selection();
 		if (sel >= 0 && (uint32)sel < catg_values.get_count()) {
 			edit_catg = catg_values[sel];
 		}
+		refresh();
+	}
+	else if (comp == &class_selector) {
+		const sint32 sel = class_selector.get_selection();
+		edit_elem.must_carry_class = sel <= 0 ? 0 : (uint8)sel;
+		validate();
 	}
 	else if (comp == &bt_empty) {
 		// square_automatic has already flipped pressed; store it.
 		edit_elem.set_empty(bt_empty.pressed);
+		validate();
 	}
 	else if (comp == &bt_ok) {
 		if (!valid()) {
@@ -892,7 +1093,7 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 		destroy_win(this);
 	}
 	else {
-		for (uint8 l = 0; l < LINE_COUNT; l++) {
+		for (uint8 l = 1; l < LINE_COUNT; l++) {
 			if (comp == &bt_use[l]) {
 				// square_automatic has already flipped pressed.
 				if (bt_use[l].pressed) {
@@ -902,17 +1103,17 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 					set_line(l, 0, rule_line_defs[l].type_max);
 				}
 				refresh_line(l);
+				validate();
 				return false;
 			}
-			if (comp == &num_min[l] || (l != line_class && comp == &num_max[l])) {
+			if (comp == &num_min[l] || comp == &num_max[l]) {
 				uint32 mn = 0, mx = 0;
 				get_line(l, mn, mx);
 				mn = store_u32_bound(num_min[l].get_value(), rule_line_defs[l].type_max);
-				if (l != line_class) {
-					mx = store_u32_bound(num_max[l].get_value(), rule_line_defs[l].type_max);
-				}
-				set_line(l, mn, l == line_class ? mn : mx);
+				mx = store_u32_bound(num_max[l].get_value(), rule_line_defs[l].type_max);
+				set_line(l, mn, mx);
 				refresh_line(l);
+				validate();
 				return false;
 			}
 		}
@@ -968,7 +1169,7 @@ gui_consist_order_element_t::gui_consist_order_element_t(consist_order_t *order,
 	set_table_layout(1,2);
 	set_alignment(ALIGN_TOP | ALIGN_CENTER_H);
 	set_spacing(scr_size(0,0));
-	set_margin(scr_size(0,0), scr_size(0,0));
+	set_margin(scr_size(D_H_SPACE,0), scr_size(0,0));
 	set_table_frame(true);
 
 	gui_colored_label_t *th = new_component<gui_colored_label_t>(selected ? SYSCOL_TH_TEXT_SELECTED : SYSCOL_TH_TEXT_TOP, gui_label_t::centered, selected ? SYSCOL_TH_BACKGROUND_SELECTED : SYSCOL_TH_BACKGROUND_TOP);
@@ -1618,6 +1819,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		}
 		consist_order_element_t new_elem;
 		new_elem.append_rule();
+		new_elem.set_catg_index(consist_order_element_t::any_catg_index);
 		order.insert_at(append_target_index-1, new_elem);
 		order.touch();
 		init_input_value_range();
@@ -1972,10 +2174,10 @@ void consist_order_frame_t::open_rule_editor(consist_order_t *edit_order, uint32
 {
 	consist_rule_editor_t *win = dynamic_cast<consist_rule_editor_t*>(win_get_magic(magic_consist_rule_editor));
 	if (!win) {
-		create_win(new consist_rule_editor_t(player, edit_order, slot_index, alt_index), w_info, magic_consist_rule_editor);
+		create_win(new consist_rule_editor_t(player, edit_order, slot_index, alt_index, schedule->get_waytype()), w_info, magic_consist_rule_editor);
 	}
 	else {
-		win->retarget(player, edit_order, slot_index, alt_index);
+		win->retarget(player, edit_order, slot_index, alt_index, schedule->get_waytype());
 		top_win(win, false);
 	}
 }
