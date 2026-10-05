@@ -333,7 +333,14 @@ gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_ord
 		bt_can_empty.set_tooltip(translator::translate("Allow this slot to be left empty when the consist is assembled."));
 		bt_can_empty.add_listener(this);
 		add_component(&bt_can_empty);
-		add_component(&lb_catg);
+		// Category label indented like the slot contents.
+		{
+			gui_aligned_container_t *catg_row = add_table(2,1);
+			catg_row->set_alignment(ALIGN_TOP | ALIGN_CENTER_V);
+			new_component<gui_margin_t>(D_H_SPACE, 0);
+			catg_row->add_component(&lb_catg);
+			end_table();
+		}
 
 		// constraints check indicator
 		gui_aligned_container_t *tbl = add_table(2,1);
@@ -366,12 +373,19 @@ gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_ord
 		}
 		end_table();
 
-		// Rule-based alternatives (specific_vehicle == nullptr) cannot be shown
-		// as images: they are listed with an edit row each below.
-		rule_header = new_component<gui_label_t>("Rule-based alternatives:");
-		rule_table = new_component<gui_aligned_container_t>();
-		rule_table->set_table_layout(1,0);
-		rule_table->set_alignment(ALIGN_TOP);
+		// Rule alternatives are indented under the slot like its images, so
+		// wrap them (header + list) in a container with a left margin.
+		gui_aligned_container_t *rule_wrap = add_table(1,0);
+		rule_wrap->set_table_layout(1,0);
+		rule_wrap->set_margin(scr_size(D_H_SPACE,0), scr_size(0,0));
+		rule_wrap->set_alignment(ALIGN_TOP);
+		{
+			rule_header = rule_wrap->new_component<gui_label_t>("Rule-based alternatives:");
+			rule_table = rule_wrap->new_component<gui_aligned_container_t>();
+			rule_table->set_table_layout(1,0);
+			rule_table->set_alignment(ALIGN_TOP);
+		}
+		end_table();
 
 		bt_add_rule.init(button_t::roundbox, "Add rule");
 		bt_add_rule.set_tooltip(translator::translate("Add a rule-based alternative to this slot"));
@@ -1136,6 +1150,11 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 				}
 				refresh_line(l);
 				validate();
+				// Toggling hides/shows the number inputs in this row: the window
+				// must be re-laid-out or the row overlaps.
+				reset_min_windowsize();
+				set_windowsize(get_min_windowsize());
+				resize(scr_size(0,0));
 				return false;
 			}
 			if (comp == &num_min[l] || comp == &num_max[l]) {
@@ -1146,6 +1165,9 @@ bool consist_rule_editor_t::action_triggered(gui_action_creator_t *comp, value_t
 				set_line(l, mn, mx);
 				refresh_line(l);
 				validate();
+				reset_min_windowsize();
+				set_windowsize(get_min_windowsize());
+				resize(scr_size(0,0));
 				return false;
 			}
 		}
