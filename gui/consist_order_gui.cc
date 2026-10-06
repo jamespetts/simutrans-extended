@@ -932,7 +932,14 @@ void consist_rule_editor_t::refresh()
 		lb_pool.buf().append(translator::translate("No vehicles of this way type and category are available."));
 	}
 	else {
-		lb_pool.buf().printf("%s: %u", translator::translate("Available vehicles"), pool.get_count());
+		// Diagnostic: pool size and the computed spans of a few representative
+		// attributes, so a broken scan is visible without a debug build.
+		uint32 pmn = 0, pmx = 0, smn = 0, smx = 0, wmn = 0, wmx = 0;
+		pool_attr_bounds(line_power, pmn, pmx);
+		pool_attr_bounds(line_speed, smn, smx);
+		pool_attr_bounds(line_weight, wmn, wmx);
+		lb_pool.buf().printf("%s: %u  [power %u-%u speed %u-%u weight %u-%u]",
+			translator::translate("Available vehicles"), pool.get_count(), pmn, pmx, smn, smx, wmn, wmx);
 	}
 	lb_pool.update();
 
