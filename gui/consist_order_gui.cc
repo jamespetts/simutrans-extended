@@ -702,9 +702,9 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 	// instead of every line simply turning red.
 	add_component(&lb_pool);
 
-	// One checkbox row per constrainable line. Unticked: the inputs are replaced
-	// by a greyed "any", so no sentinel ("unlimited") number is ever displayed.
-	// Ticked: a finite default range is installed for the user to narrow.
+	// One checkbox row per constrainable line. Unticked lines show their
+	// effective range (0 to the attainable maximum) greyed out; ticking
+	// installs the real pool span and enables the inputs.
 	for (uint8 l = 1; l < LINE_COUNT; l++) {
 		add_table(3,1);
 		{
@@ -716,9 +716,6 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 			add_component(&num_min[l]);
 			num_max[l].add_listener(this);
 			add_component(&num_max[l]);
-			lb_any[l].set_color(SYSCOL_TEXT_WEAK);
-			lb_any[l].set_text(translator::translate("any"));
-			add_component(&lb_any[l]);
 		}
 		end_table();
 	}
@@ -873,6 +870,10 @@ void consist_rule_editor_t::sanitise_lines()
 }
 
 
+// One checkbox row per constrainable line. An unticked line shows the range
+// that would apply (0 to the attainable maximum) greyed out, so the inputs are
+// always meaningful and no sentinel is ever displayed; ticking installs the
+// real pool span and enables them.
 void consist_rule_editor_t::refresh_line(uint8 line)
 {
 	if (line == line_class) {
@@ -882,22 +883,22 @@ void consist_rule_editor_t::refresh_line(uint8 line)
 	bt_use[line].pressed = on;
 	uint32 mn = 0, mx = 0;
 	get_line(line, mn, mx);
-	// Inputs only exist while the line constrains; "any" stands in otherwise.
-	num_min[line].set_visible(on);
-	num_max[line].set_visible(on);
-	lb_any[line].set_visible(!on);
-	if (!on) {
-		return;
-	}
 	const uint32 cap_u = max((uint32)1, line_edit_max[line]);
 	const sint32 cap = (sint32)min(cap_u, (uint32)SINT32_MAX_VALUE);
 	num_min[line].set_limits(0, cap);
 	num_max[line].set_limits(0, cap);
-	num_min[line].set_value((sint32)min(mn, (uint32)cap));
-	num_max[line].set_value((sint32)min(mx, (uint32)cap));
-	num_min[line].enable(true);
-	num_max[line].enable(true);
-	// Restore normal colouring (a previous validate() may have reddened it).
+	if (on) {
+		num_min[line].set_value((sint32)min(mn, (uint32)cap));
+		num_max[line].set_value((sint32)min(mx, (uint32)cap));
+	}
+	else {
+		num_min[line].set_value(0);
+		num_max[line].set_value(cap);
+	}
+	// enable()/disable() reapply the text colour, so disable first, then clear
+	// any red left by validate() (disabled lines stay greyed either way).
+	num_min[line].enable(on);
+	num_max[line].enable(on);
 	num_min[line].set_color(SYSCOL_EDIT_TEXT);
 	num_max[line].set_color(SYSCOL_EDIT_TEXT);
 }
@@ -935,19 +936,7 @@ void consist_rule_editor_t::refresh()
 		lb_pool.buf().append(translator::translate("No vehicles of this way type and category are available."));
 	}
 	else {
-		// Diagnostic: pool size, the computed spans of representative attributes,
-		// and the stored bounds + matchability of the power line, so a broken
-		// repair/display path is visible without a debug build.
-		uint32 pmn = 0, pmx = 0, smn = 0, smx = 0, wmn = 0, wmx = 0;
-		uint32 stmn = 0, stmx = 0;
-		pool_attr_bounds(line_power, pmn, pmx);
-		pool_attr_bounds(line_speed, smn, smx);
-		pool_attr_bounds(line_weight, wmn, wmx);
-		get_line(line_power, stmn, stmx);
-		lb_pool.buf().printf("%s: %u [power %u-%u speed %u-%u weight %u-%u | stored pow %u-%u used %d match %d]",
-			translator::translate("Available vehicles"), pool.get_count(),
-			pmn, pmx, smn, smx, wmn, wmx,
-			stmn, stmx, line_used[line_power] ? 1 : 0, rule_line_matchable(line_power) ? 1 : 0);
+		lb_pool.buf().printf("%s: %u", translator::translate("Available vehicles"), pool.get_count());
 	}
 	lb_pool.update();
 
