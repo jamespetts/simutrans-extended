@@ -923,6 +923,9 @@ void consist_rule_editor_t::refresh()
 
 	rebuild_class_list();
 
+	// Repair unusable stored bounds before anything is displayed or measured.
+	sanitise_lines();
+
 	// Vehicles the rule can draw on (fleet + buyable new), and the per-line
 	// spans over that pool.
 	vector_tpl<const vehicle_desc_t*> pool;
@@ -932,14 +935,19 @@ void consist_rule_editor_t::refresh()
 		lb_pool.buf().append(translator::translate("No vehicles of this way type and category are available."));
 	}
 	else {
-		// Diagnostic: pool size and the computed spans of a few representative
-		// attributes, so a broken scan is visible without a debug build.
+		// Diagnostic: pool size, the computed spans of representative attributes,
+		// and the stored bounds + matchability of the power line, so a broken
+		// repair/display path is visible without a debug build.
 		uint32 pmn = 0, pmx = 0, smn = 0, smx = 0, wmn = 0, wmx = 0;
+		uint32 stmn = 0, stmx = 0;
 		pool_attr_bounds(line_power, pmn, pmx);
 		pool_attr_bounds(line_speed, smn, smx);
 		pool_attr_bounds(line_weight, wmn, wmx);
-		lb_pool.buf().printf("%s: %u  [power %u-%u speed %u-%u weight %u-%u]",
-			translator::translate("Available vehicles"), pool.get_count(), pmn, pmx, smn, smx, wmn, wmx);
+		get_line(line_power, stmn, stmx);
+		lb_pool.buf().printf("%s: %u [power %u-%u speed %u-%u weight %u-%u | stored pow %u-%u used %d match %d]",
+			translator::translate("Available vehicles"), pool.get_count(),
+			pmn, pmx, smn, smx, wmn, wmx,
+			stmn, stmx, line_used[line_power] ? 1 : 0, rule_line_matchable(line_power) ? 1 : 0);
 	}
 	lb_pool.update();
 
