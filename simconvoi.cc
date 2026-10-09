@@ -3033,8 +3033,13 @@ void convoi_t::start(depot_t* dep)
 			gr->obj_add(front());
 		}
 
-		// put into sync list
-		welt->sync.add(this);
+		// Put into sync list. Only a convoy in INITIAL is outside the list: convoys that entered
+		// a depot as part of their schedule (ENTERING_DEPOT, MAINTENANCE etc.) stay in it, and
+		// adding them again would make them take two sync steps per tick (excess speed).
+		if (state == INITIAL)
+		{
+			welt->sync.add(this);
+		}
 
 		alte_direction = ribi_t::none;
 		no_load = false;
