@@ -1292,6 +1292,16 @@ public:
 	inline bool in_depot() const { return state == INITIAL; }
 
 	/**
+	* True for the states in which a convoy that is standing on a depot tile is inside that depot
+	* (stored off the map and listed by the depot) although it is not in the INITIAL state:
+	* scheduled depot stops, maintenance/overhaul and waiting for a trigger.
+	*/
+	static inline bool is_inside_depot_state(int s)
+	{
+		return s == ENTERING_DEPOT || s == MAINTENANCE || s == OVERHAUL || s == AWAITING_TRIGGER;
+	}
+
+	/**
 	* loading_level was minimum_loading before. Actual percentage loaded of loadable
 	* vehicles.
 	*/

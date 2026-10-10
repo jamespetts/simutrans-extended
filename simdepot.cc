@@ -663,6 +663,15 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		}
 	}
 
+	if(cnv.is_bound()) {
+		// Only a convoy that is stored or is about to leave can be started. Starting one in another state (e.g.
+		// under maintenance) would do nothing in convoi_t::start but still take it off the depot's lists.
+		const int state = cnv->get_state();
+		if(state != convoi_t::INITIAL && state != convoi_t::ROUTING_1 && state != convoi_t::ROUTE_JUST_FOUND) {
+			return false;
+		}
+	}
+
 	// convoi not in depot anymore, maybe user double-clicked on start-button
 	if(/*local_execution &&*/ !convois.is_contained(cnv)) { // The local_execution condition caused timebase issues and excessive speeds of vehicles
 		return false;
@@ -1153,7 +1162,10 @@ bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
 
 	if (under_maintenance.index_of(cnv) == 0)
 	{
-		return true;
+		// The head of the queue is always being worked on, even if it has more vehicles than the depot can
+		// maintain at once (register_for_maintenance lengthens its time instead). Reporting it as waiting
+		// froze its countdown for ever, so that it never finished maintenance.
+		return false;
 	}
 
 	uint32 queue_pos = 0;
