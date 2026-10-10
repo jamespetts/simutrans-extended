@@ -75,8 +75,13 @@ value.
 - Triggers: maintenance_interval_km per vehicle, else months-based settings
   (maintenance_interval_months default 12, extended_maintenance_interval_months default 18);
   simplified_maintenance setting is a kill-switch for the whole system.
-- Skippable scheduled depot entry: conditional_skip + depot_flag; auto-appended (with
-  maintain_or_overhaul) when a convoy/line is created from a depot.
+- Skippable scheduled depot entry: `conditional_skip` on a depot entry skips it unless
+  `is_maintenance_needed()`. `convoi_t::enter_depot` adds `maintain_or_overhaul` to the visit flags
+  for such entries (no stored per-entry flag), so `depot_t::convoi_arrived` overhauls
+  (`is_overhaul_needed()`, not `do_not_overhaul`) or maintains each vehicle and resets its counters.
+  Entries are auto-appended with `conditional_skip` only (`convoi_t::create_schedule`, line-from-depot tool).
+- After maintenance, `convoi_t::step` advances the schedule past the depot entry (if current) and
+  sets `ROUTING_1`; `LEAVING_DEPOT` follows via `depot_t::start_convoi`.
 - INCOMPLETE (not a bug; deferred): urgent maintenance (1.5× maintenance_interval_km) currently
   sets only no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit
   wherever the convoy is. The runtime hook exists — `convoi_t::emergency_go_to_depot(show_success,
