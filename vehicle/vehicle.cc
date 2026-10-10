@@ -1460,7 +1460,7 @@ void vehicle_t::set_desc(const vehicle_desc_t* value)
 		}
 	}
 
-	player_t::add_maintenance(get_owner(), -get_fixed_cost(welt), desc->get_waytype());
+	player_t::add_maintenance(get_owner(), -(sint64)get_fixed_cost(welt), desc->get_waytype());
 
 	desc = value;
 
@@ -3078,7 +3078,7 @@ vehicle_t::~vehicle_t()
 		minimap_t::get_instance()->calc_map_pixel(get_pos().get_2d());
 		if (desc)
 		{
-			player_t::add_maintenance(get_owner(), -get_fixed_cost(welt), desc->get_waytype());
+			player_t::add_maintenance(get_owner(), -(sint64)get_fixed_cost(welt), desc->get_waytype());
 		}
 	}
 
@@ -3774,8 +3774,8 @@ void vehicle_t::mothball()
 
 	is_mothballed = true;
 
-	player_t::add_maintenance(get_owner(), -get_fixed_cost(welt),get_waytype()); // Take this vehicle out of paying monthly maintenance...
-	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // ...but charge the player one month's maintenance for doing so.
+	player_t::add_maintenance(get_owner(), -(sint64)get_fixed_cost(welt),get_waytype()); // Take this vehicle out of paying monthly maintenance...
+	get_owner()->book_vehicle_maintenance(-(sint64)get_fixed_cost(welt), get_waytype()); // ...but charge the player one month's maintenance for doing so.
 }
 
 void vehicle_t::un_mothball()
@@ -3789,7 +3789,7 @@ void vehicle_t::un_mothball()
 	is_mothballed = false;
 
 	player_t::add_maintenance(get_owner(), get_fixed_cost(welt), get_waytype());
-	get_owner()->book_vehicle_maintenance(-get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
+	get_owner()->book_vehicle_maintenance(-(sint64)get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
 }
 
 bool vehicle_t::desc_matches_rule(const vehicle_desc_t *desc, uint8 catg_index, const vehicle_description_element &vde)
