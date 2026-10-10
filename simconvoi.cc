@@ -2508,8 +2508,15 @@ void convoi_t::step()
 				}
 				else
 				{
-					state = LEAVING_DEPOT;
-					goto ld;
+					// Depart as on any scheduled departure: advance past the depot entry if it is still the
+					// current one, then route. Leaving directly in LEAVING_DEPOT would drive out on the stale
+					// route into the same depot again, and the convoy would never leave the depot's lists.
+					if (schedule->get_current_entry().pos == get_pos())
+					{
+						advance_schedule();
+					}
+					state = ROUTING_1;
+					wait_lock = 0;
 				}
 			}
 			else
@@ -2537,7 +2544,6 @@ void convoi_t::step()
 			check_departure();
 			break;
 
-		ld:
 		// immediate action needed
 		case LEAVING_DEPOT:
 			last_stop_was_depot = true;
@@ -4490,7 +4496,15 @@ void convoi_t::rdwr(loadsave_t *file)
 				state = INITIAL;
 			}
 
-			if(state!=INITIAL) {
+			// A convoy inside a depot in a non-INITIAL state (scheduled depot stop, maintenance, ...) was off the
+			// map and unreserved when saved: restore it as such instead of putting it on the depot tile.
+			bool inside_depot = false;
+			if(is_inside_depot_state(state)) {
+				const grund_t* depot_gr = welt->lookup(v->get_pos());
+				inside_depot = depot_gr && depot_gr->get_depot();
+			}
+
+			if(state!=INITIAL && !inside_depot) {
 				grund_t *gr;
 				gr = welt->lookup(v->get_pos());
 				if(!gr) {
