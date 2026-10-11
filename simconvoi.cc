@@ -2351,7 +2351,8 @@ void convoi_t::step()
 		case ROUTE_JUST_FOUND:
 
 			gr = welt->lookup(get_pos());
-			if (depot_t* dep = gr->get_depot())
+			depot_t* dep = gr ? gr->get_depot() : NULL;
+			if (dep)
 			{
 				dep->start_convoi(self, false);
 			}
@@ -2498,7 +2499,8 @@ void convoi_t::step()
 			}
 
 			gr = welt->lookup(get_pos());
-			if (depot_t* dep = gr->get_depot())
+			depot_t* dep = gr ? gr->get_depot() : NULL;
+			if (dep)
 			{
 				if (schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait))
 				{
@@ -2963,7 +2965,8 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 	set_akt_speed(0);
 
 	schedule_t* sch = get_schedule();
-	if (sch && welt->lookup(sch->get_current_entry().pos)->get_depot())
+	const grund_t *sch_gr = sch ? welt->lookup(sch->get_current_entry().pos) : NULL;
+	if (sch_gr && sch_gr->get_depot())
 	{
 		flags |= sch->get_current_entry().minimum_loading;
 
@@ -3051,7 +3054,10 @@ void convoi_t::start(depot_t* dep)
 			gr->obj_add(front());
 		}
 
-		// put into sync list
+		// put into sync list (remove first: pre-maintenance depot entries were never
+		// removed on arrival and add() does not deduplicate, so re-add without this
+		// leaves stale duplicate entries behind)
+		welt->sync.remove(this);
 		welt->sync.add(this);
 
 		alte_direction = ribi_t::none;

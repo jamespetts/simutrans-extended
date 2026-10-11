@@ -240,6 +240,11 @@ public:
 	// are too many other convoys being worked on at present.
 	bool is_awaiting_attention(convoihandle_t cnv) const;
 
+	// Load-time pairing: drop stale maintenance-queue entries (unbound, wrong state, wrong depot)
+	// and re-queue maintain-state convoys of this depot that the queue is missing. Raw appends only:
+	// wait_lock was restored from the save, so register_for_maintenance (capacity multiplier) must not run here.
+	void validate_maintenance_queue();
+
 	// For advancing the timing of convoys under maintenance
 	sync_result sync_step(uint32 delta_t) OVERRIDE;
 

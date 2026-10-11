@@ -90,6 +90,19 @@ depot_t::~depot_t()
 		welt->remove_building_from_world_list(this);
 		// No need to remove this from the city statistics here, as this will be done by the gebaeude_t parent object.
 	}
+	if(!welt->is_destroying())
+	{
+		// Hand queued convoys back to the world sync list: with the depot gone their countdown
+		// no longer runs here (maintained convoys are kept out of welt.sync while queued), and
+		// their sync_step self-heals them to INITIAL when it finds no depot.
+		for(auto const c : under_maintenance)
+		{
+			if(c.is_bound())
+			{
+				welt->sync.add(c.get_rep());
+			}
+		}
+	}
 	welt->sync.remove(this);
 }
 
@@ -286,6 +299,14 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 	{
 		acnv->set_state(convoi_t::MAINTENANCE);
 		register_for_maintenance(acnv);
+	}
+
+	if(!vehicles_to_overhaul.empty() || !vehicles_to_maintain.empty())
+	{
+		// Maintained convoys are stepped via depot_t::sync_step: take them out of the world
+		// sync list so the maintenance countdown runs once per tick. convoi_t::start re-adds
+		// on departure (remove() clears all occurrences, so this also heals stale duplicates).
+		welt->sync.remove(acnv.get_rep());
 	}
 
 	// this part stores the convoi in the depot
@@ -848,6 +869,32 @@ void depot_t::rdwr_maintenance_queue(loadsave_t* file)
 			}
 		}
 
+	}
+}
+
+
+void depot_t::validate_maintenance_queue()
+{
+	for (uint32 i = under_maintenance.get_count(); i-- != 0;)
+	{
+		convoihandle_t c = under_maintenance[i];
+		const bool keep = c.is_bound() && c->get_vehicle_count() > 0
+			&& (c->get_state() == convoi_t::MAINTENANCE || c->get_state() == convoi_t::OVERHAUL)
+			&& c->front()->get_pos() == get_pos();
+		if (!keep)
+		{
+			under_maintenance.remove_at(i);
+		}
+	}
+	for (auto const c : convois)
+	{
+		if (c.is_bound() && c->get_vehicle_count() > 0
+			&& (c->get_state() == convoi_t::MAINTENANCE || c->get_state() == convoi_t::OVERHAUL)
+			&& c->front()->get_pos() == get_pos()
+			&& !under_maintenance.is_contained(c))
+		{
+			under_maintenance.append(c);
+		}
 	}
 }
 

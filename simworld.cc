@@ -4495,7 +4495,9 @@ void karte_t::sync_list_t::remove(sync_steppable *obj)
 		assert(false);
 	}
 	else {
-		list.remove(obj);
+		// Remove all occurrences: add() does not deduplicate, so stale duplicates
+		// must not accumulate (e.g. depot exits re-adding a convoy never removed on entry).
+		while(list.remove(obj)) {}
 	}
 }
 
@@ -9303,7 +9305,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 				}
 			}
 			else {
-				sync.add( cnv );
+				bool stepped_by_depot = false;
 
 				if(  convoi_t::is_inside_depot_state(cnv->get_state())  ) {
 					// Waiting or being maintained inside a depot: the depot's convoy list is not saved, so list the
@@ -9313,12 +9315,27 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 					depot_t *dep = gr ? gr->get_depot() : NULL;
 					if(  dep  ) {
 						dep->convoi_arrived(cnv->self, 0);
+						if(  cnv->get_state()==convoi_t::MAINTENANCE  ||  cnv->get_state()==convoi_t::OVERHAUL  ) {
+							// Stepped via depot_t::sync_step (paired with its maintenance-queue entry):
+							// keep out of welt.sync so the countdown runs once per tick.
+							stepped_by_depot = true;
+						}
 					}
+				}
+
+				if(  !stepped_by_depot  ) {
+					sync.add( cnv );
 				}
 			}
 			if(  (convoi_array.get_count()&7) == 0  ) {
 				ls->set_progress( get_size().y+(get_size().y*convoi_array.get_count())/(2*max_convoi)+128 );
 			}
+		}
+		// Pair maintenance queues with their convoys (queues load before convoys): drop stale
+		// entries and re-queue maintain-state convoys the queue is missing, so every depot-stepped
+		// convoy is queued exactly once and no queued convoy is stepped twice.
+		for( auto dep : depot_t::get_depot_list() ) {
+			dep->validate_maintenance_queue();
 		}
 DBG_MESSAGE("karte_t::load()", "%d convois/trains loaded", convoi_array.get_count());
 	}
