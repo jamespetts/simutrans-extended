@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ fd60082b6
+verified: ex-15 @ 3adade449
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -82,6 +82,13 @@ value.
   Entries are auto-appended with `conditional_skip` only (`convoi_t::create_schedule`, line-from-depot tool).
 - After maintenance, `convoi_t::step` advances the schedule past the depot entry (if current) and
   sets `ROUTING_1`; `LEAVING_DEPOT` follows via `depot_t::start_convoi`.
+- Stepping home: convoys in `MAINTENANCE`/`OVERHAUL` are kept out of `welt.sync` and stepped once
+  via `depot_t::sync_step`; `convoi_t::start` re-adds (remove-before-add; `sync_list_t::remove`
+  clears all occurrences). `validate_maintenance_queue` pairs queues with convoys at load (drops
+  stale entries, re-queues missing ones without touching `wait_lock`).
+- Old-save warts (no migration; few affected saves): schedules written before the flag fix keep a
+  spurious `ignore_choose` bit on auto-appended depot entries; pre-15 saves have no maintenance
+  queue (rebuilt by the validator).
 - INCOMPLETE (not a bug; deferred): urgent maintenance (1.5× maintenance_interval_km) currently
   sets only no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit
   wherever the convoy is. The runtime hook exists — `convoi_t::emergency_go_to_depot(show_success,
