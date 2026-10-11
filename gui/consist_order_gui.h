@@ -357,6 +357,8 @@ private:
 	bool desc_way_cat_ok(const vehicle_desc_t *desc) const;
 	bool desc_buyable_ok(const vehicle_desc_t *desc) const;
 	bool rule_line_matchable(uint8 line) const;
+	uint32 count_line_matches(uint8 line) const;
+	void build_line_probe(uint8 line, vehicle_description_element &probe) const;
 	void validate();
 	void refresh();
 	// Per-line span (min and max) of the named attribute over all pool vehicles
