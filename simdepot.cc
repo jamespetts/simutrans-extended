@@ -1027,6 +1027,10 @@ void depot_t::new_month()
 	{
 		for(auto const v : get_vehicle_list())
 		{
+			if (v->get_is_mothballed())
+			{
+				continue;
+			}
 			fixed_cost_costs += v->get_desc()->get_fixed_cost(welt);
 		}
 	}
