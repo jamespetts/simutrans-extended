@@ -9304,6 +9304,17 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 			}
 			else {
 				sync.add( cnv );
+
+				if(  convoi_t::is_inside_depot_state(cnv->get_state())  ) {
+					// Waiting or being maintained inside a depot: the depot's convoy list is not saved, so list the
+					// convoy again (its vehicles were kept off the map in convoi_t::rdwr). Without this, depot_t::start_convoi
+					// would refuse the convoy when it leaves and it would remain stuck.
+					grund_t *gr = lookup(cnv->get_pos());
+					depot_t *dep = gr ? gr->get_depot() : NULL;
+					if(  dep  ) {
+						dep->convoi_arrived(cnv->self, 0);
+					}
+				}
 			}
 			if(  (convoi_array.get_count()&7) == 0  ) {
 				ls->set_progress( get_size().y+(get_size().y*convoi_array.get_count())/(2*max_convoi)+128 );

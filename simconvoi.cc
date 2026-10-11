@@ -2456,8 +2456,7 @@ void convoi_t::step()
 				if(  str  &&  str->get_overtaking_mode()!=halt_mode  ) set_tiles_overtaking(0);
 				if(get_depot_when_empty() && has_no_cargo())
 				{
-					const uint16 flags = schedule_entry_t::delete_entry | schedule_entry_t::store;
-					go_to_depot(!replace, (replace && replace->get_use_home_depot()), flags);
+					go_to_depot(!replace, (replace && replace->get_use_home_depot()), false);
 				}
 				break;
 			}
@@ -2509,8 +2508,15 @@ void convoi_t::step()
 				}
 				else
 				{
-					state = LEAVING_DEPOT;
-					goto ld;
+					// Depart as on any scheduled departure: advance past the depot entry if it is still the
+					// current one, then route. Leaving directly in LEAVING_DEPOT would drive out on the stale
+					// route into the same depot again, and the convoy would never leave the depot's lists.
+					if (schedule->get_current_entry().pos == get_pos())
+					{
+						advance_schedule();
+					}
+					state = ROUTING_1;
+					wait_lock = 0;
 				}
 			}
 			else
@@ -2538,7 +2544,6 @@ void convoi_t::step()
 			check_departure();
 			break;
 
-		ld:
 		// immediate action needed
 		case LEAVING_DEPOT:
 			last_stop_was_depot = true;
@@ -2601,7 +2606,14 @@ void convoi_t::step()
 		case MAINTENANCE:
 			if (wait_lock <= 0)
 			{
-				state = LEAVING_DEPOT;
+				// Depart as on any scheduled departure: advance past the depot entry if it is still
+				// the current one, then route. Leaving directly in LEAVING_DEPOT would drive out on
+				// the stale route into the same depot again (and never leave the depot's lists).
+				if (schedule && schedule->get_current_entry().pos == get_pos())
+				{
+					advance_schedule();
+				}
+				state = ROUTING_1;
 			}
 			break;
 
@@ -2954,6 +2966,12 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 	if (sch && welt->lookup(sch->get_current_entry().pos)->get_depot())
 	{
 		flags |= sch->get_current_entry().minimum_loading;
+
+		if (sch->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip))
+		{
+			// A conditionally skipped depot entry is only visited when maintenance is needed.
+			flags |= schedule_entry_t::maintain_or_overhaul;
+		}
 	}
 
 	if (flags & schedule_entry_t::store)
@@ -3604,7 +3622,7 @@ schedule_t *convoi_t::create_schedule()
 				const depot_t* this_depot = gr->get_depot();
 				if (this_depot)
 				{
-					schedule->append(gr, 0, 0, 0, schedule_entry_t::conditional_skip | schedule_entry_t::maintain_or_overhaul);
+					schedule->append(gr, 0, 0, 0, schedule_entry_t::conditional_skip);
 					schedule->set_reverse(1, 0);
 				}
 			}
@@ -4478,7 +4496,15 @@ void convoi_t::rdwr(loadsave_t *file)
 				state = INITIAL;
 			}
 
-			if(state!=INITIAL) {
+			// A convoy inside a depot in a non-INITIAL state (scheduled depot stop, maintenance, ...) was off the
+			// map and unreserved when saved: restore it as such instead of putting it on the depot tile.
+			bool inside_depot = false;
+			if(is_inside_depot_state(state)) {
+				const grund_t* depot_gr = welt->lookup(v->get_pos());
+				inside_depot = depot_gr && depot_gr->get_depot();
+			}
+
+			if(state!=INITIAL && !inside_depot) {
 				grund_t *gr;
 				gr = welt->lookup(v->get_pos());
 				if(!gr) {
