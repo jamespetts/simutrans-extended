@@ -481,23 +481,23 @@ void gui_vehicle_description_element_t::update()
 			{
 				cbuffer_t summary;
 				rule_summary(summary, ++rule_no, elem.get_vehicle_description(i), elem.get_catg_index());
+				// NOTE: new_component() already adds (and takes ownership), so the
+				// components must NOT also be passed to add_component() — that
+				// would insert every widget twice and wrap phantom rows.
 				gui_label_buf_t *lb = rule_table->new_component<gui_label_buf_t>();
 				lb->buf().append(summary);
 				lb->update();
-				rule_table->add_component(lb);
 
 				button_t *bt_edit = rule_table->new_component<button_t>();
 				bt_edit->init(button_t::roundbox, "Edit");
 				bt_edit->set_tooltip(translator::translate("Edit this rule alternative"));
 				bt_edit->add_listener(this);
-				rule_table->add_component(bt_edit);
 				rule_edit_buttons.append(bt_edit);
 
 				button_t *bt_del = rule_table->new_component<button_t>();
 				bt_del->init(button_t::roundbox, "Remove");
 				bt_del->set_tooltip(translator::translate("Remove this rule alternative from the slot"));
 				bt_del->add_listener(this);
-				rule_table->add_component(bt_del);
 				rule_remove_buttons.append(bt_del);
 			}
 			rule_table->end_table();
