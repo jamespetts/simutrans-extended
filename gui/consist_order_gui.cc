@@ -258,6 +258,27 @@ bool gui_consist_order_shifter_t::action_triggered(gui_action_creator_t *comp, v
 }
 
 
+// Class display name for a passenger/mail category: accommodation names first
+// (must_carry_class is about accommodation carried), then wealth, then fare —
+// whichever series the pakset translates is shown, so a missing series falls
+// through instead of falling back to numbers.
+static const char *rule_class_name(uint8 catg, uint8 cls)
+{
+	if (catg != goods_manager_t::INDEX_PAS && catg != goods_manager_t::INDEX_MAIL) {
+		return nullptr;
+	}
+	const char *name = goods_manager_t::get_default_accommodation_class_name(catg, cls);
+	if (name && name[0]) {
+		return name;
+	}
+	name = goods_manager_t::get_translated_wealth_name(catg, cls);
+	if (name && name[0]) {
+		return name;
+	}
+	return goods_manager_t::get_translated_fare_class_name(catg, cls);
+}
+
+
 // Compact one-line description of a rule-based alternative for the slot list.
 static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_description_element &rule, uint8 catg)
 {
@@ -270,16 +291,10 @@ static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_descriptio
 		buf.append(translator::translate(vehicle_builder_t::engine_type_names[rule.engine_type + 1]));
 	}
 	if (rule.must_carry_class) {
-		if ((catg == goods_manager_t::INDEX_PAS || catg == goods_manager_t::INDEX_MAIL)
-			&& rule.must_carry_class < goods_manager_t::get_classes_catg_index(catg)) {
-			const char *name = goods_manager_t::get_translated_wealth_name(catg, rule.must_carry_class);
-			if (name && name[0]) {
-				buf.append(", ");
-				buf.append(name);
-			}
-			else {
-				buf.printf(", class %u+", rule.must_carry_class);
-			}
+		const char *name = rule_class_name(catg, rule.must_carry_class);
+		if (name && name[0]) {
+			buf.append(", ");
+			buf.append(name);
 		}
 		else {
 			buf.printf(", class %u+", rule.must_carry_class);
@@ -827,12 +842,17 @@ void consist_rule_editor_t::set_line(uint8 line, uint32 mn, uint32 mx)
 
 // Seed the explicit per-line flags from the stored bounds on first display, so
 // an existing constrained rule shows as ticked. Class is a dropdown, not a row.
+// Seed the explicit per-line flags from the stored bounds on first display.
+// Only a range that differs from the unconstrained 0..type-max counts as
+// used: in particular a stored 0..0 (written by earlier builds) is unused,
+// not a "match exactly zero" constraint.
 void consist_rule_editor_t::init_line_used()
 {
 	for (uint8 l = 1; l < LINE_COUNT; l++) {
 		uint32 mn = 0, mx = 0;
 		get_line(l, mn, mx);
-		line_used[l] = (mn != 0 || mx != rule_line_defs[l].type_max);
+		line_used[l] = !(mn == 0 && mx == rule_line_defs[l].type_max)
+			&& !(mn == 0 && mx == 0);
 	}
 }
 
@@ -996,12 +1016,11 @@ void consist_rule_editor_t::rebuild_class_list()
 	class_selector.clear_elements();
 	clear_ptr_vector(class_numeric_labels);
 	const uint8 catg = class_name_catg();
-	const bool named = (catg != 255);
 	class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Unrestricted"), SYSCOL_TEXT);
 	const uint8 count = class_option_count();
 	// Selection N means class N (0 = unrestricted), so options run 1..count-1.
 	for (uint8 i = 1; i < count; i++) {
-		const char *name = named ? goods_manager_t::get_translated_wealth_name(catg, i) : NULL;
+		const char *name = rule_class_name(catg, i);
 		if (name && name[0]) {
 			class_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(name), SYSCOL_TEXT);
 		}
