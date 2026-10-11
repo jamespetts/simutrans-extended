@@ -2351,8 +2351,7 @@ void convoi_t::step()
 		case ROUTE_JUST_FOUND:
 
 			gr = welt->lookup(get_pos());
-			depot_t* dep = gr ? gr->get_depot() : NULL;
-			if (dep)
+			if (depot_t* dep = gr ? gr->get_depot() : NULL)
 			{
 				dep->start_convoi(self, false);
 			}
@@ -2499,8 +2498,7 @@ void convoi_t::step()
 			}
 
 			gr = welt->lookup(get_pos());
-			depot_t* dep = gr ? gr->get_depot() : NULL;
-			if (dep)
+			if (depot_t* dep = gr ? gr->get_depot() : NULL)
 			{
 				if (schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait))
 				{
