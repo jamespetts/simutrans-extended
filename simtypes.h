@@ -250,6 +250,10 @@ template<typename T> static inline int sgn(T x)
 }
 
 #ifndef min
+// NOTE: signed-int only. Passing uint32 values above INT_MAX narrows them to
+// negative on conversion (implementation-defined; wraps on MSVC), silently
+// computing garbage. This has caused real bugs (consist-order rule bounds,
+// Oct 2026). Use explicit unsigned comparisons for uint32 quantities.
 static inline int min(const int a, const int b)
 {
 	return a < b ? a : b;
@@ -257,6 +261,7 @@ static inline int min(const int a, const int b)
 #endif
 
 #ifndef max
+// NOTE: see min() above; same signed-int restriction applies.
 static inline int max(const int a, const int b)
 {
 	return a > b ? a : b;

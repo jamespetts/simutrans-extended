@@ -301,7 +301,7 @@ static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_descriptio
 		}
 	}
 	uint32 limits = 0;
-	if (rule.min_catering || rule.max_catering != 255) limits++;
+	if (rule.min_catering || rule.max_catering != 5) limits++;
 	if (rule.min_range || rule.max_range != UINT32_MAX_VALUE) limits++;
 	if (rule.min_brake_force || rule.max_brake_force != 65535) limits++;
 	if (rule.min_power || rule.max_power != UINT32_MAX_VALUE) limits++;
@@ -577,6 +577,7 @@ bool gui_vehicle_description_element_t::action_triggered(gui_action_creator_t *c
 			consist_order_element_t &elem = order->access_order(slot_index);
 			if(index<elem.get_count()){
 				elem.remove_vehicle_description_at(index);
+				order->touch();
 			}
 		}
 		else {
@@ -636,6 +637,15 @@ struct rule_line_def_t {
 	uint32 default_min; // finite range installed when a line is ticked
 	uint32 default_max;
 };
+
+// The shared min()/max() in simtypes.h take and return SIGNED int. Any uint32
+// bound above INT_MAX (i.e. every UINT32_MAX_VALUE "no limit" ceiling) narrows
+// to a negative on conversion, so min()/max() on rule bounds silently computed
+// garbage: set_line() stored U32MAX, refresh displayed 0 after sint32+clamp,
+// validation failed everything red. Local unsigned versions for all uint32
+// bounds below; the int helpers stay for genuine int quantities.
+static inline uint32 umin32(uint32 a, uint32 b) { return a < b ? a : b; }
+static inline uint32 umax32(uint32 a, uint32 b) { return a > b ? a : b; }
 
 // Finite defaults are arbitrary starting points for newly checked lines,
 // per user request; the user narrows them as needed.
@@ -818,8 +828,8 @@ void consist_rule_editor_t::get_line(uint8 line, uint32 &mn, uint32 &mx) const
 void consist_rule_editor_t::set_line(uint8 line, uint32 mn, uint32 mx)
 {
 	const uint32 tmax = rule_line_defs[line].type_max;
-	mn = min(mn, tmax);
-	mx = min(mx, tmax);
+	mn = umin32(mn, tmax);
+	mx = umin32(mx, tmax);
 	switch (line) {
 		case line_class: edit_elem.must_carry_class = (uint8)mn; break;
 		case line_catering: edit_elem.min_catering = (uint8)mn; edit_elem.max_catering = (uint8)mx; break;
@@ -903,13 +913,13 @@ void consist_rule_editor_t::refresh_line(uint8 line)
 	bt_use[line].pressed = on;
 	uint32 mn = 0, mx = 0;
 	get_line(line, mn, mx);
-	const uint32 cap_u = max((uint32)1, line_edit_max[line]);
-	const sint32 cap = (sint32)min(cap_u, (uint32)SINT32_MAX_VALUE);
+	const uint32 cap_u = umax32((uint32)1, line_edit_max[line]);
+	const sint32 cap = (sint32)umin32(cap_u, (uint32)SINT32_MAX_VALUE);
 	num_min[line].set_limits(0, cap);
 	num_max[line].set_limits(0, cap);
 	if (on) {
-		num_min[line].set_value((sint32)min(mn, (uint32)cap));
-		num_max[line].set_value((sint32)min(mx, (uint32)cap));
+		num_min[line].set_value((sint32)umin32(mn, (uint32)cap));
+		num_max[line].set_value((sint32)umin32(mx, (uint32)cap));
 	}
 	else {
 		num_min[line].set_value(0);
@@ -1140,18 +1150,11 @@ bool consist_rule_editor_t::pool_attr_bounds(uint8 line, uint32 &mn, uint32 &mx)
 }
 
 
-// Whether some pool vehicle can satisfy one checked line of the working copy,
-// keeping the other lines and the engine/category context. An empty rule
-// alternative matches trivially at runtime, so it is always satisfiable.
-bool consist_rule_editor_t::rule_line_matchable(uint8 line) const
+// Shared probe builder for one checked line: the working copy with every
+// other line relaxed to unconstrained, keeping engine/category/class context.
+void consist_rule_editor_t::build_line_probe(uint8 line, vehicle_description_element &probe) const
 {
-	if (edit_elem.empty) {
-		return true;
-	}
-	if (waytype == invalid_wt) {
-		return true; // no pool to check against: do not block the player
-	}
-	vehicle_description_element probe = edit_elem;
+	probe = edit_elem;
 	for (uint8 l = 0; l < LINE_COUNT; l++) {
 		if (l != line) {
 			// Relax every line other than the one under test.
@@ -1174,22 +1177,46 @@ bool consist_rule_editor_t::rule_line_matchable(uint8 line) const
 			}
 		}
 	}
+}
+
+
+// Number of pool vehicles satisfying one checked line (same probe as
+// rule_line_matchable, but counting instead of stopping at the first).
+uint32 consist_rule_editor_t::count_line_matches(uint8 line) const
+{
+	if (edit_elem.empty || waytype == invalid_wt) {
+		return 0;
+	}
+	vehicle_description_element probe;
+	build_line_probe(line, probe);
 	vector_tpl<const vehicle_desc_t*> pool;
 	collect_pool(pool);
+	uint32 matches = 0;
 	for (auto const desc : pool) {
 		if (!vehicle_t::desc_matches_rule(desc, edit_catg, probe)) {
 			continue;
 		}
-		// Class carries the matcher approximation: the rule class must be below
-		// the vehicle's class count. This never false-reds; the runtime also
-		// needs the instance's class reassignments to cooperate, which a
-		// descriptor check cannot prove.
 		if (probe.must_carry_class && probe.must_carry_class >= desc->get_number_of_classes()) {
 			continue;
 		}
+		matches++;
+	}
+	return matches;
+}
+
+
+// Whether some pool vehicle can satisfy one checked line of the working copy,
+// keeping the other lines and the engine/category context. An empty rule
+// alternative matches trivially at runtime, so it is always satisfiable.
+bool consist_rule_editor_t::rule_line_matchable(uint8 line) const
+{
+	if (edit_elem.empty) {
 		return true;
 	}
-	return false;
+	if (waytype == invalid_wt) {
+		return true; // no pool to check against: do not block the player
+	}
+	return count_line_matches(line) > 0;
 }
 
 
@@ -1859,6 +1886,12 @@ void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 	else if (order.get_count() != old_order_count || order.get_mod_count() != old_order_mod_count) {
 		build_vehicle_list();
 		init_input_value_range();
+		// Rebuild the overview synchronously: it would otherwise rebuild inside
+		// its own draw below, after this frame's resize, leaving grown content
+		// permanently overflowing (overlapping rows/buttons).
+		cont_order_overview.init_table();
+		reset_min_windowsize();
+		resize(scr_size(0,0));
 	}
 	gui_frame_t::draw(pos, size);
 }
@@ -2040,6 +2073,7 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		else {
 			// append the vehicle as a vehicle description element
 			order.append_vehicle_at(append_target_index-1, selected_vehicle);
+			order.touch();
 		}
 
 		init_input_value_range();
