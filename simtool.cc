@@ -6124,7 +6124,7 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 		}
 		else
 		{
-			maint = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), (welt->get_settings().get_maint_building() * desc->get_level()), buildings);
+			maint = welt->get_settings().get_maint_building() * desc->get_level();
 
 		}
 		if(desc->get_base_price() != PRICE_MAGIC)
