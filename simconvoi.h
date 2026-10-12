@@ -695,6 +695,13 @@ private:
 	void advance_schedule_internal();
 
 	/**
+	 * At a stop of a mirrored schedule whose next entries are conditionally skipped depots that
+	 * will be skipped, the schedule would turn at the skipped entry and return to this stop.
+	 * Instead, turn here, as at any other end of a mirrored schedule.
+	 */
+	void turn_at_skipped_depot();
+
+	/**
 	 * Measure and record the times that
 	 * goods of all types have been waiting
 	 * before boarding this convoy

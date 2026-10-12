@@ -2667,6 +2667,40 @@ void convoi_t::advance_schedule()
 	}
 }
 
+void convoi_t::turn_at_skipped_depot()
+{
+	if (!schedule || !schedule->is_mirrored() || schedule->get_count() < 3)
+	{
+		return;
+	}
+
+	const uint8 count = schedule->get_count();
+	const uint8 current = schedule->get_current_stop();
+	uint8 index = current;
+	bool rev = reverse_schedule;
+	for (uint8 i = 0; i < count; i++)
+	{
+		schedule->increment_index(&index, &rev);
+		if (index == current)
+		{
+			// Every entry up to the turning point is skipped: this stop is the end of the schedule.
+			reverse_schedule = rev;
+			return;
+		}
+
+		const schedule_entry_t& entry = schedule->entries[index];
+		if (!entry.is_flag_set(schedule_entry_t::conditional_skip))
+		{
+			return;
+		}
+		const grund_t* gr = welt->lookup(entry.pos);
+		if (!gr || !gr->get_depot() || is_maintenance_needed())
+		{
+			return;
+		}
+	}
+}
+
 void convoi_t::advance_schedule_internal()
 {
 	if (schedule->get_current_stop() == 0)
@@ -6163,6 +6197,9 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
  */
 void convoi_t::hat_gehalten(halthandle_t halt)
 {
+	// Decide before loading, so that passengers for the onward journey are picked up at this stop.
+	turn_at_skipped_depot();
+
 	grund_t *gr = welt->lookup(front()->get_pos());
 
 	// now find out station length
