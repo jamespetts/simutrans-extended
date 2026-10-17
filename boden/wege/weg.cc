@@ -170,6 +170,19 @@ void weg_t::book_maintenance(player_t* player, const way_desc_t* way_desc, sint3
 }
 
 
+void weg_t::change_owner(player_t* new_owner)
+{
+	player_t* const old_owner = get_owner();
+	if (old_owner == new_owner)
+	{
+		return;
+	}
+	book_maintenance(old_owner, desc, -1);
+	obj_t::set_owner(new_owner);
+	book_maintenance(new_owner, desc, +1);
+}
+
+
 void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 {
 	if(desc && desc != b)
