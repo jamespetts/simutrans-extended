@@ -181,6 +181,14 @@ private:
 	*/
 	void init_statistics();
 
+	/**
+	* Books (sign +1) or removes (sign -1) only the monthly maintenance amount
+	* of way_desc for player, applying the diagonal correction. Does not book
+	* the way-length statistic and does not consult charges_own_maintenance();
+	* the caller decides whether the amount should be booked.
+	*/
+	void book_maintenance_amount(player_t* player, const way_desc_t* way_desc, sint32 sign, bool diagonal);
+
 	/*
 	 * Way constraints for, e.g., loading gauges, types of electrification, etc.
 	 * @author: jamespetts (modified by Bernd Gabriel)
@@ -468,9 +476,35 @@ public:
 	/**
 	 * Books (sign +1) or removes (sign -1) the maintenance and way-length
 	 * contribution of way_desc for player, applying the diagonal correction.
-	 * Shared by set_desc(), finish_rd() and the way builders' ownership changes.
+	 * The maintenance is booked only if charges_own_maintenance(); the
+	 * way-length statistic is always booked. Shared by set_desc(), finish_rd()
+	 * and change_owner().
 	 */
 	void book_maintenance(player_t* player, const way_desc_t* way_desc, sint32 sign);
+
+	/**
+	 * True if this way books its own monthly maintenance: it has an owner and
+	 * its tile has no bridge or tunnel whose waytype is this way's waytype.
+	 * A bridge or tunnel of the same waytype books the tile's maintenance
+	 * instead (bruecke_t::finish_rd(), tunnel_t::finish_rd()), so the way must
+	 * not book it.
+	 */
+	bool charges_own_maintenance() const;
+
+	/**
+	 * Called after a bridge or tunnel of this way's waytype has been built on
+	 * this way's tile: stops this way booking its own maintenance, which the
+	 * bridge or tunnel now books instead. The way-length statistic is not
+	 * affected. No-op if the way has no owner.
+	 */
+	void stop_charging_own_maintenance();
+
+	/**
+	 * Called when the bridge or tunnel has been removed from this way's tile:
+	 * resumes this way booking its own maintenance. The way-length statistic
+	 * is not affected. No-op if the way has no owner.
+	 */
+	void start_charging_own_maintenance();
 
 	/**
 	 * Changes this way's owner, transferring its maintenance and way-length
@@ -480,9 +514,9 @@ public:
 	 * leaves the contribution with the previous owner. obj_t::set_owner() (or
 	 * set_owner_nr() on load) remains correct where the booking must not move.
 	 *
-	 * Not for ways on bridges or tunnels: those do not carry their own
-	 * maintenance (the bridge or tunnel charge replaces it), so the transfer
-	 * would move a booking that is not there.
+	 * A way that does not charge its own maintenance (see
+	 * charges_own_maintenance()) has no maintenance booking to transfer; its
+	 * way-length booking is still transferred.
 	 */
 	void change_owner(player_t* new_owner);
 

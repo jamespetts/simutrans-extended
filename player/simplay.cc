@@ -739,12 +739,9 @@ void player_t::complete_liquidation()
 					weg_t *w = gr->get_weg_nr(wnr);
 					if(  w  &&  w->get_owner()==this  )
 					{
-						// take ownership
-						if (wnr>1  ||  (!gr->ist_bruecke()  &&  !gr->ist_tunnel()))
-						{
-							player_t::add_maintenance( this, -w->get_desc()->get_maintenance(), w->get_desc()->get_finance_waytype() );
-						}
-						w->set_owner(NULL); // make unowned
+						// make unowned; the maintenance and way-length
+						// bookings move with the ownership change
+						w->change_owner(NULL);
 					}
 				}
 			}
@@ -802,15 +799,16 @@ void player_t::complete_liquidation()
 								bool mothball = false;
 								if (gr->ist_bruecke() || gr->ist_tunnel())
 								{
-									w->set_owner(NULL);
+									// The bridge or tunnel books the maintenance; only
+									// the ownership and way-length booking change here.
+									w->change_owner(NULL);
 									if (!w->is_public_right_of_way())
 									{
 										mothball = true;
 									}
 								}
 								else if (w->get_waytype() == road_wt || w->get_waytype() == water_wt) {
-									add_maintenance(-w->get_desc()->get_maintenance(), w->get_waytype());
-									w->set_owner(NULL);
+									w->change_owner(NULL);
 								}
 								else
 								{
@@ -831,18 +829,16 @@ void player_t::complete_liquidation()
 										// Run this a second time to make sure that this degrades fully - running it once with wear capacity left simply reduces the speed limit.
 										way->degrade();
 									}
-									way->set_owner(NULL);
+									way->change_owner(NULL);
 								}
 
 								break;
 							}
 							case obj_t::bruecke:
-								add_maintenance( -((bruecke_t*)obj)->get_desc()->get_maintenance(), obj->get_waytype() );
-								obj->set_owner( NULL );
+								((bruecke_t*)obj)->change_owner(NULL);
 								break;
 							case obj_t::tunnel:
-								add_maintenance( -((tunnel_t*)obj)->get_desc()->get_maintenance(), ((tunnel_t*)obj)->get_desc()->get_finance_waytype() );
-								obj->set_owner( NULL );
+								((tunnel_t*)obj)->change_owner(NULL);
 								break;
 
 							default:

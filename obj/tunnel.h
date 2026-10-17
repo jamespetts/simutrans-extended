@@ -58,6 +58,19 @@ public:
 
 	void cleanup(player_t *player) OVERRIDE;
 
+	/**
+	 * The monthly maintenance this tunnel books per tile: the tunnel desc's
+	 * maintenance plus any subsea or subwaterline additions for this position.
+	 */
+	sint64 get_maintenance_amount() const;
+
+	/**
+	 * Changes this tunnel's owner, transferring the maintenance this tunnel
+	 * books from the old owner to new_owner. Use this for gameplay ownership
+	 * changes; obj_t::set_owner() moves no booking.
+	 */
+	void change_owner(player_t* new_owner);
+
 
 	uint8 get_broad_type() const { return broad_type; }
 

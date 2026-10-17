@@ -4185,8 +4185,6 @@ void process_city_street(grund_t& gr, const way_desc_t* cr)
 		return;
 	}
 
-	player_t *player = weg->get_owner();
-
 	bool make_public = true;
 	if(!weg->is_public_right_of_way())
 	{
@@ -4206,9 +4204,8 @@ void process_city_street(grund_t& gr, const way_desc_t* cr)
 	// Check whether any changes are needed.
 	if((!weg->hat_gehweg() || weg->get_desc() != cr) && make_public == true)
 	{
-		player_t::add_maintenance(player, -weg->get_desc()->get_maintenance(), road_wt);
 		weg->set_gehweg(true);
-		weg->set_owner(NULL); // make public
+		weg->change_owner(NULL); // make public
 		if(cr->is_at_least_as_good_as(weg->get_desc()))
 		{
 			weg->set_desc(cr);

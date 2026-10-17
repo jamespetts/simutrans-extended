@@ -2087,8 +2087,9 @@ const char *tool_transformer_t::work( player_t *player, koord3d pos )
 
 		tunnelboden_t* tunnel = new tunnelboden_t(pos, 0);
 		welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-		tunnel->obj_add(new tunnel_t(pos, player, tunnel_desc));
-		player_t::add_maintenance( player, tunnel_desc->get_maintenance(), tunnel_desc->get_finance_waytype() );
+		tunnel_t* tunnel_obj = new tunnel_t(pos, player, tunnel_desc);
+		tunnel->obj_add(tunnel_obj);
+		player_t::add_maintenance( player, tunnel_obj->get_maintenance_amount(), tunnel_desc->get_finance_waytype() );
 		gr = tunnel;
 	}
 	else {
@@ -7605,8 +7606,9 @@ const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, 
 
 			tunnelboden_t* tunnel = new tunnelboden_t(pos, 0);
 			welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-			tunnel->obj_add(new tunnel_t(pos, player, tunnel_desc));
-			player_t::add_maintenance( player, tunnel_desc->get_maintenance(), tunnel_desc->get_finance_waytype() );
+			tunnel_t* tunnel_obj = new tunnel_t(pos, player, tunnel_desc);
+			tunnel->obj_add(tunnel_obj);
+			player_t::add_maintenance( player, tunnel_obj->get_maintenance_amount(), tunnel_desc->get_finance_waytype() );
 			gr = tunnel;
 		}
 
@@ -9268,11 +9270,11 @@ const char *tool_make_stop_public_t::work( player_t *player, koord3d p )
 					}
 					if(t->get_owner() == psplayer)
 					{
-						t->set_owner(NULL);
+						t->change_owner(NULL);
 					}
 					else
 					{
-						t->set_owner(psplayer);
+						t->change_owner(psplayer);
 					}
 				}
 
@@ -9290,30 +9292,27 @@ const char *tool_make_stop_public_t::work( player_t *player, koord3d p )
 					}
 					if(b->get_owner() == psplayer)
 					{
-						b->set_owner(NULL);
+						b->change_owner(NULL);
 					}
 					else
 					{
-						b->set_owner(psplayer);
+						b->change_owner(psplayer);
 					}
 				}
 
 				if(w->get_owner() == psplayer)
 				{
-					w->set_owner(NULL);
+					w->change_owner(NULL);
 				}
 				else
 				{
-					player_t::add_maintenance(w->get_owner(), -maintenance_cost, w->get_desc()->get_finance_waytype());
-					player_t::add_way_length(player, -10, w->get_desc()->get_finance_waytype());
 					player_t::book_construction_costs(player, -construction_cost, gr->get_pos().get_2d(), w->get_desc()->get_finance_waytype());
 					if(player == psplayer)
 					{
 						// If this is done by the public player, pay compensation.
 						player_t::book_construction_costs(w->get_owner(), construction_cost, gr->get_pos().get_2d(), w->get_desc()->get_finance_waytype());
 					}
-					w->set_owner(psplayer);
-					player_t::add_maintenance(psplayer, maintenance_cost);
+					w->change_owner(psplayer);
 				}
 
 				w->set_flag(obj_t::dirty);

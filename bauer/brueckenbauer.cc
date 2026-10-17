@@ -946,8 +946,9 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 	while(  pos.get_2d() != end.get_2d()  ) {
 		brueckenboden_t *bruecke = new brueckenboden_t( pos, 0, 0 );
 		welt->access(pos.get_2d())->boden_hinzufuegen(bruecke);
+		weg_t* weg = NULL;
 		if(  desc->get_waytype() != powerline_wt  ) {
-			weg_t * const weg = weg_t::alloc(desc->get_waytype());
+			weg = weg_t::alloc(desc->get_waytype());
 			weg->set_desc(way_desc);
 			if(  way_desc->get_waytype()==road_wt) {
 				strasse_t* str = (strasse_t*) weg;
@@ -999,6 +1000,12 @@ void bridge_builder_t::build_bridge(player_t *player, const koord3d start, const
 		sint16 height = pos.z - gr->get_pos().z;
 		bruecke_t *br = new bruecke_t(bruecke->get_pos(), player, desc, desc->get_straight(ribi,height-slope_t::max_diff(gr->get_grund_hang())));
 		bruecke->obj_add(br);
+		if(weg)
+		{
+			// The way was built before the bridge and is now on the bridge's
+			// ground: the bridge books the maintenance from now on.
+			weg->stop_charging_own_maintenance();
+		}
 		bruecke->calc_image();
 		br->finish_rd();
 //DBG_MESSAGE("bool bridge_builder_t::build_bridge()","at (%i,%i)",pos.x,pos.y);
@@ -1224,6 +1231,12 @@ void bridge_builder_t::build_ramp(player_t* player, koord3d end, ribi_t::ribi ri
 	}
 	bruecke_t *br = new bruecke_t(end, player, desc, img);
 	bruecke->obj_add( br );
+	if(weg)
+	{
+		// The way (new, or moved from the ground that the ramp replaced) is on
+		// the bridge's ground: the bridge books the maintenance from now on.
+		weg->stop_charging_own_maintenance();
+	}
 	br->finish_rd();
 	bruecke->calc_image();
 }
