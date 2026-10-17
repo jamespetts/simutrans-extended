@@ -77,9 +77,9 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
    (g) prioritise performance over "clean" code or similar (but not over stability); 
    (h) do not use non-ASCII characters in comments; and
    (i) do not over-engineer: do not write code that does not actually need to be there.
-13. All autonomously started game/binary test runs must pass the `-nomidi` flag (in
-    addition to `-nosound` where applicable), unless the task specifically concerns
-    music or sound. Background music from unattended runs disturbs the user's work.
+13. All autonomously started game/binary test runs must pass the `-nomidi` flag,
+    unless the task specifically concerns music or sound. Background music from
+    unattended runs disturbs the user's work.
 
 
 ## Commit messages
