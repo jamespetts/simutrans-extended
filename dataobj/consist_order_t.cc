@@ -16,6 +16,12 @@
 #include "../vehicle/vehicle.h"
 
 
+// Out-of-line definition required by C++14: any_catg_index is odr-used where it is
+// passed to a const-reference parameter (e.g. vector_tpl::append in the rule editor),
+// which clang does not fold away as a constant expression.
+const uint8 consist_order_element_t::any_catg_index;
+
+
 void consist_order_element_t::append_vehicle(const vehicle_desc_t *v)
 {
 	vehicle_description_element v_elem;
