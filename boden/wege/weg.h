@@ -472,6 +472,20 @@ public:
 	 */
 	void book_maintenance(player_t* player, const way_desc_t* way_desc, sint32 sign);
 
+	/**
+	 * Changes this way's owner, transferring its maintenance and way-length
+	 * booking from the old owner to new_owner. Use this for gameplay ownership
+	 * changes: set_desc() books the contribution on the owner current when it
+	 * runs, and obj_t::set_owner() moves no booking, so a bare set_owner()
+	 * leaves the contribution with the previous owner. obj_t::set_owner() (or
+	 * set_owner_nr() on load) remains correct where the booking must not move.
+	 *
+	 * Not for ways on bridges or tunnels: those do not carry their own
+	 * maintenance (the bridge or tunnel charge replaces it), so the transfer
+	 * would move a booking that is not there.
+	 */
+	void change_owner(player_t* new_owner);
+
 	void calc_speed_limit(grund_t* gr, bool from_saved = false, const bruecke_t* bridge = nullptr, const tunnel_t* tunnel = nullptr);
 
 	// returns a way with the matching type

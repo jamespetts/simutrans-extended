@@ -2750,17 +2750,14 @@ void way_builder_t::build_road()
 
 					if (city_adopts_this)
 					{
-						// The city takes over the road: remove the new maintenance booked by
-						// set_desc() from the previous owner; an unowned way charges nobody.
-						str->book_maintenance(str->get_owner(), str->get_desc(), -1);
-						str->set_owner(NULL);
+						// The city takes over the road: the way becomes unowned.
+						str->change_owner(NULL);
 					}
 					else if (str->get_owner() != player_builder)
 					{
 						// The owner changes: set_desc() booked the new maintenance on the
-						// previous owner, so transfer it to the player taking over.
-						str->book_maintenance(str->get_owner(), str->get_desc(), -1);
-						str->set_owner(player_builder);
+						// previous owner, so transfer the booking to the player taking over.
+						str->change_owner(player_builder);
 						// If taking ownership of a way, must buy the underlying land,
 						// except in cases of public rights of way, in which the underlying land
 						// is assumed to be owned by third parties subject to the way.
@@ -2768,7 +2765,6 @@ void way_builder_t::build_road()
 						{
 							cost += welt->get_land_value(gr->get_pos());
 						}
-						str->book_maintenance(player_builder, str->get_desc(), +1);
 					}
 					// Same owner: set_desc() already booked the new maintenance.
 				}
@@ -2933,7 +2929,9 @@ void way_builder_t::build_track()
 						{
 							weg->add_way_constraints(wayobj->get_desc()->get_way_constraints());
 						}
-						weg->set_owner(player_builder);
+						// set_desc() booked the new maintenance on the previous owner;
+						// change_owner() moves the booking to the new owner if it changed.
+						weg->change_owner(player_builder);
 						// respect speed limit of crossing
 						weg->count_sign();
 					}
