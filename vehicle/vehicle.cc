@@ -3424,6 +3424,11 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 }
 
 // BG, 06.06.2009: added
+void vehicle_t::finish_rd()
+{
+}
+
+// BG, 06.06.2009: added
 void vehicle_t::before_delete()
 {
 }

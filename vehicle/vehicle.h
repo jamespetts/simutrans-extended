@@ -761,6 +761,8 @@ public:
 	uint16 get_accommodation_capacity(uint8 a_class, bool include_lower_classes = false) const;
 	uint16 get_fare_capacity(uint8 fare_class, bool include_lower_classes = false) const;
 
+	// update player's fixed maintenance
+	void finish_rd() OVERRIDE;
 	void before_delete();
 
 	void set_current_livery(const char* liv) { current_livery = liv; }
