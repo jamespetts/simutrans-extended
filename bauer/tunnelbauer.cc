@@ -541,6 +541,9 @@ void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord 
 		if(weg) {
 			// has already a way
 			tunnel->weg_erweitern(desc->get_waytype(), ribi);
+			// The way was built before the tunnel and is now on the tunnel's
+			// ground: the tunnel books the maintenance from now on.
+			weg->stop_charging_own_maintenance();
 		}
 		else {
 			// needs still one
@@ -548,11 +551,8 @@ void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord 
 			if(  way_desc  ) {
 				weg->set_desc( way_desc );
 			}
-			else
-			{
-				// set_desc will set the maintenance cost of this way.
-				player_t::add_maintenance( player, -weg->get_desc()->get_maintenance(), weg->get_desc()->get_finance_waytype() );
-			}
+			// neuen_weg_bauen() books no maintenance for this way: the tunnel
+			// on this tile books it instead (see weg_t::charges_own_maintenance()).
 			tunnel->neuen_weg_bauen( weg, ribi, player );
 		}
 		const grund_t* gr = welt->lookup(weg->get_pos());

@@ -261,8 +261,8 @@ void bruecke_t::finish_rd()
 
 		weg->set_bridge_weight_limit(desc->get_max_weight());
 
-		// take ownership of way
-		player_t::add_maintenance( weg->get_owner(), -weg->get_desc()->get_maintenance(), desc->get_finance_waytype());
+		// take ownership of way; the way does not book its own maintenance
+		// while this bridge is on its tile (see weg_t::charges_own_maintenance())
 		weg->set_owner(player);
 	}
 	player_t::add_maintenance( player,  desc->get_maintenance(), desc->get_finance_waytype());
@@ -310,7 +310,9 @@ void bruecke_t::cleanup( player_t *player2 )
 				{
 					weg0->set_max_speed(min(desc->get_topspeed(), way_desc->get_topspeed()));
 				}
-			player_t::add_maintenance( player,  way_desc->get_maintenance(), way_desc->get_finance_waytype());
+			// The way resumes booking its own maintenance now that the bridge
+			// is being removed.
+			weg0->start_charging_own_maintenance();
 			// reset offsets
 			weg0->set_xoff(0);
 			weg0->set_yoff(0);
@@ -323,6 +325,19 @@ void bruecke_t::cleanup( player_t *player2 )
 
 	player_t::add_maintenance( player,  -desc->get_maintenance(), desc->get_finance_waytype() );
 	player_t::book_construction_costs( player2, -desc->get_value(), get_pos().get_2d(), desc->get_waytype() );
+}
+
+
+void bruecke_t::change_owner(player_t* new_owner)
+{
+	player_t* const old_owner = get_owner();
+	if(old_owner == new_owner)
+	{
+		return;
+	}
+	player_t::add_maintenance(old_owner, -desc->get_maintenance(), desc->get_finance_waytype());
+	obj_t::set_owner(new_owner);
+	player_t::add_maintenance(new_owner, desc->get_maintenance(), desc->get_finance_waytype());
 }
 
 

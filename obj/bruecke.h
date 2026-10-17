@@ -72,6 +72,13 @@ public:
 
 	void cleanup(player_t *player) OVERRIDE;
 
+	/**
+	 * Changes this bridge's owner, transferring the maintenance this bridge
+	 * books from the old owner to new_owner. Use this for gameplay ownership
+	 * changes; obj_t::set_owner() moves no booking.
+	 */
+	void change_owner(player_t* new_owner);
+
 	void rotate90() OVERRIDE;
 
 	/**

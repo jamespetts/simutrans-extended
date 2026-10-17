@@ -2596,29 +2596,28 @@ bool way_builder_t::build_tunnel_tile()
 
 		tunnelboden_t* tunnel_ground = nullptr;
 		tunnel_t* tunnel = nullptr;
-		sint64 old_maintenance = 0;
-		sint64 new_maintenance = 0;
 
 		if(gr==NULL){
 			tunnel_ground = new tunnelboden_t(route[i],0);
 			welt->access(route[i].get_2d())->boden_hinzufuegen(tunnel_ground);
 			tunnel = new tunnel_t(route[i], player_builder, tunnel_desc);
 			tunnel_ground->obj_add(tunnel);
-			old_maintenance=0;
 			cost-=tunnel_builder_t::get_total_cost(tunnel_ground->get_pos(),tunnel_desc);
+			// Book the new tunnel's maintenance; the way built through it does
+			// not book its own (see weg_t::charges_own_maintenance()).
+			tunnel->finish_rd();
 		}else if(gr->get_typ() == grund_t::tunnelboden){
 			tunnel_ground = (tunnelboden_t*)gr;
 			tunnel = gr->find<tunnel_t>();
 			if(tunnel->get_desc()!=tunnel_desc){
 				cost-=tunnel_builder_t::get_total_cost(tunnel_ground->get_pos(),tunnel_desc);
 			}
-			old_maintenance = tunnel_builder_t::get_total_maintenance(gr->get_pos(),tunnel->get_desc());
+			// set_desc() books the maintenance change. If this tunnel has no
+			// owner, the way builder's takeover books the new amount instead.
 			tunnel->set_desc(tunnel_desc);
 		}
 
 		assert(tunnel_ground != nullptr); // non-tunnel tile below ground ??!
-		new_maintenance = tunnel_builder_t::get_total_maintenance(tunnel_ground->get_pos(),tunnel_desc);
-		player_t::add_maintenance(player_builder,new_maintenance-old_maintenance,tunnel_desc->get_waytype());
 	}
 
 	player_t::book_construction_costs(player_builder, cost, route[0].get_2d(), tunnel_desc->get_waytype());
@@ -2903,13 +2902,11 @@ void way_builder_t::build_track()
 							tunnel_t *tunnel = gr ? gr->find<tunnel_t>() : NULL;
 							if (bridge && bridge->get_owner() == NULL)
 							{
-								bridge->set_owner(player_builder);
-								player_t::add_maintenance(player_builder, bridge->get_desc()->get_maintenance(), bridge->get_desc()->get_finance_waytype());
+								bridge->change_owner(player_builder);
 							}
 							else if (tunnel && tunnel->get_owner() == NULL)
 							{
-								tunnel->set_owner(player_builder);
-								player_t::add_maintenance(player_builder, tunnel->get_desc()->get_maintenance(), tunnel->get_desc()->get_finance_waytype());
+								tunnel->change_owner(player_builder);
 							}
 						}
 

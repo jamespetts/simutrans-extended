@@ -151,6 +151,56 @@ sint32 weg_t::get_max_speed(bool needs_electrification) const
 	return max_speed;
 }
 
+bool weg_t::charges_own_maintenance() const
+{
+	if(get_owner() == NULL)
+	{
+		return false;
+	}
+	const grund_t* const gr = welt->lookup(get_pos());
+	if(gr == NULL)
+	{
+		// The ground has already been detached (this way is being destroyed
+		// with it). Any bridge or tunnel on the tile has been removed by then,
+		// so the way still has its own maintenance booking.
+		return true;
+	}
+	const waytype_t wt = get_waytype();
+	if(const bruecke_t* const br = gr->find<bruecke_t>())
+	{
+		if(br->get_waytype() == wt)
+		{
+			return false;
+		}
+	}
+	if(const tunnel_t* const tn = gr->find<tunnel_t>())
+	{
+		if(tn->get_waytype() == wt)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+
+void weg_t::book_maintenance_amount(player_t* player, const way_desc_t* way_desc, sint32 sign, bool diagonal)
+{
+	if(!player || !way_desc)
+	{
+		return;
+	}
+	sint32 maint = way_desc->get_maintenance();
+	if(diagonal)
+	{
+		// maint /= sqrt(2)
+		maint *= 10;
+		maint /= 14;
+	}
+	player_t::add_maintenance(player, sign * maint, way_desc->get_finance_waytype());
+}
+
+
 void weg_t::book_maintenance(player_t* player, const way_desc_t* way_desc, sint32 sign)
 {
 	if(!player || !way_desc)
@@ -158,15 +208,26 @@ void weg_t::book_maintenance(player_t* player, const way_desc_t* way_desc, sint3
 		return;
 	}
 	check_diagonal();
-	sint32 maint = way_desc->get_maintenance();
-	if(is_diagonal())
+	if(charges_own_maintenance())
 	{
-		// maint /= sqrt(2)
-		maint *= 10;
-		maint /= 14;
+		book_maintenance_amount(player, way_desc, sign, is_diagonal());
 	}
-	player_t::add_maintenance(player, sign * maint, way_desc->get_finance_waytype());
 	player_t::add_way_length(player, sign * (is_diagonal() ? 7 : 10), way_desc->get_finance_waytype());
+}
+
+
+void weg_t::stop_charging_own_maintenance()
+{
+	// Uses the stored diagonal state so that exactly the amount booked by the
+	// last booking operation is removed.
+	book_maintenance_amount(get_owner(), desc, -1, is_diagonal());
+}
+
+
+void weg_t::start_charging_own_maintenance()
+{
+	check_diagonal();
+	book_maintenance_amount(get_owner(), desc, +1, is_diagonal());
 }
 
 
@@ -511,13 +572,10 @@ weg_t::~weg_t()
 		player_t *player = get_owner();
 		if (player  &&  desc)
 		{
-			sint32 maint = desc->get_maintenance();
-			if (is_diagonal())
+			if (charges_own_maintenance())
 			{
-				maint *= 10;
-				maint /= 14;
+				book_maintenance_amount(player, desc, -1, is_diagonal());
 			}
-			player_t::add_maintenance(player, -maint, desc->get_finance_waytype());
 			player_t::add_way_length( player, is_diagonal() ? -7 : -10, desc->get_finance_waytype());
 		}
 	}
@@ -1538,7 +1596,7 @@ void weg_t::degrade()
 		// Do not degrade public rights of way, as these should remain passable.
 		// Instead, take them out of private ownership and renew them with the default way.
 		const bool initially_unowned = get_owner() == NULL;
-		set_owner(NULL);
+		change_owner(NULL);
 		if(wtyp == road_wt)
 		{
 			if (!initially_unowned && welt->get_timeline_year_month())

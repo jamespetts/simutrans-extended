@@ -205,13 +205,14 @@ void tunnel_t::finish_rd()
 			{
 				weg->set_max_speed(desc->get_topspeed());
 			}
-			player_t::add_maintenance( player, -weg->get_desc()->get_maintenance(), weg->get_desc()->get_finance_waytype());
 		}
 		leitung_t *lt = gr ? gr->get_leitung() : NULL;
 		if(lt) {
 			player_t::add_maintenance( player, -lt->get_desc()->get_maintenance(), powerline_wt );
 		}
-		player_t::add_maintenance( player,  tunnel_builder_t::get_total_maintenance(get_pos(),desc), desc->get_finance_waytype() );
+		// The way on this tile does not book its own maintenance: this tunnel
+		// books it instead (see weg_t::charges_own_maintenance()).
+		player_t::add_maintenance( player,  get_maintenance_amount(), desc->get_finance_waytype() );
 	}
 }
 
@@ -244,11 +245,33 @@ void tunnel_t::cleanup( player_t *player2 )
 			}
 			weg->set_max_axle_load( weg->get_desc()->get_max_axle_load() );
 			weg->add_way_constraints(desc->get_way_constraints());
-			player_t::add_maintenance( player,  weg->get_desc()->get_maintenance(), weg->get_desc()->get_finance_waytype());
+			// The way resumes booking its own maintenance now that the tunnel
+			// is being removed.
+			weg->start_charging_own_maintenance();
 		}
-		player_t::add_maintenance( player,  -desc->get_maintenance(), desc->get_finance_waytype() );
+		player_t::add_maintenance( player,  -get_maintenance_amount(), desc->get_finance_waytype() );
 	}
 	player_t::book_construction_costs(player2, -desc->get_value(), get_pos().get_2d(), desc->get_finance_waytype() );
+}
+
+
+sint64 tunnel_t::get_maintenance_amount() const
+{
+	return tunnel_builder_t::get_total_maintenance(get_pos(), desc);
+}
+
+
+void tunnel_t::change_owner(player_t* new_owner)
+{
+	player_t* const old_owner = get_owner();
+	if(old_owner == new_owner)
+	{
+		return;
+	}
+	const sint64 maint = get_maintenance_amount();
+	player_t::add_maintenance(old_owner, -maint, desc->get_finance_waytype());
+	obj_t::set_owner(new_owner);
+	player_t::add_maintenance(new_owner, maint, desc->get_finance_waytype());
 }
 
 
@@ -282,28 +305,15 @@ const char *tunnel_t::is_deletable(const player_t *player)
 
 void tunnel_t::set_desc(const tunnel_desc_t *_desc)
 {
-	const weg_t* way = welt->lookup(get_pos())->get_weg(get_desc()->get_waytype());
 	if(desc)
 	{
 		// Remove the old maintenance cost
-		sint32 old_maint = get_desc()->get_maintenance();
-		if(way && way->is_diagonal())
-		{
-			old_maint *= 10;
-			old_maint /= 14;
-		}
-		player_t::add_maintenance(get_owner(), -old_maint, get_desc()->get_finance_waytype());
+		player_t::add_maintenance(get_owner(), -get_maintenance_amount(), get_desc()->get_finance_waytype());
 	}
 
 	desc = _desc;
 	// Add the new maintenance cost
-	sint32 maint = get_desc()->get_maintenance();
-	if(way && way->is_diagonal())
-	{
-		maint *= 10;
-		maint /= 14;
-	}
-	player_t::add_maintenance(get_owner(), maint, get_desc()->get_finance_waytype());
+	player_t::add_maintenance(get_owner(), get_maintenance_amount(), get_desc()->get_finance_waytype());
 }
 
 bool tunnel_t::get_is_half_height() const{
