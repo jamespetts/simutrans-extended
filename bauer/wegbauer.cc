@@ -2750,25 +2750,27 @@ void way_builder_t::build_road()
 
 					if (city_adopts_this)
 					{
+						// The city takes over the road: remove the new maintenance booked by
+						// set_desc() from the previous owner; an unowned way charges nobody.
+						str->book_maintenance(str->get_owner(), str->get_desc(), -1);
 						str->set_owner(NULL);
 					}
-					else
+					else if (str->get_owner() != player_builder)
 					{
-						if (str->get_owner() != player_builder)
+						// The owner changes: set_desc() booked the new maintenance on the
+						// previous owner, so transfer it to the player taking over.
+						str->book_maintenance(str->get_owner(), str->get_desc(), -1);
+						str->set_owner(player_builder);
+						// If taking ownership of a way, must buy the underlying land,
+						// except in cases of public rights of way, in which the underlying land
+						// is assumed to be owned by third parties subject to the way.
+						if (!str->is_public_right_of_way())
 						{
-							str->set_owner(player_builder);
-							// If taking ownership of a way, must buy the underlying land,
-							// except in cases of public rights of way, in which the underlying land
-							// is assumed to be owned by third parties subject to the way.
-							if (!str->is_public_right_of_way())
-							{
-								cost += welt->get_land_value(gr->get_pos());
-							}
+							cost += welt->get_land_value(gr->get_pos());
 						}
-						// Set maintenance costs here
-						// including corrections for diagonals.
-						str->finish_rd();
+						str->book_maintenance(player_builder, str->get_desc(), +1);
 					}
+					// Same owner: set_desc() already booked the new maintenance.
 				}
 			}
 			else {

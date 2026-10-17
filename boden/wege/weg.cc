@@ -151,20 +151,31 @@ sint32 weg_t::get_max_speed(bool needs_electrification) const
 	return max_speed;
 }
 
+void weg_t::book_maintenance(player_t* player, const way_desc_t* way_desc, sint32 sign)
+{
+	if(!player || !way_desc)
+	{
+		return;
+	}
+	check_diagonal();
+	sint32 maint = way_desc->get_maintenance();
+	if(is_diagonal())
+	{
+		// maint /= sqrt(2)
+		maint *= 10;
+		maint /= 14;
+	}
+	player_t::add_maintenance(player, sign * maint, way_desc->get_finance_waytype());
+	player_t::add_way_length(player, sign * (is_diagonal() ? 7 : 10), way_desc->get_finance_waytype());
+}
+
+
 void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 {
 	if(desc && desc != b)
 	{
 		// Remove the old maintenance cost
-		sint32 old_maint = get_desc()->get_maintenance();
-		check_diagonal();
-		if(is_diagonal())
-		{
-			old_maint *= 10;
-			old_maint /= 14;
-		}
-		player_t::add_maintenance(get_owner(), -old_maint, get_desc()->get_finance_waytype());
-		player_t::add_way_length(get_owner(), is_diagonal() ? -7 : -10, get_desc()->get_finance_waytype());
+		book_maintenance(get_owner(), get_desc(), -1);
 	}
 
 	if (!from_saved_game && desc != b)
@@ -172,14 +183,7 @@ void weg_t::set_desc(const way_desc_t *b, bool from_saved_game)
 		// Add the new maintenance cost
 		// Do not set this here if loading a saved game,
 		// as this is already set in finish_rd
-		sint32 maint = b->get_maintenance();
-		if (is_diagonal())
-		{
-			maint *= 10;
-			maint /= 14;
-		}
-		player_t::add_maintenance(get_owner(), maint, b->get_finance_waytype());
-		player_t::add_way_length(get_owner(), is_diagonal() ? 7 : 10, b->get_finance_waytype());
+		book_maintenance(get_owner(), b, +1);
 	}
 
 	desc = b;
@@ -1262,20 +1266,7 @@ void weg_t::new_month()
 // correct speed and maintenance
 void weg_t::finish_rd()
 {
-	player_t *player=get_owner();
-	if(player && desc)
-	{
-		sint32 maint = desc->get_maintenance();
-		check_diagonal();
-		if(is_diagonal())
-		{
-			// maint /= sqrt(2)
-			maint *= 10;
-			maint /= 14;
-		}
-		player_t::add_maintenance( player,  maint, desc->get_finance_waytype() );
-		player_t::add_way_length( player, is_diagonal() ? 7 : 10, desc->get_finance_waytype());
-	}
+	book_maintenance(get_owner(), desc, +1);
 }
 
 

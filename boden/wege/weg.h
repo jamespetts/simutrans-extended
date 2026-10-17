@@ -465,6 +465,13 @@ public:
 	void set_desc(const way_desc_t *b, bool from_saved_game = false);
 	const way_desc_t *get_desc() const { return desc; }
 
+	/**
+	 * Books (sign +1) or removes (sign -1) the maintenance and way-length
+	 * contribution of way_desc for player, applying the diagonal correction.
+	 * Shared by set_desc(), finish_rd() and the way builders' ownership changes.
+	 */
+	void book_maintenance(player_t* player, const way_desc_t* way_desc, sint32 sign);
+
 	void calc_speed_limit(grund_t* gr, bool from_saved = false, const bruecke_t* bridge = nullptr, const tunnel_t* tunnel = nullptr);
 
 	// returns a way with the matching type
