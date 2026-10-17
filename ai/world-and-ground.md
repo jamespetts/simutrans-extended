@@ -6,6 +6,10 @@ verified: none
 
 **Covers:** boden/ (incl. boden/wege/ — way tiles), world/, simplan.*, finder/, get_climate (source location to verify), dataobj heightfield/relief (verify location → [data-and-pak](data-and-pak.md)).
 
+Way maintenance/way-length booking and ownership rules (read when changing way ownership,
+maintenance booking, or the infrastructure-maintenance stock):
+[way-maintenance-accounting](way-maintenance-accounting.md).
+
 ## Initial facts
 
 - `boden/grund.h` is the widely-included ground/tile header [CODE].
