@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 90a70a3ee
+verified: ex-15 @ d70efedf7
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -44,7 +44,8 @@ explorer's treatment of consist orders.
 
 ## IMPLEMENTED features
 
-- **Per-entry speed limit** — `max_speed_kmh`, enforced in `convoi_t::calc_move`; GUI controls
+- **Per-entry speed limit** — `max_speed_kmh`, enforced in `convoi_t::calc_acceleration` (the
+  wanted speed is min()'d against the entry limit); GUI controls
   (bt_speed_limit/numimp_speed_limit).
 - **Layover** — flag + `convoi_t::LAYOVER` state + enter/exit_layover; requires a stop with a
   `layover_enable` building (`haltestelle_t::can_lay_over`, building_desc FLAG_LAYOVER_ENABLE);
@@ -79,11 +80,11 @@ explorer's treatment of consist orders.
 
 ## PARTIAL features
 
-- **Couple (joining)** — data + GUI target selection (couple_target_selector, line/convoy modes) +
+- **Couple (joining)** — data + GUI target selection (couple_target_selector, line/convoy modes;
+  bt_couple sets and clears the `couple` flag) +
   `schedule_t::get_couple_target` + absorption: the arriving convoy draws vehicles from the joining
   convoy or the halt's laid-over pool via `convoi_t::process_consist_order`; an emptied joining
-  convoy self-destructs. Missing: nothing sets the `couple` flag (GUI sets only target IDs), so the
-  path is unreachable in play; no two-party synchronisation; failure is silently ignored
+  convoy self-destructs. Missing: no two-party synchronisation; failure is silently ignored
   (`// TODO: Consider what happens if we fail` in `hat_gehalten`); no waiting/retry when the target
   has not arrived.
 - **Consist orders** — data model: `consist_order_t` (end-state for one entry, keyed by
@@ -96,8 +97,7 @@ explorer's treatment of consist orders.
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202971.html]. The former
   `rule_flags` preference system was removed in Extended 15.2 (serialised but never evaluated;
   pre-15.2 values are read and discarded on load). Solver:
-  `convoi_t::process_consist_order` (single-pass heuristic matching with one pass-over retry;
-  in-code FIXME: the GUI stores slots in the wrong container shape) +
+  `convoi_t::process_consist_order` (single-pass heuristic matching with one pass-over retry) +
   `commit_recombined_consist` (add/remove/substitute/move vehicles; displaced vehicles force-unloaded
   then collected into a new layover convoy). Matching: `vehicle_t::matches_consist_order_element`
   (rules evaluated except preferences; enforces can_lead/can_follow). SHUNTING state with
@@ -111,8 +111,8 @@ explorer's treatment of consist orders.
   matching and in `parse_orders`' carried-category tables), named minimum-class dropdown,
   per-alternative empty toggle, and pool matchability validation that greys OK with a
   reason when no vehicle can satisfy a checked line)
-  — INCOMPLETE: no tag controls, window rdwr disabled. Livery copying in
-  set_convoy_order explicitly unsupported.
+  — INCOMPLETE: no tag controls; no window save/restore (get_rdwr_id and the simwin.cc restore are
+  commented out). Livery copying in set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -126,9 +126,10 @@ explorer's treatment of consist orders.
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
-  reachable in play subject to the runtime gaps below. Still without GUI:
-  tag controls, consist-order
-  window persistence, loose-vehicle pool listing, livery copying, copier sort options.
+  reachable in play subject to the runtime gaps below. Still absent or unwired: tag controls,
+  consist-order window persistence, loose-vehicle pool listing, livery copying; the copier's sort
+  controls are present but never sort (one sort-option entry; the ascending/descending toggle only
+  flips state), and its name/home-depot filters are unimplemented.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),

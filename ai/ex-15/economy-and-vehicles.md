@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 3adade449
+verified: ex-15 @ d70efedf7
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -164,10 +164,12 @@ value.
 
 - Mothballing — vehicle_t::mothball / un_mothball / get_is_mothballed (rdwr ≥ 15); mothballed
   vehicles excluded from re-combination pools. Simulation side implemented (Jan 2023
-  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202994.html]); no UI, and no callers
-  outside vehicle.cc — unreachable in play. Cost mechanics verified as intended: the vehicle is
-  taken out of monthly fixed costs and one month's fixed cost is charged at each transition
-  (`add_maintenance`/`book_vehicle_maintenance` in mothball/un_mothball).
+  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202994.html]); the flag's readers run
+  (fixed-cost booking in simconvoi.cc, depot handling in simdepot.cc), but the setters
+  mothball()/un_mothball() have no callers and there is no UI, so the flag cannot be set in play.
+  Cost mechanics verified as intended: the vehicle is taken out of monthly fixed costs and one
+  month's fixed cost is charged at each transition (`add_maintenance`/`book_vehicle_maintenance` in
+  mothball/un_mothball).
 - Self-contained catering — self_contained_catering .dat flag: catering serves only that vehicle
   rather than the whole consist. Implemented (Jun 2022
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg200693.html]).

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d4893f372
+verified: ex-15 @ d70efedf7
 ---
 # ex-15: Y/H-shaped path-explorer traversal
 
@@ -46,8 +46,9 @@ of that date.
 - The runtime cannot yet execute a divide: `schedule_t::get_uncouple_target` is a TODO in
   schedule.h; `convoi_t::hat_gehalten` carries `// TODO: Implement logic for dividing`, and a
   failed join is silently ignored (`// TODO: Consider what happens if we fail`). Joining data is
-  stored, editable and serialised but the `couple` flag has no setter, so the join path is
-  unreachable in normal play (registry: [schedule-and-consists](schedule-and-consists.md)).
+  stored, editable and serialised and the schedule GUI sets the `couple`/`uncouple` flags
+  (bt_couple/bt_uncouple), so the join path is reachable in play but unpaired and untimed
+  (registry: [schedule-and-consists](schedule-and-consists.md)).
 - Budget and parity: `limit_set_t` holds per-phase iteration limits that a feedback controller
   recalibrates toward the configured `path_explorer_time_midpoint` (simuconf; default 64 ms). In
   network mode peers write local limits and `nwc_routesearch_t` broadcasts the minimum set, so all
