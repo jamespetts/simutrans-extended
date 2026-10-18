@@ -176,6 +176,12 @@ public:
 	 */
 	void increment_index_until_next_halt(player_t* player, uint8 *index, bool *reversed) const;
 
+	/**
+	 * True if convoys reverse at the entry with the given index: an entry with
+	 * the reverse flag set, or an end of a mirrored schedule.
+	 */
+	bool is_reversing_stop(uint8 index) const;
+
 	/*
 	 * Calculate the distance via waypoint, not the straight line distance between stations
 	 * Currently it is for the schedule UI and does not consider reversed. Please change if necessary

@@ -1805,6 +1805,14 @@ void schedule_gui_t::update_selection()
 				is_depot ? gui_schedule_entry_number_t::number_style::depot :
 				is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt);
 
+			// Conditional skip has no effect at a reversing stop: skipping it
+			// would move the turning point of the schedule.
+			if (schedule->is_reversing_stop(current_stop))
+			{
+				bt_conditional_skip.disable();
+				bt_conditional_skip.set_tooltip("Conditional skip has no effect at a reversing stop.");
+			}
+
 			// tab1 componets
 			if(!schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time))
 			{

@@ -801,6 +801,15 @@ void schedule_t::increment_index_until_next_halt(player_t *player, uint8 *index,
 	}
 }
 
+bool schedule_t::is_reversing_stop(uint8 index) const
+{
+	if (index >= entries.get_count())
+	{
+		return false;
+	}
+	return entries[index].reverse == 1 || (mirrored && (index == 0 || index == entries.get_count() - 1));
+}
+
 // This can't inspect the loop beyond the end of the schedule. Because it doesn't make sense to do it if it can't be represented on the schedule UI.
 // Also, if the end of the schedule is a waypoint, the scheduling may not be complete and such a setting is also deprecated.
 uint32 schedule_t::calc_distance_to_next_halt(player_t *player, uint8 index) const

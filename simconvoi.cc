@@ -2666,7 +2666,9 @@ void convoi_t::advance_schedule()
 		else
 		{
 			// Is this convoy empty? If so, skip a non-depot stop.
-			if (get_loading_level() == 0)
+			// Conditional skip has no effect at a reversing stop: skipping it
+			// would move the turning point of the schedule.
+			if (get_loading_level() == 0 && !schedule->is_reversing_stop(schedule->get_current_stop()))
 			{
 				advance_schedule_internal();
 				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
