@@ -165,8 +165,8 @@ Rank on discovery; re-rank on triage.
 
 ### Way maintenance accounting defects (GitHub issue 689 triage) — priority 1
 
-- Symptom: [GitHub issue 689](https://github.com/jamespetts/simutrans-extended/issues/689) reports billion-scale "Infrastructure maintenance" bills after using intercity roads, bankrupting companies. The defects below remain open; the reporter should re-test on a current build before the issue is closed.
-- Open defects [CODE ex-15 @ 5d0a84779]: `weg_t::renew()` bills a price computed before `replacement_way` is finalised; `weg_t::degrade()` sets the owner to NULL before `set_desc()`, so a player-owned public right of way keeps being charged after it becomes unowned; ways on bridges and tunnels are booked by `weg_t::set_desc()` on a desc change although the bridge or tunnel carries the maintenance; ownership changes outside the way builders (`player/simplay.cc`, `simcity.cc`, `simtool.cc`) adjust finance manually with raw, non-diagonal-adjusted maintenance and are not routed through `weg_t::change_owner()`. Model and details: [way-maintenance-accounting](way-maintenance-accounting.md).
+- Symptom: [GitHub issue 689](https://github.com/jamespetts/simutrans-extended/issues/689) reports billion-scale "Infrastructure maintenance" bills after using intercity roads, bankrupting companies. The remaining defect below is open; the reporter should re-test on a current build before the issue is closed.
+- Open defect [CODE master @ 8823186ac]: `weg_t::renew()` bills a price computed before `replacement_way` is finalised, so a renewal can charge the cost of a different way type than the one installed. The degrade, bridge/tunnel booking and manual ownership-change defects previously listed here are fixed. Model and details: [way-maintenance-accounting](way-maintenance-accounting.md).
 - Ruled out by the triage: renewal price formula as the billion-scale source, `finish_rd` load multiplicity, tolls (separate `ATV_TOLL_*` category).
 
 ## P0 — critical showstoppers
@@ -207,7 +207,7 @@ confirms they affect current builds in live games.
 | Industry-generation rework: unmemoised mutual recursion, no cycle guard (not a forum report: code inspection) | — | rework branch only; `get_global_consumption` / `get_global_production` / `adjust_output_production` / `adjust_input_consumption` recurse with no visited set or depth cap — stack overflow if a goods cycle exists, else combinatorial cost inside the synced step; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 | Industry-generation rework: save-load density basis wrong for its own version series (not a forum report: code inspection) | — | rework branch only; the legacy Extended-series IDP conversion branch is unreachable, and with no `EX_SAVE_MINOR` bump base-branch saves are indistinguishable from rework saves so they skip conversion entirely — wrong density state, sustained runaway infill. AGENTS.md rule 5 applies; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 
-| [ex-15] billion-scale infrastructure maintenance billing (not a forum report: GitHub issue 689 triage) | — | detailed entry above; remaining way-side booking defects (renewal price, degrade, bridge/tunnel ways, manual ownership sites); reporter re-test needed |
+| [ex-15] billion-scale infrastructure maintenance billing (not a forum report: GitHub issue 689 triage) | — | detailed entry above; remaining way-side booking defect (renewal price); reporter re-test needed |
 
 ## P2 — medium
 
