@@ -642,6 +642,8 @@ pumpe_t::~pumpe_t()
 		fab = NULL;
 	}
 	pumpe_list.remove( this );
+	// cst_maintain_transformer is stored negative (dataobj/settings.cc), so
+	// adding it here removes the amount booked by finish_rd().
 	player_t::add_maintenance(get_owner(), (sint32)welt->get_settings().cst_maintain_transformer, powerline_wt);
 }
 
@@ -679,6 +681,8 @@ void pumpe_t::step(uint32 delta_t)
 void pumpe_t::finish_rd()
 {
 	leitung_t::finish_rd();
+	// cst_maintain_transformer is stored negative (dataobj/settings.cc), hence
+	// the negation: this books the positive monthly amount.
 	player_t::add_maintenance(get_owner(), -welt->get_settings().cst_maintain_transformer, powerline_wt);
 
 	assert(get_net());
@@ -807,6 +811,8 @@ senke_t::~senke_t()
 			}
 		}
 	}
+	// cst_maintain_transformer is stored negative (dataobj/settings.cc), so
+	// adding it here removes the amount booked by finish_rd().
 	player_t::add_maintenance(get_owner(), welt->get_settings().cst_maintain_transformer, powerline_wt);
 }
 
@@ -1110,6 +1116,8 @@ sync_result senke_t::sync_step(uint32 delta_t)
 void senke_t::finish_rd()
 {
 	leitung_t::finish_rd();
+	// cst_maintain_transformer is stored negative (dataobj/settings.cc), hence
+	// the negation: this books the positive monthly amount.
 	player_t::add_maintenance(get_owner(), -welt->get_settings().cst_maintain_transformer, powerline_wt);
 
 	check_industry_connexion();
