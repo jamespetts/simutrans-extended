@@ -1223,10 +1223,12 @@ void bridge_builder_t::build_ramp(player_t* player, koord3d end, ribi_t::ribi ri
 			bruecke->obj_add( lt );
 		}
 		else {
-			// remove maintenance - it will be added in leitung_t::finish_rd
-			player_t::add_maintenance( player, -lt->get_desc()->get_maintenance(), powerline_wt);
+			// The powerline was on the ground that the ramp replaces: remove
+			// its booking; finish_rd() re-books it for the ramp ground.
+			lt->stop_charging_own_maintenance();
 		}
-		// connect to neighbor tiles and networks, add maintenance
+		// connect to neighbor tiles and networks; on the ramp ground the
+		// powerline books its own maintenance as usual
 		lt->finish_rd();
 	}
 	bruecke_t *br = new bruecke_t(end, player, desc, img);

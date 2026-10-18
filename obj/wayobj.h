@@ -99,6 +99,11 @@ public:
 	void set_dir(ribi_t::ribi d) { dir = d; calc_image(); }
 	ribi_t::ribi get_dir() const { return dir; }
 
+	/**
+	 * Changes the owner, transferring the monthly maintenance booking.
+	 */
+	void change_owner(player_t* new_owner);
+
 	/* the static routines */
 private:
 	static stringhashtable_tpl<way_obj_desc_t *, N_BAGS_MEDIUM> table;

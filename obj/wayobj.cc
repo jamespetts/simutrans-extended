@@ -299,6 +299,24 @@ void wayobj_t::finish_rd()
 }
 
 
+void wayobj_t::change_owner(player_t* new_owner)
+{
+	if(get_owner() == new_owner)
+	{
+		return;
+	}
+	if(desc)
+	{
+		player_t::add_maintenance(get_owner(), -desc->get_maintenance(), get_waytype());
+	}
+	obj_t::set_owner(new_owner);
+	if(desc)
+	{
+		player_t::add_maintenance(new_owner, desc->get_maintenance(), get_waytype());
+	}
+}
+
+
 void wayobj_t::rotate90()
 {
 	obj_t::rotate90();

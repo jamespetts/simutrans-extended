@@ -182,7 +182,7 @@ leitung_t::~leitung_t()
 		if(neighbours==0) {
 			delete get_net();
 		}
-		if(!gr->ist_tunnel()) {
+		if(charges_own_maintenance()) {
 			player_t::add_maintenance(get_owner(), -desc->get_maintenance(), powerline_wt);
 		}
 	}
@@ -423,7 +423,49 @@ void leitung_t::finish_rd()
 	const grund_t *gr = welt->lookup(get_pos());
 	assert(gr); (void)gr;
 
-	player_t::add_maintenance(get_owner(), desc->get_maintenance(), powerline_wt);
+	if(charges_own_maintenance())
+	{
+		player_t::add_maintenance(get_owner(), desc->get_maintenance(), powerline_wt);
+	}
+}
+
+
+bool leitung_t::charges_own_maintenance() const
+{
+	if(get_owner() == NULL)
+	{
+		return false;
+	}
+	const grund_t* const gr = welt->lookup(get_pos());
+	if(gr == NULL)
+	{
+		return true;
+	}
+	return !gr->ist_tunnel();
+}
+
+
+void leitung_t::stop_charging_own_maintenance()
+{
+	player_t::add_maintenance(get_owner(), -desc->get_maintenance(), powerline_wt);
+}
+
+
+void leitung_t::change_owner(player_t* new_owner)
+{
+	if(get_owner() == new_owner)
+	{
+		return;
+	}
+	if(charges_own_maintenance())
+	{
+		player_t::add_maintenance(get_owner(), -desc->get_maintenance(), powerline_wt);
+	}
+	obj_t::set_owner(new_owner);
+	if(charges_own_maintenance())
+	{
+		player_t::add_maintenance(new_owner, desc->get_maintenance(), powerline_wt);
+	}
 }
 
 void leitung_t::rdwr(loadsave_t *file)

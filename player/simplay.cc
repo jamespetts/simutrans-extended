@@ -780,9 +780,9 @@ void player_t::complete_liquidation()
 								break;
 							case obj_t::leitung:
 								if(gr->ist_bruecke()) {
-									add_maintenance( -((leitung_t*)obj)->get_desc()->get_maintenance(), powerline_wt );
-									// do not remove powerline from bridges
-									obj->set_owner( welt->get_public_player() );
+									// do not remove powerline from bridges; the
+									// booking transfers with the ownership
+									((leitung_t*)obj)->change_owner( welt->get_public_player() );
 								}
 								else {
 									obj->cleanup(this);

@@ -3015,7 +3015,11 @@ void way_builder_t::build_powerline()
 			// modernize the network
 			if( !keep_existing_faster_ways  ||  lt->get_desc()->get_topspeed() < desc->get_topspeed()  ) {
 				build_powerline = true;
-				player_t::add_maintenance( lt->get_owner(),  -lt->get_desc()->get_maintenance(), powerline_wt );
+				if(lt->charges_own_maintenance())
+				{
+					// remove the old booking; finish_rd() books the new desc
+					lt->stop_charging_own_maintenance();
+				}
 			}
 		}
 		if (build_powerline) {
@@ -3023,7 +3027,7 @@ void way_builder_t::build_powerline()
 			sint64 cost = -desc->get_value();
 			cost += welt->get_land_value(gr->get_pos());
 			player_t::book_construction_costs(player_builder, cost, gr->get_pos().get_2d(), powerline_wt);
-			// this adds maintenance
+			// this adds maintenance, unless the ground is a tunnel ground
 			lt->leitung_t::finish_rd();
 			minimap_t::get_instance()->calc_map_pixel( gr->get_pos().get_2d() );
 		}
