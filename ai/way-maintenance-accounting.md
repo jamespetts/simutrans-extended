@@ -1,27 +1,37 @@
 ---
 status: draft
-verified: master @ ec5e97fc7
+verified: master @ 8823186ac
 ---
 # Way maintenance accounting
 
-**Covers:** the way-side booking paths into the per-player infrastructure-maintenance stock:
+**Covers:** the way-side booking paths into the per-player infrastructure-maintenance array
+`finance_t::maintenance[]` (`player/finance.h`, updated from `player/simplay.cc`):
 `boden/wege/weg.{h,cc}`, `bauer/wegbauer.cc` (road and track builders), `boden/grund.cc`
 (`grund_t::neuen_weg_bauen`), `obj/bruecke.cc` and `obj/tunnel.cc` (bridge/tunnel
-suppression). The stock itself lives in `player/finance.h` / `player/simplay.cc`
-(→ [economy-and-passengers](economy-and-passengers.md)).
+suppression). The finance side of the array is documented in
+[economy-and-passengers](economy-and-passengers.md).
 
-## The stock and the way contribution
+## The maintenance array and the way contribution
 
-- `finance_t::maintenance[]` is a per-player stock of nominal monthly amounts, one entry per
+- `finance_t::maintenance[]` is a per-player array of nominal monthly amounts, one entry per
   transport type plus a total. `player_t::add_maintenance()` adds or removes an amount; the
   month change charges the total (`finance_t::new_month()`, `player_t::new_month()`).
-- The stock is **not saved**. On load, `karte_t::plans_finish_rd()` calls `finish_rd()` on
-  every map object, and each object re-adds its contribution, so the stock is rebuilt from the
+- The array is **not saved**. On load, `karte_t::plans_finish_rd()` calls `finish_rd()` on
+  every map object, and each object re-adds its contribution, so the array is rebuilt from the
   map rather than loaded.
 - A way tile contributes its desc's `get_maintenance()` (×10/14 when the tile is diagonal) and
   its way length (10, or 7 when diagonal).
 - `weg_t::book_maintenance(player, way_desc, sign)` centralises that arithmetic, including the
-  diagonal correction.
+  diagonal correction. It books the maintenance only if `charges_own_maintenance()`; the
+  way-length statistic is always booked.
+
+## Which object books a tile's way maintenance
+
+- A way books its own maintenance only if it has an owner and its ground tile has no bridge or
+  tunnel of the way's waytype; otherwise the bridge or tunnel books its own per-tile amount.
+  `weg_t::charges_own_maintenance()` is the single test, consulted by every way booking path.
+- The rule applies per waytype; piers do not suppress the way's charge. The way-length
+  statistic is separate and always follows the way.
 
 ## Booking paths
 
@@ -35,35 +45,32 @@ suppression). The stock itself lives in `player/finance.h` / `player/simplay.cc`
   and adds it to the new owner. Use this for gameplay ownership changes; a bare
   `obj_t::set_owner()` moves no booking and leaves the contribution with the previous owner,
   because `set_desc()` books on the owner current when it runs.
+- `weg_t::stop_charging_own_maintenance()` / `start_charging_own_maintenance()`: called by the
+  bridge and tunnel lifecycle when a bridge or tunnel of the way's waytype appears on or is
+  removed from the way's tile; removes or adds the way's maintenance contribution (the
+  way-length statistic is not affected).
+- `bruecke_t::change_owner()` / `tunnel_t::change_owner()`: move the bridge's or tunnel's own
+  per-tile charge between owners.
 - `obj_t::set_owner()` (or `set_owner_nr()` on load) remains correct where the booking must not
   move: the load path uses `set_owner_nr()`, and new ways are booked by
   `neuen_weg_bauen()`/`finish_rd()`.
 
 ## Invariant and special cases
 
-- For a way that carries its own maintenance, the stock holds exactly one contribution per tile
-  for its current desc and owner. The load rebuild restores this; in-session operations must
-  maintain it. Not all existing ownership-change sites maintain it yet — see Known problems.
-- Ways on bridges and tunnels do **not** carry their own maintenance: the bridge or tunnel
-  charge replaces it (`bruecke_t::finish_rd()`, `tunnel_t::finish_rd()` remove the way charge;
-  `tunnel_t::cleanup()` restores it when the tunnel is removed). `change_owner()` must not be
-  used for them.
+- For each (tile, waytype), `finance_t::maintenance[]` contains exactly one amount for that
+  tile: the way's, or, when a bridge or tunnel of that waytype occupies the tile, the bridge's
+  or tunnel's. The load rebuild restores this; in-session operations maintain it through the
+  entry points above.
+- Only bridge and tunnel construction and removal change which object books a tile (the two
+  transfer operations above). A way whose ground can no longer be found is treated as having no
+  bridge or tunnel.
 
 ## Known problems
 
 - `weg_t::renew()` bills a price computed before `replacement_way` is finalised, so a renewal
   can charge the cost of a different way type than the one installed.
-- `weg_t::degrade()` sets the owner to NULL before `set_desc()`, so a player-owned public right
-  of way keeps being charged after it becomes unowned.
-- Ways on bridges and tunnels: `weg_t::set_desc()` books the way's own maintenance on a desc
-  change although the bridge or tunnel carries it.
-- Ownership changes outside the way builders (`player/simplay.cc`, `simcity.cc`, `simtool.cc`)
-  adjust finance manually with raw, non-diagonal-adjusted maintenance and are not routed
-  through `weg_t::change_owner()`.
 
 ## Open questions
 
-- Should the bridge/tunnel suppression become a `weg_t` predicate consulted by every booking
-  path, or an explicit per-way booked state maintained by the bridge/tunnel classes?
 - Is a derived rebuild of way contributions (instead of incremental add/remove) viable for
-  large maps, and should the other object types that feed the same stock follow?
+  large maps, and should the other object types that add to the same array follow?
