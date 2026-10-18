@@ -406,8 +406,7 @@ bool gui_pickable_schedule_entry_t::infowin_event(const event_t *ev)
 		}
 		// getroffen() takes parent-relative coordinates, but dispatch moved
 		// the origin to this row: add pos back. Without this, only a row at
-		// 0,0 can ever arm (verified via picker-row-TEST log: a press at
-		// row-relative (52,5) on the row at (0,19) tested the rect y 19-34).
+		// 0,0 can ever arm.
 		if (getroffen(ev->click_pos + pos)) {
 			press_armed = true;
 			set_active(true);

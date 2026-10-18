@@ -13019,8 +13019,6 @@ sint64 karte_t::get_inflation_adjusted_price(sint32 monthyear, sint64 base_price
 		else
 		{
 			// Interpolate linear
-			const sint64 TEST_1 = (sint64)prices[pt][i].index;
-			const sint64 TEST_2 = (sint64)prices[pt][i - 1].index;
 			const sint64 delta_index = (sint64)prices[pt][i].index - (sint64)prices[pt][i - 1].index;
 			const sint64 delta_years = (sint64)prices[pt][i].year - (sint64)prices[pt][i - 1].year;
 			index = ((delta_index * (monthyear - prices[pt][i - 1].year)) / delta_years) + (sint64)prices[pt][i - 1].index;
