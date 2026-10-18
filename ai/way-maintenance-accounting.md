@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 8823186ac
+verified: master @ 67766c934
 ---
 # Way maintenance accounting
 
@@ -64,11 +64,6 @@ suppression). The finance side of the array is documented in
 - Only bridge and tunnel construction and removal change which object books a tile (the two
   transfer operations above). A way whose ground can no longer be found is treated as having no
   bridge or tunnel.
-
-## Known problems
-
-- `weg_t::renew()` bills a price computed before `replacement_way` is finalised, so a renewal
-  can charge the cost of a different way type than the one installed.
 
 ## Open questions
 
