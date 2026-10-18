@@ -22,6 +22,17 @@ verified: none
 - Loading depends on it: `haltestelle_t::fetch_goods` loads nothing for a stop the convoy returns to.
 - Decided once on arrival, after `laden()`'s journey-time statistics (keyed on arrival direction). [CODE ex-15 @ 7534ddc74]
 
+## Depot maintenance visits (ex-15)
+
+- A scheduled depot entry with `conditional_skip` is visited only when `is_maintenance_needed()`
+  (`convoi_t::advance_schedule`); `enter_depot` converts the flag into `maintain_or_overhaul`.
+- Urgently overdue convoys set no_load and divert to a depot via `emergency_go_to_depot(false, true)`
+  at the first stop after the threshold (`convoi_t::step`); see
+  [ex-15 economy registry](ex-15/economy-and-vehicles.md).
+- `depot_t::convoi_arrived`: `delete_entry` removes the temporary schedule entry; only a `store`
+  visit detaches the convoy from its line — a maintain/overhaul visit keeps it and resumes at the
+  current schedule entry. [CODE ex-15 @ e440e8710]
+
 ## Planned sections
 
 - Convoy lifecycle & state machine (simconvoi/convoy split — why two files? verify).

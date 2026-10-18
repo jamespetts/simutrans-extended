@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ d70efedf7
+verified: ex-15 @ e440e8710
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -89,13 +89,12 @@ value.
 - Old-save warts (no migration; few affected saves): schedules written before the flag fix keep a
   spurious `ignore_choose` bit on auto-appended depot entries; pre-15 saves have no maintenance
   queue (rebuilt by the validator).
-- INCOMPLETE (not a bug; deferred): urgent maintenance (1.5× maintenance_interval_km) currently
-  sets only no_load; the documented intent (vehicle_desc.h comment) is an emergency depot visit
-  wherever the convoy is. The runtime hook exists — `convoi_t::emergency_go_to_depot(show_success,
-  maintain)` finds the nearest/home depot, inserts a maintain_or_overhaul stop and teleports as a
-  fallback — but it is not wired to `is_maintenance_urgently_needed()`. To be implemented together
-  with the outstanding schedule/consist-order changes, not in advance of them
-  [RECOLLECTION:2026-09-20]; see [schedule-and-consists](schedule-and-consists.md).
+- Urgent maintenance — IMPLEMENTED: `is_maintenance_urgently_needed()` (1.5× km interval, or past
+  `extended_maintenance_interval_months`) sets no_load and diverts to a depot via
+  `emergency_go_to_depot(false, true)` at the first stop after the threshold (`convoi_t::step`);
+  the existing teleport/no-depot fallbacks apply. A maintain/overhaul visit keeps the line and
+  resumes at the current schedule entry; only `store` visits detach it (`depot_t::convoi_arrived`).
+  No new serialised state.
 - Gaps: prioritise_for_maintenance / depriortise_for_maintenance have no callers — a depot
   queue-management GUI is planned for 15.x [RECOLLECTION:2026-09-07]; MAINTENANCE/OVERHAUL/REPLENISHING have no status strings in the convoy info
   window (fall through to the default speed display).
