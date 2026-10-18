@@ -1579,12 +1579,10 @@ bool weg_t::renew()
 		bool default_way_is_better_than_current_way = false;
 		if(way_desc)
 		{
+			// Cost is deliberately not considered: public rights of way are
+			// upgraded to the default type even when it costs more.
 			default_way_is_better_than_current_way  = way_desc->get_topspeed() > desc->get_topspeed();
 			default_way_is_better_than_current_way &= way_desc->get_max_axle_load() >= desc->get_max_axle_load();
-
-			bool no_worse_stats = way_desc->get_topspeed() >= desc->get_topspeed() && way_desc->get_max_axle_load() >= desc->get_max_axle_load();
-
-			default_way_is_better_than_current_way &= !no_worse_stats;
 		}
 		set_desc(way_desc && (!owner || default_way_is_better_than_current_way) ? way_desc : desc);
 		success = true;
