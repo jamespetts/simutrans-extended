@@ -12,6 +12,16 @@ verified: none
 - `dataobj/consist_order_t.{cc,h}` exists only on ex-15 (added vs. master) — consist ordering is the principal in-progress ex-15 feature here [CODE].
 - `simconvoi.h` is widely included across the codebase [CODE].
 
+## Mirrored schedules and skipped depots (ex-15)
+
+- `convoi_t::advance_schedule` skips `conditional_skip` entries (a depot is skipped unless `is_maintenance_needed()`).
+- `convoi_t::turn_at_skipped_depot()` (top of `hat_gehalten`) handles skipped depots at the **start or end of a
+  mirrored schedule only**: if all entries up to the turning point are skipped depots, it sets `reverse_schedule` to
+  the post-turn direction, so the current stop acts as the schedule end and is served once. It needs 3+ entries and
+  does nothing for mid-schedule skips (plain advancing is correct there) or skipped non-depot stops.
+- Loading depends on it: `haltestelle_t::fetch_goods` loads nothing for a stop the convoy returns to.
+- Decided once on arrival, after `laden()`'s journey-time statistics (keyed on arrival direction). [CODE ex-15 @ 7534ddc74]
+
 ## Planned sections
 
 - Convoy lifecycle & state machine (simconvoi/convoy split — why two files? verify).
