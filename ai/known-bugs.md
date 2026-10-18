@@ -287,7 +287,6 @@ confirms they affect current builds in live games.
 | [The lines of the combobox collapse and overlap in one line](https://forum.simutrans.com/index.php/topic,21776.0.html) | 2022 | |
 | [Line Management Charts — wrong maximum numbers](https://forum.simutrans.com/index.php/topic,21691.0.html) | 2022 | |
 
-| Dead `current_way_better_cost` + inverted condition in `weg_t::renew` public-road fallback (not a forum report: code inspection 2026-10-03) | — | boden/wege/weg.cc:1492-1503: `current_way_better_cost` is computed but never used, and `default_way_is_better_than_current_way &= !no_worse_stats` clears the flag exactly when the default road is genuinely better, so owned public-right-of-way tiles never upgrade to the default road on that path [CODE ex-15 @ 0f0ba6efa] |
 | Upgrade-cost display monthly-scales one-off costs (not a forum report: code inspection 2026-10-03) | — | gui/way_info.cc:579,585 applies `calc_adjusted_monthly_figure` to one-off construction costs while the booking paths do not monthly-scale them, so displayed upgrade costs mismatch actual charges [CODE ex-15 @ 0f0ba6efa] |
 
 ## P4 — very low / backlog
