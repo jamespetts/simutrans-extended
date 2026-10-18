@@ -1,15 +1,16 @@
 ---
 status: draft
-verified: master @ 67766c934
+verified: master @ 61d022204
 ---
 # Way maintenance accounting
 
-**Covers:** the way-side booking paths into the per-player infrastructure-maintenance array
+**Covers:** the booking paths into the per-player infrastructure-maintenance array
 `finance_t::maintenance[]` (`player/finance.h`, updated from `player/simplay.cc`):
 `boden/wege/weg.{h,cc}`, `bauer/wegbauer.cc` (road and track builders), `boden/grund.cc`
 (`grund_t::neuen_weg_bauen`), `obj/bruecke.cc` and `obj/tunnel.cc` (bridge/tunnel
-suppression). The finance side of the array is documented in
-[economy-and-passengers](economy-and-passengers.md).
+suppression), `obj/leitung2.cc` (powerlines) and `obj/wayobj.cc` (wayobjects), plus the
+ownership-change paths in `player/simplay.cc` and `simtool.cc` (make-public). The finance
+side of the array is documented in [economy-and-passengers](economy-and-passengers.md).
 
 ## The maintenance array and the way contribution
 
@@ -32,6 +33,18 @@ suppression). The finance side of the array is documented in
   `weg_t::charges_own_maintenance()` is the single test, consulted by every way booking path.
 - The rule applies per waytype; piers do not suppress the way's charge. The way-length
   statistic is separate and always follows the way.
+
+## Powerlines and wayobjects
+
+- A powerline (`leitung_t`) books its own desc maintenance unless its ground is a tunnel
+  ground, where the tunnel books the tile instead; on a bridge ground it books in addition to
+  the bridge's charge. `leitung_t::charges_own_maintenance()` is the single test, consulted by
+  `finish_rd()` and the destructor. `stop_charging_own_maintenance()` removes the current
+  booking when its ground is replaced (bridge ramp, tunnel portal, powerline desc change), and
+  `change_owner()` transfers the booking. Transformers (`pumpe_t`, `senke_t`) are `leitung_t`
+  subclasses and keep their separate transformer-cost booking.
+- A wayobject (`wayobj_t`, e.g. a catenary) books its own desc maintenance unconditionally;
+  `wayobj_t::change_owner()` transfers the booking, and the make-public tool uses it.
 
 ## Booking paths
 
@@ -57,13 +70,14 @@ suppression). The finance side of the array is documented in
 
 ## Invariant and special cases
 
-- For each (tile, waytype), `finance_t::maintenance[]` contains exactly one amount for that
-  tile: the way's, or, when a bridge or tunnel of that waytype occupies the tile, the bridge's
-  or tunnel's. The load rebuild restores this; in-session operations maintain it through the
-  entry points above.
-- Only bridge and tunnel construction and removal change which object books a tile (the two
-  transfer operations above). A way whose ground can no longer be found is treated as having no
-  bridge or tunnel.
+- For each (tile, waytype) where a way runs, `finance_t::maintenance[]` contains exactly one
+  way-side amount: the way's, or, when a bridge or tunnel of that waytype occupies the tile,
+  the bridge's or tunnel's. The load rebuild restores this; in-session operations maintain it
+  through the entry points above. A powerline follows its own rule (above): it books in
+  addition to a bridge's charge and is suppressed on tunnel grounds.
+- Only bridge and tunnel construction and removal change which object books a tile: the two
+  way transfer operations above, and the powerline suppression above (tunnels only). A way
+  whose ground can no longer be found is treated as having no bridge or tunnel.
 
 ## Open questions
 
