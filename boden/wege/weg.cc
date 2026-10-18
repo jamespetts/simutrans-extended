@@ -1506,38 +1506,45 @@ bool weg_t::renew()
 	player_t* const owner = get_owner();
 
 	bool success = false;
-	const sint64 price = desc->get_upgrade_group() == replacement_way->get_upgrade_group() ? replacement_way->get_way_only_cost() : replacement_way->get_value();
+
+	// The way to be installed may differ from the stored replacement way (a
+	// public city road, or a replacement no longer current in the timeline),
+	// so resolve it before computing the price: the price charged, and the
+	// price checked against the owner's balance, must be that of the way
+	// actually installed.
+	const way_desc_t* new_way = replacement_way;
+	const uint16 time = welt->get_timeline_year_month();
+	const bool public_city_road = get_waytype() == road_wt && (owner == NULL || owner->is_public_service()) && welt->get_city(get_pos().get_2d());
+	const way_desc_t* latest_city_road = welt->get_settings().get_city_road_type(time);
+	const bool is_current = !time || (new_way->get_intro_year_month() <= time && time < new_way->get_retire_year_month());
+	if (public_city_road && desc != latest_city_road)
+	{
+		new_way = latest_city_road;
+	}
+	else if(!is_current)
+	{
+		way_constraints_of_vehicle_t constraints;
+		constraints.set_permissive(desc->get_way_constraints().get_permissive());
+		constraints.set_prohibitive(desc->get_way_constraints().get_prohibitive());
+		new_way = way_builder_t::weg_search(new_way->get_waytype(), new_way->get_topspeed(), (sint32)new_way->get_axle_load(), time, (systemtype_t)new_way->get_styp(), new_way->get_wear_capacity(), constraints);
+	}
+
+	if(!new_way)
+	{
+		// If the way search cannot find a replacement way, use the current way as a fallback.
+		new_way = desc;
+	}
+
+	const sint64 price = desc->get_upgrade_group() == new_way->get_upgrade_group() ? new_way->get_way_only_cost() : new_way->get_value();
 	if(welt->get_city(get_pos().get_2d()) || (owner && (owner->can_afford(price) || owner->is_public_service())))
 	{
 		// Unowned ways in cities are assumed to be owned by the city and will be renewed by it.
-		waytype_t wt = replacement_way->get_waytype();
-		const uint16 time = welt->get_timeline_year_month();
-		const bool public_city_road = get_waytype() == road_wt && (owner == NULL || get_owner()->is_public_service()) && welt->get_city(get_pos().get_2d());
-		const way_desc_t* latest_city_road = welt->get_settings().get_city_road_type(time);
-		bool is_current = !time || (replacement_way->get_intro_year_month() <= time && time < replacement_way->get_retire_year_month());
-		if (public_city_road && desc != latest_city_road)
-		{
-			replacement_way = latest_city_road;
-		}
-		else if(!is_current)
-		{
-			way_constraints_of_vehicle_t constraints;
-			constraints.set_permissive(desc->get_way_constraints().get_permissive());
-			constraints.set_prohibitive(desc->get_way_constraints().get_prohibitive());
-			replacement_way = way_builder_t::weg_search(wt, replacement_way->get_topspeed(), (sint32)replacement_way->get_axle_load(), time, (systemtype_t)replacement_way->get_styp(), replacement_way->get_wear_capacity(), constraints);
-		}
-
-		if(!replacement_way)
-		{
-			// If the way search cannot find a replacement way, use the current way as a fallback.
-			replacement_way = desc;
-		}
-
-		set_desc(replacement_way);
+		replacement_way = new_way;
+		set_desc(new_way);
 		success = true;
 		if(owner)
 		{
-			owner->book_way_renewal(price, wt);
+			owner->book_way_renewal(price, new_way->get_waytype());
 		}
 	}
 
