@@ -126,6 +126,26 @@ public:
 	void finish_rd() OVERRIDE;
 
 	/**
+	 * The monthly maintenance this powerline books itself: false when it has
+	 * no owner, or when its ground is a tunnel ground (the tunnel books the
+	 * tile's maintenance instead). Bridges do not suppress it.
+	 */
+	bool charges_own_maintenance() const;
+
+	/**
+	 * Removes the current maintenance booking. Call only while the powerline
+	 * charges its own maintenance (see charges_own_maintenance()); used when
+	 * its ground is replaced.
+	 */
+	void stop_charging_own_maintenance();
+
+	/**
+	 * Changes the owner, transferring the maintenance booking if this
+	 * powerline charges its own (see charges_own_maintenance()).
+	 */
+	void change_owner(player_t* new_owner);
+
+	/**
 	 * @return NULL if OK, otherwise an error message
 	 */
 	virtual const char *is_deletable(const player_t *player) OVERRIDE;

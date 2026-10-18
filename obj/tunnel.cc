@@ -17,7 +17,6 @@
 
 #include "../descriptor/tunnel_desc.h"
 
-#include "leitung2.h"
 #include "../bauer/wegbauer.h"
 
 #include "tunnel.h"
@@ -206,12 +205,10 @@ void tunnel_t::finish_rd()
 				weg->set_max_speed(desc->get_topspeed());
 			}
 		}
-		leitung_t *lt = gr ? gr->get_leitung() : NULL;
-		if(lt) {
-			player_t::add_maintenance( player, -lt->get_desc()->get_maintenance(), powerline_wt );
-		}
 		// The way on this tile does not book its own maintenance: this tunnel
-		// books it instead (see weg_t::charges_own_maintenance()).
+		// books it instead (see weg_t::charges_own_maintenance()). A powerline
+		// on the tile is suppressed in the same way (see
+		// leitung_t::charges_own_maintenance()).
 		player_t::add_maintenance( player,  get_maintenance_amount(), desc->get_finance_waytype() );
 	}
 }

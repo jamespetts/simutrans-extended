@@ -1802,8 +1802,11 @@ const char *tool_setslope_t::tool_set_slope_work( player_t *player, koord3d pos,
 			// if there is a powerline here we need to treat it as newly built as it may connect to neighbours
 			leitung_t *lt = gr1->get_leitung();
 			if(  lt  ) {
-				// remove maintenance for existing powerline
-				player_t::add_maintenance(lt->get_owner(), -lt->get_desc()->get_maintenance(), powerline_wt);
+				// remove the existing booking first, since finish_rd() re-books
+				if(lt->charges_own_maintenance())
+				{
+					lt->stop_charging_own_maintenance();
+				}
 				lt->finish_rd();
 			}
 
@@ -9322,23 +9325,21 @@ const char *tool_make_stop_public_t::work( player_t *player, koord3d p )
 					{
 						maintenance_cost = wo->get_desc()->get_maintenance();
 
-						player_t::add_maintenance(player, -maintenance_cost, w->get_desc()->get_finance_waytype() );
-
 						if(player == psplayer)
 						{
 							// If this is done by the public player, pay compensation.
 							construction_cost = wo->get_desc()->get_value();
-							player_t::book_construction_costs(wo->get_owner(), construction_cost, gr->get_pos().get_2d(), w->get_desc()->get_finance_waytype());
+							player_t::book_construction_costs(wo->get_owner(), construction_cost, gr->get_pos().get_2d(), wo->get_waytype());
 						}
 						else
 						{
 							// Price is based on 60 months' maintenance
 							construction_cost = maintenance_cost * 60;
 						}
-						player_t::book_construction_costs(player, -construction_cost, gr->get_pos().get_2d(), w->get_waytype());
-						wo->set_owner(psplayer);
+						player_t::book_construction_costs(player, -construction_cost, gr->get_pos().get_2d(), wo->get_waytype());
+						// change_owner() moves the maintenance booking with the ownership
+						wo->change_owner(psplayer);
 						wo->set_flag(obj_t::dirty);
-						player_t::add_maintenance(psplayer, maintenance_cost, w->get_desc()->get_finance_waytype());
 					}
 				}
 				// and add message

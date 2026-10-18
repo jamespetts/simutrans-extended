@@ -594,12 +594,11 @@ void tunnel_builder_t::build_tunnel_portal(player_t *player, koord3d end, koord 
 			lt = new leitung_t(tunnel->get_pos(), player);
 			lt->set_desc(way_desc);
 			tunnel->obj_add( lt );
-			player_t::add_maintenance( player, -way_desc->get_maintenance(), powerline_wt );
 		}
 		else {
-			// subtract twice maintenance: once for the already existing powerline
-			// once since leitung_t::finish_rd will add it again
-			player_t::add_maintenance( player, -2*lt->get_desc()->get_maintenance(), powerline_wt );
+			// The powerline was on the ground that the tunnel portal replaces:
+			// remove its booking; the tunnel books the tile from now on.
+			lt->stop_charging_own_maintenance();
 		}
 		lt->finish_rd();
 	}
