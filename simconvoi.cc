@@ -2458,6 +2458,18 @@ void convoi_t::step()
 				{
 					go_to_depot(!replace, (replace && replace->get_use_home_depot()), false);
 				}
+				else if (is_maintenance_urgently_needed() && !get_withdraw())
+				{
+					// The convoy is overdue for maintenance (see
+					// vehicle_desc_t::maintenance_interval_km): send it to a depot at
+					// once rather than only stopping it loading. Do not divert a convoy
+					// already bound for a depot, nor one that is being withdrawn.
+					const grund_t* const target_gr = welt->lookup(schedule->get_current_entry().pos);
+					if (!target_gr || !target_gr->get_depot())
+					{
+						emergency_go_to_depot(false, true);
+					}
+				}
 				break;
 			}
 			// fallthrough
@@ -8538,6 +8550,8 @@ void convoi_t::emergency_go_to_depot(bool show_success, bool maintain)
 			if (!maintain)
 			{
 				state = INITIAL;
+				// A stored convoy restarts from the first schedule entry.
+				schedule->set_current_stop(0);
 			}
 			else if (is_overhaul_needed())
 			{
@@ -8547,7 +8561,6 @@ void convoi_t::emergency_go_to_depot(bool show_success, bool maintain)
 			{
 				state = MAINTENANCE;
 			}
-			schedule->set_current_stop(0);
 		}
 		else
 		{

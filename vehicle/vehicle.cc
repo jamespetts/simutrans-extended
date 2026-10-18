@@ -3448,10 +3448,6 @@ bool vehicle_t::is_maintenance_urgently_needed() const
 	{
 		return last_maintenance_month + welt->get_settings().get_extended_maintenance_interval_months() < welt->get_current_month();
 	}
-	if (desc->get_maintenance_interval_km() == 0)
-	{
-		return false;
-	}
 	return km_since_last_maintenance > ((desc->get_maintenance_interval_km() * 3) / 2);
 }
 

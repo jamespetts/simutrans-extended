@@ -200,18 +200,21 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 			}
 		}
 
-		if (acnv->get_line().is_bound())
+		if (flags & schedule_entry_t::store)
 		{
-			acnv->unset_line();
-			acnv->unregister_stops();
-		}
-		else
-		{
-			acnv->unregister_stops();
-		}
+			// A convoy stored in a depot leaves its line; a convoy visiting only
+			// for maintenance or an overhaul keeps its line, as with a scheduled
+			// (conditionally skipped) depot entry.
+			if (acnv->get_line().is_bound())
+			{
+				acnv->unset_line();
+				acnv->unregister_stops();
+			}
+			else
+			{
+				acnv->unregister_stops();
+			}
 
-		if (flags & schedule_entry_t::store && !acnv->get_line().is_bound() || (acnv->get_line().is_bound() && acnv->get_line()->get_convoys().get_count() <= 1))
-		{
 			// There is no need to re-run the path explorer
 			// if this convoy is going to the depot routinely
 #ifdef MULTI_THREAD
