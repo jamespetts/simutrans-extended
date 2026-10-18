@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ d70efedf7
+verified: ex-15 @ df11b4f0a
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -55,9 +55,11 @@ explorer's treatment of consist orders.
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg193643.html]); no warning UI when
   facilities are removed after a schedule is set.
 - **Conditional skip** — depot entries skipped when `!convoi_t::is_maintenance_needed()`; non-depot
-  entries skipped when loading level is 0 (`convoi_t::advance_schedule`). GUI control ("Conditional
-  skip" checkbox in schedule entry settings 1; halt and depot entries; disabled with stored value
-  preserved at waypoints).
+  entries skipped when loading level is 0 (`convoi_t::advance_schedule`), except at reversing stops
+  (a mirrored schedule end or an entry with the reverse flag set), where the option has no effect
+  (`schedule_t::is_reversing_stop`). GUI control ("Conditional skip" checkbox in schedule entry
+  settings 1; halt and depot entries; disabled with stored value preserved at waypoints and at
+  reversing station stops).
 - **Ignore choose sign** — `rail_vehicle_t::activate_choose_signal`, `road_vehicle_t::hop_check`;
   GUI control + "[IC]" prefix + skin.
 - **Trigger runtime** — `convoi_t::AWAITING_TRIGGER` state; receiver bitfield matching in the step
@@ -189,3 +191,9 @@ explorer's treatment of consist orders.
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):
   naming suggests inverted ordering; intended semantics unresolved — left open deliberately
   [RECOLLECTION:2026-09-07].
+- `convoi_t::turn_at_skipped_depot` walks at most the entry count, so three or more consecutive
+  skipped depots between the stop and the turning point can exceed the bound and leave the duplicate
+  end-stop visit; schedules of exactly 2 entries are excluded by its 3+ guard.
+- Conditional skip is documented as having no effect at waypoints, but the non-depot skip branch of
+  `convoi_t::advance_schedule` has no waypoint check, so a stored flag on a waypoint is still
+  honoured when the consist is empty.
