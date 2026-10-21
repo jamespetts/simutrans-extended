@@ -10138,7 +10138,7 @@ bool tool_change_line_t::init( player_t *player )
 				if(  is_local_execution()  ) {
 					schedule_gui_t *fg = dynamic_cast<schedule_gui_t *>(win_get_magic((ptrdiff_t)t));
 					if(  fg  ) {
-						fg->init_line_selector();
+						fg->set_new_line(line);
 					}
 					schedule_list_gui_t *sl = dynamic_cast<schedule_list_gui_t *>(win_get_magic(magic_line_management_t+player->get_player_nr()));
 					if(  sl  ) {
