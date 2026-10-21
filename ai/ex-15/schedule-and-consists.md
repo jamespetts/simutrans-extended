@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ c6adde69b
+verified: ex-15 @ d257c1296
 ---
 # ex-15 feature status: schedules, consists & re-combination
 

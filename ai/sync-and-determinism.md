@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 525118eaa; ex-15 @ c6adde69b (tool/UI additions)
+verified: master @ 525118eaa; ex-15 @ d257c1296 (tool/UI additions)
 ---
 # Sync & determinism: rules for simulation code
 
