@@ -886,6 +886,16 @@ void dr_flush()
 }
 
 
+void dr_beg_screen_resize()
+{
+}
+
+
+void dr_end_screen_resize()
+{
+}
+
+
 void dr_textur(int xp, int yp, int w, int h)
 {
 	if(  !use_dirty_tiles  ||  !screen_tx  ||  !framebuffer  ) {

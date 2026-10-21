@@ -165,6 +165,11 @@ int dr_textur_resize(unsigned short** textur, int w, int h);
 void dr_prepare_flush(); // waits, if previous update not yet finished
 void dr_flush();         // copy to screen (eventually multithreaded)
 
+// hold across a screen resize, so that the flush thread cannot use the
+// framebuffer or the dirty tile buffers while they are replaced
+void dr_beg_screen_resize();
+void dr_end_screen_resize();
+
 /**
  * Transform a 24 bit RGB color into the system format.
  * @return converted color value

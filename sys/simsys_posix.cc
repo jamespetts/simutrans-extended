@@ -93,6 +93,14 @@ void dr_flush()
 {
 }
 
+void dr_beg_screen_resize()
+{
+}
+
+void dr_end_screen_resize()
+{
+}
+
 void dr_textur(int, int, int, int)
 {
 }

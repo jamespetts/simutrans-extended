@@ -5200,6 +5200,11 @@ void simgraph_exit()
  */
 void simgraph_resize(scr_size new_window_size)
 {
+	// The framebuffer, the dirty tile buffers and the globals describing them
+	// must be replaced together: the flush thread reads and swaps the dirty
+	// buffers while blitting, so it has to be held off for the whole block.
+	dr_beg_screen_resize();
+
 	disp_actual_width = max( 16, new_window_size.w );
 	if(  new_window_size.h<=0  ) {
 		new_window_size.h = 64;
@@ -5229,6 +5234,8 @@ void simgraph_resize(scr_size new_window_size)
 		mark_screen_dirty();
 		MEMZERON( tile_dirty_old, tile_buffer_length );
 	}
+
+	dr_end_screen_resize();
 }
 
 

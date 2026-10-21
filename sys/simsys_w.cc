@@ -393,6 +393,26 @@ void dr_flush()
 }
 
 
+void dr_beg_screen_resize()
+{
+#ifdef MULTI_THREAD
+	if(  hFlushThread  ) {
+		EnterCriticalSection( &redraw_underway );
+	}
+#endif
+}
+
+
+void dr_end_screen_resize()
+{
+#ifdef MULTI_THREAD
+	if(  hFlushThread  ) {
+		LeaveCriticalSection( &redraw_underway );
+	}
+#endif
+}
+
+
 
 void dr_textur(int xp, int yp, int w, int h)
 {
