@@ -101,6 +101,7 @@
 #include "tpl/weighted_vector_tpl.h"
 
 #include "network/memory_rw.h"
+#include "network/network_packet.h"
 #include "utils/simrandom.h"
 #include "utils/simstring.h"
 
@@ -204,6 +205,18 @@ void open_error_msg_win(const char* error)
 	else {
 		create_win( new news_img(error), w_time_delete, magic_none);
 	}
+}
+
+
+bool tool_param_fits_network(const char *param)
+{
+	return !env_t::networkmode  ||  param == NULL  ||  strlen(param) <= (size_t)MAX_TOOL_PARAM_LEN;
+}
+
+
+void show_tool_param_too_large_msg()
+{
+	open_error_msg_win("The schedule is too large to send over the network; the change has not been applied. Reduce the number or complexity of consist orders.");
 }
 
 

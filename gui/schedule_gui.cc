@@ -10,6 +10,7 @@
 #include "../simworld.h"
 #include "../simmenu.h"
 #include "../simconvoi.h"
+#include "../simtool.h"
 #include "../display/simgraph.h"
 #include "../display/viewport.h"
 
@@ -2005,23 +2006,25 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 			// do not send changes if the convoi is about to be deleted
 			if(  cnv->get_state() != convoi_t::SELF_DESTRUCT  ) {
 				// if a line is selected
+				bool send_schedule = true;
 				if(  new_line.is_bound()  ) {
 					// if the selected line is different to the convoi's line, apply it
 					if(  new_line!=cnv->get_line()  ) {
 						char id[16];
 						sprintf( id, "%i,%i", new_line.get_id(), schedule->get_current_stop() );
 						cnv->call_convoi_tool( 'l', id );
-					}
-					else {
-						cbuffer_t buf;
-						schedule->sprintf_schedule( buf );
-						cnv->call_convoi_tool( 'g', buf );
+						send_schedule = false;
 					}
 				}
-				else {
+				if(  send_schedule  ) {
 					cbuffer_t buf;
 					schedule->sprintf_schedule( buf );
-					cnv->call_convoi_tool( 'g', buf );
+					if(  tool_param_fits_network( buf )  ) {
+						cnv->call_convoi_tool( 'g', buf );
+					}
+					else {
+						show_tool_param_too_large_msg();
+					}
 				}
 
 				if(  cnv->in_depot()  ) {
@@ -2133,14 +2136,19 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 	}
 	else if(comp == &bt_promote_to_line) {
 		// update line schedule via tool!
-		tool_t *tool = create_tool( TOOL_CHANGE_LINE | SIMPLE_TOOL );
 		cbuffer_t buf;
 		buf.printf( "c,0,%i,%ld,", (int)schedule->get_type(), (long)(uint64)old_schedule );
 		schedule->sprintf_schedule( buf );
-		tool->set_default_param(buf);
-		welt->set_tool( tool, player );
-		// since init always returns false, it is safe to delete immediately
-		delete tool;
+		if(  tool_param_fits_network( buf )  ) {
+			tool_t *tool = create_tool( TOOL_CHANGE_LINE | SIMPLE_TOOL );
+			tool->set_default_param(buf);
+			welt->set_tool( tool, player );
+			// since init always returns false, it is safe to delete immediately
+			delete tool;
+		}
+		else {
+			show_tool_param_too_large_msg();
+		}
 	}
 	else if (comp == stats) {
 		// click on one of the schedule entries

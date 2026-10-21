@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 525118eaa
+verified: master @ 525118eaa; ex-15 @ c6adde69b (tool/UI additions)
 ---
 # Sync & determinism: rules for simulation code
 
@@ -61,6 +61,8 @@ Network play is deterministic lockstep: server and every client independently ru
 - Tools that provably do not change game state may run locally: override `is_init_keeps_game_state()` / `is_work_keeps_game_state()` (simtool.h). The server rejects networked init/work for such tools. Getting this wrong is a desync or a rejected command [CODE].
 - `WFL_LOCAL` is set only for the originating peer (local-only side effects such as result callbacks); `WFL_SCRIPT` is honoured only from the server — scripts run server-only [CODE; script items unconfirmed from user experience — the user has not worked with scripts, RECOLLECTION:2026-09-07].
 - Tool `custom_data` transported in a command is capped (256 bytes in `nwc_tool_t`); tools needing more must not rely on the network path [CODE].
+- **All UI that changes synced state must commit through a network tool.** Never mutate live simulated objects from a GUI; edit a working copy and have the commit path serialise it into the tool. The schedule windows do this: the consist-order window writes into the schedule GUI's editing copy and saves on close/retarget (`destroy_win` sends a synthetic `WIN_CLOSE` first), and the schedule GUI / line management GUI then send `TOOL_CHANGE_CONVOI` `'g'` / `TOOL_CHANGE_LINE` `'g'` with the complete schedule string, consist orders included. Any new synced control added without such a commit path is single-player-only and a desync [CODE ex-15 @ c6adde69b].
+- **The text `default_param` shares the packet limit.** The tool parameter travels in `nwc_tool_t` inside a `packet_t`; `MAX_PACKET_LEN` is 65535 (the maximum the uint16 header size can represent), with `MAX_TOOL_PARAM_LEN` reserving 2 KB for the packet header, checklist and command overhead. Schedule commits check the string against that limit and refuse with a translated message instead of sending an oversized packet; this covers the convoy and line schedule commit paths. Schedules above the limit are therefore rejected visibly, not sent and not disconnected; a dedicated binary or chunked transport would remove the limit [CODE ex-15 @ c6adde69b].
 - Some tools build their own `nwc_tool_t` directly for drag operations (several sites in simtool.cc) [CODE].
 
 ## Map creation & enlargement

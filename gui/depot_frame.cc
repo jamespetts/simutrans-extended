@@ -23,6 +23,7 @@
 #include "../simline.h"
 #include "../simlinemgmt.h"
 #include "../simmenu.h"
+#include "../simtool.h"
 #include "../simskin.h"
 
 #include "../descriptor/building_desc.h"
@@ -568,7 +569,12 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 						schedule->sprintf_schedule( buf );
 					}
 				}
-				depot->call_depot_tool('l', convoihandle_t(), buf);
+				if(  tool_param_fits_network( buf )  ) {
+					depot->call_depot_tool('l', convoihandle_t(), buf);
+				}
+				else {
+					show_tool_param_too_large_msg();
+				}
 				return true;
 			}
 			else {
@@ -645,7 +651,12 @@ bool depot_frame_t::action_triggered( gui_action_creator_t *comp, value_t p)
 					}
 					line_selector.set_focusable( false );
 					last_selected_line = linehandle_t();	// clear last selected line so we can get a new one ...
-					depot->call_depot_tool('l', cnv, buf);
+					if(  tool_param_fits_network( buf )  ) {
+						depot->call_depot_tool('l', cnv, buf);
+					}
+					else {
+						show_tool_param_too_large_msg();
+					}
 
 				}
 				return true;
@@ -850,7 +861,12 @@ void depot_frame_t::apply_line()
 
 			cbuffer_t buf;
 			dummy->sprintf_schedule(buf);
-			cnv->call_convoi_tool('g', (const char*)buf );
+			if(  tool_param_fits_network( buf )  ) {
+				cnv->call_convoi_tool('g', (const char*)buf );
+			}
+			else {
+				show_tool_param_too_large_msg();
+			}
 
 			delete dummy;
 		}

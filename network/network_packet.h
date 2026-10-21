@@ -11,10 +11,15 @@
 #include "memory_rw.h"
 #include "network.h"
 
-#define MAX_PACKET_LEN (8192)
+#define MAX_PACKET_LEN (65535) // limited by the uint16 packet size in the header
+static_assert(MAX_PACKET_LEN <= 0xFFFF, "packet size must fit into the uint16 header field");
 
 // static const do not work on all compilers/architectures
 #define HEADER_SIZE (6) // the network sizes are given ...
+
+// Conservative limit for the default_param of a tool command, leaving room for
+// the packet header, the checklist and the other fields of nwc_tool_t.
+#define MAX_TOOL_PARAM_LEN (MAX_PACKET_LEN - 2048)
 
 
 class packet_t : public memory_rw_t {

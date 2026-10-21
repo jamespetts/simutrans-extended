@@ -48,6 +48,19 @@ char *tooltip_with_price(const char * tip, sint64 price);
 
 void open_error_msg_win(const char* error);
 
+/**
+ * Returns true if a tool parameter can be transported. Outside network mode
+ * this is always true; in network mode the parameter must fit into a network
+ * packet together with the rest of the tool command.
+ */
+bool tool_param_fits_network(const char *param);
+
+/**
+ * Shows the standard error for a tool parameter that cannot be sent over the
+ * network.
+ */
+void show_tool_param_too_large_msg();
+
 /************************ general tool *******************************/
 
 // query tile info: default tool

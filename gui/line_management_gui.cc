@@ -57,14 +57,19 @@ bool line_management_gui_t::infowin_event(const event_t *ev)
 
 					// update all convoys of this line!
 					// update line schedule via tool!
-					tool_t *tool = create_tool( TOOL_CHANGE_LINE | SIMPLE_TOOL );
 					cbuffer_t buf;
 					buf.printf( "g,%i,", line.get_id() );
 					schedule->sprintf_schedule( buf );
-					tool->set_default_param(buf);
-					welt->set_tool( tool, line->get_owner() );
-					// since init always returns false, it is save to delete immediately
-					delete tool;
+					if(  tool_param_fits_network( buf )  ) {
+						tool_t *tool = create_tool( TOOL_CHANGE_LINE | SIMPLE_TOOL );
+						tool->set_default_param(buf);
+						welt->set_tool( tool, line->get_owner() );
+						// since init always returns false, it is save to delete immediately
+						delete tool;
+					}
+					else {
+						show_tool_param_too_large_msg();
+					}
 				}
 			}
 		}
