@@ -9743,7 +9743,32 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			execute_reverse_order(final_consist, final_consist.get_count(), true, true);
 		}
 
-		commit_recombined_consist(final_consist, halt);
+		// Resolve the recipient of any vehicles that this order releases:
+		// "same" means this convoy's line if it has one, else this convoy;
+		// "any" leaves no named recipient; otherwise the order's stored line
+		// or convoy is used.
+		uint16 recipient_id = 0;
+		bool recipient_is_convoy = false;
+		if (order.is_available_to_same())
+		{
+			if (get_line().is_bound())
+			{
+				recipient_id = get_line().get_id();
+				recipient_is_convoy = false;
+			}
+			else
+			{
+				recipient_id = self.get_id();
+				recipient_is_convoy = true;
+			}
+		}
+		else if (!order.is_available_to_any())
+		{
+			recipient_id = order.get_available_to_id();
+			recipient_is_convoy = order.get_available_to_is_convoy();
+		}
+
+		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy);
 
 		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
 		{
@@ -9754,7 +9779,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	return success;
 }
 
-void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt)
+void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy)
 {
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
 	// The vehicles may include vehicles already present in the consist, but will always include
@@ -9798,6 +9823,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			}
 			unload_individual_vehicle_at(i, halt, true);
 			vehicle_t* removed_vehicle = remove_vehicle_at(remove_index - index_offset);
+			removed_vehicle->set_loose_recipient(recipient_id, recipient_is_convoy);
 			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
 			{
 				new_lead_cnv->add_vehicle(removed_vehicle);
@@ -9846,6 +9872,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			grund_t* const gr = welt->lookup(new_vehicle->get_pos());
 			vehicle_t* removed_vehicle = substitute_vehicle(new_vehicle, i);
 			removed_vehicle->reposition_vehicle(gr);
+			removed_vehicle->set_loose_recipient(recipient_id, recipient_is_convoy);
 
 			if (new_vehicle_cnv->get_state() == LAYOVER)
 			{
@@ -9861,6 +9888,12 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 
 	vehicle[0]->set_leading(true);
 	vehicle[vehicle_count - 1]->set_last(true);
+
+	// Every vehicle now in the active consist is no longer loose.
+	for (vehicle_t* v : vehicles)
+	{
+		v->clear_loose_recipient();
+	}
 
 	unreserve_route();
 	reserve_own_tiles();

@@ -1387,6 +1387,8 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, last_overhaul_month(0u)
 	, ticks_at_last_departure(0ll)
 	, tags(0u)
+	, loose_recipient_id(0)
+	, loose_recipient_flags(0)
 {
 	set_owner( player );
 	current_livery = "default";
@@ -1433,6 +1435,8 @@ vehicle_t::vehicle_t() :
 	, smoke(true)
 	, check_for_finish(false)
 	, has_driven(false)
+	, loose_recipient_id(0)
+	, loose_recipient_flags(0)
 	, hop_count(0)
 	, last_stop_pos(koord3d::invalid)
 {
@@ -2909,6 +2913,16 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 	else
 	{
 		last_stopped_tile = koord3d::invalid;
+	}
+
+	if (file->is_version_ex_atleast(15, 3))
+	{
+		file->rdwr_short(loose_recipient_id);
+		file->rdwr_byte(loose_recipient_flags);
+	}
+	else if (file->is_loading())
+	{
+		clear_loose_recipient();
 	}
 
 	if (file->is_loading())

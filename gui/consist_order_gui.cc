@@ -14,6 +14,7 @@
 #include "../display/viewport.h"
 #include "../descriptor/goods_desc.h"
 #include "../simhalt.h"
+#include "../simline.h"
 #include "../simconvoi.h"
 #include "../simdepot.h"
 #include "../simworld.h"
@@ -94,6 +95,55 @@ char const* consist_scrollitem_t::get_text() const
 	const convoihandle_t cnv = get_convoy();
 	return cnv.is_bound() ? cnv->get_name() : "Consist not found";
 }
+
+
+// Recipient modes in the leftover-vehicles dropdown. "Same" and "Any" are
+// the two template entries; "Line" and "Consist" name a specific registered
+// entity.
+enum leftover_recipient_kind_t
+{
+	leftover_recipient_same,
+	leftover_recipient_any,
+	leftover_recipient_line,
+	leftover_recipient_convoy
+};
+
+// One row of the leftover-vehicles dropdown. Storing the kind and id here
+// means the selection handler needs no separate mode state, and the
+// "Line:"/"Consist:" prefix makes the closed dropdown self-describing.
+struct leftover_entry_t
+{
+	leftover_recipient_kind_t kind;
+	uint16 id;
+	const char *prefix; // NULL for the template entries
+	const char *name;
+	PIXVAL color;
+};
+
+class leftover_recipient_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
+{
+	leftover_recipient_kind_t kind;
+	uint16 recipient_id;
+	cbuffer_t text_buf;
+
+public:
+	leftover_recipient_scrollitem_t(const leftover_entry_t &entry) :
+		gui_scrolled_list_t::const_text_scrollitem_t(NULL, entry.color),
+		kind(entry.kind),
+		recipient_id(entry.id)
+	{
+		if (entry.prefix) {
+			text_buf.printf("%s: %s", translator::translate(entry.prefix), entry.name);
+		}
+		else {
+			text_buf.append(translator::translate(entry.name));
+		}
+		set_text_pointer(text_buf);
+	}
+
+	leftover_recipient_kind_t get_kind() const { return kind; }
+	uint16 get_recipient_id() const { return recipient_id; }
+};
 
 // sort option for Consist Copier
 // TODO: add sort option
@@ -1567,6 +1617,45 @@ void consist_order_frame_t::init_table()
 
 	new_component<gui_divider_t>();
 
+	// [LEFTOVER VEHICLES] What happens to vehicles this order leaves at the
+	// stop. Placed under the order list so it reads as a consequence of the
+	// order, not as a separate task.
+	add_table(1, 0);
+	{
+		lb_leftover_vehicles.set_text("Leftover vehicles");
+		lb_leftover_vehicles.set_tooltip(translator::translate("Vehicles that this order leaves at this stop can be taken on by the line or consist selected here. By default, they can only be taken by the same line or consist that left them here; select 'Any line or consist' to remove that restriction."));
+		add_component(&lb_leftover_vehicles);
+		leftover_buf.clear();
+		leftover_buf.append(translator::translate("If this order leaves vehicles at this stop,\nthey can be taken by:"));
+		new_component<gui_textarea_t>(&leftover_buf);
+		// The dropdown and the line/consist filter share one row: the list of
+		// names is long at a busy halt, and the filter keeps the dropdown to
+		// the one kind of recipient the player is looking for.
+		add_table(2, 1);
+		{
+			leftover_selector.add_listener(this);
+			add_component(&leftover_selector);
+			add_table(2, 1);
+			{
+				bt_leftover_lines.init(button_t::roundbox_left_state, "Line");
+				bt_leftover_lines.set_tooltip(translator::translate("List lines registered at this stop"));
+				bt_leftover_lines.pressed = !leftover_filter_convoy;
+				bt_leftover_lines.add_listener(this);
+				add_component(&bt_leftover_lines);
+				bt_leftover_convoys.init(button_t::roundbox_right_state, "Consist");
+				bt_leftover_convoys.set_tooltip(translator::translate("List consists registered at this stop"));
+				bt_leftover_convoys.pressed = leftover_filter_convoy;
+				bt_leftover_convoys.add_listener(this);
+				add_component(&bt_leftover_convoys);
+			}
+			end_table();
+		}
+		end_table();
+	}
+	end_table();
+
+	new_component<gui_divider_t>();
+
 	// filter, sort
 	freight_type_c.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("--------------"), SYSCOL_TEXT);
 	freight_type_c.set_selection(0);
@@ -2091,6 +2180,28 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		init_input_value_range();
 		open_rule_editor(&order, append_target_index-1, 0);
 	}
+	// [LEFTOVER VEHICLES]
+	else if (comp == &bt_leftover_lines || comp == &bt_leftover_convoys) {
+		// State buttons do not toggle themselves. Switching the list while a
+		// specific recipient of the other kind is stored clears it to the
+		// default in update_leftover_selection(), so display and data agree.
+		leftover_filter_convoy = comp == &bt_leftover_convoys;
+		bt_leftover_lines.pressed = !leftover_filter_convoy;
+		bt_leftover_convoys.pressed = leftover_filter_convoy;
+		update_leftover_selection();
+	}
+	else if (comp == &leftover_selector) {
+		leftover_recipient_scrollitem_t *item = dynamic_cast<leftover_recipient_scrollitem_t*>(leftover_selector.get_element(v.i));
+		if (item) {
+			switch (item->get_kind()) {
+				case leftover_recipient_same: order.set_available_to_same(); break;
+				case leftover_recipient_any: order.set_available_to_any(); break;
+				case leftover_recipient_line: order.set_available_to(item->get_recipient_id(), false); break;
+				case leftover_recipient_convoy: order.set_available_to(item->get_recipient_id(), true); break;
+			}
+			order.touch();
+		}
+	}
 	// others
 	else if (comp == &tabs) {
 		if (tabs.get_active_tab_index() == 0) {
@@ -2404,6 +2515,82 @@ bool consist_order_frame_t::is_filtered(const vehicle_desc_t *veh_type)
 	return false;
 }
 
+// Rebuild the leftover-vehicles dropdown: the two template entries first,
+// then every line or every consist registered at the halt of this schedule's
+// way type, according to the Line/Consist filter. Called on open/retarget,
+// after the entry changes, and when the filter is switched; never from draw().
+void consist_order_frame_t::update_leftover_selection()
+{
+	leftover_selector.clear_elements();
+	leftover_selector.new_component<leftover_recipient_scrollitem_t>(leftover_entry_t{ leftover_recipient_same, 0, NULL, "Same line or consist that left them (default)", SYSCOL_TEXT });
+	leftover_selector.new_component<leftover_recipient_scrollitem_t>(leftover_entry_t{ leftover_recipient_any, 0, NULL, "Any line or consist", SYSCOL_TEXT });
+
+	if (!halt.is_bound()) {
+		leftover_selector.set_selection(0);
+		leftover_selector.disable();
+		return;
+	}
+
+	leftover_selector.enable();
+
+	sint32 selection = 0;
+	bool found = false;
+	if (order.is_available_to_same()) {
+		found = true;
+	}
+	else if (order.is_available_to_any()) {
+		selection = 1;
+		found = true;
+	}
+
+	// Always populate the filtered specific list, even when a template entry
+	// is selected: the templates are fixed, and the lines/consists must stay
+	// available for selection below them.
+	const uint16 recipient_id = order.get_available_to_id();
+	const bool recipient_is_convoy = order.get_available_to_is_convoy();
+	const waytype_t wt = schedule->get_waytype();
+	if (leftover_filter_convoy) {
+		for (uint32 i = 0; i < halt->registered_convoys.get_count(); i++) {
+			const convoihandle_t cnv = halt->registered_convoys[i];
+			if (!cnv.is_bound() || wt != cnv->get_schedule()->get_waytype()) {
+				continue;
+			}
+			leftover_selector.new_component<leftover_recipient_scrollitem_t>(
+				leftover_entry_t{ leftover_recipient_convoy, cnv.get_id(), "Consist", cnv->get_name(), cnv->get_status_color() }
+			);
+			if (recipient_id != 0 && recipient_is_convoy && cnv.get_id() == recipient_id) {
+				selection = leftover_selector.count_elements() - 1;
+				found = true;
+			}
+		}
+	}
+	else {
+		for (uint32 i = 0; i < halt->registered_lines.get_count(); i++) {
+			const linehandle_t line = halt->registered_lines[i];
+			if (!line.is_bound() || wt != line->get_schedule()->get_waytype()) {
+				continue;
+			}
+			leftover_selector.new_component<leftover_recipient_scrollitem_t>(
+				leftover_entry_t{ leftover_recipient_line, line.get_id(), "Line", line->get_name(), line->get_state_color() }
+			);
+			if (recipient_id != 0 && !recipient_is_convoy && line.get_id() == recipient_id) {
+				selection = leftover_selector.count_elements() - 1;
+				found = true;
+			}
+		}
+	}
+	if (!found) {
+		// The stored recipient no longer calls at this halt (or no longer
+		// exists), or the filter has been switched to the other kind: revert
+		// to the default so that the dropdown and the stored order agree.
+		order.set_available_to_same();
+		order.touch();
+		selection = 0;
+	}
+	leftover_selector.set_selection(selection);
+}
+
+
 // reflesh labels, call when entry changed
 void consist_order_frame_t::update()
 {
@@ -2432,6 +2619,14 @@ void consist_order_frame_t::update()
 	}
 	init_input_value_range();
 	lb_halt.update();
+	// A specific recipient determines which list must be shown; the two
+	// template entries (same/any) leave the player's filter choice alone.
+	if (order.get_available_to_id() != 0) {
+		leftover_filter_convoy = order.get_available_to_is_convoy();
+	}
+	bt_leftover_lines.pressed = !leftover_filter_convoy;
+	bt_leftover_convoys.pressed = leftover_filter_convoy;
+	update_leftover_selection();
 	resize(scr_size(0,0));
 }
 

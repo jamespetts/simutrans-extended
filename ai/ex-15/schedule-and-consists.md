@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ df11b4f0a
+verified: ex-15 @ c6adde69b
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -113,8 +113,9 @@ explorer's treatment of consist orders.
   matching and in `parse_orders`' carried-category tables), named minimum-class dropdown,
   per-alternative empty toggle, and pool matchability validation that greys OK with a
   reason when no vehicle can satisfy a checked line)
-  — INCOMPLETE: no tag controls; no window save/restore (get_rdwr_id and the simwin.cc restore are
-  commented out). Livery copying in set_convoy_order explicitly unsupported.
+  — INCOMPLETE: no tag controls (the tag fields are retained for instance-level portion identity;
+  design pending — see "Vehicle tags" below); no window save/restore (get_rdwr_id and the
+  simwin.cc restore are commented out). Livery copying in set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -159,7 +160,9 @@ explorer's treatment of consist orders.
   requirements and staged implementation position (design SIMD-compatible → scalar implementation
   verified → SIMD immediately after; design-time gate on dense vectorisability) recorded in
   [simd-applicability](../simd-applicability.md) [RECOLLECTION:2026-09-19].
-- **Two-party timed coupling; dead-lock avoidance** — no arrival synchronisation, no validation of
+- **Two-party timed coupling; dead-lock avoidance** — no arrival synchronisation (a named target
+  that has not arrived must be waited for; see "Coupling semantics" below), no two-sided
+  evaluation of the receiver's and the target's orders as one exchange, and no validation of
   couple/uncouple target graphs (mutual waits, circular targets, platform blockage).
 - **Freight/passenger continuity across splits/joins** — displaced vehicles are force-unloaded at
   the stop; no transfer of cargo between portions, no re-routing correction for cargo on moved
@@ -167,7 +170,8 @@ explorer's treatment of consist orders.
 - **Call-on-based coupling movements into occupied platforms** — call-on signalling exists for
   other purposes but is not connected to coupling; SHUNTING is only a timed pause.
 - **Vehicle-tag enforcement** — `vehicle_t::tags` and the order tag fields are serialised-only;
-  zero runtime callers, no GUI.
+  zero runtime callers, no GUI. The fields are retained as the instance-level coupling-identity
+  mechanism for portion working; the design is open (see "Vehicle tags" below).
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Most difficult outstanding work (assessment, user-confirmed scope)
@@ -183,6 +187,125 @@ explorer's treatment of consist orders.
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
 6. Solver completeness; GUI wiring for the remaining unwired controls (tags,
    window persistence, loose-vehicle pool, livery, copier sort).
+
+## Vehicle tags — retained; design pending
+
+`vehicle_t::tags` (uint16 per vehicle instance, serialised with the vehicle) and the order fields
+(per slot: `clear_all_tags`, `tags_required`, `tags_to_set`; per order: `tags_to_clear`) are
+serialised but never evaluated, and no GUI sets them. They are retained as the intended mechanism
+for **instance-level coupling identity** in portion working: through cargo is bound to the
+instance, descriptor-level rules cannot distinguish the branch portion from an identical vehicle
+in the pool, and displaced vehicles are force-unloaded [RECOLLECTION:2026-10-18]. In the
+exchange the target's order can mark the vehicles it releases (`tags_to_set`) and the receiver's
+order require those marks (`tags_required`). Design questions open:
+
+1. Tag source: player-set per vehicle, set by the order at coupling, or both.
+2. `tags_required` scope: its comment covers loose vehicles, but the joining convoy's vehicles pass
+   through the same matcher, and the in-position/substitution path needs gating as well for the
+   tags to protect through vehicles from displacement.
+3. Whether the solver additionally needs a tag-independent rule never to displace a vehicle
+   carrying cargo bound beyond the coupling stop.
+4. Lifecycle: replacement creates a new instance (tag lost?); overhaul, mothballing, sale and
+   transfer.
+5. GUI: vehicle detail, convoy detail, loose-vehicle pool listing.
+6. Multiplayer scope: whether tag meanings are per player and whether another player's order may
+   match them.
+7. Explorer/runtime agreement: `parse_orders` derives the carried-category tables without reading
+   tags, so a tag-gated slot the runtime cannot fill would still be recorded as a through journey;
+   the explorer may read only saved schedule and operating data, not live pool contents.
+
+## Multi-player consists — ownership and access model
+
+Multi-player consists are intended (through carriages, hired traction, wagon pooling)
+[RECOLLECTION:2026-10-18]. What exists:
+
+- Per-vehicle ownership: each vehicle carries its own `obj_t` owner (`owner_n`, serialised per
+  vehicle by `obj_t::rdwr`; `PLAYER_UNOWNED` when unowned). Consist-order operations preserve it:
+  `add_vehicle`, `move_vehicle`, `substitute_vehicle` and `remove_vehicle_at` never touch it, and
+  load only repairs null owners (`convoi_t::finish_rd`, depot load, `start_convoi`). The convoy
+  owner is separate and may differ by design.
+- Movement access is decided by the **leading vehicle's owner**, not the convoy owner and not each
+  vehicle: only the leading vehicle runs `hop_check` ("the leading vehicle will do all the
+  checks"); `rail_vehicle_t::can_enter_tile` asserts `leading`; route search uses `front()` as the
+  driver. `vehicle_t::check_access` allows a way if the leader's owner is the public service, or
+  the way is public right of way, unowned, or owned by the leader's owner, or the leader is
+  unowned, or the way belongs to the same owner as the way the leader is on, or its owner grants
+  access to the leader's owner. Consequences: access rights change when the leader changes
+  (reversal, re-combination); access is an entry test only; a public-service leader bypasses all
+  checks. Halt access on route registration uses the convoy owner instead.
+- Finance is booked by convoy, not by vehicle: revenue, running costs, way tolls and monthly fixed
+  costs go to the convoy owner; overhaul/mothball to the vehicle owner; depot sale value to the
+  depot owner; the replacer builds the replacement owned by the convoy owner. Vehicle and convoy
+  statistics counters move only on build, sale and destroy, not on a consist-order move.
+- Coupling-target selection is not gated by access: the GUI lists every lineless convoy registered
+  at the halt (registration itself is owner-filtered) plus lines via `get_loading_convois()`.
+  Copying a convoy's order requires mutual access (`gui/consist_order_gui.cc`) — a precedent for
+  gating coupling itself.
+- Company removal destroys the vehicles in its convoys regardless of owner
+  (`complete_liquidation` self-destructs the convoys it owns; `convoi_t::destroy` deletes every
+  vehicle), so a foreign vehicle in a liquidating company's consist is deleted; overhaul
+  re-liveries a foreign vehicle into the operating convoy's scheme (`update_livery`).
+- Open: a settlement model (who pays and receives what when a vehicle runs in another company's
+  consist — hire or through-carriage payments); the access policy for mixed consists (keep
+  leader-based rights, or use the convoy owner's rights and admit foreign vehicles by a separate
+  rule); GUI display of per-vehicle ownership.
+
+## Coupling semantics and reliability gaps
+
+Intended coupling semantics [RECOLLECTION:2026-10-19]: a couple order may draw on loose vehicles at
+the current stop (the halt's laid-over pool) and on vehicles released by a consist at the stop
+under that consist's own uncouple order, falling back to the pool only insofar as the target does
+not supply enough. Taking vehicles out of a consist requires an uncouple order on that consist; a
+plain uncouple naming no receiver suffices. A named target that has not arrived is waited for, not
+substituted, with a timeout and a player message (duration and post-timeout behaviour open). A
+consist that only loses vehicles and needs none from the counterpart does not wait: its released
+vehicles become loose at the stop.
+
+The two-sided specification exists in the data model: the receiver's entry carries `couple` + the
+target + its own order; the target's entry carries `uncouple` (receiver and target entry optional)
++ its own order. What is absent is the runtime that evaluates both orders against the pre-exchange
+consists and commits both as one exchange; today only the receiver's order runs, pulling vehicles
+out of the target directly.
+
+### Leftover-vehicle recipients
+
+`consist_order_t::available_to_id`/`available_to_flags` (serialised under
+`is_version_ex_atleast(15,3)`) record who may take the vehicles that the order releases at the
+stop. Zero id and zero flags mean any line or consist; zero id with `available_to_is_same` (the
+default) means only the line that released them, or the convoy itself if it is lineless; a
+non-zero id names a specific line, or a specific convoy when `available_to_is_convoy` is set. The
+default follows the written design: "It should be possible to specify in the consist orders a
+list of convoys/lines for which the spare vehicles would be available to be coupled..., the
+default being only the same convoy/line that loaded them"
+[FORUM:https://forum.simutrans.com/index.php?topic=17852.msg170134]. "Same" is resolved at
+release time (the releasing convoy's line, else the convoy), so it remains correct if a schedule
+is copied between a line and a convoy; the resolved id/kind is copied to each released vehicle's
+`loose_recipient_id`/`loose_recipient_flags` (zero means no named recipient) [CODE]. The
+eligibility check that reads it at pickup is not yet written: `process_consist_order` still draws
+on the halt's laid-over pool without consulting the recipient, so the setting has no gameplay
+effect yet [CODE]. The design's list of permitted lines/convoys is implemented as one selection;
+the later tag design (see "Vehicle tags") supersedes the vectors but is itself unimplemented. The
+consist-order window lists the Same/Any entries plus the halt's lines or consists, with a
+Line/Consist filter; a specific recipient no longer registered at the halt (or hidden by a filter
+switch) resets to the default [CODE].
+
+- **A convoy target is resolved by id alone and dismembered wherever it is.** The line mode
+  resolves against `halt->get_loading_convois()` (convoys present and loading), but the convoy mode
+  is `cnv.set_id(entry->target_id_couple)` with no position or state check. When the receiving
+  convoy's order runs, the target's vehicles are removed from it and repositioned onto the
+  receiver; the target's route and reservations are not cleaned up, and if emptied it
+  self-destructs. The GUI list is `halt->registered_convoys` (convoys serving the halt, not
+  necessarily present), so this is reachable in play; registered as an open bug in
+  [known-bugs](../known-bugs.md).
+- **A specified target that cannot be resolved is silently replaced by the pool.** An unresolved
+  target makes `get_couple_target` return an unbound handle, so `process_consist_order` takes the
+  no-joining-convoy branch and assembles from the halt's laid-over pool: a missing partner changes
+  the order's meaning rather than making it wait. Order failure is otherwise silently ignored
+  (`// TODO: Consider what happens if we fail` in `hat_gehalten`); no waiting state exists.
+- **Depot-entry orders never execute.** `process_consist_order` has one call site (`hat_gehalten`),
+  always with `dep == nullptr`, so its depot branch (`access_convoy_list`, `get_vehicle_list`) is
+  dead; the schedule GUI hides the settings tab containing the consist-order button on depot
+  entries.
 
 ## Open questions
 

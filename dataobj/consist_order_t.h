@@ -179,6 +179,17 @@ public:
 class consist_order_t
 {
 	friend class schedule_t;
+public:
+	// Recipient modes stored in available_to_flags. A zero id with zero
+	// flags means any line or consist; a zero id with the same flag means
+	// the line or consist that released the vehicles. Otherwise the id
+	// names a line, or a convoy when the convoy flag is set.
+	enum
+	{
+		available_to_is_convoy = 1u << 0u,
+		available_to_is_same = 1u << 1u
+	};
+
 protected:
 	/*
 	* The unique ID of the schedule entry to which this consist order refers
@@ -192,6 +203,17 @@ protected:
 	*/
 	uint16 tags_to_clear = 0;
 
+	/*
+	* The recipient of any vehicles released by this consist order.
+	* available_to_id is either a line ID or a convoy ID according to
+	* available_to_flags. Zero id and zero flags mean that any line or
+	* consist may take them; the available_to_is_same flag (with a zero
+	* id) means only the line or consist that released them. The default
+	* is the same line or consist that released them.
+	*/
+	uint16 available_to_id = 0;
+	uint8 available_to_flags = available_to_is_same;
+
 	vector_tpl<consist_order_element_t> orders;
 
 	/*
@@ -204,6 +226,29 @@ protected:
 	uint32 mod_count = 0;
 
 public:
+
+	uint16 get_available_to_id() const { return available_to_id; }
+	bool get_available_to_is_convoy() const { return (available_to_flags & available_to_is_convoy) != 0; }
+	bool is_available_to_any() const { return available_to_id == 0 && available_to_flags == 0; }
+	bool is_available_to_same() const { return available_to_id == 0 && (available_to_flags & available_to_is_same) != 0; }
+
+	void set_available_to_any()
+	{
+		available_to_id = 0;
+		available_to_flags = 0;
+	}
+
+	void set_available_to_same()
+	{
+		available_to_id = 0;
+		available_to_flags = (uint8)available_to_is_same;
+	}
+
+	void set_available_to(uint16 id, bool is_convoy)
+	{
+		available_to_id = id;
+		available_to_flags = is_convoy ? (uint8)available_to_is_convoy : 0;
+	}
 
 	consist_order_element_t& access_order(uint32 element_number)
 	{

@@ -178,6 +178,19 @@ void consist_order_t::rdwr(loadsave_t* file)
 	uint32 orders_count = orders.get_count();
 	file->rdwr_long(orders_count);
 
+	if (file->is_version_ex_atleast(15, 3))
+	{
+		file->rdwr_short(available_to_id);
+		file->rdwr_byte(available_to_flags);
+	}
+	else if (file->is_loading())
+	{
+		// Pre-15.3 saves have no recipient: default to the same line or
+		// consist that released the vehicles, matching the member defaults.
+		available_to_id = 0;
+		available_to_flags = available_to_is_same;
+	}
+
 	if(file->is_saving())
 	{
 		for(auto order : orders)
@@ -321,6 +334,8 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 {
 	buf.append_fixed(tags_to_clear);
 	buf.append_fixed(orders.get_count());
+	buf.append_fixed(available_to_id);
+	buf.append_fixed(available_to_flags);
 	for (auto order : orders)
 	{
 		buf.append_fixed(order.catg_index);
@@ -376,6 +391,9 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 
 	// Retrieve the count
 	const uint32 order_count = cbuffer_t::decode_uint32(p);
+
+	available_to_id = cbuffer_t::decode_uint16(p);
+	available_to_flags = cbuffer_t::decode_uint8(p);
 
 	// Now use the count to determine the number of orders retrieved
 	for(uint32 i = 0;  i < order_count; i ++)
@@ -463,7 +481,7 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 
 bool consist_order_t::operator== (const consist_order_t& other) const
 {
-	if (tags_to_clear == other.tags_to_clear && orders.get_count() == other.orders.get_count())
+	if (tags_to_clear == other.tags_to_clear && available_to_id == other.available_to_id && available_to_flags == other.available_to_flags && orders.get_count() == other.orders.get_count())
 	{
 		// Check each individual element
 		for(uint32 i = 0; i < orders.get_count(); i ++)

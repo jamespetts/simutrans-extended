@@ -411,6 +411,16 @@ protected:
 
 	uint16 tags;
 
+	/*
+	* The recipient of this vehicle while it is loose, i.e. released from
+	* its consist by a consist order. loose_recipient_id is either a line
+	* ID or a convoy ID according to loose_recipient_flags. A zero id with
+	* zero flags means no named recipient: the vehicle is either not loose
+	* or was released for any line or consist.
+	*/
+	uint16 loose_recipient_id = 0;
+	uint8 loose_recipient_flags = 0;
+
 	void calc_image() OVERRIDE;
 
 	bool check_access(const weg_t* way) const;
@@ -796,6 +806,23 @@ public:
 	bool is_tag_set(uint16 tag) const { return (tags & tag) != 0; }
 	void set_tag(uint16 tag) { tags |= tag; }
 	void clear_tag(uint16 tag) { tags &= ~tag; }
+
+	enum { loose_recipient_is_convoy = 1u << 0u };
+
+	uint16 get_loose_recipient_id() const { return loose_recipient_id; }
+	bool get_loose_recipient_is_convoy() const { return (loose_recipient_flags & loose_recipient_is_convoy) != 0; }
+
+	void set_loose_recipient(uint16 id, bool is_convoy)
+	{
+		loose_recipient_id = id;
+		loose_recipient_flags = is_convoy ? (uint8)loose_recipient_is_convoy : 0;
+	}
+
+	void clear_loose_recipient()
+	{
+		loose_recipient_id = 0;
+		loose_recipient_flags = 0;
+	}
 
 	bool get_is_mothballed() const { return is_mothballed; }
 	void mothball();

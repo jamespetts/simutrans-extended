@@ -170,13 +170,13 @@ public:
 
 	/*
 	* The unique ID of the point in the schedule specified
-	* in target_id_couple from which the convoy comprising
+	* in target_id_uncouple from which the convoy comprising
 	* the vehicles uncoupled at this schedule entry will
 	* start.
 	*
 	* There is no equivalent for couple because the
 	* convoy to which this convoy will be coupled will
-	* alerady be at the correct point in its schedule.
+	* already be at the correct point in its schedule.
 	*/
 	uint16 target_unique_entry_uncouple;
 

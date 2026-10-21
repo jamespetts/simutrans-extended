@@ -1690,7 +1690,7 @@ public:
 	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy);
 
 	private:
-		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt);
+		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy);
 };
 
 #endif

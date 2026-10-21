@@ -212,9 +212,19 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 
 	consist_order_t order;
 
-	cbuffer_t title_buf;
+	cbuffer_t leftover_buf; // explanatory sentence for the leftover-vehicles textarea
 	gui_schedule_entry_number_t halt_number;
 	gui_label_buf_t lb_halt;
+
+	// [LEFTOVER VEHICLES] Who may take vehicles this order leaves at the stop.
+	// The dropdown holds the Same/Any entries plus the halt's lines or
+	// consists, switched by the Line/Consist buttons beside it; the stored
+	// recipient itself is order.available_to_id/flags.
+	gui_label_t lb_leftover_vehicles;
+	gui_combobox_t leftover_selector;
+	button_t bt_leftover_lines, bt_leftover_convoys;
+	bool leftover_filter_convoy = false;
+	void update_leftover_selection();
 
 	// [ORDER]
 	gui_aligned_container_t cont_order;

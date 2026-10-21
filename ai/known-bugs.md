@@ -168,6 +168,51 @@ Rank on discovery; re-rank on triage.
 - Symptom: [GitHub issue 689](https://github.com/jamespetts/simutrans-extended/issues/689) reports billion-scale "Infrastructure maintenance" bills after using intercity roads, bankrupting companies; the reporter should re-test on a current build before the issue is closed.
 - Ruled out by the triage: renewal price formula as the billion-scale source, `finish_rd` load multiplicity, tolls (separate `ATV_TOLL_*` category).
 
+### Coupling dismembers a target consist wherever it is; a missing target becomes a pool order — priority 2
+
+- Current behaviour: `schedule_t::get_couple_target` (dataobj/schedule.cc) resolves a
+  convoy-as-target couple entry by id alone — no position or state check — and the line mode
+  against `halt->get_loading_convois()` (convoys present and loading). `convoi_t::process_consist_order`
+  then moves the target's vehicles into the receiving convoy: additions are repositioned to the
+  receiving convoy's rear tile and substitutions to the displaced vehicle's tile
+  (`commit_recombined_consist`), so a target anywhere on the map is dismembered and its vehicles
+  appear at the coupling stop; the target's own route and reservations are not cleaned up, and an
+  emptied target self-destructs. The schedule GUI's convoy list is `halt->registered_convoys`
+  (lineless convoys that serve the halt, not necessarily present), so this is reachable through
+  normal play. When the target cannot be resolved, `process_consist_order` takes the
+  no-joining-convoy branch and assembles from the halt's laid-over pool instead — a missing partner
+  silently changes the order's meaning. Order failure is otherwise silently ignored
+  (`// TODO: Consider what happens if we fail` in `hat_gehalten`)
+  [CODE ex-15 @ c6adde69b; not reproduced in game].
+- Intended behaviour [RECOLLECTION:2026-10-19]: a couple order draws on loose vehicles at the
+  current stop and on vehicles released by a consist at the stop under that consist's own uncouple
+  order, topping up from the pool only for a shortfall; taking vehicles out of a consist requires
+  an uncouple order on it (a plain uncouple naming no receiver suffices); a named target that has
+  not arrived is waited for with a timeout and a message; a consist that only loses vehicles does
+  not wait and its released vehicles go loose. The two-sided specification exists in the data
+  model (receiver: `couple` + target + order; target: `uncouple` + order); the pairing, atomic
+  evaluation and waiting state are outstanding two-party coupling work
+  → [ex-15 schedule-and-consists](ex-15/schedule-and-consists.md).
+
+### Takeover leaves the taken-over company's convoy vehicles owned by the removed player — priority 1
+
+- `player_t::take_over` re-owns the target's depots and their stored vehicles, and re-owns its
+  convoys via `convoi_t::set_owner` (a plain setter that does not touch the vehicles), then calls
+  `welt->remove_player`, which deletes the player object. Vehicles inside those convoys keep
+  `owner_n` pointing at the removed player, so `vehicle_t::get_owner()` returns NULL afterwards.
+  The load-time null-owner repair does not fix it: `set_owner(get_owner())` resolves NULL to
+  `players[PLAYER_UNOWNED]`, which is also NULL.
+- Consequences: (a) NULL dereference in paths that use the vehicle's owner — `vehicle_t::overhaul`
+  (`get_owner()->book_vehicle_maintenance`; called from `depot_t::convoi_arrived` for every due
+  vehicle, ex-15), `vehicle_t::mothball`/`un_mothball`, and the overcrowding refund
+  (`get_owner()->get_finance()->get_account_balance()`, vehicle.cc, both branches); (b) an unowned
+  leading vehicle passes every way-access check (`check_access`'s `get_owner() == nullptr` clause),
+  so the taken-over company's convoys stop respecting access permissions; (c) ownership displays
+  and statistics show no owner.
+- Also applies to multi-player consists: a foreign vehicle whose owner is removed or taken over
+  loses its owner link while remaining in a running convoy
+  [CODE ex-15 @ c6adde69b; not reproduced in game].
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -208,10 +253,13 @@ confirms they affect current builds in live games.
 
 | [ex-15] billion-scale infrastructure maintenance billing (not a forum report: GitHub issue 689 triage) | — | detailed entry above; reporter re-test needed |
 
+| Takeover leaves the taken-over company's convoy vehicles owned by the removed player (not a forum report: code inspection 2026-10-18) | — | detailed entry above; crash on a later depot overhaul (ex-15); not reproduced in game |
+
 ## P2 — medium
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Coupling dismembers a target consist wherever it is; missing target falls back to the pool (not a forum report: code inspection 2026-10-18) | — | detailed entry above; ex-15 only; intended: loose vehicles at the stop or a waiting consist, the target's own order required to dismember, wait for an absent target |
 | Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |
