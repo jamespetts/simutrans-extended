@@ -252,6 +252,15 @@ protected:
 	void init_components();
 	void build_table();
 
+	/**
+	 * Applies the state that depends on the selected line:
+	 * the line colour used for the map marker, the electrification indicator
+	 * and the minimum range (the range of the line, limited by the range of the convoy)
+	 * together with its label.
+	 * @param line the line to apply; must be bound
+	 */
+	void apply_line_state(linehandle_t line);
+
 	inline void set_min_range(uint16 range) { stats->range_limit = range; };
 
 public:
@@ -266,7 +275,8 @@ public:
 	virtual uint16 get_min_top_speed_kmh() { return cnv.is_bound() ? speed_to_kmh(cnv->get_min_top_speed()) : 65535; }
 
 	// for updating info ...
-	void init_line_selector();
+	void init_line_selector(bool keep_current_line = false);
+	void set_new_line(linehandle_t line);
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
