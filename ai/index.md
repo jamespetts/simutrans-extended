@@ -20,6 +20,7 @@ Note: the documents may be nested. Only top level documents are shown here.
 - [project-overview](project-overview.md) — read when context is needed on what this project is, where it came from, and how it relates to Standard Simutrans.
 - [glossary](glossary.md) — read when Simutrans/Extended vocabulary is unclear in code, comments, or conversation.
 - [repo-map](repo-map.md) — read before navigating the tree; to tell real source from clutter, ignored artefacts, or dead legacy files.
+- [external-forks](external-forks.md) — read when comparing our branches with an external fork (the Ranran `simutrans-extended-plus` fork), assessing whether fork work is already upstreamed, or checking that work's savegame/determinism properties.
 - [conventions](conventions.md) — read before writing/updating any doc.
 - [claim-tags](claim-tags.md) — read before interpreting claims or statuses.
 - [project-notes](project-notes.md) — read at the start of most code tasks: short cross-cutting notes that are easy to miss.
