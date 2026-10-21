@@ -266,7 +266,8 @@ public:
 	virtual uint16 get_min_top_speed_kmh() { return cnv.is_bound() ? speed_to_kmh(cnv->get_min_top_speed()) : 65535; }
 
 	// for updating info ...
-	void init_line_selector();
+	void init_line_selector(bool keep_current_line = false);
+	void set_new_line(linehandle_t line);
 
 	bool infowin_event(event_t const*) OVERRIDE;
 
