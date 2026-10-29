@@ -485,9 +485,10 @@ draw_outside_tile = 0
 #numpad_always_moves_map = 1
 
 # Should month be shown in date?
-# (0=no, 1=yes, 2>=show day in japan format=2, us format=3, german=4, japanese no season=5, us no season=6, german no season = 7, hours/minutes scale = 8, japan hours/minutes scale = 9)
+# (0=no, 1=yes, 2>=show day in japan format=2, us format=3, german=4, japanese no season=5, us no season=6, german no season = 7, hours/minutes scale = 8, japan hours/minutes scale = 9, 64 seconds/minute = 10)
 # This is most useful, if you use longer months than the default length (see below)
 # The hours/minutes scale shows the time in hours/minutes as used for determining journey times and other short times. It is the recommended setting. 
+# The 64 seconds/minute scale is intended for use with the Extended defaults of bits_per_month=20 and meters_per_tile=125; it ensures that every hour lasts 60 minutes, at the expense of each minute lasting 64 seconds.
 show_month = 8
 
 
