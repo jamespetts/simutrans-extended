@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 1c8d9cadf
+verified: ex-15 @ fe4b51c3a
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -143,9 +143,7 @@ explorer's treatment of consist orders.
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
   reachable in play subject to the runtime gaps below. Still absent or unwired: tag controls,
-  consist-order window persistence, livery copying; the copier's sort
-  controls are present but never sort (one sort-option entry; the ascending/descending toggle only
-  flips state), and its name/home-depot filters are unimplemented.
+  consist-order window persistence, livery copying.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
@@ -199,7 +197,7 @@ explorer's treatment of consist orders.
    ware_t routing data).
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
 6. Solver completeness; GUI wiring for the remaining unwired controls (tags,
-   window persistence, livery, copier sort).
+   window persistence, livery).
 
 ## Vehicle tags — retained; design pending
 
@@ -261,7 +259,7 @@ Multi-player consists are intended (through carriages, hired traction, wagon poo
 - Open: a settlement model (who pays and receives what when a vehicle runs in another company's
   consist — hire or through-carriage payments); the access policy for mixed consists (keep
   leader-based rights, or use the convoy owner's rights and admit foreign vehicles by a separate
-  rule); GUI display of per-vehicle ownership.
+  rule).
 
 ## Coupling semantics and reliability gaps
 
