@@ -1386,7 +1386,6 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, last_maintenance_month(welt->get_current_month())
 	, last_overhaul_month(0u)
 	, ticks_at_last_departure(0ll)
-	, tags(0u)
 	, loose_recipient_id(0)
 	, loose_recipient_flags(0)
 {
@@ -2956,7 +2955,17 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 		file->rdwr_long(last_maintenance_month);
 		file->rdwr_longlong(last_maintenance_time);
 		file->rdwr_long(last_overhaul_month);
-		file->rdwr_short(tags);
+
+		if (file->get_extended_version() == 15 && file->get_extended_revision() < 4)
+		{
+			// Vehicle tags were removed in Extended 15.4 (they were serialised but
+			// never evaluated at runtime). Pre-15.4 files still carry the value, read
+			// and discarded here; zero is written for older save targets so that older
+			// builds can still read saves written for those targets.
+			uint16 tags = 0;
+			file->rdwr_short(tags);
+		}
+
 		file->rdwr_longlong(ticks_at_last_departure);
 
 		bool dno = do_not_overhaul;
@@ -2988,7 +2997,6 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 		do_not_overhaul = false;
 		do_not_auto_upgrade = false;
 		is_mothballed = false;
-		tags = 0u;
 		ticks_at_last_departure = 0ll;
 		overhauls = 0u;
 	}

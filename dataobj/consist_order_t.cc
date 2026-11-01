@@ -173,7 +173,17 @@ void consist_order_t::rdwr(loadsave_t* file)
 	// Number of flag values per alternative in the pre-15.2 shape.
 	const uint32 old_rule_flag_count = 20;
 
-	file->rdwr_short(tags_to_clear);
+	// The vehicle tag fields were removed in Extended 15.4 (they were serialised
+	// but never evaluated at runtime). Pre-15.4 files (Extended 15 revision 0-3)
+	// still carry them, read and discarded below; zeros are written for older save
+	// targets so that older builds can still read saves written for those targets.
+	const bool old_tag_shape = file->get_extended_version() == 15 && file->get_extended_revision() < 4;
+
+	if (old_tag_shape)
+	{
+		uint16 tags_to_clear = 0;
+		file->rdwr_short(tags_to_clear);
+	}
 
 	uint32 orders_count = orders.get_count();
 	file->rdwr_long(orders_count);
@@ -196,9 +206,17 @@ void consist_order_t::rdwr(loadsave_t* file)
 		for(auto order : orders)
 		{
 			file->rdwr_byte(order.catg_index);
-			file->rdwr_bool(order.clear_all_tags);
-			file->rdwr_short(order.tags_required);
-			file->rdwr_short(order.tags_to_set);
+
+			if (old_tag_shape)
+			{
+				// Zeros for the removed tag fields (see above).
+				bool clear_all_tags = false;
+				uint16 tags_required = 0;
+				uint16 tags_to_set = 0;
+				file->rdwr_bool(clear_all_tags);
+				file->rdwr_short(tags_required);
+				file->rdwr_short(tags_to_set);
+			}
 
 			uint32 vehicle_description_count = order.vehicle_description.get_count();
 			file->rdwr_long(vehicle_description_count);
@@ -261,9 +279,17 @@ void consist_order_t::rdwr(loadsave_t* file)
 			consist_order_element_t order;
 
 			file->rdwr_byte(order.catg_index);
-			file->rdwr_bool(order.clear_all_tags);
-			file->rdwr_short(order.tags_required);
-			file->rdwr_short(order.tags_to_set);
+
+			if (old_tag_shape)
+			{
+				// Discard the removed tag fields (see above).
+				bool clear_all_tags = false;
+				uint16 tags_required = 0;
+				uint16 tags_to_set = 0;
+				file->rdwr_bool(clear_all_tags);
+				file->rdwr_short(tags_required);
+				file->rdwr_short(tags_to_set);
+			}
 
 			uint32 vehicle_description_count = 0;
 			file->rdwr_long(vehicle_description_count);
@@ -332,16 +358,12 @@ void consist_order_t::rdwr(loadsave_t* file)
 
 void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 {
-	buf.append_fixed(tags_to_clear);
 	buf.append_fixed(orders.get_count());
 	buf.append_fixed(available_to_id);
 	buf.append_fixed(available_to_flags);
 	for (auto order : orders)
 	{
 		buf.append_fixed(order.catg_index);
-		buf.append_fixed(order.clear_all_tags == true ? (uint8)1 : (uint8)0);
-		buf.append_fixed(order.tags_required);
-		buf.append_fixed(order.tags_to_set);
 		buf.append_fixed(order.vehicle_description.get_count());
 		for(auto desc : order.vehicle_description)
 		{
@@ -387,8 +409,6 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 	const char *p = ptr;
 	orders.clear();
 
-	tags_to_clear = cbuffer_t::decode_uint16(p);
-
 	// Retrieve the count
 	const uint32 order_count = cbuffer_t::decode_uint32(p);
 
@@ -401,9 +421,6 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 		consist_order_element_t element;
 
 		element.catg_index = cbuffer_t::decode_uint8(p);
-		element.clear_all_tags = cbuffer_t::decode_uint8(p);
-		element.tags_required = cbuffer_t::decode_uint16(p);
-		element.tags_to_set = cbuffer_t::decode_uint16(p);
 
 		uint32 vehicle_description_count = cbuffer_t::decode_uint32(p);
 		for(uint32 j = 0; j < vehicle_description_count; j ++)
@@ -481,7 +498,7 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 
 bool consist_order_t::operator== (const consist_order_t& other) const
 {
-	if (tags_to_clear == other.tags_to_clear && available_to_id == other.available_to_id && available_to_flags == other.available_to_flags && orders.get_count() == other.orders.get_count())
+	if (available_to_id == other.available_to_id && available_to_flags == other.available_to_flags && orders.get_count() == other.orders.get_count())
 	{
 		// Check each individual element
 		for(uint32 i = 0; i < orders.get_count(); i ++)
@@ -504,7 +521,7 @@ bool consist_order_t::operator== (const consist_order_t& other) const
 
 bool consist_order_element_t::operator!= (const consist_order_element_t& other) const
 {
-	if (catg_index == other.catg_index && clear_all_tags == other.clear_all_tags && tags_required == other.tags_required && tags_to_set == other.tags_to_set && vehicle_description.get_count() == other.vehicle_description.get_count())
+	if (catg_index == other.catg_index && vehicle_description.get_count() == other.vehicle_description.get_count())
 	{
 		// Check each individual vehicle description element
 		// ...

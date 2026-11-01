@@ -409,8 +409,6 @@ protected:
 
 	sint64 ticks_at_last_departure;
 
-	uint16 tags;
-
 	/*
 	* The recipient of this vehicle while it is loose, i.e. released from
 	* its consist by a consist order. loose_recipient_id is either a line
@@ -801,11 +799,6 @@ public:
 	bool get_do_not_overhaul() const { return do_not_overhaul; }
 	bool get_do_not_auto_upgrade() const { return do_not_auto_upgrade; }
 	const vehicle_desc_t* get_auto_upgrade() const;
-
-	uint16 get_tags() const { return tags; }
-	bool is_tag_set(uint16 tag) const { return (tags & tag) != 0; }
-	void set_tag(uint16 tag) { tags |= tag; }
-	void clear_tag(uint16 tag) { tags &= ~tag; }
 
 	enum { loose_recipient_is_convoy = 1u << 0u };
 

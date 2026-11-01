@@ -96,24 +96,6 @@ protected:
 	*/
 	uint8 catg_index = goods_manager_t::INDEX_NONE;
 
-	/*
-	* All vehicle tags are cleared on the vehicle joining at this slot
-	* if this is set to true here.
-	*/
-	bool clear_all_tags = false;
-
-	/*
-	* A bitfield of the tags necessary for a loose vehicle to be
-	* allowed to couple to this convoy.
-	*/
-	uint16 tags_required = 0;
-
-	/*
-	* A bitfield of the vehicle tags to be set for the vehicle that
-	* occupies this slot when it is attached to this convoy by this order.
-	*/
-	uint16 tags_to_set = 0;
-
 	vector_tpl<vehicle_description_element> vehicle_description;
 
 public:
@@ -196,12 +178,6 @@ protected:
 	* is stored as the key of the hashtable in which these are stored, and
 	* thus need not be stored here.
 	*/
-
-	/* The tags that are to be cleared on _all_ vehicles
-	* (whether loose or not) in this convoy after the execution
-	* of this consist order.
-	*/
-	uint16 tags_to_clear = 0;
 
 	/*
 	* The recipient of any vehicles released by this consist order.
