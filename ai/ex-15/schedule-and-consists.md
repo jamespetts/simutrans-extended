@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ d257c1296
+verified: ex-15 @ 1c8d9cadf
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -121,16 +121,29 @@ explorer's treatment of consist orders.
   honoured rather than departing immediately on the delay expiring.
 - **Left-over/loose vehicles** — displaced vehicles become a new layover convoy in situ (blank
   route, reserves own tiles, empty schedule, no line); pool at stops via
-  `haltestelle_t::get_laid_over`, consumed by process_consist_order; mothballed vehicles excluded.
-  Gaps: no GUI listing of vehicles available to couple; emptied layover convoys linger until
-  `new_month` self-destruct; SHUNTING can overwrite LAYOVER without deregistering (stale
-  laid_over entry); `// TODO: Add code to find a suitable home depot`.
+  `haltestelle_t::get_laid_over`, consumed by process_consist_order; mothballed vehicles excluded
+  from the pool but stored alongside. Player visibility: the stop information window shows a
+  layover icon with the number of loose vehicles (absent when none; mothballed not counted) and
+  the stop details window has a "Vehicles" tab listing each stored vehicle with its owner
+  (mothballed marked). Deleting a stop evacuates the pool: every vehicle goes to the nearest
+  depot of the right type owned by the vehicle's owner, charged to that owner at 1.1x the
+  straight-line distance at the vehicle's per-km running cost (integer arithmetic; booked as
+  distance-based running cost); with no such depot the vehicle is sold at its current value. The
+  affected owners each receive a pop-up dialogue (on their own client) and a player-targeted
+  message. Runs inside `haltestelle_t::destroy` on every peer (skipped at world teardown). New
+  A new loose convoy's home depot is the nearest depot suitable for its first vehicle
+  (`depot_t::find_nearest_depot`; `koord3d::invalid` when the owner has none). Deferred:
+  play-testing of the visibility UI and of the evacuation — loose vehicles cannot arise in play
+  until the consist-order runtime is complete, so testing is a later job. Gaps: none outstanding
+  here — emptied joining convoys destroy promptly (`new_month`'s vehicle-less sweep acts as a
+  backstop) and the layover registry is kept consistent (see "Layover registry consistency"
+  below).
 - **Trigger/couple GUI wiring** — schedule-window arming covers send_trigger,
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
   reachable in play subject to the runtime gaps below. Still absent or unwired: tag controls,
-  consist-order window persistence, loose-vehicle pool listing, livery copying; the copier's sort
+  consist-order window persistence, livery copying; the copier's sort
   controls are present but never sort (one sort-option entry; the ascending/descending toggle only
   flips state), and its name/home-depot filters are unimplemented.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
@@ -186,7 +199,7 @@ explorer's treatment of consist orders.
    ware_t routing data).
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
 6. Solver completeness; GUI wiring for the remaining unwired controls (tags,
-   window persistence, loose-vehicle pool, livery, copier sort).
+   window persistence, livery, copier sort).
 
 ## Vehicle tags — retained; design pending
 
@@ -306,6 +319,21 @@ switch) resets to the default [CODE].
   always with `dep == nullptr`, so its depot branch (`access_convoy_list`, `get_vehicle_list`) is
   dead; the schedule GUI hides the settings tab containing the consist-order button on depot
   entries.
+
+### Layover registry consistency
+
+The `laid_over` pool must mirror exactly the convoys in the LAYOVER state standing at the stop:
+a stale entry would let a consist order at the stop draw on a remote running convoy (the pool
+draw filters only MAINTENANCE/OVERHAUL/REPLENISHING/SHUNTING states). The invariant is
+maintained by the state transitions — the SHUNTING transition and departures from LAYOVER and
+SHUNTING call `exit_layover()` (which guards an unbound halt); `convoi_t::destroy()` deregisters
+(the state is not a reliable guide at that point, so removal is attempted unconditionally); the
+emptied joining convoy in `process_consist_order` deregisters before `self_destruct()` (an
+emptied convoy has no position for destroy() to find the stop by) and is destroyed promptly —
+and repaired at load (`karte_t::load`, beside the maintenance-queue pairing): LAYOVER convoys
+re-register at their stop and `haltestelle_t::validate_laid_over()` drops unbound entries and
+entries whose convoy is not in layover at that stop. Pool iteration is defensive about
+unbound/stale handles regardless.
 
 ## Open questions
 

@@ -1,6 +1,6 @@
 ---
-status: stub
-verified: none
+status: draft
+verified: ex-15 @ 1c8d9cadf
 ---
 # Vehicles, consists & convoys
 
@@ -32,6 +32,49 @@ verified: none
 - `depot_t::convoi_arrived`: `delete_entry` removes the temporary schedule entry; only a `store`
   visit detaches the convoy from its line — a maintain/overhaul visit keeps it and resumes at the
   current schedule entry. [CODE ex-15 @ e440e8710]
+
+## Depot storage & convoy teardown [CODE ex-15 @ 343b6b9cb]
+
+- `depot_t` (simdepot.*) holds two things: `vehicles` (`slist_tpl<vehicle_t*>` of stored,
+  un-convoied vehicles) and `convois` (convoys assembled inside the depot, state INITIAL).
+  Stored vehicles are NOT on the map: they carry `obj_t::not_on_map` ("e.g. vehicles in a
+  depot"); `depot_t::append_vehicle` sets the vehicle's pos to the depot when moving it into a
+  convoy. Per-vehicle ownership is preserved through all depot list operations.
+- Suitability: `depot_t::is_suitable_for(vehicle, traction_types)` (checks same owner and
+  waytype inside, plus suitable traction); `depot_t::find_depot(start, depot_type, player, next)`
+  is a next/previous cycle finder used by depot-window navigation and `emergency_go_to_depot`,
+  NOT a nearest-depot search. Nearest by straight line:
+  `depot_t::find_nearest_depot(pos, vehicle)` (used for displaced convoys' home depots and the
+  loose-vehicle evacuation on stop deletion); `convoi_t::go_to_depot` selects its target by
+  route search.
+- Convoy → stored vehicles: `depot_t::disassemble_convoi(cnv, sell)` loops
+  `cnv->remove_vehicle_at(0)` (`discard_cargo`, `set_leading(false)`, `set_last(false)`,
+  append to `vehicles`), removes the convoy from the depot lists and calls
+  `cnv->self_destruct()`. Single-vehicle variants: `remove_vehicle`/`remove_vehicles_to_end`
+  (convoy → `vehicles`); `append_vehicle` (`vehicles` → convoy); `sell_vehicle`
+  (`book_new_vehicle(sale value)`, `book_vehicle_number(-1)`, `before_delete()`, delete).
+- `convoi_t::remove_vehicle_at(i)` only detaches (`set_convoi(NULL)` + array compaction +
+  `recalc_metrics`); it does NOT remove the vehicle from the map or release reservations.
+- On-map convoy teardown (`convoi_t::self_destruct` → `destroy()` next step; `destroy()` awaits
+  convoy threads, then per vehicle: `set_last(true)`, `leave_tile()` (releases crossings and
+  removes the object from the ground), crossing release, `set_flag(not_on_map)`,
+  `discard_cargo()`, `cleanup(owner)`, `delete`), booking `owner->book_new_vehicle(
+  calc_sale_value())` once and `book_vehicle_number(-1)` per vehicle. `book_convoi_number(-1)`
+  is booked only `if (front())` — an emptied convoy books nothing (matching: convoys created
+  outside the depot tools book no `+1`). `calc_sale_value()` is the sum over vehicles, so an
+  emptied convoy books 0. `leave_tile()` does NOT release `schiene_t` reservations: `destroy()`
+  calls `unreserve_route()` to clear them (the waytype falls back to the schedule when `front()`
+  is absent, for an emptied convoy) and deregisters the convoy from its stop's layover pool
+  (removal attempted unconditionally).
+- Per-km cost: `vehicle_t::get_running_cost(welt)` is the wear- and inflation-adjusted per-km
+  figure; driving books it via `convoi_t::add_running_cost` → `player_t::book_running_costs`
+  (negative amounts = cost; also books way tolls and convoy-level CONVOI_* accounts).
+  Distance recording for movement is `convoi_t::increment_odometer` (per `steps_per_km`):
+  `v.step_km(km)` advances `km_since_new` / `km_since_last_overhaul` /
+  `km_since_last_maintenance` / `km_since_last_replenish` (which drive maintenance-due
+  (`vehicle_t::is_maintenance_needed`), overdue-overhaul availability/cost decay and
+  replenishment range), plus `book(km, CONVOI_DISTANCE)`, `owner->book_convoy_distance`,
+  `total_distance_traveled` and per-way-owner way-usage (`departures[].increment_way_distance`).
 
 ## Planned sections
 
