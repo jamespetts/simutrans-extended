@@ -6810,6 +6810,22 @@ void haltestelle_t::remove_laid_over(convoihandle_t cnv)
 	laid_over.remove(cnv);
 }
 
+void haltestelle_t::validate_laid_over()
+{
+	for (slist_tpl<convoihandle_t>::iterator i = laid_over.begin(); i != laid_over.end(); )
+	{
+		const convoihandle_t cnv = *i;
+		if (!cnv.is_bound() || cnv->get_state() != convoi_t::LAYOVER || haltestelle_t::get_halt(cnv->get_pos(), cnv->get_owner()) != self)
+		{
+			i = laid_over.erase(i);
+		}
+		else
+		{
+			++i;
+		}
+	}
+}
+
 // Mirrors the pool eligibility in convoi_t::process_consist_order: a convoy in a
 // depot-side or shunting state is not available to consist orders.
 static bool is_pool_convoy(convoihandle_t cnv)

@@ -2650,7 +2650,10 @@ void convoi_t::enter_layover(halthandle_t halt)
 void convoi_t::exit_layover()
 {
 	halthandle_t halt = haltestelle_t::get_halt(get_pos(), owner);
-	halt->remove_laid_over(self);
+	if (halt.is_bound())
+	{
+		halt->remove_laid_over(self);
+	}
 }
 
 void convoi_t::advance_schedule()
@@ -6383,6 +6386,12 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 
 		if (result == convoi_t::succeed)
 		{
+			if (state == LAYOVER)
+			{
+				// Shunting overwrites layover: deregister from the stop's layover
+				// pool first, or the registry entry goes stale.
+				exit_layover();
+			}
 			state = SHUNTING;
 			const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
 			wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
@@ -6659,6 +6668,16 @@ void convoi_t::destroy()
 	// routed convoy would leave stale reservations blocking the ways.
 	if(!world()->is_destroying()) {
 		unreserve_route();
+	}
+
+	// Deregister from the stop's layover pool (no-op when not registered). The
+	// state has usually changed before destroy() runs (e.g. SELF_DESTRUCT), so
+	// this is attempted unconditionally.
+	{
+		halthandle_t layover_halt = haltestelle_t::get_halt(get_pos(), owner);
+		if(  layover_halt.is_bound()  ) {
+			layover_halt->remove_laid_over(self);
+		}
 	}
 
 	// can be only done here, with a valid convoihandle ...
@@ -9107,7 +9126,7 @@ void convoi_t::check_departure(halthandle_t halt)
 	if(can_go) {
 		// Advance schedule
 		advance_schedule();
-		if (state == LAYOVER)
+		if (state == LAYOVER || state == SHUNTING)
 		{
 			exit_layover();
 		}
@@ -9782,7 +9801,14 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
 		{
-			joining_convoy->set_state(SELF_DESTRUCT);
+			// An emptied convoy has no position left for destroy() to find the stop
+			// by: deregister from the layover pool here (no-op when not registered),
+			// and destroy promptly rather than waiting out the shunting delay.
+			if (halt.is_bound())
+			{
+				halt->remove_laid_over(joining_convoy);
+			}
+			joining_convoy->self_destruct();
 		}
 	}
 
@@ -9920,8 +9946,8 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			}
 		}
 
-		// The nearest depot suitable for the displaced vehicles is their home
-		// depot; invalid when the owner has none.
+		// The nearest depot suitable for the displaced vehicles is the useful home
+		// depot here; the receiving convoy's home depot is likely to be remote.
 		depot_t* home_depot = depot_t::find_nearest_depot(displaced_vehicles[0]->get_pos(), displaced_vehicles[0]);
 		cnv->set_home_depot(home_depot ? home_depot->get_pos() : koord3d::invalid);
 		cnv->set_name(displaced_vehicles[0]->get_desc()->get_name());

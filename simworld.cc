@@ -9329,6 +9329,21 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 		for( auto dep : depot_t::get_depot_list() ) {
 			dep->validate_maintenance_queue();
 		}
+		// Pair the halts' layover pools with their convoys (the pools load before the
+		// convoys): rebuild from the convoys' own state, then drop stale entries, so
+		// every layover convoy is registered exactly once and no entry survives for a
+		// convoy that has left the stop or was saved mid-shunt.
+		for( auto cnv : convoi_array ) {
+			if(  cnv->get_state()==convoi_t::LAYOVER  ) {
+				halthandle_t halt = haltestelle_t::get_halt( cnv->get_pos(), cnv->get_owner() );
+				if(  halt.is_bound()  ) {
+					halt->add_laid_over( cnv );
+				}
+			}
+		}
+		for( auto halt : haltestelle_t::get_alle_haltestellen() ) {
+			halt->validate_laid_over();
+		}
 DBG_MESSAGE("karte_t::load()", "%d convois/trains loaded", convoi_array.get_count());
 	}
 	else {

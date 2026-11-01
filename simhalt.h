@@ -1064,6 +1064,11 @@ public:
 	void remove_laid_over(convoihandle_t cnv);
 	slist_tpl<convoihandle_t>& get_laid_over() { return laid_over; }
 
+	// Load-time pairing: drop stale layover pool entries (unbound handles and
+	// convoys that are not in layover at this stop). Layover convoys are
+	// re-registered by the caller before this runs. Raw removals only here.
+	void validate_laid_over();
+
 	// The loose vehicles stored at this stop: the vehicles of the convoys in the
 	// layover pool, which consist orders may draw on. Mothballed vehicles are
 	// stored here, too, but are not counted as available.
