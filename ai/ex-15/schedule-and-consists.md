@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 29bc1a6e8
+verified: ex-15 @ 0e3fea68f
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -15,7 +15,7 @@ Y/H-shaped journey traversal — the agreed design and rationale: [yh-path-explo
 read when touching cross-schedule path exploration, split/join journey-time estimation, or the
 explorer's treatment of consist orders.
 
-## Data structures — IMPLEMENTED (deviates from the 2018 plan)
+## Data structures — IMPLEMENTED
 
 - `schedule_entry_t` (dataobj/schedule_entry.h): `pos`; `flags` (uint32, enum `schedule_entry_flag`);
   `minimum_loading` (uint16 — doubles as depot-command carrier via `depot_flag`: delete_entry /
@@ -29,18 +29,16 @@ explorer's treatment of consist orders.
   clear_stored_triggers_on_dep, trigger_one_only, couple, uncouple, couple_target_is_line_or_cnv,
   uncouple_target_is_line_or_cnv, uncouple_target_sch_is_reversed, discharge_payload,
   set_down_only, pick_up_only.
-- Deviations from the 2018 design
-  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170109.html,
-  https://forum.simutrans.com/index.php/topic,17852.msg193643.html]: `unique_entry_id` replaces the
-  planned 8-bit target-entry index; flags widened to 32-bit; loading-control flags added (Dec 2020 /
-  Jan 2023 revisions); consist orders live on `schedule_t::orders` (inthashtable keyed by
-  unique_entry_id) rather than line/convoy level — entries are copied by value, heavyweight orders
-  are kept apart; the planned whole-schedule "list of referring schedules" does NOT exist.
+- Storage model: consist orders live on `schedule_t::orders` (inthashtable keyed by
+  `unique_entry_id`), one per entry; entries are copied by value and heavyweight orders are kept
+  apart. There is no whole-schedule list of referring schedules.
 - Savegame/network: all new entry/order data gated on extended ≥ 15 (`schedule_t::rdwr`,
   `consist_order_t::rdwr`, `haltestelle_t::rdwr` laid_over list, `convoi_t::rdwr`
   conditions_bitfield). Network path = schedule string serialisation
   (`sprintf_schedule`/`sscanf_schedule`, including orders) via tool_change_convoi/line/depot;
-  no dedicated network command for consist orders.
+  no dedicated network command for consist orders. Vehicle-tag fields in saves from before
+  Extended 15.4 (`vehicle_t::tags`, per-slot tag flags, per-order `tags_to_clear`) are read and
+  discarded on load; older save targets are written with zeros.
 
 ## IMPLEMENTED features
 
@@ -67,14 +65,14 @@ explorer's treatment of consist orders.
   first); clear_stored_triggers_on_dep handling. GUI sets only the bitfield numbers (inputs select
   condition numbers 0–15 — the 16 designed conditions) and a line selector.
 - **Loading-control flags** (discharge_payload / set_down_only / pick_up_only) — enforced in
-  `hat_gehalten`/unload paths and in the path explorer. Added Jan 2023
+  `hat_gehalten`/unload paths and in the path explorer
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202997.html].
 - **Depot commands in schedule entries** (depot_flag) — executed in `depot_t::convoi_arrived`.
 - **Spacing/timing rework** — `schedule_t::spacing` in 12ths of departures/month; per-entry
   spacing_shift; departure-slot queueing (`haltestelle_t::get_queue_pos`); whole-schedule ETA/ETD
   projection (`convoi_t::book_departure_time`).
 - **Times history / departure boards** — `times_history_map` (TIMES_HISTORY_SIZE 3),
-  gui_times_history_t (contributor: suitougreentea). Post-2018-plan addition.
+  gui_times_history_t (contributor: suitougreentea).
 - **Path-explorer consist-order integration** — `schedule_t::parse_orders` derives
   catg/min-class carried-to/from tables; `compartment_t::schedule_flags` fragmentation with
   "invalid zones" across consist-order points; extra transfer time after layover/discharge stops.
@@ -96,9 +94,9 @@ explorer's treatment of consist orders.
   `vehicle_description_element` (a specific vehicle, or rules: engine_type, min/max range,
   catering, classes, power, tractive effort, topspeed, weight, axle load, capacity, running/fixed
   cost, fuel, staff, drivers). Hierarchy per
-  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202971.html]. The former
-  `rule_flags` preference system was removed in Extended 15.2 (serialised but never evaluated;
-  pre-15.2 values are read and discarded on load). Solver:
+  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202971.html]. Alternatives carry no
+  preference flags; priority is list order. `rule_flags` values in saves from before Extended
+  15.2 are read and discarded on load. Solver:
   `convoi_t::process_consist_order` (single-pass heuristic matching with one pass-over retry) +
   `commit_recombined_consist` (add/remove/substitute/move vehicles; displaced vehicles force-unloaded
   then collected into a new layover convoy). Matching: `vehicle_t::matches_consist_order_element`
@@ -114,7 +112,27 @@ explorer's treatment of consist orders.
   per-alternative empty toggle, and pool matchability validation that greys OK with a
   reason when no vehicle can satisfy a checked line)
   — INCOMPLETE: no window save/restore (get_rdwr_id and the simwin.cc restore are commented
-  out).
+  out). Picker authoring gates: per-slot goods-category consistency across a slot's
+  alternatives is IMPLEMENTED — the picker only offers vehicles of the target slot's category
+  (`is_filtered`), `consist_order_element_t::append_vehicle`/`set_catg_index` refuse category
+  conflicts, and the rule editor offers only the established category and "Any" per slot.
+  Behaviour-relevant because the value is read at runtime by rule matching
+  (`vehicle_t::desc_matches_rule` tests the slot's category; specific-vehicle alternatives
+  bypass it) and by `schedule_t::parse_orders`' carried-category tables feeding the path
+  explorer [CODE]. OUTSTANDING: reversal-aware picking (the solver matches on a de-reversed
+  shadow consist and re-reverses the result, so the executed facing of a picked vehicle can
+  differ from the picker's presentation); and the "v-shape filter" — a per-portion validity
+  gate for a schedule that splits on the outward leg and
+  rejoins on the return leg (uncouple entry out, couple entry back), requiring each portion to
+  remain a valid consist (complete against its own end-state, own traction, valid ends at the
+  split faces and at the rejoin, in the executed orientation)
+  [RECOLLECTION:2026-11-01 user statement]. UI-level order: reversal-aware picking, then
+  window save/restore last of the UI-level items, then the per-portion gate with the dividing
+  work package [RECOLLECTION:2026-11-01 user statement]. The per-portion gate belongs to that
+  package: the runtime is major and complex, so its design and implementation are undertaken
+  together and the composition rule (Open questions) is settled within the work
+  [RECOLLECTION:2026-11-01 user statement]; the gate itself is a small predicate in the
+  existing picker, written once the rule is fixed and ships with that runtime.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -149,9 +167,10 @@ explorer's treatment of consist orders.
   building `replenish_enable` flag, `km_since_last_replenish`, replace_data on_replenish — no
   callers/triggers anywhere; force_range_stop flag is display-only ("[RS]", img_refuel). In scope
   for 15.x: the connecting logic is outstanding, and more sophisticated integration with
-  re-combination/consist orders is likely needed [RECOLLECTION:2026-09-07]. Range-stop algorithm
-  designed [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg193779.html]; dynamic
-  (fuel-consumption-derived) range rejected
+  re-combination/consist orders is likely needed [RECOLLECTION:2026-09-07]. The range-stop
+  algorithm follows the design
+  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg193779.html]; dynamic
+  (fuel-consumption-derived) range is rejected by design
   [FORUM:https://forum.simutrans.com/index.php/topic,14991.msg193647.html].
 
 ## ABSENT — core outstanding 15.x work [RECOLLECTION:2026-09-07]
@@ -185,33 +204,21 @@ explorer's treatment of consist orders.
 
 1. Dividing runtime with schedule hand-over: create a convoy mid-stop from a live consist, assign
    the target schedule at the right entry (incl. the reversed case), re-reserve tiles for both
-   portions, keep signalling/reservations consistent, network-deterministically.
+   portions, keep signalling/reservations consistent, network-deterministically. Design and
+   implementation are undertaken together (the runtime is major and complex), with the split
+   composition rule (which slots/vehicles form the split-off portion; Open questions) settled
+   within the work — the picker's per-portion authoring gate under Consist orders is specified
+   from it and ships with it.
 2. Y/H path-explorer traversal with journey times across concatenated schedules.
 3. Two-party timed coupling (probably via the existing trigger system), failure behaviour,
    dead-lock detection/avoidance.
 4. Freight continuity across splits/joins (fares/apportionment in unload_cargo/load_cargo,
    ware_t routing data). Must be seriously considered when building the recombination/dividing
-   runtime [RECOLLECTION:2026-11-01 user statement]: it is the source of the instance-identity
-   need that vehicle tags were intended to serve, so its design decides whether any
-   instance-marking mechanism is needed at all.
+   runtime [RECOLLECTION:2026-11-01 user statement]: its design decides whether any
+   instance-marking mechanism is needed at all (Open questions).
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
 6. Solver completeness; GUI wiring for the remaining unwired controls (window
    persistence).
-
-## Vehicle tags — removed; identity design deferred
-
-The vehicle tag fields (`vehicle_t::tags`; per slot `clear_all_tags`, `tags_required`,
-`tags_to_set`; per order `tags_to_clear`) were serialised but never evaluated, and were removed in
-Extended 15.4. Pre-15.4 saves load with the values discarded; zeros are written for older save
-targets. Two purposes had been proposed on the forum: eligibility of loose vehicles — which the
-leftover-recipient mechanism above now covers
-[FORUM:https://forum.simutrans.com/index.php/topic,17852.0] — and instance identity for portion
-working: marking which of several descriptor-identical vehicles goes into which portion at a
-division [FORUM:https://forum.simutrans.com/index.php/topic,16980.0, ACarlotti, Feb 2018]. The
-identity purpose is contingent on the dividing runtime and freight continuity, neither
-implemented, and may be better served by cargo-derived vehicle selection (the same forum
-discussion). Revisit instance marking as part of the freight-continuity design ("Most difficult
-outstanding work" item 4), not as a standalone feature.
 
 ## Multi-player consists — ownership and access model
 
@@ -284,7 +291,7 @@ is copied between a line and a convoy; the resolved id/kind is copied to each re
 `loose_recipient_id`/`loose_recipient_flags` (zero means no named recipient) [CODE]. The
 eligibility check that reads it at pickup is not yet written: `process_consist_order` still draws
 on the halt's laid-over pool without consulting the recipient, so the setting has no gameplay
-effect yet [CODE]. The design's list of permitted lines/convoys is implemented as one selection. The
+effect yet [CODE]. One recipient may be specified, not a list. The
 consist-order window lists the Same/Any entries plus the halt's lines or consists, with a
 Line/Consist filter; a specific recipient no longer registered at the halt (or hidden by a filter
 switch) resets to the default [CODE].
@@ -325,14 +332,25 @@ unbound/stale handles regardless.
 ## Open questions
 
 - Player-initiated livery copying — a convenience feature for copying the livery of one of a
-  player's own consists to their other consists (the origin of the former "livery copying"
-  notes in this doc) [RECOLLECTION:2026-11-01 user statement]. Unsettled: whether it copies the
+  player's own consists to their other consists [RECOLLECTION:2026-11-01 user statement].
+  Unsettled: whether it copies the
   livery scheme (setting the targets' scheme index and re-applying) or the per-vehicle liveries,
   and how the target consists are selected. The ownership rule above gives its semantics on
   mixed consists (own vehicles only, with the warning). Unrelated to re-combination, which never
   changes liveries.
 - "Empty slot" semantics (vehicle_description_element defaults empty=true; GUI produces
   empty slots via the per-slot toggle but not rule-based slots).
+- Split composition rule for the dividing runtime: which vehicles form the split-off portion at
+  an uncouple entry — the complement of the staying consist order at that entry, the consist
+  order at the named target entry (`target_unique_entry_uncouple`), or an explicit
+  slot-to-portion assignment? The picker's per-portion gate ("v-shape filter", under Consist
+  orders) cannot be specified until this is settled; it also interacts with instance identity
+  (below).
+- Instance identity at a division: which of several descriptor-identical vehicles goes into
+  which portion, and whether any instance-marking mechanism is needed at all — cargo-derived
+  selection may suffice. Decide as part of the freight-continuity design ("Most difficult
+  outstanding work" item 4), not as a standalone feature
+  [FORUM:https://forum.simutrans.com/index.php/topic,16980.0].
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):
   naming suggests inverted ordering; intended semantics unresolved — left open deliberately
   [RECOLLECTION:2026-09-07].
