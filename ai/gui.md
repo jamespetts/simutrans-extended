@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ d6717f8f1
+verified: ex-15 @ 5dde53e83
 ---
 # GUI
 
@@ -76,10 +76,47 @@ rendered-pixel screenshot feedback loop see [gui-visual-feedback](gui/visual-fee
 - [gui-visual-feedback](gui/visual-feedback.md) — read when iterating dialog design with real
   screenshots: `SIMUTRANS_UI_AUTOMATION` build gates, env vars, run recipe, loop procedure.
 
+## Window persistence (save/restore)
+
+- `rdwr_all_win(loadsave_t*)` (gui/simwin.cc) saves and restores open windows. It runs at the
+  very end of `karte_t::rdwr` (after `active_player_nr`) and is NOT part of
+  `karte_t::rdwr_gamestate`: window state is client-local UI state and never enters the desync
+  hash. The load side runs only when `env_t::restore_UI` is set (karte_t::load) [CODE].
+- A window is saved iff its `gui_frame_t::get_rdwr_id()` returns anything but `magic_reserved`.
+  Record layout: id, position, `wintype` byte, sticky/locked/rollup flags, then the window's own
+  `rdwr()` (its window size and content). Records are written in `wins` order (z-order) and
+  terminated by `magic_none`. The block is gated at Extended 15; a record may carry its own
+  revision gate where its content changed — such records are skipped entirely for older save
+  targets (example: the consist-order window and rule editor records) [CODE].
+- Restore (the load side of `rdwr_all_win`) switches on the id: each case default-constructs the
+  window, `create_win` places it, then `w->rdwr(file)` fills it. `rdwr()` may create its own real
+  window and destroy the dummy it was called on (the `magic_schedule_rdwr_dummy` /
+  `magic_line_schedule_rdwr_dummy` pattern); the sticky/rollup flags are then applied to the
+  window created last [CODE].
+- Two magic styles. A window keyed by a live-object pointer (convoy/line schedule windows, keyed
+  `(ptrdiff_t)cnv->get_schedule()` / `(ptrdiff_t)line.get_rep()`) serialises its target handle
+  (`convoi_t::rdwr_convoihandle_t` / `simline_t::rdwr_linehandle_t`) and re-binds after loading.
+  A static singleton serialises under a reserved "rdwr dummy" id
+  (`magic_consist_order_rdwr_dummy`, "only used to load/save") and re-keys the restored instance
+  with `win_set_magic`, or directly under its live id (the rule editor) [CODE].
+- Restore runs strictly in save order, so a window whose `rdwr()` binds to another window's
+  state must be saved after its target: `rdwr_all_win` writes the consist-order window record
+  (which binds to its owner schedule window's editing copy) and the rule editor record (which
+  binds to the consist-order window's working order) after all other windows, irrespective of
+  z-order [CODE].
+- Failure policy on restore: when the owner window, entry or halt cannot be resolved, the
+  window destroys itself with a `dbg->error` (drop-on-failure) rather than half-binding. Note
+  `destroy_win` deletes synchronously outside event handling and defers via the kill list inside
+  event handling/draw, so a self-destroying `rdwr()`/`update()` must touch nothing afterwards [CODE].
+- Commit-path rule: windows edit working copies (the schedule GUIs' editing copies, the
+  consist-order window's working `consist_order_t`); only the commit path sends tools, and
+  restore must never mutate synced state → [sync-and-determinism](sync-and-determinism.md) [CODE].
+- Separate mechanism: `rdwr_win_settings` (gui/simwin.cc, called from the environment settings)
+  keeps a window position/size memory keyed by `guess_magic_number`; that is settings.xml state,
+  not savegame state [CODE].
+
 ## Open questions
 
-- Which windows are saved/restored (which `get_rdwr_id` values are non-reserved), and how that
-  interacts with savegame versioning? Verify against gui/simwin.* → [savegame-versioning](savegame-versioning.md).
 - Cross-window stacking, draw order and hit-testing in gui/simwin.* — document.
 - Conventions of the list-frame/*_stats pattern (many `*list_frame_t` + `*_stats_t` pairs).
 - themes.src → skin_desc pipeline (→ [data-and-pak](data-and-pak.md)).

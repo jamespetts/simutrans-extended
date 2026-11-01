@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0e3fea68f
+verified: ex-15 @ 5dde53e83
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -110,9 +110,7 @@ explorer's treatment of consist orders.
   incl. an any-category wildcard (`consist_order_element_t::any_catg_index`, skipped in
   matching and in `parse_orders`' carried-category tables), named minimum-class dropdown,
   per-alternative empty toggle, and pool matchability validation that greys OK with a
-  reason when no vehicle can satisfy a checked line)
-  — INCOMPLETE: no window save/restore (get_rdwr_id and the simwin.cc restore are commented
-  out). Picker authoring gates: per-slot goods-category consistency across a slot's
+  reason when no vehicle can satisfy a checked line). Picker authoring gates: per-slot goods-category consistency across a slot's
   alternatives is IMPLEMENTED — the picker only offers vehicles of the target slot's category
   (`is_filtered`), `consist_order_element_t::append_vehicle`/`set_catg_index` refuse category
   conflicts, and the rule editor offers only the established category and "Any" per slot.
@@ -127,8 +125,7 @@ explorer's treatment of consist orders.
   remain a valid consist (complete against its own end-state, own traction, valid ends at the
   split faces and at the rejoin, in the executed orientation)
   [RECOLLECTION:2026-11-01 user statement]. UI-level order: reversal-aware picking, then
-  window save/restore last of the UI-level items, then the per-portion gate with the dividing
-  work package [RECOLLECTION:2026-11-01 user statement]. The per-portion gate belongs to that
+  the per-portion gate with the dividing work package [RECOLLECTION:2026-11-01 user statement]. The per-portion gate belongs to that
   package: the runtime is major and complex, so its design and implementation are undertaken
   together and the composition rule (Open questions) is settled within the work
   [RECOLLECTION:2026-11-01 user statement]; the gate itself is a small predicate in the
