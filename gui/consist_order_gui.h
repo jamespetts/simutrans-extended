@@ -23,10 +23,12 @@
 #include "components/gui_scrollpane.h"
 #include "components/gui_scrolled_list.h"
 #include "components/gui_tab_panel.h"
+#include "components/gui_textinput.h"
 
 #include "../tpl/slist_tpl.h"
 
 #include "../convoihandle_t.h"
+#include "../dataobj/koord3d.h"
 #include "../halthandle_t.h"
 #include "../player/simplay.h"
 
@@ -265,6 +267,13 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	// filter
 	gui_label_t lb_open_convoy_filter;
 	button_t bt_filter_halt_convoy, bt_filter_line_convoy, bt_filter_single_vehicle, bt_show_hide_convoy_filter;
+	// Name substring and home depot of the consist list; the depot comes from
+	// the dropdown (invalid = no depot filter).
+	char name_filter[256] = { 0 };
+	gui_textinput_t name_filter_input;
+	gui_combobox_t depot_filter;
+	koord3d filter_home_depot = koord3d::invalid;
+	bool is_convoy_filtered(convoihandle_t cnv);
 	gui_combobox_t cc_sortedby;
 	gui_aligned_container_t cont_convoy_filter;
 	//

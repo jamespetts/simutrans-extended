@@ -5,6 +5,7 @@
 
 #include "consist_order_gui.h"
 #include "convoi_detail_t.h"
+#include "convoi_frame.h"
 #include "convoy_item.h"
 #include "simwin.h"
 #include "messagebox.h"
@@ -18,6 +19,7 @@
 #include "../simconvoi.h"
 #include "../simdepot.h"
 #include "../simworld.h"
+#include "../unicode.h"
 #include "../vehicle/vehicle.h"
 #include "components/gui_convoy_assembler.h"
 #include "components/gui_divider.h"
@@ -87,13 +89,39 @@ class consist_scrollitem_t : public convoy_scrollitem_t
 public:
 	consist_scrollitem_t(convoihandle_t c = convoihandle_t(), bool auto_text_color = false) : convoy_scrollitem_t(c, auto_text_color) { }
 	char const* get_text() const OVERRIDE;
+
+	// Sort state of the copier list: criterion (convoi_frame_t::sort_mode_t)
+	// and direction. Static like the other sort settings in this window, so
+	// the choice is kept when the window is reopened.
+	static int sort_mode;
+	static bool sortreverse;
+	static bool compare(const gui_component_t *a, const gui_component_t *b);
 };
+
+
+int consist_scrollitem_t::sort_mode = convoi_frame_t::by_name;
+bool consist_scrollitem_t::sortreverse = false;
 
 
 char const* consist_scrollitem_t::get_text() const
 {
 	const convoihandle_t cnv = get_convoy();
 	return cnv.is_bound() ? cnv->get_name() : "Consist not found";
+}
+
+
+bool consist_scrollitem_t::compare(const gui_component_t *aa, const gui_component_t *bb)
+{
+	const consist_scrollitem_t *a = dynamic_cast<const consist_scrollitem_t*>(aa);
+	const consist_scrollitem_t *b = dynamic_cast<const consist_scrollitem_t*>(bb);
+	const convoihandle_t ca = a ? a->get_convoy() : convoihandle_t();
+	const convoihandle_t cb = b ? b->get_convoy() : convoihandle_t();
+	// The empty-list placeholder has no convoy: keep it at the bottom in
+	// either direction.
+	if (!ca.is_bound() || !cb.is_bound()) {
+		return ca.is_bound();
+	}
+	return convoi_frame_t::compare_convois(ca, cb, (convoi_frame_t::sort_mode_t)sort_mode, sortreverse);
 }
 
 
@@ -145,10 +173,30 @@ public:
 	uint16 get_recipient_id() const { return recipient_id; }
 };
 
-// sort option for Consist Copier
-// TODO: add sort option
-static const char *cc_sort_text[1] = {
-	"Name"
+// One entry of the home-depot filter dropdown: the "All" template (invalid
+// position), or a depot of the player, identified by its position.
+class depot_filter_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
+{
+	koord3d depot_pos;
+	cbuffer_t text_buf;
+
+public:
+	// dep == NULL builds the "All" template entry.
+	depot_filter_scrollitem_t(depot_t *dep = NULL) :
+		gui_scrolled_list_t::const_text_scrollitem_t(NULL, SYSCOL_TEXT)
+	{
+		if (dep) {
+			text_buf.printf("%s %s", dep->get_name(), dep->get_pos().get_2d().get_fullstr());
+			depot_pos = dep->get_pos();
+		}
+		else {
+			text_buf.append(translator::translate("All"));
+			depot_pos = koord3d::invalid;
+		}
+		set_text_pointer(text_buf);
+	}
+
+	koord3d get_depot_pos() const { return depot_pos; }
 };
 
 // sort option for Vehicle Picker
@@ -1516,7 +1564,7 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 	halt_number(255),
 	cont_order_overview(&order, schedule->get_waytype()),
 	scl_vehicles(gui_scrolled_list_t::listskin, vehicle_scrollitem_t::compare),
-	scl_convoys(gui_scrolled_list_t::listskin),
+	scl_convoys(gui_scrolled_list_t::listskin, consist_scrollitem_t::compare),
 	scroll_order(&cont_order, true, false),
 	img_convoy(convoihandle_t()),
 	formation(convoihandle_t(), false),
@@ -1832,8 +1880,36 @@ void consist_order_frame_t::init_table()
 					cont_convoy_filter.add_component(&bt_filter_single_vehicle);
 
 					// electric / bidirectional
-					// TODO: name filter
-					// TODO: home depot filter
+					// Name filter: case-insensitive substring of the consist name.
+					cont_convoy_filter.add_table(2, 1);
+					{
+						cont_convoy_filter.new_component<gui_label_t>("Name")->set_tooltip(translator::translate("Show only consists whose name contains this text"));
+						name_filter_input.set_text(name_filter, lengthof(name_filter));
+						name_filter_input.set_search_box(true);
+						name_filter_input.set_width(D_BUTTON_WIDTH);
+						name_filter_input.add_listener(this);
+						cont_convoy_filter.add_component(&name_filter_input);
+					}
+					cont_convoy_filter.end_table();
+
+					// Home-depot filter: only consists homed at the selected depot.
+					cont_convoy_filter.add_table(2, 1);
+					{
+						cont_convoy_filter.new_component<gui_label_t>("Home depot")->set_tooltip(translator::translate("Show only consists whose home depot is the selected depot"));
+						depot_filter.new_component<depot_filter_scrollitem_t>();
+						for (auto const dep : depot_t::get_depot_list()) {
+							if (dep->get_owner() == player && dep->get_waytype() == schedule->get_waytype()) {
+								depot_filter.new_component<depot_filter_scrollitem_t>(dep);
+							}
+						}
+						depot_filter.set_selection(0);
+						depot_filter.set_size(scr_size(D_BUTTON_WIDTH * 2, D_EDIT_HEIGHT));
+						depot_filter.set_width_fixed(true);
+						depot_filter.add_listener(this);
+						cont_convoy_filter.add_component(&depot_filter);
+					}
+					cont_convoy_filter.end_table();
+
 					cont_convoy_filter.new_component<gui_empty_t>(); // bottom margin
 				}
 				cont_convoy_filter.end_table();
@@ -1864,18 +1940,16 @@ void consist_order_frame_t::init_table()
 			cont_convoy_copier.add_table(3,2);
 			{
 				cont_convoy_copier.new_component<gui_label_t>("cl_txt_sort")->set_tooltip(translator::translate("Sort the consist list by the selected criterion"));
-				// TODO: add sort option
-				//cc_sortedby
-				for (uint8 i = 0; i < 1; i++) {
-					cc_sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(cc_sort_text[i]), SYSCOL_TEXT);
+				for (uint8 i = 0; i < convoi_frame_t::SORT_MODES; i++) {
+					cc_sortedby.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate(convoi_frame_t::sort_text[i]), SYSCOL_TEXT);
 				}
-				cc_sortedby.set_selection(0);
+				cc_sortedby.set_selection(consist_scrollitem_t::sort_mode);
 				cc_sortedby.add_listener(this);
 				cont_convoy_copier.add_component(&cc_sortedby);
 				bt_sort_order_cnv.init(button_t::sortarrow_state, "");
 				bt_sort_order_cnv.set_tooltip(translator::translate("Toggle ascending/descending order"));
 				bt_sort_order_cnv.add_listener(this);
-				bt_sort_order_cnv.pressed = false;
+				bt_sort_order_cnv.pressed = consist_scrollitem_t::sortreverse;
 				cont_convoy_copier.add_component(&bt_sort_order_cnv);
 			}
 			cont_convoy_copier.end_table();
@@ -2032,8 +2106,22 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 
 	}
 	else if( comp==&bt_sort_order_cnv ) {
-		bt_sort_order_cnv.pressed ^= 1;
-		// TODO: execute sorting
+		consist_scrollitem_t::sortreverse = !consist_scrollitem_t::sortreverse;
+		bt_sort_order_cnv.pressed = consist_scrollitem_t::sortreverse;
+		// refresh() re-sorts; the selection travels with its row.
+		scl_convoys.refresh();
+	}
+	else if( comp==&cc_sortedby ) {
+		consist_scrollitem_t::sort_mode = v.i;
+		scl_convoys.refresh();
+	}
+	else if( comp==&name_filter_input ) {
+		build_vehicle_list();
+	}
+	else if( comp==&depot_filter ) {
+		const depot_filter_scrollitem_t *item = dynamic_cast<const depot_filter_scrollitem_t*>(depot_filter.get_element(v.i));
+		filter_home_depot = item ? item->get_depot_pos() : koord3d::invalid;
+		build_vehicle_list();
 	}
 	else if(  comp==&bt_copy_convoy  ) {
 		if( !selected_convoy.is_bound() ) {
@@ -2077,11 +2165,6 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		}
 		build_vehicle_list();
 	}
-	//else if (comp == &cc_sortedby) {
-	//	// TODO: add sort option
-	//
-	//}
-
 	// [VEHICLE PICKER]
 	else if( comp==&scl_vehicles ) {
 		scl_vehicles.get_selection();
@@ -2319,6 +2402,9 @@ void consist_order_frame_t::build_vehicle_list()
 				if( filter_catg!=255  &&  filter_catg!=goods_manager_t::INDEX_NONE  &&  !cnv->get_goods_catg_index().is_contained(filter_catg) ) {
 					continue;
 				}
+				if( is_convoy_filtered(cnv) ) {
+					continue;
+				}
 				own_convoys.append(cnv);
 			}
 		}
@@ -2406,6 +2492,9 @@ void consist_order_frame_t::build_vehicle_list()
 					if( bt_filter_single_vehicle.pressed  &&  cnv->get_vehicle_count()<2 ) {
 						continue;
 					}
+					if( is_convoy_filtered(cnv) ) {
+						continue;
+					}
 					// Exclude convoys consisting of the same vehicle in the same line
 					bool alredey_append = false;
 					uint8 k = j;
@@ -2430,6 +2519,9 @@ void consist_order_frame_t::build_vehicle_list()
 			if( cnv->get_owner()==player  &&cnv->front()->get_waytype()==schedule->get_waytype() ) {
 				// filter
 				if( filter_catg!=255  &&  filter_catg!=goods_manager_t::INDEX_NONE  &&  !cnv->get_goods_catg_index().is_contained(filter_catg) ) {
+					continue;
+				}
+				if( is_convoy_filtered(cnv) ) {
 					continue;
 				}
 				own_convoys.append(cnv);
@@ -2512,6 +2604,20 @@ bool consist_order_frame_t::is_filtered(const vehicle_desc_t *veh_type)
 		return true;
 	}
 
+	return false;
+}
+
+
+// Consist-copier filters: the name substring and the home-depot dropdown.
+// The stop/line/single-vehicle toggles are checked at their own append sites.
+bool consist_order_frame_t::is_convoy_filtered(convoihandle_t cnv)
+{
+	if( name_filter[0] != 0  &&  !utf8caseutf8(cnv->get_name(), name_filter) ) {
+		return true;
+	}
+	if( filter_home_depot != koord3d::invalid  &&  cnv->get_home_depot() != filter_home_depot ) {
+		return true;
+	}
 	return false;
 }
 

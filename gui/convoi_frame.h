@@ -49,8 +49,6 @@ public:
 private:
 	player_t *owner;
 
-	static const char *sort_text[SORT_MODES];
-
 	/// number of convoys the last time we checked.
 	uint32 last_world_convois;
 
@@ -90,7 +88,12 @@ private:
 
 public:
 
+	static const char *sort_text[SORT_MODES];
+
 	static bool compare_convois(convoihandle_t, convoihandle_t);
+	// The criterion and direction as parameters, so other convoy lists (e.g.
+	// the consist copier) can share the comparison with their own sort state.
+	static bool compare_convois(convoihandle_t, convoihandle_t, sort_mode_t mode, bool reverse);
 
 	/**
 	 * Check all filters for one convoi.

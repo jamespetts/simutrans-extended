@@ -138,9 +138,15 @@ bool convoi_frame_t::passes_filter(convoihandle_t cnv)
 
 bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t const cnv2)
 {
+	return compare_convois(cnv1, cnv2, sortby, sortreverse);
+}
+
+
+bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t const cnv2, sort_mode_t const mode, bool const reverse)
+{
 	sint32 result = 0;
 
-	switch (sortby) {
+	switch (mode) {
 		default:
 		case by_name:
 			result = strcmp(cnv1->get_internal_name(), cnv2->get_internal_name());
@@ -218,7 +224,7 @@ bool convoi_frame_t::compare_convois(convoihandle_t const cnv1, convoihandle_t c
 			result = factor_1 - factor_2;
 			break;
 	}
-	return sortreverse ? result > 0 : result < 0;
+	return reverse ? result > 0 : result < 0;
 }
 
 
