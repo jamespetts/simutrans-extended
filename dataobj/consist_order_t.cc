@@ -187,7 +187,7 @@ PIXVAL consist_order_t::get_constraint_state_color(uint32 element_number, bool r
 }
 
 
-void consist_order_t::rdwr(loadsave_t* file)
+void vehicle_description_element::rdwr(loadsave_t *file)
 {
 	// The rule preference flags were removed in Extended 15.2 (they were serialised
 	// but never evaluated at runtime). Pre-15.2 files (Extended 15 revision 0-1) still
@@ -196,10 +196,75 @@ void consist_order_t::rdwr(loadsave_t* file)
 	// Number of flag values per alternative in the pre-15.2 shape.
 	const uint32 old_rule_flag_count = 20;
 
+	if (file->is_saving())
+	{
+		const char *s = specific_vehicle ? specific_vehicle->get_name() : "~BLANK~";
+		file->rdwr_str(s);
+	}
+	else
+	{
+		char vehicle_name[512];
+		file->rdwr_str(vehicle_name, 512);
+		const vehicle_desc_t* desc = vehicle_builder_t::get_info(vehicle_name);
+		if(desc == nullptr)
+		{
+			desc = vehicle_builder_t::get_info(translator::compatibility_name(vehicle_name));
+		}
+		specific_vehicle = desc;
+	}
+
+	file->rdwr_bool(empty);
+	file->rdwr_byte(engine_type);
+	file->rdwr_byte(min_catering);
+	file->rdwr_byte(max_catering);
+	file->rdwr_byte(must_carry_class);
+	file->rdwr_long(min_range);
+	file->rdwr_long(max_range);
+	file->rdwr_short(min_brake_force);
+	file->rdwr_short(max_brake_force);
+	file->rdwr_long(min_power);
+	file->rdwr_long(max_power);
+	file->rdwr_long(min_tractive_effort);
+	file->rdwr_long(max_tractive_effort);
+	file->rdwr_long(max_topspeed);
+	file->rdwr_long(min_topspeed);
+	file->rdwr_long(max_weight);
+	file->rdwr_long(min_weight);
+	file->rdwr_long(max_axle_load);
+	file->rdwr_long(min_axle_load);
+	file->rdwr_short(min_capacity);
+	file->rdwr_short(max_capacity);
+	file->rdwr_long(max_running_cost);
+	file->rdwr_long(min_running_cost);
+	file->rdwr_long(max_fixed_cost);
+	file->rdwr_long(min_fixed_cost);
+	file->rdwr_long(max_fuel_per_km);
+	file->rdwr_long(min_fuel_per_km);
+	file->rdwr_long(max_staff_hundredths);
+	file->rdwr_long(min_staff_hundredths);
+	file->rdwr_long(max_drivers);
+	file->rdwr_long(min_drivers);
+
+	if (old_rule_flags_shape) {
+		// Zeros for the removed preference flags (see above), so that older
+		// builds can still read saves written for an older target revision.
+		for(uint32 i = 0; i < old_rule_flag_count; i ++)
+		{
+			uint32 zero = 0;
+			file->rdwr_long(zero);
+		}
+	}
+}
+
+
+void consist_order_t::rdwr(loadsave_t* file)
+{
 	// The vehicle tag fields were removed in Extended 15.4 (they were serialised
 	// but never evaluated at runtime). Pre-15.4 files (Extended 15 revision 0-3)
 	// still carry them, read and discarded below; zeros are written for older save
 	// targets so that older builds can still read saves written for those targets.
+	// (The removed pre-15.2 rule preference flags are handled inside
+	// vehicle_description_element::rdwr.)
 	const bool old_tag_shape = file->get_extended_version() == 15 && file->get_extended_revision() < 4;
 
 	if (old_tag_shape)
@@ -244,52 +309,9 @@ void consist_order_t::rdwr(loadsave_t* file)
 			uint32 vehicle_description_count = order.vehicle_description.get_count();
 			file->rdwr_long(vehicle_description_count);
 
-			for(auto vehicle_description : order.vehicle_description)
+			for(auto &vehicle_description : order.vehicle_description)
 			{
-				// Save each element of the vehicle descriptors
-				const char *s = vehicle_description.specific_vehicle ? vehicle_description.specific_vehicle->get_name() : "~BLANK~";
-				file->rdwr_str(s);
-
-				file->rdwr_bool(vehicle_description.empty);
-				file->rdwr_byte(vehicle_description.engine_type);
-				file->rdwr_byte(vehicle_description.min_catering);
-				file->rdwr_byte(vehicle_description.max_catering);
-				file->rdwr_byte(vehicle_description.must_carry_class);
-				file->rdwr_long(vehicle_description.min_range);
-				file->rdwr_long(vehicle_description.max_range);
-				file->rdwr_short(vehicle_description.min_brake_force);
-				file->rdwr_short(vehicle_description.max_brake_force);
-				file->rdwr_long(vehicle_description.min_power);
-				file->rdwr_long(vehicle_description.max_power);
-				file->rdwr_long(vehicle_description.min_tractive_effort);
-				file->rdwr_long(vehicle_description.max_tractive_effort);
-				file->rdwr_long(vehicle_description.max_topspeed);
-				file->rdwr_long(vehicle_description.min_topspeed);
-				file->rdwr_long(vehicle_description.max_weight);
-				file->rdwr_long(vehicle_description.min_weight);
-				file->rdwr_long(vehicle_description.max_axle_load);
-				file->rdwr_long(vehicle_description.min_axle_load);
-				file->rdwr_short(vehicle_description.min_capacity);
-				file->rdwr_short(vehicle_description.max_capacity);
-				file->rdwr_long(vehicle_description.max_running_cost);
-				file->rdwr_long(vehicle_description.min_running_cost);
-				file->rdwr_long(vehicle_description.max_fixed_cost);
-				file->rdwr_long(vehicle_description.min_fixed_cost);
-				file->rdwr_long(vehicle_description.max_fuel_per_km);
-				file->rdwr_long(vehicle_description.min_fuel_per_km);
-				file->rdwr_long(vehicle_description.max_staff_hundredths);
-				file->rdwr_long(vehicle_description.min_staff_hundredths);
-				file->rdwr_long(vehicle_description.max_drivers);
-				file->rdwr_long(vehicle_description.min_drivers);
-
-				if (old_rule_flags_shape) {
-					// Write zeros so that older builds can still read saves written for an older target revision.
-					for(uint32 i = 0; i < old_rule_flag_count; i ++)
-					{
-						uint32 zero = 0;
-						file->rdwr_long(zero);
-					}
-				}
+				vehicle_description.rdwr(file);
 			}
 		}
 	}
@@ -320,57 +342,7 @@ void consist_order_t::rdwr(loadsave_t* file)
 			for(uint32 j = 0; j < vehicle_description_count; j ++)
 			{
 				vehicle_description_element vehicle_description;
-
-				char vehicle_name[512];
-				file->rdwr_str(vehicle_name, 512);
-				const vehicle_desc_t* desc = vehicle_builder_t::get_info(vehicle_name);
-				if(desc == nullptr)
-				{
-					desc = vehicle_builder_t::get_info(translator::compatibility_name(vehicle_name));
-				}
-				vehicle_description.specific_vehicle = desc;
-
-				file->rdwr_bool(vehicle_description.empty);
-				file->rdwr_byte(vehicle_description.engine_type);
-				file->rdwr_byte(vehicle_description.min_catering);
-				file->rdwr_byte(vehicle_description.max_catering);
-				file->rdwr_byte(vehicle_description.must_carry_class);
-				file->rdwr_long(vehicle_description.min_range);
-				file->rdwr_long(vehicle_description.max_range);
-				file->rdwr_short(vehicle_description.min_brake_force);
-				file->rdwr_short(vehicle_description.max_brake_force);
-				file->rdwr_long(vehicle_description.min_power);
-				file->rdwr_long(vehicle_description.max_power);
-				file->rdwr_long(vehicle_description.min_tractive_effort);
-				file->rdwr_long(vehicle_description.max_tractive_effort);
-				file->rdwr_long(vehicle_description.max_topspeed);
-				file->rdwr_long(vehicle_description.min_topspeed);
-				file->rdwr_long(vehicle_description.max_weight);
-				file->rdwr_long(vehicle_description.min_weight);
-				file->rdwr_long(vehicle_description.max_axle_load);
-				file->rdwr_long(vehicle_description.min_axle_load);
-				file->rdwr_short(vehicle_description.min_capacity);
-				file->rdwr_short(vehicle_description.max_capacity);
-				file->rdwr_long(vehicle_description.max_running_cost);
-				file->rdwr_long(vehicle_description.min_running_cost);
-				file->rdwr_long(vehicle_description.max_fixed_cost);
-				file->rdwr_long(vehicle_description.min_fixed_cost);
-				file->rdwr_long(vehicle_description.max_fuel_per_km);
-				file->rdwr_long(vehicle_description.min_fuel_per_km);
-				file->rdwr_long(vehicle_description.max_staff_hundredths);
-				file->rdwr_long(vehicle_description.min_staff_hundredths);
-				file->rdwr_long(vehicle_description.max_drivers);
-				file->rdwr_long(vehicle_description.min_drivers);
-
-				if (old_rule_flags_shape) {
-					// Discard the removed preference flags.
-					for(uint32 i = 0; i < old_rule_flag_count; i ++)
-					{
-						uint32 discard = 0;
-						file->rdwr_long(discard);
-					}
-				}
-
+				vehicle_description.rdwr(file);
 				order.vehicle_description.append(vehicle_description);
 			}
 

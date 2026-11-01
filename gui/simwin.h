@@ -139,7 +139,7 @@ enum magic_numbers {
 	magic_script_error,
 	magic_prices_frame,
 	magic_uncouple_entry_picker,
-	magic_consist_rule_editor, // no save/load support, created on demand
+	magic_consist_rule_editor, // created on demand; saved/loaded under this id
 	//magic_info_pointer, //unused
 	magic_max
 };

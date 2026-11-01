@@ -36,6 +36,7 @@
 #include "../dataobj/consist_order_t.h"
 
 class consist_order_t;
+class schedule_gui_t;
 
 
 // Scrolled list with a content-driven default size. A plain scrolled list
@@ -204,8 +205,12 @@ public:
 class consist_order_frame_t : public gui_frame_t , private action_listener_t
 {
 	uint16 unique_entry_id=65535;
-	player_t* player;
-	schedule_t *schedule;
+	player_t* player = nullptr;
+	// The owning schedule window and its editing copy (never a live schedule).
+	// The owner pointer identifies the target for save/restore; the window
+	// does not outlive its owner (the owner's close destroys it).
+	schedule_gui_t *owner = nullptr;
+	schedule_t *schedule = nullptr;
 
 	uint8 old_entry_count = 0;
 	sint64 old_vehicle_assets; // init in init_table()
@@ -299,15 +304,15 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	void save_order();
 
 public:
-	consist_order_frame_t(player_t* player=NULL, schedule_t *schedule=NULL, uint16 unique_entry_id=65535);
+	consist_order_frame_t(player_t* player=NULL, schedule_gui_t *owner=NULL, uint16 unique_entry_id=65535);
 
-	void init(schedule_t *schedule, uint16 unique_entry_id);
+	void init(schedule_gui_t *owner, uint16 unique_entry_id);
 
-	// Rebind to another schedule/entry (e.g. the button was pressed in a
-	// second schedule window): saves unsaved edits to the old target first,
+	// Rebind to another schedule window/entry (e.g. the button was pressed in
+	// a second schedule window): saves unsaved edits to the old target first,
 	// then rebuilds the entry-dependent display. Leaves the window untouched
 	// when the new entry has no halt (waypoint/depot tile).
-	void retarget(schedule_t *schedule, uint16 unique_entry_id);
+	void retarget(schedule_gui_t *owner, uint16 unique_entry_id);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
@@ -317,7 +322,13 @@ public:
 
 	void open_vehicle_detail(const vehicle_desc_t* veh_type) const;
 
-	//uint32 get_rdwr_id() OVERRIDE { return magic_consist_order; }
+	// The working copy of the consist order being edited; the rule editor
+	// binds to it when restoring.
+	consist_order_t &get_edit_order() { return order; }
+
+	uint32 get_rdwr_id() OVERRIDE { return magic_consist_order_rdwr_dummy; }
+
+	void rdwr(loadsave_t *file) OVERRIDE;
 };
 
 
@@ -355,7 +366,7 @@ private:
 	// from the stored bounds: a line can be meaningfully constrained while its
 	// bounds still read 0/max (catering 0-5 being the obvious case), and
 	// deriving state from values made such ticks revert immediately.
-	bool line_used[LINE_COUNT];
+	bool line_used[LINE_COUNT] = {};
 
 	bool structured() const;
 	bool valid() const;
@@ -393,6 +404,9 @@ private:
 	uint32 line_edit_max[LINE_COUNT];
 
 public:
+	// The default constructor restores a saved window (see rdwr); it builds
+	// the GUI but binds to no order.
+	consist_rule_editor_t();
 	consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt);
 
 	void retarget(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt);
@@ -400,6 +414,10 @@ public:
 	void draw(scr_coord pos, scr_size size) OVERRIDE;
 
 	bool action_triggered(gui_action_creator_t*, value_t v) OVERRIDE;
+
+	uint32 get_rdwr_id() OVERRIDE { return magic_consist_rule_editor; }
+
+	void rdwr(loadsave_t *file) OVERRIDE;
 };
 
 #endif

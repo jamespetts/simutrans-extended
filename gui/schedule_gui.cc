@@ -2640,14 +2640,14 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			const uint16 entry_id = schedule->entries[schedule->get_current_stop()].unique_entry_id;
 			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
 			if (!win) {
-				create_win({ -1, -1 }, new consist_order_frame_t(player, schedule, entry_id), w_info, magic_consist_order);
+				create_win({ -1, -1 }, new consist_order_frame_t(player, this, entry_id), w_info, magic_consist_order);
 				win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
 			}
 			else {
 				// Re-target the singleton to this schedule/entry (saves
 				// any unsaved edits to the previous target first, even on
 				// a same-entry-id schedule switch).
-				win->retarget(schedule, entry_id);
+				win->retarget(this, entry_id);
 			}
 			top_win(win);
 		}

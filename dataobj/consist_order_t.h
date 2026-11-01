@@ -84,6 +84,10 @@ struct vehicle_description_element
 	void set_empty(bool yesno) { empty=yesno; }
 
 	bool operator!= (const vehicle_description_element& other) const;
+
+	// Serialise one element, in the same shape as the per-alternative
+	// serialisation inside consist_order_t::rdwr (which uses this method).
+	void rdwr(loadsave_t *file);
 };
 
 class consist_order_element_t

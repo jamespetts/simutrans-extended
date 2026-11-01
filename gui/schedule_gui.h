@@ -372,6 +372,17 @@ public:
 
 	virtual uint16 get_min_top_speed_kmh() { return cnv.is_bound() ? speed_to_kmh(cnv->get_min_top_speed()) : 65535; }
 
+	// The schedule being edited (a working copy, not the live one). The
+	// consist-order window edits consist orders in it and re-finds it through
+	// this accessor when restoring.
+	schedule_t *get_edit_schedule() const { return schedule; }
+
+	// Identity of this window's target among live objects (the key of this
+	// window's magic number). The consist-order window records it so that it
+	// can re-find its owner window after loading.
+	virtual convoihandle_t get_cnv() const { return cnv; }
+	virtual linehandle_t get_line() const { return linehandle_t(); }
+
 	// for updating info ...
 	void init_line_selector(bool keep_current_line = false);
 	void set_new_line(linehandle_t line);

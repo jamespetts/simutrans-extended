@@ -28,6 +28,8 @@ public:
 
 	uint16 get_min_top_speed_kmh() OVERRIDE { return line.is_bound() ? line->get_min_top_speed_kmh() : 65535; };
 
+	linehandle_t get_line() const OVERRIDE { return line; }
+
 private:
 	linehandle_t line;
 };

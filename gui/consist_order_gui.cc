@@ -7,11 +7,13 @@
 #include "convoi_detail_t.h"
 #include "convoi_frame.h"
 #include "convoy_item.h"
+#include "schedule_gui.h"
 #include "simwin.h"
 #include "messagebox.h"
 #include "vehicle_detail.h"
 #include "../bauer/goods_manager.h"
 #include "../bauer/vehikelbauer.h"
+#include "../dataobj/loadsave.h"
 #include "../display/viewport.h"
 #include "../descriptor/goods_desc.h"
 #include "../simhalt.h"
@@ -765,12 +767,9 @@ static const rule_line_def_t rule_line_defs[consist_rule_editor_t::LINE_COUNT] =
 };
 
 
-consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt) :
+consist_rule_editor_t::consist_rule_editor_t() :
 	gui_frame_t(translator::translate("Set vehicle by rules"))
 {
-	player = player_;
-	set_owner(player);
-
 	set_table_layout(1,0);
 	set_alignment(ALIGN_TOP);
 
@@ -845,9 +844,15 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 	}
 	end_table();
 
-	retarget(player_, order_, slot, alt, wt);
 	set_resizemode(diagonal_resize);
 	reset_min_windowsize();
+}
+
+
+consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt) :
+	consist_rule_editor_t()
+{
+	retarget(player_, order_, slot, alt, wt);
 	set_windowsize(get_min_windowsize());
 	resize(scr_size(0,0));
 }
@@ -872,6 +877,55 @@ void consist_rule_editor_t::retarget(player_t *player_, consist_order_t *order_,
 	refresh();
 	reset_min_windowsize();
 	resize(scr_size(0,0));
+}
+
+
+void consist_rule_editor_t::rdwr(loadsave_t *file)
+{
+	// Window records of this window are only written at Extended 15 revision 5
+	// or newer (see rdwr_all_win in simwin.cc), so the payload shape needs no
+	// version gate of its own.
+	scr_size size = get_windowsize();
+	size.rdwr( file );
+
+	uint8 player_nr = player ? player->get_player_nr() : 0;
+	file->rdwr_byte( player_nr );
+
+	file->rdwr_long( slot_index );
+	file->rdwr_long( alt_index );
+	uint8 wt = (uint8)waytype;
+	file->rdwr_byte( wt );
+	file->rdwr_byte( edit_catg );
+	// The uncommitted working copy of the rule being edited.
+	edit_elem.rdwr( file );
+	// The explicit per-line "constrains" flags; the class line has none.
+	for (uint8 l = 1; l < LINE_COUNT; l++) {
+		file->rdwr_bool( line_used[l] );
+	}
+
+	if (file->is_loading()) {
+		// The edited rule lives in the consist-order window's working copy of
+		// the order; that window is saved before this one, so it is restored
+		// first (see rdwr_all_win in simwin.cc).
+		consist_order_frame_t *frame = dynamic_cast<consist_order_frame_t*>( win_get_magic( magic_consist_order ) );
+		player = welt->get_player( player_nr );
+		waytype = (waytype_t)wt;
+		if (player  &&  frame) {
+			order = &frame->get_edit_order();
+		}
+		if (player == NULL || order == NULL || !valid()) {
+			dbg->error( "consist_rule_editor_t::rdwr", "Could not restore rule editor window (slot %d alternative %d)", slot_index, alt_index );
+			player = NULL;
+			order = NULL;
+			destroy_win( this );
+			return;
+		}
+		set_owner( player );
+		build_catg_list();
+		refresh();
+		reset_min_windowsize();
+		set_windowsize( size );
+	}
 }
 
 
@@ -1588,10 +1642,10 @@ void cont_order_overview_t::draw(scr_coord offset)
 }
 
 
-consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *schedule, uint16 entry_id)
+consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_gui_t *owner, uint16 entry_id)
 	: gui_frame_t(translator::translate("consist_order")),
 	halt_number(255),
-	cont_order_overview(&order, schedule->get_waytype()),
+	cont_order_overview(&order, owner && owner->get_edit_schedule() ? owner->get_edit_schedule()->get_waytype() : invalid_wt),
 	scl_vehicles(gui_scrolled_list_t::listskin, vehicle_scrollitem_t::compare),
 	scl_convoys(gui_scrolled_list_t::listskin, consist_scrollitem_t::compare),
 	scroll_order(&cont_order, true, false),
@@ -1599,10 +1653,10 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 	formation(convoihandle_t(), false),
 	scrollx_formation(&formation, true, false)
 {
-	if (player && schedule) {
+	if (player && owner) {
 		this->player = player;
 		set_owner(player);
-		init(schedule, entry_id);
+		init(owner, entry_id);
 		init_table();
 	}
 }
@@ -1610,7 +1664,7 @@ consist_order_frame_t::consist_order_frame_t(player_t* player, schedule_t *sched
 
 void consist_order_frame_t::save_order()
 {
-	if (player) {
+	if (player && schedule) {
 		schedule->orders.remove(unique_entry_id);
 		if (order.get_count()) {
 			schedule->orders.put(unique_entry_id, order);
@@ -1619,29 +1673,31 @@ void consist_order_frame_t::save_order()
 }
 
 
-void consist_order_frame_t::init(schedule_t *schedule, uint16 entry_id)
+void consist_order_frame_t::init(schedule_gui_t *owner_, uint16 entry_id)
 {
 	// Save unsaved edits to the previous target first: save_order() writes
 	// through the member schedule pointer, so this must run before rebinding
-	// (including a same-entry-id switch between two schedules).
-	if (unique_entry_id != 65535 && (unique_entry_id != entry_id || this->schedule != schedule)) {
+	// (including a same-entry-id switch between two schedule windows).
+	if (unique_entry_id != 65535 && (unique_entry_id != entry_id || owner != owner_)) {
 		save_order();
 	}
-	this->schedule = schedule;
+	owner = owner_;
+	schedule = owner_->get_edit_schedule();
 	unique_entry_id = entry_id;
 	order = schedule->orders.get(unique_entry_id);
 }
 
 
-void consist_order_frame_t::retarget(schedule_t *schedule, uint16 entry_id)
+void consist_order_frame_t::retarget(schedule_gui_t *owner_, uint16 entry_id)
 {
+	schedule_t *new_schedule = owner_->get_edit_schedule();
 	// Waypoint/depot-tile entries have no halt and cannot carry a consist
 	// order: keep showing the current target instead of rebinding to nothing
 	// (update() destroys the window on an unbound halt).
-	if (!haltestelle_t::get_halt(schedule->entries[schedule->get_current_stop()].pos, player).is_bound()) {
+	if (!haltestelle_t::get_halt(new_schedule->entries[new_schedule->get_current_stop()].pos, player).is_bound()) {
 		return;
 	}
-	init(schedule, entry_id);
+	init(owner_, entry_id);
 	cont_order_overview.set_waytype(schedule->get_waytype());
 	destroy_win(magic_consist_rule_editor);
 	update();
@@ -1650,6 +1706,82 @@ void consist_order_frame_t::retarget(schedule_t *schedule, uint16 entry_id)
 	init_input_value_range();
 	reset_min_windowsize();
 	resize(scr_size(0,0));
+}
+
+
+void consist_order_frame_t::rdwr(loadsave_t *file)
+{
+	// Window records of this window are only written at Extended 15 revision 5
+	// or newer (see rdwr_all_win in simwin.cc), so the payload shape needs no
+	// version gate of its own.
+	scr_size size = get_windowsize();
+	size.rdwr( file );
+
+	uint8 player_nr = player ? player->get_player_nr() : 0;
+	file->rdwr_byte( player_nr );
+
+	// The owner window's target identity among live objects, matching the
+	// magic that window is keyed by (schedule_gui_t::get_cnv/get_line).
+	convoihandle_t cnv;
+	linehandle_t line;
+	if (file->is_saving()) {
+		cnv = owner->get_cnv();
+		line = owner->get_line();
+	}
+	convoi_t::rdwr_convoihandle_t(file, cnv);
+	simline_t::rdwr_linehandle_t(file, line);
+
+	file->rdwr_short( unique_entry_id );
+	// The working copy of the consist order: it may hold edits not yet written
+	// back into the owner's editing copy (that happens only on close/retarget).
+	order.rdwr( file );
+
+	if (file->is_loading()) {
+		player = welt->get_player( player_nr );
+		schedule_gui_t *new_owner = NULL;
+		if (line.is_bound()) {
+			new_owner = dynamic_cast<schedule_gui_t*>( win_get_magic( (ptrdiff_t)line.get_rep() ) );
+		}
+		else if (cnv.is_bound()) {
+			new_owner = dynamic_cast<schedule_gui_t*>( win_get_magic( (ptrdiff_t)cnv->get_schedule() ) );
+		}
+		// The entry must still exist in the owner's editing copy, with a halt.
+		halthandle_t entry_halt;
+		if (player  &&  new_owner  &&  new_owner->get_edit_schedule()) {
+			const schedule_t *sch = new_owner->get_edit_schedule();
+			for (uint32 i = 0; i < sch->entries.get_count(); i++) {
+				if (unique_entry_id == sch->entries[i].unique_entry_id) {
+					entry_halt = haltestelle_t::get_halt(sch->entries[i].pos, player);
+					break;
+				}
+			}
+		}
+		if (!entry_halt.is_bound()) {
+			dbg->error( "consist_order_frame_t::rdwr", "Could not restore consist order window for entry %d", unique_entry_id );
+			// Leave nothing bound: destroy_win() sends WIN_CLOSE, which would
+			// otherwise write the working copy back into the owner's schedule.
+			player = NULL;
+			owner = NULL;
+			schedule = NULL;
+			unique_entry_id = 65535;
+			destroy_win( this );
+			return;
+		}
+		owner = new_owner;
+		schedule = owner->get_edit_schedule();
+		set_owner( player );
+		// The record id is only used to save/load; the window itself is keyed
+		// as the singleton that the schedule windows look up.
+		win_set_magic( this, magic_consist_order );
+		cont_order_overview.set_waytype( schedule->get_waytype() );
+		init_table();
+		update();
+		cont_order_overview.set_selected_index(0);
+		build_vehicle_list();
+		init_input_value_range();
+		reset_min_windowsize();
+		set_windowsize( size );
+	}
 }
 
 void consist_order_frame_t::init_table()

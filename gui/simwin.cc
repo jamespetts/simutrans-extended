@@ -597,6 +597,20 @@ bool win_is_top(const gui_frame_t *ig)
 // window functions
 
 
+// Write one window record (id, geometry and the window's own state).
+static void wr_win_record(loadsave_t *file, simwin_t &win)
+{
+	uint32 id = win.gui->get_rdwr_id();
+	file->rdwr_long( id );
+	win.pos.rdwr(file);
+	file->rdwr_byte(win.wt);
+	file->rdwr_bool(win.sticky);
+	file->rdwr_bool(win.locked);
+	file->rdwr_bool(win.rollup);
+	win.gui->rdwr(file);
+}
+
+
 // save/restore all dialogues
 void rdwr_all_win(loadsave_t *file)
 {
@@ -604,14 +618,29 @@ void rdwr_all_win(loadsave_t *file)
 		if(  file->is_saving()  ) {
 			for(simwin_t & i : wins) {
 				uint32 id = i.gui->get_rdwr_id();
-				if(  id!=magic_reserved  ) {
-					file->rdwr_long( id );
-					i.pos.rdwr(file);
-					file->rdwr_byte(i.wt);
-					file->rdwr_bool(i.sticky);
-					file->rdwr_bool(i.locked);
-					file->rdwr_bool(i.rollup);
-					i.gui->rdwr(file);
+				if(  id == magic_reserved  ) {
+					continue;
+				}
+				// The consist-order window edits the schedule window's working
+				// copy, and the rule editor the consist-order window's working
+				// order: both are written after all other windows, so that
+				// restore (which runs in save order) finds their targets first.
+				// They are only written at Extended 15 revision 5 or newer.
+				if(  id == magic_consist_order_rdwr_dummy  ||  id == magic_consist_rule_editor  ) {
+					continue;
+				}
+				wr_win_record(file, i);
+			}
+			if(  file->is_version_ex_atleast(15,5)  ) {
+				for(simwin_t & i : wins) {
+					if(  i.gui->get_rdwr_id() == magic_consist_order_rdwr_dummy  ) {
+						wr_win_record(file, i);
+					}
+				}
+				for(simwin_t & i : wins) {
+					if(  i.gui->get_rdwr_id() == magic_consist_rule_editor  ) {
+						wr_win_record(file, i);
+					}
 				}
 			}
 			uint32 end = magic_none;
@@ -662,7 +691,8 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
 					case magic_player_ranking: w = new player_ranking_frame_t(); break;
 					case magic_prices_frame:   w = new prices_frame_t(); break;
-					//case magic_consist_order:  w = new consist_order_frame_t(); break; // not yet support rdwr
+					case magic_consist_order_rdwr_dummy: w = new consist_order_frame_t(); break;
+					case magic_consist_rule_editor: w = new consist_rule_editor_t(); break;
 
 					default:
 						if(  id>=magic_finances_t  &&  id<magic_finances_t+MAX_PLAYER_COUNT  ) {
