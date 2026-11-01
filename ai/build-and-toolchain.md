@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 47d73a3
+verified: ex-15 @ 29bc1a6e8
 ---
 # Build & toolchain
 
@@ -39,11 +39,14 @@ Four build paths coexist:
   `..\OpenTTD\win64\library` (zlibstat, libpng, pthreadVCE2, ICU), `..\bzip\include|lib|lib\x64`
   (libbz2), `..\zstd-1.4.4` (libzstd_static), `..\freetype-2.10.1` (freetype), `..\miniupnpc`
   (miniupnpc). All present on the maintainer's machine.
-- **Always build an x64 configuration** (user statement 2026-11-01): the Win32 configurations'
-  `IncludePath` omits the zstd, miniupnpc and freetype trees (it carries only
-  `..\OpenTTD\shared\include;..\bzip\include`), so they fail on `zstd.h`/`miniupnpc.h` and do not
-  build at all. Command-line builds must pass `/p:Configuration=Debug /p:Platform=x64` (or another
-  x64 configuration): the solution's default platform is Win32.
+- **Always build an x64 configuration** (user statement 2026-11-01) — and note that x64 alone is
+  not sufficient: any configuration whose `IncludePath` omits the zstd, miniupnpc and freetype
+  trees (carrying only `..\OpenTTD\shared\include;..\bzip\include`) fails on `zstd.h`/
+  `miniupnpc.h` and does not build. That includes every Win32 configuration and most x64 ones
+  (among them `Release|x64`); only `Debug|x64`, `Optimised debug|x64`,
+  `Debug (non-graphical server)|x64`, `Profile|x64` and `Profile (server)|x64` carry the full
+  dependency trees [CODE]. Command-line builds must pass `/p:Configuration=Debug /p:Platform=x64`
+  (or another of those x64 configurations): the solution's default platform is Win32.
 - Link inputs per configuration also name these libs explicitly (`AdditionalDependencies`):
   zlibstat, libbz2, libpng, libzstd_static, pthreadVCE2, freetype/libfreetype2, miniupnpc (some
   configurations) + Win32 system libs. `Debug|Win32` preprocessor set includes `USE_ZSTD`,

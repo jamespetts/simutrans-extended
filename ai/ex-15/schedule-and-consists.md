@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0d3fb4684
+verified: ex-15 @ 29bc1a6e8
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -114,7 +114,7 @@ explorer's treatment of consist orders.
   per-alternative empty toggle, and pool matchability validation that greys OK with a
   reason when no vehicle can satisfy a checked line)
   — INCOMPLETE: no window save/restore (get_rdwr_id and the simwin.cc restore are commented
-  out). Livery copying in set_convoy_order explicitly unsupported.
+  out).
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -142,7 +142,7 @@ explorer's treatment of consist orders.
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
   reachable in play subject to the runtime gaps below. Still absent or unwired: consist-order
-  window persistence, livery copying.
+  window persistence.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
@@ -196,7 +196,7 @@ explorer's treatment of consist orders.
    instance-marking mechanism is needed at all.
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
 6. Solver completeness; GUI wiring for the remaining unwired controls (window
-   persistence, livery).
+   persistence).
 
 ## Vehicle tags — removed; identity design deferred
 
@@ -242,8 +242,10 @@ Multi-player consists are intended (through carriages, hired traction, wagon poo
   gating coupling itself.
 - Company removal destroys the vehicles in its convoys regardless of owner
   (`complete_liquidation` self-destructs the convoys it owns; `convoi_t::destroy` deletes every
-  vehicle), so a foreign vehicle in a liquidating company's consist is deleted; overhaul
-  re-liveries a foreign vehicle into the operating convoy's scheme (`update_livery`).
+  vehicle), so a foreign vehicle in a liquidating company's consist is deleted.
+- Liveries follow ownership. Re-combination never changes a vehicle's livery: through-worked
+  stock keeps its owner's livery [RECOLLECTION:2026-11-01 user statement]. Players cannot
+  change other players' vehicles' liveries; this is enforced in the code.
 - Open: a settlement model (who pays and receives what when a vehicle runs in another company's
   consist — hire or through-carriage payments); the access policy for mixed consists (keep
   leader-based rights, or use the convoy owner's rights and admit foreign vehicles by a separate
@@ -322,6 +324,13 @@ unbound/stale handles regardless.
 
 ## Open questions
 
+- Player-initiated livery copying — a convenience feature for copying the livery of one of a
+  player's own consists to their other consists (the origin of the former "livery copying"
+  notes in this doc) [RECOLLECTION:2026-11-01 user statement]. Unsettled: whether it copies the
+  livery scheme (setting the targets' scheme index and re-applying) or the per-vehicle liveries,
+  and how the target consists are selected. The ownership rule above gives its semantics on
+  mixed consists (own vehicles only, with the warning). Unrelated to re-combination, which never
+  changes liveries.
 - "Empty slot" semantics (vehicle_description_element defaults empty=true; GUI produces
   empty slots via the per-slot toggle but not rule-based slots).
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):

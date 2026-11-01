@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ e440e8710
+verified: ex-15 @ 29bc1a6e8
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -51,7 +51,8 @@ value.
   (sigmoid over overhauls_before_max_cost between initial and max cost), books via
   book_vehicle_maintenance, applies auto-upgrade (`get_auto_upgrade` → set_desc; upgrade price
   charged instead; preserves maintenance history), then `update_livery()` to the latest available
-  livery in the current scheme.
+  livery in the current scheme — own vehicles only: a vehicle owned by another player in a
+  mixed-owner consist keeps its livery ([schedule-and-consists](schedule-and-consists.md)).
 - Deferral: do_not_overhaul per-vehicle flag (excluded at depot); overdue penalty = running cost
   stays at max and availability at minimum beyond the interval, lengthening the next maintenance.
 - Depot integration: `depot_t::convoi_arrived` sorts vehicles into vehicles_to_overhaul /
