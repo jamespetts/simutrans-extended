@@ -3568,6 +3568,13 @@ sint64 vehicle_t::get_overhaul_cost() const
 
 void vehicle_t::update_livery()
 {
+	// Only the owner may change a vehicle's livery: in a mixed-owner consist,
+	// a vehicle owned by another player keeps the livery it wears.
+	if (get_owner() != cnv->get_owner())
+	{
+		return;
+	}
+
 	const livery_scheme_t* const scheme = welt->get_settings().get_livery_scheme(cnv->get_livery_scheme_index());
 	if (!scheme)
 	{

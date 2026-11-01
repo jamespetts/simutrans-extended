@@ -74,7 +74,6 @@ void consist_order_t::set_convoy_order(convoihandle_t cnv)
 	veh_tmp_list.resize(vehicle_count, NULL);
 	for (uint8 i = 0; i < vehicle_count; i++) {
 		vehicle_t* dummy_veh = vehicle_builder_t::build(koord3d(), cnv->get_owner(), NULL, cnv->get_vehicle(i)->get_desc());
-		//dummy_veh->set_current_livery(cnv->get_vehicle(i)->get_current_livery()); // Copying liverys schemes is not supported
 		dummy_veh->set_reversed(cnv->get_vehicle(i)->is_reversed());
 		veh_tmp_list[i] = dummy_veh;
 	}

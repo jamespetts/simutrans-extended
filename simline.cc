@@ -5,14 +5,19 @@
 
 #include "simtypes.h"
 #include "simline.h"
+#include "simcolor.h"
 #include "simhalt.h"
+#include "simmesg.h"
 #include "simworld.h"
 
+#include "utils/cbuffer_t.h"
 #include "utils/simstring.h"
 #include "dataobj/schedule.h"
 #include "dataobj/translator.h"
 #include "dataobj/loadsave.h"
+#include "display/simimg.h"
 #include "gui/gui_theme.h"
+#include "gui/messagebox.h"
 #include "player/simplay.h"
 #include "player/finance.h" // convert_money
 #include "vehicle/vehicle.h"
@@ -1197,10 +1202,23 @@ void simline_t::set_withdraw( bool yes_no )
 
 void simline_t::propogate_livery_scheme()
 {
+	uint32 unchanged = 0;
 	for (auto line_managed_convoy : line_managed_convoys)
 	{
 		line_managed_convoy->set_livery_scheme_index(livery_scheme_index);
-		line_managed_convoy->apply_livery_scheme();
+		unchanged += line_managed_convoy->apply_livery_scheme();
+	}
+	if (unchanged > 0)
+	{
+		// Warn the player who applied the livery change that vehicles not
+		// owned by that player keep their existing livery.
+		cbuffer_t txt;
+		txt.printf(translator::translate("Not all liveries could be changed: %d vehicle(s) are not owned by you."), unchanged);
+		if (player == welt->get_active_player())
+		{
+			create_win(new news_img(txt), w_time_delete, magic_none);
+		}
+		welt->get_message()->add_message(txt, koord::invalid, message_t::general, PLAYER_FLAG | player->get_player_nr(), IMG_EMPTY);
 	}
 }
 

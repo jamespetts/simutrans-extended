@@ -513,7 +513,6 @@ void gui_vehicle_description_element_t::update()
 {
 	clear_ptr_vector(vde_vec);
 	if (slot_index < order->get_count()) {
-		//uint16 livery_scheme_index = world()->get_player(player_nr)->get_favorite_livery_scheme_index((uint8)simline_t::waytype_to_linetype(way_type));
 		consist_order_element_t elem = order->access_order(slot_index);
 		old_count = elem.get_count();
 		// Slot-level display: checked iff every alternative allows empty.

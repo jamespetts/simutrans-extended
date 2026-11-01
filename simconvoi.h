@@ -1552,7 +1552,10 @@ public:
 	uint16 get_livery_scheme_index() const;
 	void set_livery_scheme_index(uint16 value) { livery_scheme_index = value; }
 
-	void apply_livery_scheme();
+	// Applies the livery scheme to the vehicles owned by the convoy's owner;
+	// vehicles owned by another player keep their existing livery. Returns the
+	// number of vehicles skipped on ownership grounds.
+	uint32 apply_livery_scheme();
 	sint64 get_average_round_trip_time() {
 		uint8 items = arrival_to_first_stop.get_count();
 		if (items>1) {

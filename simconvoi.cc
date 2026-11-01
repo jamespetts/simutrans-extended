@@ -8202,13 +8202,22 @@ void convoi_t::clear_replace()
 	 replace = new_replace;
  }
 
- void convoi_t::apply_livery_scheme()
+ uint32 convoi_t::apply_livery_scheme()
  {
+	 uint32 skipped = 0;
 	 for (int i = 0; i < vehicle_count; i++)
 	 {
 		vehicle_t& v = *vehicle[i];
+		// The same ownership test as in vehicle_t::update_livery: a vehicle
+		// owned by another player keeps its existing livery.
+		if (v.get_owner() != get_owner())
+		{
+			skipped++;
+			continue;
+		}
 		v.update_livery();
 	 }
+	 return skipped;
  }
 
  uint16 convoi_t::get_livery_scheme_index() const
