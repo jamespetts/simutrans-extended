@@ -45,11 +45,14 @@
 #include "obj/label.h"
 #include "obj/signal.h"
 #include "obj/pier.h"
+#include "obj/crossing.h"
 
 #include "gui/halt_info.h"
 #include "gui/halt_detail.h"
+#include "gui/messagebox.h"
 #include "gui/minimap.h"
 
+#include "utils/cbuffer_t.h"
 #include "utils/simrandom.h"
 #include "utils/simstring.h"
 
@@ -358,6 +361,13 @@ void haltestelle_t::destroy(halthandle_t const halt)
 {
 	// just play safe: restart iterator at zero ...
 	restart_halt_iterator = true;
+
+	// The stop is being deleted: relocate any loose vehicles stored here.
+	// Not at world teardown (destroy_all() runs at game end and new world).
+	if (!welt->is_destroying())
+	{
+		halt->evacuate_loose_vehicles();
+	}
 
 	halt->get_owner()->book_stop_number(-1);
 
@@ -6798,6 +6808,170 @@ void haltestelle_t::add_laid_over(convoihandle_t cnv)
 void haltestelle_t::remove_laid_over(convoihandle_t cnv)
 {
 	laid_over.remove(cnv);
+}
+
+// Mirrors the pool eligibility in convoi_t::process_consist_order: a convoy in a
+// depot-side or shunting state is not available to consist orders.
+static bool is_pool_convoy(convoihandle_t cnv)
+{
+	if (!cnv.is_bound())
+	{
+		return false;
+	}
+	const uint8 state = cnv->get_state();
+	return state != convoi_t::MAINTENANCE && state != convoi_t::OVERHAUL && state != convoi_t::REPLENISHING && state != convoi_t::SHUNTING;
+}
+
+uint32 haltestelle_t::get_loose_vehicle_count()
+{
+	uint32 count = 0;
+	for (auto cnv : laid_over)
+	{
+		if (!is_pool_convoy(cnv))
+		{
+			continue;
+		}
+		const uint8 vehicle_count = cnv->get_vehicle_count();
+		for (uint8 i = 0; i < vehicle_count; i++)
+		{
+			if (!cnv->get_vehicle(i)->get_is_mothballed())
+			{
+				count++;
+			}
+		}
+	}
+	return count;
+}
+
+void haltestelle_t::get_loose_vehicles(vector_tpl<vehicle_t*> &list)
+{
+	for (auto cnv : laid_over)
+	{
+		if (!is_pool_convoy(cnv))
+		{
+			continue;
+		}
+		const uint8 vehicle_count = cnv->get_vehicle_count();
+		for (uint8 i = 0; i < vehicle_count; i++)
+		{
+			list.append(cnv->get_vehicle(i));
+		}
+	}
+}
+
+void haltestelle_t::evacuate_loose_vehicles()
+{
+	if (laid_over.empty())
+	{
+		return;
+	}
+
+	// Per-player tallies for the notification below. The last bucket holds
+	// vehicles with no owner.
+	uint32 moved[MAX_PLAYER_COUNT + 1] = { 0 };
+	uint32 sold[MAX_PLAYER_COUNT + 1] = { 0 };
+	sint64 charge[MAX_PLAYER_COUNT + 1] = { 0 };
+	sint64 proceeds[MAX_PLAYER_COUNT + 1] = { 0 };
+
+	for (auto cnv : laid_over)
+	{
+		// Only convoys actually standing here (layover, or shunting state that has
+		// overwritten layover): a stale entry for a convoy elsewhere must not lose
+		// its vehicles.
+		if (!cnv.is_bound() || (cnv->get_state() != convoi_t::LAYOVER && cnv->get_state() != convoi_t::SHUNTING))
+		{
+			continue;
+		}
+		// Release the tiles that the standing convoy reserved when it was laid over.
+		cnv->reserve_own_tiles(true);
+
+		while (cnv->get_vehicle_count() > 0)
+		{
+			vehicle_t* v = cnv->remove_vehicle_at(0);
+			v->set_leading(false);
+			v->set_last(false);
+			v->discard_cargo();
+
+			player_t* owner = v->get_owner();
+			const uint8 owner_nr = owner ? owner->get_player_nr() : MAX_PLAYER_COUNT;
+			const koord pos = v->get_pos().get_2d();
+
+			// Remove from the map: the same per-vehicle teardown as convoi_t::destroy.
+			grund_t* gr = welt->lookup(v->get_pos());
+			v->leave_tile();
+			if (gr && gr->ist_uebergang())
+			{
+				crossing_t* cr = gr->find<crossing_t>();
+				if (cr)
+				{
+					cr->release_crossing(v);
+				}
+			}
+			v->set_flag(obj_t::not_on_map);
+
+			// The nearest depot of the right type and owner.
+			depot_t* depot = depot_t::find_nearest_depot(v->get_pos(), v);
+
+			if (depot)
+			{
+				// Teleport to the depot: charged at 1.1x the straight-line distance
+				// at the vehicle's per-km running cost (integer arithmetic only).
+				const uint32 km = (shortest_distance(pos, depot->get_pos().get_2d()) * (uint32)welt->get_settings().get_meters_per_tile()) / 1000u;
+				const sint64 cost = ((sint64)km * v->get_running_cost(welt) * 11) / 10;
+				if (owner)
+				{
+					owner->book_running_costs(-cost, v->get_desc()->get_waytype());
+				}
+				moved[owner_nr]++;
+				charge[owner_nr] += cost;
+				depot->get_vehicle_list().append(v);
+			}
+			else
+			{
+				// No depot of the right type and owner: sell at the current value.
+				const sint64 value = v->calc_sale_value();
+				if (owner)
+				{
+					owner->book_new_vehicle(value, pos, v->get_desc()->get_waytype());
+					owner->book_vehicle_number(-1, v->get_desc()->get_waytype());
+				}
+				sold[owner_nr]++;
+				proceeds[owner_nr] += value;
+				v->before_delete();
+				delete v;
+			}
+		}
+
+		cnv->self_destruct();
+	}
+	laid_over.clear();
+
+	// Notify every player whose vehicles were affected: a dialogue on their own
+	// client and a message in the message list.
+	const char* stop_name = get_name();
+	for (uint8 pn = 0; pn < MAX_PLAYER_COUNT + 1; pn++)
+	{
+		if (moved[pn] == 0 && sold[pn] == 0)
+		{
+			continue;
+		}
+		char charge_str[64];
+		char proceeds_str[64];
+		money_to_string(charge_str, (double)charge[pn] / 100.0);
+		money_to_string(proceeds_str, (double)proceeds[pn] / 100.0);
+		cbuffer_t txt;
+		txt.printf(translator::translate("Loose vehicles at %s:\n%d sent to depots (charge: %s)\n%d sold (proceeds: %s)"), stop_name, moved[pn], charge_str, sold[pn], proceeds_str);
+
+		player_t* owner = pn < MAX_PLAYER_COUNT ? welt->get_player(pn) : NULL;
+		if (owner == welt->get_active_player())
+		{
+			create_win(new news_img(txt), w_time_delete, magic_none);
+		}
+		if (owner)
+		{
+			welt->get_message()->add_message(txt, get_basis_pos(), message_t::general, PLAYER_FLAG | pn, IMG_EMPTY);
+		}
+	}
 }
 
 bool haltestelle_t::can_lay_over() const

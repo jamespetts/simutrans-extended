@@ -101,6 +101,23 @@ public:
 	//scr_size get_max_size() const OVERRIDE { return get_min_size(); }
 };
 
+// The loose vehicles stored at a stop: the layover pool that consist orders draw on
+class gui_halt_loose_vehicles_t : public gui_aligned_container_t
+{
+	halthandle_t halt;
+
+	uint32 cached_signature;
+
+	void update_vehicles();
+
+public:
+	gui_halt_loose_vehicles_t(halthandle_t halt = halthandle_t());
+
+	void init(halthandle_t halt);
+
+	void draw(scr_coord offset) OVERRIDE;
+};
+
 class gui_halt_route_info_t : public gui_world_component_t
 {
 private:
@@ -136,6 +153,7 @@ private:
 		HD_TAB_GOODS   = 1,
 		HD_TAB_SERVICE = 2,
 		HD_TAB_ROUTE   = 3,
+		HD_TAB_VEHICLES = 4,
 	};
 	halthandle_t halt;
 	player_t *cached_active_player; // So that, if different from current, change line links
@@ -152,7 +170,8 @@ private:
 	gui_container_t cont_goods, cont_desinations;
 	gui_aligned_container_t cont_route, cont_tab_service;
 	gui_halt_service_info_t cont_service;
-	gui_scrollpane_t scrolly_pas, scrolly_goods, scroll_service, scrolly_route;
+	gui_halt_loose_vehicles_t cont_vehicles;
+	gui_scrollpane_t scrolly_pas, scrolly_goods, scroll_service, scrolly_route, scroll_vehicles;
 	gui_label_buf_t lb_selected_route_catg;
 	gui_heading_t lb_nearby_factory, lb_routes, lb_serve_catg;
 

@@ -1064,6 +1064,19 @@ public:
 	void remove_laid_over(convoihandle_t cnv);
 	slist_tpl<convoihandle_t>& get_laid_over() { return laid_over; }
 
+	// The loose vehicles stored at this stop: the vehicles of the convoys in the
+	// layover pool, which consist orders may draw on. Mothballed vehicles are
+	// stored here, too, but are not counted as available.
+	uint32 get_loose_vehicle_count();
+	void get_loose_vehicles(vector_tpl<class vehicle_t*> &list);
+
+	// Relocate the loose vehicles when this stop is deleted: every vehicle goes
+	// to the nearest depot of the right type owned by the vehicle's owner,
+	// charged at 1.1x the straight-line distance at the vehicle's per-km running
+	// cost; a vehicle with no such depot is sold at its current value. The
+	// affected owners are notified.
+	void evacuate_loose_vehicles();
+
 	bool can_lay_over() const;
 
 	// for waiting cargo list

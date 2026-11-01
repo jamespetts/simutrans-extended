@@ -60,6 +60,10 @@ public:
 	// finds the next/previous depot relative to the current position
 	static depot_t *find_depot( koord3d start, const obj_t::typ depot_type, const player_t *player, bool next);
 
+	// finds the depot nearest to start (straight-line distance) that is suitable
+	// for the vehicle (same waytype and owner, suitable traction); NULL if none
+	static depot_t *find_nearest_depot( koord3d start, const vehicle_t *test_vehicle );
+
 	static const slist_tpl<depot_t *>& get_depot_list() { return all_depots; }
 
 	static unsigned get_max_convoy_length(waytype_t wt);

@@ -152,6 +152,25 @@ depot_t *depot_t::find_depot( koord3d start, const obj_t::typ depot_type, const 
 	return found;
 }
 
+depot_t *depot_t::find_nearest_depot( koord3d start, const vehicle_t *test_vehicle )
+{
+	depot_t *found = NULL;
+	uint32 found_distance = 0xFFFFFFFFu;
+	for(auto const d : all_depots)
+	{
+		if(d->is_suitable_for(test_vehicle))
+		{
+			const uint32 distance = shortest_distance(start.get_2d(), d->get_pos().get_2d());
+			if(distance < found_distance)
+			{
+				found = d;
+				found_distance = distance;
+			}
+		}
+	}
+	return found;
+}
+
 unsigned depot_t::get_max_convoy_length(waytype_t wt)
 {
 	if (wt==road_wt || wt==water_wt) {

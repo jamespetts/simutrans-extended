@@ -12,7 +12,9 @@
 #include "../simconvoi.h"
 
 #include "../descriptor/goods_desc.h"
+#include "../descriptor/vehicle_desc.h"
 #include "../bauer/goods_manager.h"
+#include "../vehicle/vehicle.h"
 
 #include "../dataobj/environment.h"
 #include "../dataobj/translator.h"
@@ -45,9 +47,11 @@ halt_detail_t::halt_detail_t(halthandle_t halt_) :
 	halt(halt_),
 	pas(halt_),
 	cont_service(halt_),
+	cont_vehicles(halt_),
 	scrolly_pas(&pas),
 	scrolly_goods(&cont_goods),
 	scroll_service(&cont_service, true, true),
+	scroll_vehicles(&cont_vehicles, true, true),
 	scrolly_route(&cont_desinations),
 	nearby_factory(halt_),
 	destinations(halt_, selected_route_catg_index)
@@ -353,6 +357,7 @@ void halt_detail_t::update_components()
 		}
 		tabs.add_tab(&cont_tab_service, translator::translate("Services"));
 		tabs.add_tab(&cont_route, translator::translate("Route_tab"));
+		tabs.add_tab(&scroll_vehicles, translator::translate("Vehicles"));
 		if (tabstate != -1) {
 			tabs.set_active_tab_index(old_tab);
 			tabstate = old_tab;
@@ -643,6 +648,9 @@ void halt_detail_t::set_tab_opened()
 			break;
 		case HD_TAB_SERVICE:
 			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_service.get_size().h+D_BUTTON_HEIGHT*2 + D_MARGIN_TOP)));
+			break;
+		case HD_TAB_VEHICLES:
+			set_windowsize(scr_size(get_windowsize().w, min(display_get_height() - margin_above_tab, margin_above_tab + cont_vehicles.get_size().h + D_MARGIN_TOP)));
 			break;
 		case HD_TAB_ROUTE:
 			destinations.recalc_size();
@@ -1393,6 +1401,89 @@ public:
 		return koord_distance(m_origin, a->get_basis_pos()) < koord_distance(m_origin, b->get_basis_pos());
 	}
 };
+
+
+gui_halt_loose_vehicles_t::gui_halt_loose_vehicles_t(halthandle_t halt)
+{
+	cached_signature = 0xFFFFFFFFul;
+	if (halt.is_bound())
+	{
+		init(halt);
+	}
+}
+
+void gui_halt_loose_vehicles_t::init(halthandle_t halt)
+{
+	this->halt = halt;
+	cached_signature = 0xFFFFFFFFul;
+	update_vehicles();
+}
+
+void gui_halt_loose_vehicles_t::draw(scr_coord offset)
+{
+	update_vehicles();
+	gui_aligned_container_t::draw(offset);
+}
+
+void gui_halt_loose_vehicles_t::update_vehicles()
+{
+	if (!halt.is_bound())
+	{
+		// first call, or invalid handle
+		remove_all();
+		return;
+	}
+
+	vector_tpl<vehicle_t*> vehicles;
+	halt->get_loose_vehicles(vehicles);
+
+	// rebuild the rows only when the pool contents change
+	uint32 signature = vehicles.get_count();
+	for (auto cnv : halt->get_laid_over())
+	{
+		if (cnv.is_bound())
+		{
+			signature += cnv.get_id();
+		}
+	}
+	if (signature == cached_signature)
+	{
+		return;
+	}
+	cached_signature = signature;
+
+	remove_all();
+	set_table_layout(2, 0);
+	set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_RIGHT, D_V_SPACE));
+	set_spacing(scr_size(D_H_SPACE, 2));
+
+	new_component<gui_label_t>(translator::translate("Vehicle"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
+	new_component<gui_label_t>(translator::translate("Owner"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
+
+	if (vehicles.empty())
+	{
+		new_component<gui_label_t>(translator::translate("None"), SYSCOL_TEXT_INACTIVE);
+		new_component<gui_empty_t>();
+		return;
+	}
+
+	for (vehicle_t* v : vehicles)
+	{
+		gui_label_buf_t *lb_name = new_component<gui_label_buf_t>();
+		lb_name->buf().printf("%s", v->get_desc()->get_name());
+		if (v->get_is_mothballed())
+		{
+			lb_name->buf().printf(" (%s)", translator::translate("mothballed"));
+		}
+		lb_name->update();
+
+		player_t *owner = v->get_owner();
+		gui_label_buf_t *lb_owner = new_component<gui_label_buf_t>();
+		lb_owner->buf().printf("%s", owner ? owner->get_name() : translator::translate("Unowned"));
+		lb_owner->update();
+		lb_owner->set_color(owner ? color_idx_to_rgb(owner->get_player_color1() + env_t::gui_player_color_bright) : SYSCOL_TEXT);
+	}
+}
 
 
 gui_halt_route_info_t::gui_halt_route_info_t(const halthandle_t & halt, uint8 catg_index, bool station_mode)

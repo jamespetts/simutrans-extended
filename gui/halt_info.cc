@@ -596,7 +596,7 @@ void halt_info_t::init(halthandle_t halt)
 			add_component(&input);
 
 			// 2nd row: status images
-			add_table(3, 1);
+			add_table(5, 1);
 			{
 				indicator_color.set_size(scr_size(LINEASCENT*2, D_INDICATOR_BOX_HEIGHT));
 				indicator_color.set_size_fixed(true);
@@ -606,6 +606,14 @@ void halt_info_t::init(halthandle_t halt)
 				new_component<gui_label_t>(halt->get_owner()->get_name(), color_idx_to_rgb(halt->get_owner()->get_player_color1()+env_t::gui_player_color_bright), gui_label_t::left)->set_shadow(SYSCOL_TEXT_SHADOW, true);
 
 				img_types = new_component<gui_halt_type_images_t>(halt);
+
+				// loose vehicles stored here for consist orders (absent when none)
+				img_loose_vehicles.set_image(skinverwaltung_t::layover ? skinverwaltung_t::layover->get_image_id(0) : IMG_EMPTY, true);
+				img_loose_vehicles.set_tooltip(translator::translate("Loose vehicles stored here for consist orders"));
+				add_component(&img_loose_vehicles);
+
+				lb_loose_vehicles.set_color(SYSCOL_TEXT);
+				add_component(&lb_loose_vehicles);
 			}
 			end_table();
 
@@ -1216,6 +1224,15 @@ void halt_info_t::update_components()
 	img_enable[1].set_visible(halt->get_mail_enabled());
 	lb_pax_storage.set_visible(halt->get_pax_enabled());
 	lb_mail_storage.set_visible(halt->get_mail_enabled());
+	// loose vehicles: icon and count shown only when any are stored here
+	const uint32 loose_vehicle_count = halt->get_loose_vehicle_count();
+	img_loose_vehicles.set_visible(loose_vehicle_count > 0);
+	lb_loose_vehicles.set_visible(loose_vehicle_count > 0);
+	if (loose_vehicle_count > 0)
+	{
+		lb_loose_vehicles.buf().printf("%u", loose_vehicle_count);
+		lb_loose_vehicles.update();
+	}
 	// bandgraph
 	evaluation_pax.set_visible(halt->get_pax_enabled());
 	evaluation_mail.set_visible(halt->get_mail_enabled());
