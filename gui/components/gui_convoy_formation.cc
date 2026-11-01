@@ -9,6 +9,7 @@
 #include "../../display/simgraph.h"
 #include "../../simworld.h"
 
+#include "../../dataobj/environment.h"
 #include "../../dataobj/translator.h"
 #include "../../utils/cbuffer_t.h"
 
@@ -32,14 +33,19 @@ scr_size gui_convoi_images_t::draw_vehicles(scr_coord offset, bool display_image
 	unsigned count = cnv.is_bound() ? cnv->get_vehicle_count() : 0;
 	for(unsigned i=0; i<count; i++) {
 		scr_coord_val x = 0, y = 0, w = 0, h = 0;
-		const image_id image = cnv->get_vehicle(i)->get_loaded_image();
+		vehicle_t *v = cnv->get_vehicle(i);
+		const image_id image = v->get_loaded_image();
 		display_get_base_image_offset(image, &x, &y, &w, &h );
 		left   = min(left, run - x);
 		top    = min(top, -(h + y));
 		right  = max(right, run - x + w);
 		bottom = max(bottom, -y);
 		if (display_images) {
-			display_base_img(image, p.x - left + run - x, p.y + get_size().h - bottom - h - y, cnv->get_owner()->get_player_nr(), false, true);
+			// Each vehicle is painted in its own owner's colours, so the
+			// ownership of every vehicle shows in multi-player consists (as
+			// in the convoy detail window).
+			const player_t *owner = v->get_owner();
+			display_base_img(image, p.x - left + run - x, p.y + get_size().h - bottom - h - y, owner ? owner->get_player_nr() : cnv->get_owner()->get_player_nr(), false, true);
 		}
 		run += (w*2)/3;
 	}
@@ -101,6 +107,16 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 
 	PIXVAL colval;
 	cbuffer_t buf;
+
+	// Per-vehicle ownership is marked only for multi-player consists: those
+	// where some vehicle is owned by someone other than the convoy owner.
+	bool mixed_ownership = false;
+	for (unsigned i = 0; i < cnv->get_vehicle_count(); ++i) {
+		if (cnv->get_vehicle(i)->get_owner() != cnv->get_owner()) {
+			mixed_ownership = true;
+			break;
+		}
+	}
 
 	for (unsigned veh = 0; veh < cnv->get_vehicle_count(); ++veh) {
 		buf.clear();
@@ -174,6 +190,13 @@ scr_size gui_convoy_formation_t::draw_formation(scr_coord offset) const
 		}
 		display_veh_form_wh_clip_rgb(offset.x + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, false, v->is_reversed() ? v->get_desc()->get_basic_constraint_next() : v->get_desc()->get_basic_constraint_prev(), v->get_desc()->get_interactivity());
 		display_veh_form_wh_clip_rgb(offset.x + (grid_width-6)/2 + 2, offset.y + LINESPACE, (grid_width-6)/2, VEHICLE_BAR_HEIGHT, col_val, true, true, v->is_reversed() ? v->get_desc()->get_basic_constraint_prev() : v->get_desc()->get_basic_constraint_next(), v->get_desc()->get_interactivity());
+
+		if (mixed_ownership) {
+			// Ownership bar under the vehicle form: the owner's colour, with
+			// the owner's name as the tooltip.
+			const player_t *owner = v->get_owner();
+			display_colorbox_with_tooltip(offset.x + 2, offset.y + LINESPACE + VEHICLE_BAR_HEIGHT, grid_width - 4, 3, owner ? color_idx_to_rgb(owner->get_player_color1() + env_t::gui_player_color_bright) : SYSCOL_TEXT, true, owner ? owner->get_name() : translator::translate("Unowned"));
+		}
 
 		offset.x += grid_width;
 	}
