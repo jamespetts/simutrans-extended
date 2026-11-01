@@ -408,11 +408,14 @@ void convoi_t::unreserve_route_range(route_range_specification range)
 void convoi_t::unreserve_route()
 {
 	// Clears all reserved tiles on the whole map belonging to this convoy.
+	// The waytype only filters candidate ways; it falls back to the schedule for
+	// a convoy whose vehicles have already gone (destroy() of an emptied convoy).
+	const waytype_t wt = front() ? front()->get_waytype() : (schedule ? schedule->get_waytype() : invalid_wt);
 #ifdef MULTI_THREAD_ROUTE_UNRESERVER
 	if (karte_t::threads_initialised)
 	{
 		current_unreserver = self.get_id();
-		current_waytype = front()->get_waytype();
+		current_waytype = wt;
 
 		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
 		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
@@ -429,13 +432,13 @@ void convoi_t::unreserve_route()
 #endif
 	for (auto const way : weg_t::get_alle_wege())
 	{
-		if(way->get_waytype() == front()->get_waytype())
+		if(way->get_waytype() == wt)
 		{
 			//schiene_t* const sch = obj_cast<schiene_t>(way);
 			schiene_t* const sch = way->is_rail_type() ? (schiene_t*)way : NULL;
 			if(sch && sch->get_reserved_convoi() == self)
 			{
-				sch->unreserve(front());
+				sch->unreserve(self);
 			}
 		}
 	}
@@ -6650,6 +6653,13 @@ void convoi_t::destroy()
 	// finding; park them before freeing anything (no-op when they are not
 	// running, e.g. inside the single-threaded step loop or during teardown).
 	world()->await_convoy_threads();
+
+	// Release any way reservations held by this convoy: leave_tile() removes the
+	// vehicles from the map but does not unreserve, so destroying a standing or
+	// routed convoy would leave stale reservations blocking the ways.
+	if(!world()->is_destroying()) {
+		unreserve_route();
+	}
 
 	// can be only done here, with a valid convoihandle ...
 	if(front()) {
