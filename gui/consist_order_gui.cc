@@ -790,18 +790,8 @@ consist_rule_editor_t::consist_rule_editor_t(player_t *player_, consist_order_t 
 	add_table(2,1);
 	{
 		new_component<gui_label_t>("Goods category");
-		catg_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Any"), SYSCOL_TEXT);
-		catg_values.append(consist_order_element_t::any_catg_index);
-		catg_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("none"), SYSCOL_TEXT);
-		catg_values.append(goods_manager_t::INDEX_NONE);
-		for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
-			if (i == goods_manager_t::INDEX_NONE) {
-				continue;
-			}
-			const goods_desc_t* info = goods_manager_t::get_info_catg_index(i);
-			catg_selector.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(info->get_catg_name()), SYSCOL_TEXT, info->get_catg_symbol());
-			catg_values.append(i);
-		}
+		// The options depend on the slot's specific vehicles (one category per
+		// slot), so they are built in build_catg_list() on every retarget.
 		catg_selector.add_listener(this);
 		add_component(&catg_selector);
 	}
@@ -878,6 +868,7 @@ void consist_rule_editor_t::retarget(player_t *player_, consist_order_t *order_,
 		init_line_used();
 		sanitise_lines();
 	}
+	build_catg_list();
 	refresh();
 	reset_min_windowsize();
 	resize(scr_size(0,0));
@@ -1028,6 +1019,45 @@ void consist_rule_editor_t::refresh_line(uint8 line)
 	num_max[line].enable(on);
 	num_min[line].set_color(SYSCOL_EDIT_TEXT);
 	num_max[line].set_color(SYSCOL_EDIT_TEXT);
+}
+
+
+// The goods category is a property of the whole slot: every specific vehicle
+// in it must share it (consist_order_element_t::set_catg_index refuses changes
+// that contradict them), so with specific vehicles present offer only their
+// category alongside the wildcard.
+void consist_rule_editor_t::build_catg_list()
+{
+	bool have_specific = false;
+	uint8 established = goods_manager_t::INDEX_NONE;
+	if (structured()) {
+		const consist_order_element_t &slot = order->get_order(slot_index);
+		for (uint32 i = 0; i < slot.get_count(); i++) {
+			const vehicle_desc_t *v = slot.get_vehicle_description(i).specific_vehicle;
+			if (v) {
+				established = v->get_freight_type()->get_catg_index();
+				have_specific = true;
+				break;
+			}
+		}
+	}
+
+	catg_selector.clear_elements();
+	catg_values.clear();
+	catg_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Any"), SYSCOL_TEXT);
+	catg_values.append(consist_order_element_t::any_catg_index);
+	if (!have_specific  ||  established == goods_manager_t::INDEX_NONE) {
+		catg_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("none"), SYSCOL_TEXT);
+		catg_values.append(goods_manager_t::INDEX_NONE);
+	}
+	for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
+		if (i == goods_manager_t::INDEX_NONE  ||  (have_specific  &&  i != established)) {
+			continue;
+		}
+		const goods_desc_t* info = goods_manager_t::get_info_catg_index(i);
+		catg_selector.new_component<gui_scrolled_list_t::img_label_scrollitem_t>(translator::translate(info->get_catg_name()), SYSCOL_TEXT, info->get_catg_symbol());
+		catg_values.append(i);
+	}
 }
 
 
@@ -2219,6 +2249,8 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 	}
 	else if(  comp==&edit_action_selector  ) {
 		init_input_value_range();
+		// The append target decides the slot-category gate in the list.
+		build_vehicle_list();
 		const sint32 value = numimp_append_target.get_value();
 		cont_order_overview.set_selected_index((edit_action_selector.get_selection()==0) ? value : -value);
 	}
@@ -2243,8 +2275,9 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 		}
 		else {
 			// append the vehicle as a vehicle description element
-			order.append_vehicle_at(append_target_index-1, selected_vehicle);
-			order.touch();
+			if (order.append_vehicle_at(append_target_index-1, selected_vehicle)) {
+				order.touch();
+			}
 		}
 
 		init_input_value_range();
@@ -2579,6 +2612,20 @@ void consist_order_frame_t::build_vehicle_list()
 bool consist_order_frame_t::is_filtered(const vehicle_desc_t *veh_type)
 {
 	const int filter_engine_type = engine_filter.get_selection();
+	// Appending an alternative to an existing slot (append_vde mode): the
+	// slot's category is fixed by its first alternative, so only vehicles of
+	// that category qualify (consist_order_element_t::append_vehicle refuses
+	// the rest). The wildcard category and an empty slot accept anything.
+	if (edit_action_selector.get_selection() == 1 && order.get_count()) {
+		const uint32 target = min((uint32)numimp_append_target.get_value()-1, order.get_count());
+		if (target < order.get_count()) {
+			const consist_order_element_t &slot = order.get_order(target);
+			if (slot.get_count() && slot.get_catg_index() != consist_order_element_t::any_catg_index
+				&& veh_type->get_freight_type()->get_catg_index() != slot.get_catg_index()) {
+				return true;
+			}
+		}
+	}
 	if (filter_catg != 255 && veh_type->get_freight_type()->get_catg_index() != filter_catg) {
 		return true;
 	}

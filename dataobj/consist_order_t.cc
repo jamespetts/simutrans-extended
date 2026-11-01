@@ -22,13 +22,37 @@
 const uint8 consist_order_element_t::any_catg_index;
 
 
-void consist_order_element_t::append_vehicle(const vehicle_desc_t *v)
+bool consist_order_element_t::set_catg_index(uint8 catg)
 {
+	if (catg != any_catg_index) {
+		for (uint32 i = 0; i < vehicle_description.get_count(); i++) {
+			const vehicle_desc_t *v = vehicle_description[i].specific_vehicle;
+			if (v && v->get_freight_type()->get_catg_index() != catg) {
+				return false;
+			}
+		}
+	}
+	catg_index = catg;
+	return true;
+}
+
+
+bool consist_order_element_t::append_vehicle(const vehicle_desc_t *v)
+{
+	const uint8 v_catg = v->get_freight_type()->get_catg_index();
+	if (vehicle_description.get_count()) {
+		// The slot's category is fixed by its first alternative.
+		if (catg_index != any_catg_index  &&  catg_index != v_catg) {
+			return false;
+		}
+	}
+	else {
+		catg_index = v_catg;
+	}
 	vehicle_description_element v_elem;
 	v_elem.specific_vehicle = v;
 	vehicle_description.append(v_elem);
-
-	catg_index = v->get_freight_type()->get_catg_index(); // HACK: This is temporary for testing. The UI should automatically enforce the same category index for each vehicle description element in this order element.
+	return true;
 }
 
 

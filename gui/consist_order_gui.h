@@ -258,7 +258,8 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	gui_combobox_t engine_filter, vp_sortedby;
 	consist_list_t scl_vehicles;
 	void build_vehicle_list(); // also update convoy list
-	// Check if the vehicle is filtered by UI options
+	// Check if the vehicle is filtered by UI options or cannot be added to the
+	// slot currently targeted in the picker
 	bool is_filtered(const vehicle_desc_t *veh_type);
 
 	// [CONVOY COPIER]
@@ -369,6 +370,9 @@ private:
 	uint8 class_name_catg() const;
 	uint8 class_option_count() const;
 	void rebuild_class_list();
+	// (Re)build the goods-category combo for the current slot: its options
+	// depend on the slot's specific vehicles.
+	void build_catg_list();
 	// The vehicles a rule may draw on: the player's own fleet plus anything of
 	// this way type/category currently buyable new (timeline-aware). Empty when
 	// nothing matches.

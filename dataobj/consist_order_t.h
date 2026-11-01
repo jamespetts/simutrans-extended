@@ -110,9 +110,18 @@ public:
 
 	uint8 get_catg_index() const { return catg_index; }
 
-	void set_catg_index(uint8 catg) { catg_index = catg; }
+	// The category is a property of the whole slot: the solver's rule matching
+	// and schedule_t::parse_orders' carried-category tables read the single
+	// stored value, so it must describe every alternative in the slot. A change
+	// contradicting the specific vehicles already there is refused; the wildcard
+	// category accepts any change.
+	bool set_catg_index(uint8 catg);
 
-	void append_vehicle(const vehicle_desc_t *v);
+	// Adds the vehicle as the next alternative. The first alternative fixes the
+	// slot's category; a vehicle of a different category is refused rather than
+	// appended (the old behaviour overwrote the category silently). Returns
+	// false when refused.
+	bool append_vehicle(const vehicle_desc_t *v);
 
 	// Append a rule-based alternative (no specific vehicle: the hard-constraint
 	// ranges select the vehicle). Enforced (empty=false) so the rule actually
@@ -267,7 +276,7 @@ public:
 		return;
 	}
 
-	void append_vehicle_at(uint32 element_number, const vehicle_desc_t *v)
+	bool append_vehicle_at(uint32 element_number, const vehicle_desc_t *v)
 	{
 		// NOTE: deliberately does not bump mod_count. Appending an
 		// alternative description to an existing slot is refreshed by the
@@ -275,14 +284,12 @@ public:
 		// which the views already watch. Bumping here would needlessly clear
 		// the vehicle-picker selection on every alternative added.
 		if (element_number < orders.get_count()) {
-			orders[element_number].append_vehicle(v);
+			return orders[element_number].append_vehicle(v);
 		}
-		else {
-			consist_order_element_t new_elem;
-			new_elem.append_vehicle(v);
-			orders.append(new_elem);
-		}
-		return;
+		consist_order_element_t new_elem;
+		new_elem.append_vehicle(v);
+		orders.append(new_elem);
+		return true;
 	}
 
 	void remove_order(uint32 element_number)
