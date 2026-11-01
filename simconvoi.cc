@@ -9910,7 +9910,10 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			}
 		}
 
-		cnv->set_home_depot(get_home_depot()); // TODO: Add code to find a suitable home depot and use this here
+		// The nearest depot suitable for the displaced vehicles is their home
+		// depot; invalid when the owner has none.
+		depot_t* home_depot = depot_t::find_nearest_depot(displaced_vehicles[0]->get_pos(), displaced_vehicles[0]);
+		cnv->set_home_depot(home_depot ? home_depot->get_pos() : koord3d::invalid);
 		cnv->set_name(displaced_vehicles[0]->get_desc()->get_name());
 		cnv->set_blank_route();
 		cnv->reserve_own_tiles();
