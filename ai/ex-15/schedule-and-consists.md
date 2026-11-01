@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ fe4b51c3a
+verified: ex-15 @ 0d3fb4684
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -92,7 +92,7 @@ explorer's treatment of consist orders.
 - **Consist orders** — data model: `consist_order_t` (end-state for one entry, keyed by
   unique_entry_id; exactly one order per entry
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202940.html]) →
-  `consist_order_element_t` (slot: catg_index, tag fields, prioritised alternatives) →
+  `consist_order_element_t` (slot: catg_index, prioritised alternatives) →
   `vehicle_description_element` (a specific vehicle, or rules: engine_type, min/max range,
   catering, classes, power, tractive effort, topspeed, weight, axle load, capacity, running/fixed
   cost, fuel, staff, drivers). Hierarchy per
@@ -113,9 +113,8 @@ explorer's treatment of consist orders.
   matching and in `parse_orders`' carried-category tables), named minimum-class dropdown,
   per-alternative empty toggle, and pool matchability validation that greys OK with a
   reason when no vehicle can satisfy a checked line)
-  — INCOMPLETE: no tag controls (the tag fields are retained for instance-level portion identity;
-  design pending — see "Vehicle tags" below); no window save/restore (get_rdwr_id and the
-  simwin.cc restore are commented out). Livery copying in set_convoy_order explicitly unsupported.
+  — INCOMPLETE: no window save/restore (get_rdwr_id and the simwin.cc restore are commented
+  out). Livery copying in set_convoy_order explicitly unsupported.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -142,8 +141,8 @@ explorer's treatment of consist orders.
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
-  reachable in play subject to the runtime gaps below. Still absent or unwired: tag controls,
-  consist-order window persistence, livery copying.
+  reachable in play subject to the runtime gaps below. Still absent or unwired: consist-order
+  window persistence, livery copying.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
@@ -180,9 +179,6 @@ explorer's treatment of consist orders.
   vehicles ("passengers stay on the through portion" is not modelled).
 - **Call-on-based coupling movements into occupied platforms** — call-on signalling exists for
   other purposes but is not connected to coupling; SHUNTING is only a timed pause.
-- **Vehicle-tag enforcement** — `vehicle_t::tags` and the order tag fields are serialised-only;
-  zero runtime callers, no GUI. The fields are retained as the instance-level coupling-identity
-  mechanism for portion working; the design is open (see "Vehicle tags" below).
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Most difficult outstanding work (assessment, user-confirmed scope)
@@ -194,36 +190,28 @@ explorer's treatment of consist orders.
 3. Two-party timed coupling (probably via the existing trigger system), failure behaviour,
    dead-lock detection/avoidance.
 4. Freight continuity across splits/joins (fares/apportionment in unload_cargo/load_cargo,
-   ware_t routing data).
+   ware_t routing data). Must be seriously considered when building the recombination/dividing
+   runtime [RECOLLECTION:2026-11-01 user statement]: it is the source of the instance-identity
+   need that vehicle tags were intended to serve, so its design decides whether any
+   instance-marking mechanism is needed at all.
 5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
-6. Solver completeness; GUI wiring for the remaining unwired controls (tags,
-   window persistence, livery).
+6. Solver completeness; GUI wiring for the remaining unwired controls (window
+   persistence, livery).
 
-## Vehicle tags — retained; design pending
+## Vehicle tags — removed; identity design deferred
 
-`vehicle_t::tags` (uint16 per vehicle instance, serialised with the vehicle) and the order fields
-(per slot: `clear_all_tags`, `tags_required`, `tags_to_set`; per order: `tags_to_clear`) are
-serialised but never evaluated, and no GUI sets them. They are retained as the intended mechanism
-for **instance-level coupling identity** in portion working: through cargo is bound to the
-instance, descriptor-level rules cannot distinguish the branch portion from an identical vehicle
-in the pool, and displaced vehicles are force-unloaded [RECOLLECTION:2026-10-18]. In the
-exchange the target's order can mark the vehicles it releases (`tags_to_set`) and the receiver's
-order require those marks (`tags_required`). Design questions open:
-
-1. Tag source: player-set per vehicle, set by the order at coupling, or both.
-2. `tags_required` scope: its comment covers loose vehicles, but the joining convoy's vehicles pass
-   through the same matcher, and the in-position/substitution path needs gating as well for the
-   tags to protect through vehicles from displacement.
-3. Whether the solver additionally needs a tag-independent rule never to displace a vehicle
-   carrying cargo bound beyond the coupling stop.
-4. Lifecycle: replacement creates a new instance (tag lost?); overhaul, mothballing, sale and
-   transfer.
-5. GUI: vehicle detail, convoy detail, loose-vehicle pool listing.
-6. Multiplayer scope: whether tag meanings are per player and whether another player's order may
-   match them.
-7. Explorer/runtime agreement: `parse_orders` derives the carried-category tables without reading
-   tags, so a tag-gated slot the runtime cannot fill would still be recorded as a through journey;
-   the explorer may read only saved schedule and operating data, not live pool contents.
+The vehicle tag fields (`vehicle_t::tags`; per slot `clear_all_tags`, `tags_required`,
+`tags_to_set`; per order `tags_to_clear`) were serialised but never evaluated, and were removed in
+Extended 15.4. Pre-15.4 saves load with the values discarded; zeros are written for older save
+targets. Two purposes had been proposed on the forum: eligibility of loose vehicles — which the
+leftover-recipient mechanism above now covers
+[FORUM:https://forum.simutrans.com/index.php/topic,17852.0] — and instance identity for portion
+working: marking which of several descriptor-identical vehicles goes into which portion at a
+division [FORUM:https://forum.simutrans.com/index.php/topic,16980.0, ACarlotti, Feb 2018]. The
+identity purpose is contingent on the dividing runtime and freight continuity, neither
+implemented, and may be better served by cargo-derived vehicle selection (the same forum
+discussion). Revisit instance marking as part of the freight-continuity design ("Most difficult
+outstanding work" item 4), not as a standalone feature.
 
 ## Multi-player consists — ownership and access model
 
@@ -294,8 +282,7 @@ is copied between a line and a convoy; the resolved id/kind is copied to each re
 `loose_recipient_id`/`loose_recipient_flags` (zero means no named recipient) [CODE]. The
 eligibility check that reads it at pickup is not yet written: `process_consist_order` still draws
 on the halt's laid-over pool without consulting the recipient, so the setting has no gameplay
-effect yet [CODE]. The design's list of permitted lines/convoys is implemented as one selection;
-the later tag design (see "Vehicle tags") supersedes the vectors but is itself unimplemented. The
+effect yet [CODE]. The design's list of permitted lines/convoys is implemented as one selection. The
 consist-order window lists the Same/Any entries plus the halt's lines or consists, with a
 Line/Consist filter; a specific recipient no longer registered at the halt (or hidden by a filter
 switch) resets to the default [CODE].

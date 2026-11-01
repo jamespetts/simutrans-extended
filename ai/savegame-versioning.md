@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 7655609c9
+verified: ex-15 @ 0d3fb4684
 ---
 # Savegame & network versioning
 
@@ -16,7 +16,9 @@ nor current version values — that detail is in each class's `rdwr()` code and 
 Three series, all declared in `simversion.h` (the sole authority for current values):
 - Base (inherited from Standard): `SIM_VERSION_MAJOR/MINOR/PATCH`, `SIM_SAVE_MINOR`, `SIM_SERVER_MINOR` [CODE].
 - Extended release: `EX_VERSION_MAJOR/MINOR` — the fork's own game version (14.x on master, 15.x on ex-15) [CODE].
-- Extended savegame revision: `EX_SAVE_MINOR` — ex-15 started a new series [CODE].
+- Extended savegame revision: `EX_SAVE_MINOR` — ex-15 started a new series; it increments during
+  development, once per savegame-format change, not only at release [RECOLLECTION:2026-11-01 user
+  statement].
 
 Header strings (simversion.h): `SAVEGAME_VER_NR` = `"0.<major>.<SIM_SAVE_MINOR>"`,
 `EXTENDED_VER_NR` = `".<EX_MAJOR>"`, `EXTENDED_REVISION_NR` = `".<EX_SAVE_MINOR>"`;
@@ -65,4 +67,3 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
 
 - **Extended-series future refusal for savegames**: `rd_open` and `karte_t::load` check only the BASE series; Extended-series refusal is verified only for settings.xml (simmain.cc). Intended behaviour: a 14.x client should refuse a 15.x savegame cleanly; if it instead fails during parsing, that is a bug [RECOLLECTION:2026-09-05]. Whether the code actually refuses cleanly is [UNVERIFIED — verify and fix if needed before any 15.x save is exposed to 14.x clients].
 - Does the load/save UI (gui/loadsave_frame.cc, dataobj/sve_cache.cc) filter or mark version-incompatible files? (Verify from code in a later pass.)
-- Is ex-15's new `EX_SAVE_MINOR` series intended to stay at its initial value until the 15.x release, or to increment during development? (Undecided as at 2026-09-05 — ask again later.)

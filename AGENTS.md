@@ -103,7 +103,8 @@ uses the unauthenticated `git://` protocol and cannot accept pushes.
 ## Quick facts
 
 - Build (Windows): MSVC solutions `Simutrans-Extended.sln` (game), `Makeobj-Extended.sln`
-  (pak compiler), `Nettool-Extended.sln`. Also GNU make (`Makefile`, `common.mk`) and
+  (pak compiler), `Nettool-Extended.sln`. Always use x64 configurations — the Win32 ones
+  lack the dependency include paths and do not build. Also GNU make (`Makefile`, `common.mk`) and
   CMake (`CMakeLists.txt`). Details: `ai/build-and-toolchain.md`.
 - Version constants live in `simversion.h`: base `SIM_*` series + Extended `EX_*` series
   (branch-dependent!) — see `ai/savegame-versioning.md`.
