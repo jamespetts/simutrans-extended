@@ -2765,7 +2765,9 @@ void consist_order_frame_t::update()
 				break;
 			}
 		}
-		if( !halt.is_bound() ) { destroy_win(this); }
+		// Destroy on an unbound halt; return at once, as the window is gone
+		// (destroy_win() deletes it outside event handling).
+		if( !halt.is_bound() ) { destroy_win(this); return; }
 
 		lb_halt.buf().append(halt->get_name());
 	}
