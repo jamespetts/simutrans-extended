@@ -28,13 +28,11 @@ verified: none
   evaluation weight gates it at `simrand(8 + weight) == 0`: negative = more likely; `-8` → `rd=0`
   → guaranteed AND consumes no RNG draw (`simrand` early-returns when `max<=1`, utils/simrandom.cc).
   [CODE master @ 206db8379]
-- Property-name history: the weight key was `house_N.chance`/`road_N.chance` until commit aa88e8679
-  (2017-04) renamed it to `.distribution_weight` with no pakset updated — every Extended pakset still
-  writes `.chance`, so from 2017 to 2026 all rule weights were silently 0 (flat 1/8 gates, no
-  guaranteed rules; a major contributor to stalled city growth in mapgen → see
-  [performance](performance.md) § Mapgen). Fixed 2026-09-18 (master 206db8379): both keys read,
-  `.distribution_weight` overriding `.chance` where present. Weights stay network-synced via the
-  unchanged `rule_t::rdwr`/`stadt_t::cityrules_rdwr` path. [EXECUTION-VERIFIED:2026-09-18]
+- Property names: the weight key is `.distribution_weight`; the legacy `house_N.chance`/
+  `road_N.chance` spelling is also read, `.distribution_weight` overriding `.chance` where
+  present (Extended paksets write `.chance`). Weights stay network-synced via the
+  unchanged `rule_t::rdwr`/`stadt_t::cityrules_rdwr` path.
+  [CODE master @ 206db8379; EXECUTION-VERIFIED:2026-09-18]
 
 ## Performance hotspots
 

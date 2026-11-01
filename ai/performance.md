@@ -71,11 +71,11 @@ and the pacing-side measurement plan in [frame-pacing-smoothness](frame-pacing-s
   output for this.
 - Command line build (project-level; no solution needed):
   `MSBuild.exe Simutrans-Extended.vcxproj "/p:Configuration=Profile" "/p:Platform=x64" /m`
-- **Verify `revision.h` after MSVC builds**: the pre-build `revision.jse` historically wrote a
-  stale revision (its git-output length check rejected modern `--short=7` output; fixed 2026-09-09
-  to accept 7–12 trimmed hex digits). The embedded revision identifies the profiled build in every
-  run's log header — check it matches `git rev-parse --short HEAD` before trusting a profiling
-  session. [execution-verified 2026-09-09: stale 2020 revision reproduced; fix verified]
+- **Verify `revision.h` after MSVC builds**: the pre-build `revision.jse` trims whitespace and
+  accepts 7–12 hex digits of git output, writing the revision into `revision.h`. The embedded
+  revision identifies the profiled build in every run's log header — check it matches
+  `git rev-parse --short HEAD` before trusting a profiling session.
+  [execution-verified 2026-09-09]
 
 ### Running the suite
 
@@ -263,7 +263,7 @@ removed at load) — repeat before acting on the deltas.
    `unreserve_route_threaded`.** 12.8% incl / 12.4% self — a first-class hotspot with thousands
    of convoys running (→ [signals-and-blocks](signals-and-blocks.md)).
 4. **City traffic — `private_car_t::sync_step` 18.6% incl / 9.0% self (`hop_check` 7.4% incl);
-   `pedestrian_t::sync_step` 1.2% self.** Not previously suspected at this rank.
+   `pedestrian_t::sync_step` 1.2% self.**
 5. **Passenger generation — `stadt_t` (simcity.cc) / `karte_t`.**
    `karte_t::generate_passengers_or_mail` 4.8% incl (`step_passengers_and_mail_threaded` 4.9%
    incl), `karte_t::find_destination` 3.0% incl. Monthly cadence; city *growth* is not hot

@@ -142,9 +142,8 @@ The `REVISION` define must match between server and clients for network play
 - GNU make: `WITH_REVISION = 1` → `-DREVISION="$(git rev-parse --short=7 HEAD)"`.
 - CMake: `SimutransCommitInfo.cmake` → `REVISION=<short-sha>` when git found.
 - MSVC: pre-build `revision.jse` writes `#define REVISION <sha>` into gitignored `revision.h`,
-  combined with the `REVISION_FROM_FILE` define. Historical observation (2026-09-05): `revision.h`
-  could hold a stale value after MSBuild runs — root cause found and fixed 2026-09-09 (the script's
-  strict output-length check rejected modern git output; see Known problems). Stale revisions can
+  combined with the `REVISION_FROM_FILE` define. The script trims whitespace and accepts 7–12
+  hex digits of git output. Stale revisions can
   break network compatibility, so check `revision.h` against `git rev-parse --short HEAD` after
   MSVC builds.
 - `findversion.sh` is an SVN-era legacy script (OpenTTD compile farm); obsolete.
@@ -184,8 +183,7 @@ The `REVISION` define must match between server and clients for network play
   workflow_dispatch only (`squirrel_tests` input; they hang —
   [scripting-and-tests](scripting-and-tests.md)).
 - `tsan-smoke.yml` (push/PR; "TSan smoke"): same harness call with `sanitizer: tsan`; regression
-  detector for threading races (the `karte_t::load`/`init_threads` race family that made it
-  knowingly red is fixed — workers are now created only at the end of `karte_t::load`,
+  detector for threading races (worker threads are created only at the end of `karte_t::load`,
   [threading](threading.md)). Separate workflow because GitHub
   rejects `continue-on-error` on jobs calling a reusable workflow — this keeps its red run from
   failing the "Automated Tests" gate.
@@ -290,29 +288,20 @@ statement + user-supplied VPS scripts]. They cannot be verified against this rep
   fails silently (the script has no `set -e`). User: fair record, fix during VPS modernisation.
 - CMake `SIMUTRANS_MULTI_THREAD` defaults to OFF and no CI workflow enables it — CMake-built
   binaries (CI artifacts, GitHub nightlies) are single-threaded, unlike the BB GNU-make builds
-  (`MULTI_THREAD = 1` in every VPS config). Latent problem for any future CMake/CI adoption;
-  previously unnoticed [RECOLLECTION:2026-09-05 user statement].
+  (`MULTI_THREAD = 1` in every VPS config). Latent problem for any future CMake/CI adoption
+  [RECOLLECTION:2026-09-05 user statement].
 - The published `.deb` version is hardcoded in `package.sh` (14.9000.12) and does not track the
   actual release, despite the package being rebuilt on a schedule.
-- `revision.h` staleness under MSBuild (see Revision embedding above) — ROOT CAUSE FOUND AND FIXED
-  2026-09-09: `revision.jse` rejected git's `--short=7` output on a strict `length !== 9` check
-  (7 hex + LF = 8 chars), silently leaving `revision.h` untouched; the file had held a 2020
-  revision since. Fix: trim whitespace and accept 7–12 hex digits. Keep the routine caution of
-  checking `revision.h` against `git rev-parse --short HEAD` after MSVC builds
-  [execution-verified 2026-09-09: stale value reproduced; fix verified].
 - `Nettool.vcxproj` stale (v140_xp, Windows SDK 7, VS2010-format solution).
 - `linux-build.yml` misnamed ("msvc-build") and clang version mismatch (installs 10, uses 14).
 - `CMakeLists.txt` references an undefined `simutrans` target (HEAVY_MODE block; test `DEPENDS`).
 - The "Optimised debug" configurations are defined in `Simutrans-Extended.vcxproj` (Win32 and x64,
   v143) **and fully mapped in `Simutrans-Extended.sln`** (solution configurations + project
-  mappings, since commit 5dc127a85, 2019) [CODE master @ cc1c5858f]. An earlier claim here that they were
-  absent from the solution was wrong; if the configuration does not appear in a given Visual
+  mappings) [CODE master @ cc1c5858f]. If the configuration does not appear in a given Visual
   Studio installation's dropdown, the cause lies outside the repository (e.g. VS state), not in
   these files. Note the sln also carries dead legacy entries (solution-only configs with no
   project backing, e.g. "Release (open GL)"; project-only configs unreachable from the sln, e.g.
   "Debug (command-line server)") — cosmetic, no fix pending.
-- Revision-embedding observation (2026-09-05, predating the revision.jse fix): after a successful
-  MSBuild run, `revision.h` held a stale value — explained and fixed as above.
 - The SDL3 backend (`sys/simsys_s3.cc`, `sys/clipboard_s3.cc`, `sound/sdl3_sound.cc`) is on both
   branches: added on master, merged into ex-15 2026-09-05 (→ [rendering](rendering.md)). It was supplied by a
   contributor and integrated by the user in 2026-09, with the aim of testing it and, if it works,

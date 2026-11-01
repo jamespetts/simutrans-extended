@@ -25,7 +25,7 @@ The rework exists to serve these stated goals; they are the test it must be judg
 ### Counted unit of industry density
 
 - Base: every non-power factory contributes `100 / distribution_weight` to `actual_industry_density`; increments in `factory_builder_t::build_factory`, decrements in `fabrik_t::~fabrik_t`, swapped in the upgrade path of `fabrik_t::new_month`, recomputed in `karte_t::init` and the legacy path of `karte_t::rdwr_gamestate`.
-- Rework: every one of those sites is gated on `factory_desc_t::is_consumer_only()`. Producers, manufacturers and raw extractors no longer debit the density budget, and the upgrade density cap in `fabrik_t::new_month` is bypassed for non-consumer-only types.
+- Rework: every one of those sites is gated on `factory_desc_t::is_consumer_only()`. Producers, manufacturers and raw extractors do not debit the density budget, and the upgrade density cap in `fabrik_t::new_month` is bypassed for non-consumer-only types.
 - Consequence: `distribution_weight` governs end consumers only. Producer counts become an emergent property of chain-link arithmetic rather than of the pakset weight.
 
 ### Generation order and modes
@@ -42,7 +42,7 @@ The rework exists to serve these stated goals; they are the test it must be judg
 ### Shared-supplier apportionment
 
 - Base: a supplier's output is charged at full nominal need to every consumer sharing it (`competing_consumer->get_base_production() * supplier consumption`, summed).
-- Rework: each competing consumer's draw is weighted by `supplier production / total production of all that consumer's suppliers for the good`, accumulated in `sint64`. One hungry shop no longer attracts duplicate suppliers.
+- Rework: each competing consumer's draw is weighted by `supplier production / total production of all that consumer's suppliers for the good`, accumulated in `sint64`. One hungry shop does not attract duplicate suppliers.
 
 ### Downstream bottleneck accounting
 
@@ -94,7 +94,7 @@ The rework exists to serve these stated goals; they are the test it must be judg
 | Surplus-weighted consumer allocation | Conforms: global prod/cons × consumer-type weight, re-verified over multiple draws |
 | Countryside mostly in production, not wilderness | Conforms better (more upstream generated); unmeasured |
 | Realistic decisions rather than mechanics-reading ([high-level-design-goals](high-level-design-goals.md)) | Conforms better: fewer stranded and half-built chains, fewer manufacturers with no outlet |
-| Producers in proportion per `distribution_weight` | **Regresses**: producers are removed from density accounting entirely, so the weight no longer governs them. Whether demand-derived producer counts are the intended replacement is an open decision |
+| Producers in proportion per `distribution_weight` | **Regresses**: producers are removed from density accounting entirely, so the weight does not govern them. Whether demand-derived producer counts are the intended replacement is an open decision |
 | Density ∝ population | Form conforms; the *basis* changed without pakset-side recalibration of `distribution_weight`, against the calibration doctrine |
 | Industries close when realistic | Neutral in code (closure thresholds unchanged), but a better-balanced closed economy accumulates fewer unproductive months, so fewer closures. The feature meant to restore churn is ports/import-export, which is unscheduled |
 | Consumer generation eventually moves to town growth | Tension: the rework entrenches substantial consumer machinery in `factory_builder_t` against a request that it be temporary. The `density_options` seam makes the eventual cut local, and the `FILL_*` servo modes are exactly the future factory-builder role |

@@ -22,9 +22,8 @@ verified: mapgen-perf-fixes @ 0954e8c3c
    until the 10-minute timeout: ASan/UBSan after `error [suspended] calling start` at test 1/64
    [CODE master @ 78a4bb3b9 / ex-15 @ 91d9b252e: CI logs]. The wrapper does not recognise
    `[suspended]` as a failure pattern, so failures surface as timeouts rather than fast failures
-   [CODE master @ 78a4bb3b9: run-automated-tests.sh]. (The TSan flavour of that job additionally
-   reported the `karte_t::load`/`init_threads` race family; that family is now fixed and
-   independent of the `[suspended]` hang, which remains undiagnosed.)
+   [CODE master @ 78a4bb3b9: run-automated-tests.sh]. (The TSan flavour of that job is a separate
+   matter from the `[suspended]` hang, which remains undiagnosed.)
 - Push/PR CI gates on the smoke harness instead (smoke + network determinism on `tests/demo.sve`
    via `scripts/run-smoke-tests.sh`, pakset pinned in `tests/pakset-pin.tab`); the TSan smoke
    flavour runs as its own workflow `tsan-smoke.yml` (a threading-race regression detector),
@@ -90,8 +89,7 @@ verified: mapgen-perf-fixes @ 0954e8c3c
   generation can: the server build with `-generate_map` creates and reports a world without
   entering the interactive loop [CODE master @ 69b4c8c84: simmain.cc].)
 - Root cause of the `run-tests.yml` Squirrel-suite failure (`[suspended]` error + hang) — not yet
-  diagnosed. (The TSan races once reported by that job were the separate, since-fixed
-  `karte_t::load`/`init_threads` family.)
+  diagnosed.
 - join-sync on ex-15: the fixture is a 14.x-era save; loading it with the ex-15 engine and the ex-15
   pakset pin is unverified. If it fails, restrict `join-sync.yml` to master or host a branch-specific
   fixture [UNVERIFIED].
