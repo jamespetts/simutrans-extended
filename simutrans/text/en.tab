@@ -6966,3 +6966,15 @@ staff_type_5_description
 staff_type_5_description
 staff_type_6_description
 staff_type_6_description
+Convoy %s: the coupling target of the consist order at %s no longer exists; the order is not being carried out.
+Convoy %s: the coupling target of the consist order at %s no longer exists; the order is not being carried out.
+Convoy %s cannot continue with its present vehicles: sending it to a depot.
+Convoy %s cannot continue with its present vehicles: sending it to a depot.
+Consist orders have been changed after the deletion of %s:
+Consist orders have been changed after the deletion of %s:
+Line %s has no convoys left: consist orders referring to it cannot be carried out.
+Line %s has no convoys left: consist orders referring to it cannot be carried out.
+Couple orders with no coupling target selected have been removed from these stops:
+Couple orders with no coupling target selected have been removed from these stops:
+Waiting for a coupling partner.
+Waiting for a coupling partner.

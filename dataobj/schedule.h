@@ -286,8 +286,36 @@ public:
 
 	const consist_order_t& get_consist_order(uint16 unique_id);
 
-	convoihandle_t get_couple_target(uint16 unique_id, halthandle_t halt);
+	// How a couple entry's target stands at a stop.
+	enum couple_target_state_t {
+		couple_not_configured, // no couple flag: the order draws on the stop's pool
+		couple_target_present, // the named target is present at this halt and loading
+		couple_target_absent,  // the named target exists but is elsewhere: wait for it
+		couple_target_missing  // the named target does not resolve (gone, or id 0)
+	};
+	couple_target_state_t get_couple_target(uint16 unique_id, halthandle_t halt, convoihandle_t &target);
 	// TODO: Implement get_uncouple_target
+
+	// Authoring guard: does any entry arm the couple flag without a target id?
+	// That arrangement is not authorable - a pool-only re-combination needs no
+	// couple flag - so it must not be committed.
+	bool has_couple_without_target() const;
+	// Remove each such incomplete arrangement (flag, target and consist order),
+	// telling the player which stops were affected.
+	void remove_couple_without_target(karte_t *welt);
+
+	// Sweep every schedule in the world for consist-order references to the given
+	// line (to_convoy false) or convoy (true). With remove set the references are
+	// removed: couple orders keep their flag and become broken-target orders
+	// (never assembled from the stop's pool), uncouple orders become plain
+	// uncouples, trigger targets and leftover-vehicle recipients are cleared.
+	// With remove false nothing is changed and only the referring schedules are
+	// reported. Either way each affected schedule's line or convoy name is
+	// appended to summary[player number], and the total count returned.
+	static uint32 sweep_references(karte_t *welt, bool to_convoy, uint16 id, bool remove, cbuffer_t summary[]);
+	// Report a sweep's results to the owners of the affected schedules: a
+	// message-style window on their own client and a message in the log.
+	static void report_reference_changes(karte_t *welt, const cbuffer_t summary[], uint32 changed, const char *header, koord pos);
 
 	// These hashtables represent what categories of goods are carried
 	// to and from each entry according to this schedule's consist orders.

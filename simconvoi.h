@@ -123,6 +123,7 @@ public:
 		AWAITING_TRIGGER,
 		LAYOVER,
 		SHUNTING,
+		AWAITING_RECOMBINATION,
 		MAX_STATES
 	};
 
@@ -1692,8 +1693,26 @@ public:
 	// sufficient of the right number of vehicles to do so).
 	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy);
 
+	// True when any vehicle supplies power: a powerless consist cannot run.
+	bool has_power() const;
+
+	// True when a route failure is attributable to the vehicle combination - the
+	// consist has no traction, or only traction that needs electrification - and
+	// not to the network, so retrying the same route search cannot help.
+	bool is_route_failure_from_combination() const { return !has_power() || needs_electrification(); }
+
 	private:
 		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy);
+
+		// Carry out the current entry's consist order, exchanging with the given
+		// coupling target (unbound: assemble from the stop's pool). Sets SHUNTING
+		// when the consist changes.
+		consist_order_process_result process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy);
+
+		// A couple order whose target does not resolve has a broken target: log
+		// the error and leave the order unexecuted. It is never assembled from
+		// the stop's pool.
+		void report_broken_couple_target(halthandle_t halt);
 };
 
 #endif

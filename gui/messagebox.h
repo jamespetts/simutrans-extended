@@ -59,6 +59,18 @@ private:
 
 
 /**
+ * Message-style window summarising the lines and consists whose consist orders
+ * have been changed by a consist-order reference sweep (for example on the
+ * deletion of a line or convoy to which they referred).
+ */
+class consist_change_news : public news_img
+{
+public:
+	consist_change_news(const char* text) : news_img(text) {}
+};
+
+
+/**
  * Shows a news window with a view on some location
  */
 class news_loc : public news_window

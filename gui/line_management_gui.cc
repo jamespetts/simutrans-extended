@@ -57,6 +57,7 @@ bool line_management_gui_t::infowin_event(const event_t *ev)
 
 					// update all convoys of this line!
 					// update line schedule via tool!
+					schedule->remove_couple_without_target(welt);
 					cbuffer_t buf;
 					buf.printf( "g,%i,", line.get_id() );
 					schedule->sprintf_schedule( buf );

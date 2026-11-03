@@ -126,7 +126,8 @@ static const char * state_names[convoi_t::MAX_STATES] =
 	"OVERHAUL",
 	"AWAITING_TRIGGER",
 	"LAYOVER",
-	"SHUNTING"
+	"SHUNTING",
+	"AWAITING_RECOMBINATION"
 };
 
 
@@ -318,6 +319,16 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 		if (!line.is_bound()) {
 			unregister_stops();
 		}
+
+		// Break every consist-order reference to this convoy so that a stale id
+		// can never bind to a later convoy that reuses it. The affected players
+		// get a message-style window and a log entry naming the changed schedules.
+		cbuffer_t summary[MAX_PLAYER_COUNT];
+		const uint32 changed = schedule_t::sweep_references(welt, true, self.get_id(), true, summary);
+		cbuffer_t header;
+		header.printf(translator::translate("Consist orders have been changed after the deletion of %s:"), get_name());
+		const koord3d anchor = get_home_depot() != koord3d::invalid ? get_home_depot() : koord3d(welt->get_size().x / 2, welt->get_size().y / 2, 0);
+		schedule_t::report_reference_changes(welt, summary, changed, header, anchor.get_2d());
 	}
 
 	// force asynchronous recalculation
@@ -2324,6 +2335,18 @@ void convoi_t::step()
 		case NO_ROUTE_TOO_COMPLEX:
 		{
 			reserve_own_tiles();
+			// Self-healing for a vehicle combination that cannot run the network:
+			// no traction, or only traction that needs electrification. No retry
+			// of the route search can help, so send the convoy to a depot with an
+			// explicit warning rather than letting it block the way.
+			if ((state == NO_ROUTE || state == NO_ROUTE_TOO_COMPLEX) && is_route_failure_from_combination())
+			{
+				cbuffer_t buf;
+				buf.printf(translator::translate("Convoy %s cannot continue with its present vehicles: sending it to a depot."), get_name());
+				welt->get_message()->add_message(buf, front()->get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
+				emergency_go_to_depot();
+				return;
+			}
 			// stuck vehicles
 			if (no_route_retry_count < 7)
 			{
@@ -2447,6 +2470,7 @@ void convoi_t::step()
 			break;
 
 		case AWAITING_TRIGGER:
+		case AWAITING_RECOMBINATION:
 		case REPLENISHING:
 		case LOADING:
 		case WAITING_FOR_LOADING_THREE_MONTHS:
@@ -2547,6 +2571,37 @@ void convoi_t::step()
 		{
 			break;
 		}
+
+	case AWAITING_RECOMBINATION:
+	{
+		// Waiting for the named coupling target (deliberately no timeout).
+		// Re-resolve every step and carry out the exchange when it arrives.
+		halthandle_t wait_halt = haltestelle_t::get_halt(get_pos(), owner);
+		convoihandle_t joining_convoy;
+		const schedule_t::couple_target_state_t couple_state = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, wait_halt, joining_convoy);
+		if (couple_state == schedule_t::couple_target_present)
+		{
+			process_current_entry_consist_order(wait_halt, joining_convoy);
+			if (state == AWAITING_RECOMBINATION)
+			{
+				// The exchange changed nothing: continue without it.
+				state = LOADING;
+			}
+		}
+		else if (couple_state == schedule_t::couple_target_missing)
+		{
+			// The target is gone: report once and continue without the order.
+			report_broken_couple_target(wait_halt);
+			state = LOADING;
+		}
+		else if (couple_state == schedule_t::couple_not_configured)
+		{
+			// The entry lost its couple configuration (its target was deleted):
+			// nothing is left to wait for.
+			state = LOADING;
+		}
+		break;
+	}
 
 		// handled by routine
 	    case WAITING_FOR_LOADING_THREE_MONTHS:
@@ -6378,26 +6433,31 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 
 	if (first_run && schedule->entry_has_consist_order(schedule->get_current_entry().unique_entry_id))
 	{
-		const consist_order_t& order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
-		convoihandle_t cnv = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt);
-		convoi_t::consist_order_process_result result = process_consist_order(order, halt, nullptr, cnv);
-
-		vehicles_loading = min(vehicles_loading, vehicle_count);
-
-		if (result == convoi_t::succeed)
+		convoihandle_t joining_convoy;
+		const schedule_t::couple_target_state_t couple_state = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt, joining_convoy);
+		if (couple_state == schedule_t::couple_target_absent)
 		{
-			if (state == LAYOVER)
-			{
-				// Shunting overwrites layover: deregister from the stop's layover
-				// pool first, or the registry entry goes stale.
-				exit_layover();
-			}
-			state = SHUNTING;
-			const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
-			wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
+			// The named coupling target exists but has not arrived: wait for it.
+			// There is deliberately no timeout (a timeout would make a major jam
+			// worse); deadlock avoidance is part of the two-party coupling work.
+			state = AWAITING_RECOMBINATION;
+		}
+		else if (couple_state == schedule_t::couple_target_missing)
+		{
+			// Broken target: the order is not carried out and the consist
+			// continues as if it had no consist order.
+			report_broken_couple_target(halt);
+		}
+		else
+		{
+			// couple_target_present: exchange with the target.
+			// couple_not_configured: an intentionally targetless order draws on
+			// the vehicles at the stop.
+			process_current_entry_consist_order(halt, joining_convoy);
+			vehicles_loading = min(vehicles_loading, vehicle_count);
 		}
 
-		// TODO: Consider what happens if we fail. Error message? Wait? Continue?
+		// TODO: Consider what happens if the exchange itself fails.
 
 		// TODO: Implement logic for dividing
 	}
@@ -6492,7 +6552,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		return;
 	}
 
-	if (state != LAYOVER && state != SHUNTING)
+	if (state != LAYOVER && state != SHUNTING && state != AWAITING_RECOMBINATION)
 	{
 		// This is done in the layover state after the minimum layover time has expired.
 		check_departure(halt);
@@ -9590,6 +9650,52 @@ void convoi_t::book_fuel_consumption()
 		}
 	}
 }
+
+bool convoi_t::has_power() const
+{
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		if (vehicle[i]->get_desc()->get_power() > 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
+void convoi_t::report_broken_couple_target(halthandle_t halt)
+{
+	// A couple order whose target does not resolve - the named line or convoy no
+	// longer exists, or no target was ever selected - has a broken target. The
+	// order is not carried out, and in particular is never assembled from the
+	// stop's pool: that would silently change its meaning. The consist continues
+	// as if it had no consist order.
+	cbuffer_t buf;
+	buf.printf(translator::translate("Convoy %s: the coupling target of the consist order at %s no longer exists; the order is not being carried out."), get_name(), halt.is_bound() ? halt->get_name() : get_pos().get_str());
+	welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
+}
+
+
+convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy)
+{
+	const consist_order_t &order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
+	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy);
+	if (result == succeed)
+	{
+		if (state == LAYOVER)
+		{
+			// Shunting overwrites layover: deregister from the stop's layover
+			// pool first, or the registry entry goes stale.
+			exit_layover();
+		}
+		state = SHUNTING;
+		const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
+		wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
+	}
+	return result;
+}
+
 
 convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy)
 {

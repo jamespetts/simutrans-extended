@@ -472,6 +472,13 @@ void convoi_info_t::update_labels()
 			route_bar.set_state(3);
 			break;
 
+		case convoi_t::AWAITING_RECOMBINATION:
+
+			speed_label.buf().append(translator::translate("Waiting for a coupling partner."));
+			speed_label.set_color(COL_CAUTION);
+			route_bar.set_state(1);
+			break;
+
 		case convoi_t::LOADING:
 
 			char waiting_time[64];
@@ -826,6 +833,7 @@ void convoi_info_t::draw(scr_coord pos, scr_size size)
 				case convoi_t::ROUTE_JUST_FOUND:	sprintf(state_text, "ROUTE_JUST_FOUND");	break;
 				case convoi_t::WAITING_FOR_LOADING_THREE_MONTHS:	sprintf(state_text, "WAITING_FOR_LOADING_THREE_MONTHS");	break;
 				case convoi_t::WAITING_FOR_LOADING_FOUR_MONTHS:	sprintf(state_text, "WAITING_FOR_LOADING_FOUR_MONTHS");	break;
+				case convoi_t::AWAITING_RECOMBINATION:	sprintf(state_text, "AWAITING_RECOMBINATION");	break;
 				default:	sprintf(state_text, "default");	break;
 
 				}

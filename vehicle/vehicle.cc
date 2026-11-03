@@ -3159,6 +3159,14 @@ void vehicle_t::display_after(int xpos, int ypos, bool is_global) const
 				}
 				break;
 
+			case convoi_t::AWAITING_RECOMBINATION:
+				if( tooltip_display_level >=3 )
+				{
+					tstrncpy( tooltip_text, translator::translate("Waiting for a coupling partner."), lengthof(tooltip_text) );
+					color = color_idx_to_rgb(COL_YELLOW);
+				}
+				break;
+
 			case convoi_t::LOADING:
 				if( tooltip_display_level >=3 )
 				{

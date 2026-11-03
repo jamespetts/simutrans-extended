@@ -11,6 +11,7 @@
 #include "../simtypes.h"
 #include "../simworld.h"
 #include "../simhalt.h"
+#include "../simmesg.h"
 #include "../display/simimg.h"
 
 #include "../utils/cbuffer_t.h"
@@ -701,9 +702,9 @@ const consist_order_t& schedule_t::get_consist_order(uint16 unique_id)
 	return order;
 }
 
-convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt)
+schedule_t::couple_target_state_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt, convoihandle_t &target)
 {
-	convoihandle_t cnv;
+	target = convoihandle_t();
 	const schedule_entry_t* entry = nullptr;
 
 	for (const schedule_entry_t &e : entries)
@@ -715,11 +716,18 @@ convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt
 		}
 	}
 
-	if (entry && entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple) && halt.is_bound())
+	if (!entry || !entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple))
 	{
-		// Both target modes resolve only among convoys present at this halt and
-		// loading here: a named line or convoy elsewhere cannot couple at this stop.
-		if (!entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv))
+		return couple_not_configured;
+	}
+
+	const bool target_is_convoy = entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv);
+
+	// Both target modes resolve only among convoys present at this halt and
+	// loading here: a named line or convoy elsewhere cannot couple at this stop.
+	if (halt.is_bound())
+	{
+		if (!target_is_convoy)
 		{
 			// Line
 			linehandle_t line;
@@ -727,9 +735,10 @@ convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt
 
 			for (auto c : halt->get_loading_convois())
 			{
-				if (c.is_bound() && c->get_line() == line)
+				if (c.is_bound() && line.is_bound() && c->get_line() == line)
 				{
-					return c;
+					target = c;
+					return couple_target_present;
 				}
 			}
 		}
@@ -740,13 +749,211 @@ convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt
 			{
 				if (c.is_bound() && c.get_id() == entry->target_id_couple)
 				{
-					return c;
+					target = c;
+					return couple_target_present;
 				}
 			}
 		}
 	}
 
-	return cnv;
+	// Not here. Distinguish waiting for a live target from a broken one with a
+	// single is_bound() check: an id of 0 does not resolve, just like the id of a
+	// deleted line or convoy.
+	if (target_is_convoy)
+	{
+		convoihandle_t cnv;
+		cnv.set_id(entry->target_id_couple);
+		return cnv.is_bound() ? couple_target_absent : couple_target_missing;
+	}
+	linehandle_t line;
+	line.set_id(entry->target_id_couple);
+	return line.is_bound() ? couple_target_absent : couple_target_missing;
+}
+
+
+bool schedule_t::has_couple_without_target() const
+{
+	for (const schedule_entry_t &e : entries)
+	{
+		if (e.is_flag_set(schedule_entry_t::schedule_entry_flag::couple) && e.target_id_couple == 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
+void schedule_t::remove_couple_without_target(karte_t *welt)
+{
+	cbuffer_t removed_stops;
+	for (uint32 i = 0; i < entries.get_count(); i++)
+	{
+		schedule_entry_t &e = entries[i];
+		if (e.is_flag_set(schedule_entry_t::schedule_entry_flag::couple) && e.target_id_couple == 0)
+		{
+			e.clear_flag(schedule_entry_t::schedule_entry_flag::couple);
+			e.clear_flag(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv);
+			orders.remove(e.unique_entry_id);
+			const grund_t *gr = welt->lookup(e.pos);
+			removed_stops.append(gr && gr->get_halt().is_bound() ? gr->get_halt()->get_name() : e.pos.get_str());
+			removed_stops.append("\n");
+		}
+	}
+
+	if (removed_stops.len() != 0)
+	{
+		cbuffer_t txt;
+		txt.append(translator::translate("Couple orders with no coupling target selected have been removed from these stops:"));
+		txt.append("\n");
+		txt.append(removed_stops);
+		create_win(new news_img(txt), w_time_delete, magic_none);
+	}
+}
+
+
+uint32 schedule_t::sweep_references(karte_t *welt, bool to_convoy, uint16 id, bool remove, cbuffer_t summary[])
+{
+	uint32 changed = 0;
+
+	for (uint8 pn = 0; pn < MAX_PLAYER_COUNT; pn++)
+	{
+		player_t *player = welt->get_player(pn);
+		if (player == NULL)
+		{
+			continue;
+		}
+
+		// Every schedule that can hold consist-order references: this player's
+		// lines and this player's convoys.
+		for (uint8 pass = 0; pass < 2; pass++)
+		{
+			const uint32 count = pass == 0 ? player->simlinemgmt.get_all_lines().get_count() : welt->convoys().get_count();
+			for (uint32 i = 0; i < count; i++)
+			{
+				schedule_t *schedule;
+				const char *owner_name;
+				if (pass == 0)
+				{
+					linehandle_t line = player->simlinemgmt.get_all_lines()[i];
+					schedule = line->get_schedule();
+					owner_name = line->get_name();
+				}
+				else
+				{
+					convoihandle_t cnv = welt->convoys()[i];
+					if (!cnv.is_bound() || cnv->get_owner() != player)
+					{
+						continue;
+					}
+					schedule = cnv->get_schedule();
+					owner_name = cnv->get_name();
+				}
+
+				if (schedule == NULL)
+				{
+					continue;
+				}
+
+				bool affects = false;
+				for (uint32 j = 0; j < schedule->entries.get_count(); j++)
+				{
+					schedule_entry_t &e = schedule->entries[j];
+
+					// A couple order whose target is removed keeps its flag and
+					// becomes a broken-target order: carried out as if absent,
+					// never assembled from the stop's pool.
+					if (e.is_flag_set(schedule_entry_t::schedule_entry_flag::couple)
+						&& e.is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv) == to_convoy
+						&& e.target_id_couple == id)
+					{
+						if (remove)
+						{
+							e.target_id_couple = 0;
+						}
+						affects = true;
+					}
+
+					// An uncouple order whose receiver is removed becomes a plain
+					// uncouple: its released vehicles go loose at the stop.
+					if (e.is_flag_set(schedule_entry_t::schedule_entry_flag::uncouple_target_is_line_or_cnv) == to_convoy
+						&& e.target_id_uncouple == id)
+					{
+						if (remove)
+						{
+							e.target_id_uncouple = 0;
+							e.target_unique_entry_uncouple = 0;
+						}
+						affects = true;
+					}
+
+					if (e.is_flag_set(schedule_entry_t::schedule_entry_flag::cond_trigger_is_line_or_cnv) == to_convoy
+						&& e.target_id_condition_trigger == id)
+					{
+						if (remove)
+						{
+							e.target_id_condition_trigger = 0;
+						}
+						affects = true;
+					}
+
+					if (consist_order_t *order = schedule->orders.access(e.unique_entry_id))
+					{
+						if (!order->is_available_to_any() && !order->is_available_to_same()
+							&& order->get_available_to_is_convoy() == to_convoy
+							&& order->get_available_to_id() == id)
+						{
+							if (remove)
+							{
+								order->set_available_to_same();
+							}
+							affects = true;
+						}
+					}
+				}
+
+				if (affects)
+				{
+					changed++;
+					summary[pn].printf("%s\n", owner_name);
+				}
+			}
+		}
+	}
+
+	return changed;
+}
+
+
+void schedule_t::report_reference_changes(karte_t *welt, const cbuffer_t summary[], uint32 changed, const char *header, koord pos)
+{
+	if (changed == 0)
+	{
+		return;
+	}
+
+	for (uint8 pn = 0; pn < MAX_PLAYER_COUNT; pn++)
+	{
+		if (summary[pn].len() == 0)
+		{
+			continue;
+		}
+
+		cbuffer_t txt;
+		txt.append(header);
+		txt.append("\n");
+		txt.append(summary[pn]);
+
+		player_t *owner = welt->get_player(pn);
+		if (owner == welt->get_active_player())
+		{
+			create_win(new consist_change_news(txt), w_time_delete, magic_none);
+		}
+		if (owner)
+		{
+			welt->get_message()->add_message(txt, pos, message_t::warnings, PLAYER_FLAG | pn, IMG_EMPTY);
+		}
+	}
 }
 
 

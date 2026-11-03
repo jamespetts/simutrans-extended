@@ -2001,6 +2001,9 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 		close_uncouple_picker();
 		schedule->cleanup();
 		schedule->finish_editing();
+		// A couple order with no coupling target selected is not authorable and is
+		// removed with a notice (the pool mode needs no couple flag).
+		schedule->remove_couple_without_target(welt);
 		// now apply the changes
 		if(  cnv.is_bound()  ) {
 			// do not send changes if the convoi is about to be deleted
@@ -2136,6 +2139,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 	}
 	else if(comp == &bt_promote_to_line) {
 		// update line schedule via tool!
+		schedule->remove_couple_without_target(welt);
 		cbuffer_t buf;
 		buf.printf( "c,0,%i,%ld,", (int)schedule->get_type(), (long)(uint64)old_schedule );
 		schedule->sprintf_schedule( buf );

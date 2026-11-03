@@ -142,6 +142,15 @@ simline_t::~simline_t()
 	{
 		assert(count_convoys() == 0);
 		unregister_stops();
+
+		// Break every consist-order reference to this line so that a stale id can
+		// never bind to a later line that reuses it. The affected players get a
+		// message-style window and a log entry naming the changed schedules.
+		cbuffer_t summary[MAX_PLAYER_COUNT];
+		const uint32 changed = schedule_t::sweep_references(welt, false, self.get_id(), true, summary);
+		cbuffer_t header;
+		header.printf(translator::translate("Consist orders have been changed after the deletion of %s:"), get_name());
+		schedule_t::report_reference_changes(welt, summary, changed, header, koord(welt->get_size().x / 2, welt->get_size().y / 2));
 	}
 
 
@@ -323,6 +332,18 @@ void simline_t::remove_convoy(convoihandle_t cnv)
 	}
 	if(line_managed_convoys.empty()) {
 		unregister_stops();
+		if (!welt->is_destroying())
+		{
+			// The last convoy has gone but the line itself remains: consist
+			// orders referring to it cannot be carried out. Warn the referring
+			// players rather than removing the references - the line may yet
+			// regain convoys.
+			cbuffer_t summary[MAX_PLAYER_COUNT];
+			const uint32 referring = schedule_t::sweep_references(welt, false, self.get_id(), false, summary);
+			cbuffer_t header;
+			header.printf(translator::translate("Line %s has no convoys left: consist orders referring to it cannot be carried out."), get_name());
+			schedule_t::report_reference_changes(welt, summary, referring, header, koord(welt->get_size().x / 2, welt->get_size().y / 2));
+		}
 	}
 	calc_classes_carried();
 }
