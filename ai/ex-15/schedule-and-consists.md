@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 5dde53e83
+verified: ex-15 @ 13ba17597
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -84,9 +84,14 @@ explorer's treatment of consist orders.
   bt_couple sets and clears the `couple` flag) +
   `schedule_t::get_couple_target` + absorption: the arriving convoy draws vehicles from the joining
   convoy or the halt's laid-over pool via `convoi_t::process_consist_order`; an emptied joining
-  convoy self-destructs. Missing: no two-party synchronisation; failure is silently ignored
+  convoy self-destructs. Target resolution is co-location-gated in both modes: only convoys present
+  at the halt and loading (`halt->get_loading_convois`) can be coupled with [CODE ex-15 @ 13ba17597].
+  Missing: no two-party synchronisation —
+  the receiver's order strips the named target directly, with no uncouple order required on the
+  target and no atomic paired exchange; failure is silently ignored
   (`// TODO: Consider what happens if we fail` in `hat_gehalten`); no waiting/retry when the target
-  has not arrived.
+  has not arrived — an unresolved target silently becomes a pool order (open bug:
+  [known-bugs](../known-bugs.md)).
 - **Consist orders** — data model: `consist_order_t` (end-state for one entry, keyed by
   unique_entry_id; exactly one order per entry
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202940.html]) →
@@ -241,7 +246,8 @@ Multi-player consists are intended (through carriages, hired traction, wagon poo
   depot owner; the replacer builds the replacement owned by the convoy owner. Vehicle and convoy
   statistics counters move only on build, sale and destroy, not on a consist-order move.
 - Coupling-target selection is not gated by access: the GUI lists every lineless convoy registered
-  at the halt (registration itself is owner-filtered) plus lines via `get_loading_convois()`.
+  at the halt (registration itself is owner-filtered; a registered convoy serves the halt but is
+  not necessarily present) plus lines via `get_loading_convois()`.
   Copying a convoy's order requires mutual access (`gui/consist_order_gui.cc`) — a precedent for
   gating coupling itself.
 - Company removal destroys the vehicles in its convoys regardless of owner
@@ -293,19 +299,13 @@ consist-order window lists the Same/Any entries plus the halt's lines or consist
 Line/Consist filter; a specific recipient no longer registered at the halt (or hidden by a filter
 switch) resets to the default [CODE].
 
-- **A convoy target is resolved by id alone and dismembered wherever it is.** The line mode
-  resolves against `halt->get_loading_convois()` (convoys present and loading), but the convoy mode
-  is `cnv.set_id(entry->target_id_couple)` with no position or state check. When the receiving
-  convoy's order runs, the target's vehicles are removed from it and repositioned onto the
-  receiver; the target's route and reservations are not cleaned up, and if emptied it
-  self-destructs. The GUI list is `halt->registered_convoys` (convoys serving the halt, not
-  necessarily present), so this is reachable in play; registered as an open bug in
-  [known-bugs](../known-bugs.md).
-- **A specified target that cannot be resolved is silently replaced by the pool.** An unresolved
-  target makes `get_couple_target` return an unbound handle, so `process_consist_order` takes the
+- **A specified target that is not present and loading here is silently replaced by the pool.** A
+  target that cannot be resolved — absent, sold, or a line with no convoy here — makes
+  `get_couple_target` return an unbound handle, so `process_consist_order` takes the
   no-joining-convoy branch and assembles from the halt's laid-over pool: a missing partner changes
   the order's meaning rather than making it wait. Order failure is otherwise silently ignored
   (`// TODO: Consider what happens if we fail` in `hat_gehalten`); no waiting state exists.
+  Registered as an open bug in [known-bugs](../known-bugs.md).
 - **Depot-entry orders never execute.** `process_consist_order` has one call site (`hat_gehalten`),
   always with `dep == nullptr`, so its depot branch (`access_convoy_list`, `get_vehicle_list`) is
   dead; the schedule GUI hides the settings tab containing the consist-order button on depot
