@@ -29,10 +29,14 @@ git rather than trusting listed branch names. What a comparison against our bran
   divergence from Extended master; its declared feature list describes work that is already
   upstream.
 
-## Assessed backport candidates
+## Unmerged fixes: await pull requests where prudent
 
-Fixes on the fork for code that exists identically on both our branches (so the master-first
-rule applies); each needs a small manual merge against current code:
+Fixes on the fork for code that exists identically on both our branches are not backported
+proactively: the fork's author prepares pull requests (the schedule fix below exists as a
+squash-prepared `...-pr` branch), and pre-emptive cherry-picks would conflict with PRs that do
+arrive. But a PR may never come, so this is a case-by-case judgement rather than a rule: review
+and adopt PRs as they arrive; if a fix is needed, or it becomes clear that no PR is forthcoming,
+cherry-pick from the fork branch. Known such fixes:
 
 - `refactor/depot-window-review` — depot GUI correctness: convoy colour bars read the wrong
   vehicle list; removal preview accounting counted the wrong vehicle's length and disagreed
