@@ -685,16 +685,21 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 	const uint8 this_direction = get_direction();
 	bool frei = false;
 	vehicle_base_t *dt = NULL;
-	const strasse_t* current_str = (strasse_t*)(welt->lookup(get_pos())->get_weg(road_wt));
+	// The ground beneath the car can be missing (deleted while the car was on
+	// it). The uses of current_str tolerate a missing way, so keep driving.
+	const grund_t* current_gr = welt->lookup(get_pos());
+	const strasse_t* current_str = current_gr ? (const strasse_t*)current_gr->get_weg(road_wt) : NULL;
+	if(current_gr==NULL) {
+		dbg->warning("private_car_t::can_enter_tile()", "Car at %s has no ground beneath it", get_pos().get_str());
+	}
 	if(  get_pos()==pos_next_next  ) {
 		// turning around => single check
 		const uint8 next_direction = ribi_t::backward(this_direction);
 		dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
 
 		// do not block railroad crossing
-		if(dt==NULL  &&  str->is_crossing()) {
-			const grund_t *gr = welt->lookup(get_pos());
-			dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
+		if(dt==NULL  &&  str->is_crossing()  &&  current_gr) {
+			dt = get_blocking_vehicle(current_gr, NULL, next_direction, next_direction, next_direction, this, 0);
 		}
 	}
 	else {
@@ -712,8 +717,8 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 			// side road -> main road from passing lane side: vehicle should enter passing lane on main road.
 			next_lane = 0;
 			if(  str->get_overtaking_mode() <= oneway_mode  ) {
-				const strasse_t* str_prev = (strasse_t*)(welt->lookup(get_pos())->get_weg(road_wt));
-				const strasse_t* str_next = (strasse_t*)(welt->lookup(pos_next)->get_weg(road_wt));
+				const strasse_t* str_prev = current_str;
+				const strasse_t* str_next = str;
 				const bool left_driving = welt->get_settings().is_drive_left();
 				if(str_prev && str_next && str_prev->get_overtaking_mode() > oneway_mode  && str_next->get_overtaking_mode() <= oneway_mode) {
 					if(  (!left_driving  &&  ribi_t::rotate90l(get_90direction()) == calc_direction(pos_next,pos_next_next))  ||  (left_driving  &&  ribi_t::rotate90(get_90direction()) == calc_direction(pos_next,pos_next_next))  ) {
