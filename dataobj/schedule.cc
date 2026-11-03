@@ -715,9 +715,11 @@ convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt
 		}
 	}
 
-	if (entry && entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple))
+	if (entry && entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple) && halt.is_bound())
 	{
-		if (!entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv) && halt.is_bound())
+		// Both target modes resolve only among convoys present at this halt and
+		// loading here: a named line or convoy elsewhere cannot couple at this stop.
+		if (!entry->is_flag_set(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv))
 		{
 			// Line
 			linehandle_t line;
@@ -734,7 +736,13 @@ convoihandle_t schedule_t::get_couple_target(uint16 unique_id, halthandle_t halt
 		else
 		{
 			// Convoy
-			cnv.set_id(entry->target_id_couple);
+			for (auto c : halt->get_loading_convois())
+			{
+				if (c.is_bound() && c.get_id() == entry->target_id_couple)
+				{
+					return c;
+				}
+			}
 		}
 	}
 
