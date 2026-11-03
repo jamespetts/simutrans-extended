@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 13ba17597
+verified: ex-15 @ 2315dba1b
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -84,14 +84,16 @@ explorer's treatment of consist orders.
   bt_couple sets and clears the `couple` flag) +
   `schedule_t::get_couple_target` + absorption: the arriving convoy draws vehicles from the joining
   convoy or the halt's laid-over pool via `convoi_t::process_consist_order`; an emptied joining
-  convoy self-destructs. Target resolution is co-location-gated in both modes: only convoys present
-  at the halt and loading (`halt->get_loading_convois`) can be coupled with [CODE ex-15 @ 13ba17597].
-  Missing: no two-party synchronisation —
-  the receiver's order strips the named target directly, with no uncouple order required on the
-  target and no atomic paired exchange; failure is silently ignored
-  (`// TODO: Consider what happens if we fail` in `hat_gehalten`); no waiting/retry when the target
-  has not arrived — an unresolved target silently becomes a pool order (open bug:
-  [known-bugs](../known-bugs.md)).
+  convoy self-destructs. Target resolution is co-location-gated in both modes (only convoys present
+  at the halt and loading) and yields four states [CODE ex-15 @ 2315dba1b]: not configured (the
+  order assembles from the stop's pool — the intentional targetless mode), present (exchange),
+  absent (waited for in `convoi_t::AWAITING_RECOMBINATION`, deliberately without a timeout), and
+  missing — a broken target, reported and left unexecuted, never pool-assembled. An incomplete
+  couple order (flag with no target selected) is removed at commit with a notice naming the stops.
+  Missing: no two-party synchronisation — the receiver's order strips the named target directly,
+  with no uncouple order required on the target and no atomic paired exchange; the failure of an
+  exchange with a present target is silently ignored
+  (`// TODO: Consider what happens if the exchange itself fails` in `hat_gehalten`).
 - **Consist orders** — data model: `consist_order_t` (end-state for one entry, keyed by
   unique_entry_id; exactly one order per entry
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202940.html]) →
@@ -191,10 +193,11 @@ explorer's treatment of consist orders.
   requirements and staged implementation position (design SIMD-compatible → scalar implementation
   verified → SIMD immediately after; design-time gate on dense vectorisability) recorded in
   [simd-applicability](../simd-applicability.md) [RECOLLECTION:2026-09-19].
-- **Two-party timed coupling; dead-lock avoidance** — no arrival synchronisation (a named target
-  that has not arrived must be waited for; see "Coupling semantics" below), no two-sided
-  evaluation of the receiver's and the target's orders as one exchange, and no validation of
-  couple/uncouple target graphs (mutual waits, circular targets, platform blockage).
+- **Two-party coupling; dead-lock avoidance** — waiting for an absent named target now exists
+  (`convoi_t::AWAITING_RECOMBINATION`, deliberately without a timeout
+  [RECOLLECTION:2026-11-03 user statement]), but there is no two-sided evaluation of the
+  receiver's and the target's orders as one exchange, and no validation of couple/uncouple target
+  graphs (mutual waits can deadlock, circular targets, platform blockage).
 - **Freight/passenger continuity across splits/joins** — displaced vehicles are force-unloaded at
   the stop; no transfer of cargo between portions, no re-routing correction for cargo on moved
   vehicles ("passengers stay on the through portion" is not modelled).
@@ -299,13 +302,20 @@ consist-order window lists the Same/Any entries plus the halt's lines or consist
 Line/Consist filter; a specific recipient no longer registered at the halt (or hidden by a filter
 switch) resets to the default [CODE].
 
-- **A specified target that is not present and loading here is silently replaced by the pool.** A
-  target that cannot be resolved — absent, sold, or a line with no convoy here — makes
-  `get_couple_target` return an unbound handle, so `process_consist_order` takes the
-  no-joining-convoy branch and assembles from the halt's laid-over pool: a missing partner changes
-  the order's meaning rather than making it wait. Order failure is otherwise silently ignored
-  (`// TODO: Consider what happens if we fail` in `hat_gehalten`); no waiting state exists.
-  Registered as an open bug in [known-bugs](../known-bugs.md).
+- **Zero-id semantics** [CODE ex-15 @ 13ba17597]: 0 means "no specific target" by design for
+  `consist_order_t::available_to_id` (`is_available_to_any`/`is_available_to_same`, branched on in
+  `process_consist_order`) and for `target_id_uncouple` (a plain uncouple names no receiver), but
+  NOT for `target_id_couple`, where it is merely "no selection" (the GUI's "---" entry is an
+  inactive placeholder; the field comment makes the target integral). The intentional pool mode is
+  an order WITHOUT couple configuration; a broken target (id 0 or a deleted id — one `is_bound()`
+  check distinguishes it from an absent one) is reported per visit and left unexecuted.
+- **Reference sweeps on deletion** [CODE ex-15 @ 2315dba1b]: convoy and line destructors sweep
+  every schedule for consist-order references to the deleted object and remove them — a couple
+  order keeps its flag and becomes a broken-target order, an uncouple order becomes a plain
+  uncouple, trigger targets and leftover-vehicle recipients are cleared — reporting the affected
+  players in a message-style window (`consist_change_news`, `gui/messagebox.h`) and the message
+  log. Losing the last convoy of a surviving line warns the referring players instead of removing
+  anything. This is what prevents a stale id binding to a new object that reuses the id slot.
 - **Depot-entry orders never execute.** `process_consist_order` has one call site (`hat_gehalten`),
   always with `dep == nullptr`, so its depot branch (`access_convoy_list`, `get_vehicle_list`) is
   dead; the schedule GUI hides the settings tab containing the consist-order button on depot
