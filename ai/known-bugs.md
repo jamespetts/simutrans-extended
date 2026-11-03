@@ -168,22 +168,16 @@ Rank on discovery; re-rank on triage.
 - Symptom: [GitHub issue 689](https://github.com/jamespetts/simutrans-extended/issues/689) reports billion-scale "Infrastructure maintenance" bills after using intercity roads, bankrupting companies; the reporter should re-test on a current build before the issue is closed.
 - Ruled out by the triage: renewal price formula as the billion-scale source, `finish_rd` load multiplicity, tolls (separate `ATV_TOLL_*` category).
 
-### Coupling dismembers a target consist wherever it is; a missing target becomes a pool order — priority 2
+### A missing couple target silently becomes a pool order — priority 2
 
-- Current behaviour: `schedule_t::get_couple_target` (dataobj/schedule.cc) resolves a
-  convoy-as-target couple entry by id alone — no position or state check — and the line mode
-  against `halt->get_loading_convois()` (convoys present and loading). `convoi_t::process_consist_order`
-  then moves the target's vehicles into the receiving convoy: additions are repositioned to the
-  receiving convoy's rear tile and substitutions to the displaced vehicle's tile
-  (`commit_recombined_consist`), so a target anywhere on the map is dismembered and its vehicles
-  appear at the coupling stop; the target's own route and reservations are not cleaned up, and an
-  emptied target self-destructs. The schedule GUI's convoy list is `halt->registered_convoys`
-  (lineless convoys that serve the halt, not necessarily present), so this is reachable through
-  normal play. When the target cannot be resolved, `process_consist_order` takes the
-  no-joining-convoy branch and assembles from the halt's laid-over pool instead — a missing partner
-  silently changes the order's meaning. Order failure is otherwise silently ignored
+- Current behaviour: `schedule_t::get_couple_target` (dataobj/schedule.cc) resolves both target
+  modes only among `halt->get_loading_convois()` (convoys present at the halt and loading): the
+  line mode by line membership, the convoy mode by id. A named target that is elsewhere, sold, or
+  not loading here resolves to nothing, and `convoi_t::process_consist_order` then takes the
+  no-joining-convoy branch and assembles from the halt's laid-over pool instead — a missing
+  partner silently changes the order's meaning. Order failure is otherwise silently ignored
   (`// TODO: Consider what happens if we fail` in `hat_gehalten`)
-  [CODE ex-15 @ c6adde69b; not reproduced in game].
+  [CODE ex-15 @ 13ba17597; not reproduced in game].
 - Intended behaviour [RECOLLECTION:2026-10-19]: a couple order draws on loose vehicles at the
   current stop and on vehicles released by a consist at the stop under that consist's own uncouple
   order, topping up from the pool only for a shortfall; taking vehicles out of a consist requires
@@ -259,7 +253,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| Coupling dismembers a target consist wherever it is; missing target falls back to the pool (not a forum report: code inspection 2026-10-18) | — | detailed entry above; ex-15 only; intended: loose vehicles at the stop or a waiting consist, the target's own order required to dismember, wait for an absent target |
+| A missing couple target silently becomes a pool order (not a forum report: code inspection 2026-10-18) | — | detailed entry above; ex-15 only; intended: wait for an absent named target with a timeout and a message, not pool substitution |
 | Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |
