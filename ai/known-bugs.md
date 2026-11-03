@@ -171,22 +171,40 @@ Rank on discovery; re-rank on triage.
 ### A missing couple target silently becomes a pool order — priority 2
 
 - Current behaviour: `schedule_t::get_couple_target` (dataobj/schedule.cc) resolves both target
-  modes only among `halt->get_loading_convois()` (convoys present at the halt and loading): the
-  line mode by line membership, the convoy mode by id. A named target that is elsewhere, sold, or
-  not loading here resolves to nothing, and `convoi_t::process_consist_order` then takes the
-  no-joining-convoy branch and assembles from the halt's laid-over pool instead — a missing
-  partner silently changes the order's meaning. Order failure is otherwise silently ignored
-  (`// TODO: Consider what happens if we fail` in `hat_gehalten`)
-  [CODE ex-15 @ 13ba17597; not reproduced in game].
+  modes only among `halt->get_loading_convois()` (convoys present at the halt and loading), and
+  returns an unbound handle in every failure case alike — the named convoy or line is absent from
+  the stop, the target no longer exists (convoy sold, line deleted), or no target was ever named —
+  and `convoi_t::process_consist_order` then takes the no-joining-convoy branch and assembles from
+  the halt's laid-over pool instead: a missing partner silently changes the order's meaning.
+  Order failure is otherwise silently ignored (`// TODO: Consider what happens if we fail` in
+  `hat_gehalten`) [CODE ex-15 @ 13ba17597; not reproduced in game].
 - Intended behaviour [RECOLLECTION:2026-10-19]: a couple order draws on loose vehicles at the
   current stop and on vehicles released by a consist at the stop under that consist's own uncouple
   order, topping up from the pool only for a shortfall; taking vehicles out of a consist requires
   an uncouple order on it (a plain uncouple naming no receiver suffices); a named target that has
   not arrived is waited for with a timeout and a message; a consist that only loses vehicles does
-  not wait and its released vehicles go loose. The two-sided specification exists in the data
-  model (receiver: `couple` + target + order; target: `uncouple` + order); the pairing, atomic
-  evaluation and waiting state are outstanding two-party coupling work
+  not wait and its released vehicles go loose. The failure cases are distinguished
+  [RECOLLECTION:2026-11-03 user statement]: a named target that exists but has not arrived is
+  waited for as above; a named target that no longer exists is an error — a player message and a
+  defined failure, never a pool substitution; a couple entry naming no target is an authoring
+  error (a pool-only re-combination needs no couple flag). The two-sided specification exists in
+  the data model (receiver: `couple` + target + order; target: `uncouple` + order); the pairing,
+  atomic evaluation and waiting state are outstanding two-party coupling work
   → [ex-15 schedule-and-consists](ex-15/schedule-and-consists.md).
+
+### An unset couple target in line mode matches any lineless convoy at the stop — priority 2
+
+- Current behaviour: with the `couple` flag set, line mode, and `target_id_couple` left 0 (no
+  target ever selected), `schedule_t::get_couple_target` (dataobj/schedule.cc) builds the line
+  handle from id 0 and matches `c->get_line() == line` by raw id — `quickstone_tpl::operator==`
+  compares only the id slot and every unbound handle has id 0 — so the first lineless convoy
+  loading at the stop is returned and `convoi_t::process_consist_order` draws vehicles out of it.
+  Reachable by arming couple in the schedule window and committing without choosing a target
+  [CODE ex-15 @ 13ba17597; not reproduced in game].
+- Intended: a couple entry names a target; an entry naming none is an authoring error to be
+  refused at commit and reported at runtime, never matched against lineless convoys (a pool-only
+  re-combination needs no couple flag). Open: whether the GUI should refuse to commit the armed
+  flag without a target, or clear the flag silently.
 
 ### Takeover leaves the taken-over company's convoy vehicles owned by the removed player — priority 1
 
@@ -253,7 +271,8 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| A missing couple target silently becomes a pool order (not a forum report: code inspection 2026-10-18) | — | detailed entry above; ex-15 only; intended: wait for an absent named target with a timeout and a message, not pool substitution |
+| A missing couple target silently becomes a pool order (not a forum report: code inspection 2026-10-18) | — | detailed entry above; ex-15 only; intended: wait for an absent named target with a timeout and a message; a target that no longer exists is an error; never pool substitution |
+| An unset couple target in line mode matches any lineless convoy at the stop (not a forum report: code inspection 2026-11-03) | — | detailed entry above; ex-15 only; intended: an unnamed target is an authoring error, not a match |
 | Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |
