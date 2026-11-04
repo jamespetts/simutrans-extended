@@ -187,6 +187,36 @@ Rank on discovery; re-rank on triage.
   loses its owner link while remaining in a running convoy
   [CODE ex-15 @ c6adde69b; not reproduced in game].
 
+### Path explorer closure selects origins by the reverse direction — priority 2
+
+- In `path_explorer_t::compartment_t::step`, phase `phase_explore_paths`, the per-transfer
+  registration loop (`inbound_connections`/`outbound_connections`) registers a halt `idx` as an
+  origin for the transfer halt `via` when `working_matrix[via][idx]` (via to idx) is finite, but
+  the relaxation (`combined_time = working_matrix[origin][via].aggregate_time + ...`) reads origin
+  to via. Nothing guarantees that the two cells are finite together.
+- Case 1 — via to idx finite, idx to via `UINT32_MAX`: `combined_time` is a `uint32` sum, so
+  `UINT32_MAX + working_matrix[via][target]` wraps to `working_matrix[via][target] - 1`. If that is
+  below the current `[idx][target]` value, the cell receives the wrapped time and the null
+  `next_transfer` of the unreachable `[idx][via]` cell. `compartment_t::get_path_between` treats
+  an unbound `next_transfer` as no path, so the pair reports no route even where one exists; the
+  small wrapped time then blocks later vias from recording the real route, and later vias that
+  read the cell as `[origin][via]` copy its null `next_transfer` into further cells.
+- Case 2 — idx to via finite, via to idx `UINT32_MAX`: idx is never registered as an origin of
+  via, so routes idx → via → target are never composed.
+- Sources of asymmetric cells: on ex-15, phase `phase_rebuild_connexions` omits connexions from
+  set-down-only entries and to pick-up-only entries (the "Skipping step owing to schedule
+  settings" branch), omits pairs across consist-order validity zones (`fragmented_schedule`
+  handling) and breaks routes at discharge-payload + set-down-only entries
+  (`previous_discharge_payload_and_set_down_only`), so a transfer halt next to such entries can
+  have asymmetric cells in ordinary play. Master has the same registration and summation code but
+  none of these flags in path_explorer.cc; whether asymmetric cells arise there indirectly
+  (direction-dependent best paths combined with the same-transport skip) is unverified.
+- Found by code inspection 2026-11-04 [CODE ex-15 @ bf447619a; CODE master @ fa0b18fba]; gameplay
+  impact not reproduced. Candidate fix: register origins by `working_matrix[idx][via]` and skip
+  the relaxation when `working_matrix[origin][via]` is `UINT32_MAX`. Any fix changes the routing
+  matrices, which are synced and saved state: read
+  [sync-and-determinism](sync-and-determinism.md) before fixing.
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -237,6 +267,7 @@ confirms they affect current builds in live games.
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |
 | Industry density cap fails open when actual exceeds target (not a forum report: code inspection) | — | BOTH branches, pre-existing; unsigned subtraction `get_target_industry_density() - get_actual_industry_density()` wraps in `factory_builder_t::increase_industry_density`, so `do_not_add_beyond_target_density` stops bounding; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
+| Path explorer closure selects origins by the reverse direction (not a forum report: code inspection 2026-11-04) | — | detailed entry above; `uint32` wrap writes cells with a null next transfer → spurious "no route" and suppressed routes; triggered on ex-15 by pick-up-only/set-down-only entries and consist-order zones; same code on master, trigger there unverified |
 | [Bug with replacing signals](https://forum.simutrans.com/index.php/topic,23958.0.html) | 2026 | |
 | [48,000 jobs and no production](https://forum.simutrans.com/index.php/topic,23771.0.html) | 2026 | industry simulation |
 | ["Passengers intended for a building that has been deleted" warning](https://forum.simutrans.com/index.php/topic,23862.0.html) | 2026 | |

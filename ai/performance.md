@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15-industry-growth-test @ 7c379b4
+verified: ex-15-industry-growth-test @ 7c379b4; ex-15 @ bf447619a (routing engine assessment)
 ---
 # Performance & profiling
 
@@ -316,6 +316,49 @@ the path explorer's relaxation loop, whose staged SIMD position (design SIMD-com
 → SIMD after verification) is tied to the ex-15 Y/H traversal work. Constraints, per-hotspot
 verdicts and the staged position: [simd-applicability](simd-applicability.md).
 
+### Routing engine assessment — summary
+
+Assessed 2026-11-04 by code inspection and derivation (no new measurement): whether per-packet
+dynamic route search could replace the precomputed path-explorer matrices. Cost structure
+[CODE ex-15 @ bf447619a]:
+- Phase `phase_rebuild_connexions` records a connexion from every stop of a schedule to every
+  other stop of it, with weights per halt pair (waiting time keyed by origin and destination halt
+  in `haltestelle_t::waiting_times`; pair journey-time averages), so a halt's out-degree is the sum
+  of (stops − 1) over its serving lines. `phase_explore_paths` is a closure over transfer halts
+  whose rows fill as the pass proceeds: ≈ T·H² relaxations per compartment (T transfer halts, H
+  working halts). A full refresh on a very big server game takes tens of minutes
+  [RECOLLECTION:2026-11-04], consistent with H ≈ 5–10k [UNVERIFIED]. Refresh throughput is set by
+  the weakest connected peer (`nwc_routesearch_t` broadcasts the minimum limit set).
+- `haltestelle_t::find_route` decisions occur at passenger/mail generation (worker threads), at
+  every intermediate unload (`liefere_an` inside the single-threaded `convoi_t::step`), in
+  `haltestelle_t::step` (reroute, transfer deliveries), in `fetch_goods`, in factory shipping and
+  lead-time calculation, and in the AI. The alternative-destination loop stops at the first
+  successful destination.
+- Today's query cost: `get_path_between` was 0.5% of in-game samples in the capture above ≈ 6 ms
+  CPU per real second, below `find_destination` (3.0%) — there, destination sampling, not the
+  routing database, dominates per-packet cost [UNVERIFIED: derived from that capture's shares].
+- A search per decision on this graph costs ≈ settled nodes × (heap operation + out-degree × edge
+  cost) ≈ 20 µs–3 ms, against ≈ 0.1–0.2 µs per matrix cell — 20× at best, typically 300–3,000×;
+  at 10³–10⁴ decisions per step it exceeds the step interval, unbudgeted, largely on the main
+  thread, on every peer [UNVERIFIED]. Caching search results per halt reproduces the matrix.
+  Verdict: per-packet dynamic routing is not feasible at gargantuan scale; it breaks even only for
+  packets that fail through thousands of alternatives.
+- Constraints on any replacement engine: phase 2's connexion tables must remain (loading, walking
+  decisions, the GUI and the AI read them); current results are not exact shortest paths
+  (transfer-halt-only vias, same-transport compositions skipped, pair connexions deduplicated by
+  journey time only), so a shortest-path engine changes route choices and the matrices cannot be
+  its byte-identical oracle; route outcomes decide later `simrand` draws, so old/new engine
+  comparisons must be made per decision on frozen snapshots. Matrix closure defect found in the
+  same inspection → [known-bugs](known-bugs.md).
+- Recommended direction: keep O(1) precomputed decisions and cut refresh cost on the CPU —
+  (1) measure CPU per phase, H, T, E, the out-degree distribution and decisions per step by call
+  site; (2) result-neutral layout changes (contiguous `uint32` time array split from
+  `path_element_t`); (3) deterministic parallelisation of phase 5 across origin rows within each
+  transfer; (4) per-source Dijkstra rows (row-parallel, rolling invalidation; changes route
+  semantics); (5) a compact distance oracle (hub labels) as a research option for the O(H²)
+  memory and savegame size. A GPU accelerates only the precomputation and remains bounded by the
+  weakest peer.
+
 ## Open questions
 
 - Exact fixture map dimensions and object counts (convoys, halts, cities, ways) — worth recording
@@ -328,6 +371,14 @@ verdicts and the staged position: [simd-applicability](simd-applicability.md).
   capture spanning a burst): pass duration, total iterations. Reconcile with the 2026-09-09
   recollection that on busy servers changes outpace it. Prerequisite for the staged SIMD position
   in [simd-applicability](simd-applicability.md).
+- Routing engine direction: is the CPU-first precomputation path recommended in the routing
+  engine assessment above adopted? If the closure algorithm is replaced, the ex-15 Y/H
+  through-journey substitution must be specified as a rule implementable both in the current
+  closure and in a Dijkstra engine (→ [ex-15 yh-path-explorer](ex-15/yh-path-explorer.md)).
+- What share of savegame size and load time is the saved path-explorer data
+  (`path_explorer_t::compartment_t::rdwr`: every finished matrix cell per compartment, plus the
+  working matrix of a compartment saved mid-pass)? Measure on the fixture; it bounds the save and
+  join benefit of any compact routing engine.
 - The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a
   post-load-wave problem, not a steady-state one; investigate with a Load-phase or
