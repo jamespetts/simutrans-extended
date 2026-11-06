@@ -2690,7 +2690,26 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 
 	file->rdwr_short(phase_counter);
 	file->rdwr_long(iterations);
-	file->rdwr_long(total_iterations);
+	if (file->is_version_ex_atleast(15, 6))
+	{
+		sint64 total_iterations_64 = static_cast<sint64>(total_iterations);
+		file->rdwr_longlong(total_iterations_64);
+		if (file->is_loading())
+		{
+			total_iterations = static_cast<uint64>(total_iterations_64);
+		}
+	}
+	else
+	{
+		// Saves before 15.6 store this diagnostic counter as 32 bits. Clamp
+		// rather than truncate so that the written value never appears to wrap.
+		uint32 total_iterations_32 = total_iterations > UINT32_MAX_VALUE ? UINT32_MAX_VALUE : static_cast<uint32>(total_iterations);
+		file->rdwr_long(total_iterations_32);
+		if (file->is_loading())
+		{
+			total_iterations = total_iterations_32;
+		}
+	}
 
 	file->rdwr_short(via_index);
 	file->rdwr_long(origin_cluster_index);

@@ -312,7 +312,7 @@ private:
 		// phase counters
 		uint16 phase_counter;
 		uint32 iterations;
-		uint32 total_iterations; // for desync debug only
+		uint64 total_iterations; // for desync debug only
 
 		// phase counters for path searching
 		uint16 via_index;
@@ -439,7 +439,7 @@ private:
 		uint16 get_working_halt_count() const { return working_halt_count; }
 		uint16 get_all_halt_count() const { return all_halts_count; }
 		uint16 get_transfer_count() const { return transfer_count; }
-		uint32 get_total_iterations() { const uint32 ti = total_iterations; total_iterations = 0; return ti; }
+		uint64 get_total_iterations() { const uint64 ti = total_iterations; total_iterations = 0; return ti; }
 
 		void set_category(uint8 category);
 		void set_class(uint8 value);
@@ -563,7 +563,7 @@ public:
 	static uint16 get_working_halt_count(uint8 catg, uint8 g_class) { return goods_compartment[catg][g_class].get_working_halt_count(); }
 	static uint16 get_all_halt_count(uint8 catg, uint8 g_class) { return goods_compartment[catg][g_class].get_all_halt_count(); }
 	static uint16 get_transfer_count(uint8 catg, uint8 g_class) { return goods_compartment[catg][g_class].get_transfer_count(); }
-	static uint32 get_total_iterations(uint8 catg, uint8 g_class) { return goods_compartment[catg][g_class].get_total_iterations(); }
+	static uint64 get_total_iterations(uint8 catg, uint8 g_class) { return goods_compartment[catg][g_class].get_total_iterations(); }
 
 	inline static void set_absolute_limits_external() { compartment_t::set_absolute_limits();  }
 
