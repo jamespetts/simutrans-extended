@@ -187,70 +187,6 @@ Rank on discovery; re-rank on triage.
   loses its owner link while remaining in a running convoy
   [CODE ex-15 @ c6adde69b; not reproduced in game].
 
-### Path explorer closure selects origins by the reverse direction — priority 2
-
-- In `path_explorer_t::compartment_t::step`, phase `phase_explore_paths`, the per-transfer
-  registration loop (`inbound_connections`/`outbound_connections`) registers a halt `idx` as an
-  origin for the transfer halt `via` when `working_matrix[via][idx]` (via to idx) is finite, but
-  the relaxation (`combined_time = working_matrix[origin][via].aggregate_time + ...`) reads origin
-  to via. Nothing guarantees that the two cells are finite together.
-- Case 1 — via to idx finite, idx to via `UINT32_MAX`: `combined_time` is a `uint32` sum, so
-  `UINT32_MAX + working_matrix[via][target]` wraps to `working_matrix[via][target] - 1`. If that is
-  below the current `[idx][target]` value, the cell receives the wrapped time and the null
-  `next_transfer` of the unreachable `[idx][via]` cell. `compartment_t::get_path_between` treats
-  an unbound `next_transfer` as no path, so the pair reports no route even where one exists; the
-  small wrapped time then blocks later vias from recording the real route, and later vias that
-  read the cell as `[origin][via]` copy its null `next_transfer` into further cells.
-- Case 2 — idx to via finite, via to idx `UINT32_MAX`: idx is never registered as an origin of
-  via, so routes idx → via → target are never composed.
-- Sources of asymmetric cells: on ex-15, phase `phase_rebuild_connexions` omits connexions from
-  set-down-only entries and to pick-up-only entries (the "Skipping step owing to schedule
-  settings" branch), omits pairs across consist-order validity zones (`fragmented_schedule`
-  handling) and breaks routes at discharge-payload + set-down-only entries
-  (`previous_discharge_payload_and_set_down_only`), so a transfer halt next to such entries can
-  have asymmetric cells in ordinary play. Master has the same registration and summation code but
-  none of these flags in path_explorer.cc; whether asymmetric cells arise there indirectly
-  (direction-dependent best paths combined with the same-transport skip) is unverified.
-- Worked example → [engine-semantics](path-explorer-optimisation/engine-semantics.md) Example D.
-- Found by code inspection 2026-11-04 [CODE ex-15 @ bf447619a; CODE master @ fa0b18fba]; gameplay
-  impact not reproduced. Candidate fix: register origins by `working_matrix[idx][via]` and skip
-  the relaxation when `working_matrix[origin][via]` is `UINT32_MAX`. Any fix changes the routing
-  matrices, which are synced and saved state: read
-  [sync-and-determinism](sync-and-determinism.md) before fixing.
-
-### `save_path_explorer_data` override misaligns the savegame load stream — priority 1
-
-- `settings_t::rdwr` stores `save_path_explorer_data` in the savegame. `karte_t::rdwr_gamestate`
-  applies the simuconf overrides immediately after reading the settings, and `karte_t::load`
-  later decides whether to call `path_explorer_t::rdwr` from the overridden value. If an
-  override flips the value relative to the save, the loader consumes the wrong number of bytes
-  from the path-explorer block onwards.
-- Reproduced 2026-11-06 on ex-15 @ ad1815c with `month-boundary.sve` (path data present),
-  `userdir_overrides_savegame_settings = 1` and `save_path_explorer_data = 0`: the private car
-  queue read 1,291 queued cities for a world with 602 cities, 68,131 "Unknown frequency"
-  messages, and an access violation at shutdown. The stream is corrupt from that point; a save
-  made after such a load could persist the corruption.
-- Non-default configuration (progdir/pak/userdir overrides), but there is no guard.
-- Fix direction: use the value as stored in the save for the conditional read, and apply the
-  override only to subsequent refresh/save behaviour; or make this setting non-overridable.
-  Any change to the load path or settings serialization is an AGENTS.md rule-5 review.
-- [EXECUTION-VERIFIED:2026-11-06 ex-15 @ ad1815c; CODE inspection same commit]
-
-### Path explorer `total_iterations` is uint32 and wraps at gargantuan size — priority 3
-
-- `path_explorer_t::compartment_t::total_iterations` is a `uint32` "for desync debug only"
-  and is also written to the savegame (`rdwr_long`). The phase-5 target-member loop can exceed
-  2^32 visits per passenger class on a large map.
-- Measured 2026-11-06 on `bb-10-sep-2023.sve`: true target visits 42.6–44.0 B per passenger
-  class; the stored/returned `total_iterations` values were 0.31–4.05 B, an undercount of
-  about 40× (about ten wraps). The same measurement initially produced a wrong
-  "iteration count does not predict CPU time" conclusion. `iterations_processed`, which
-  drives the budget, is `uint64` and is unaffected.
-- Fix direction: widen the diagnostic counter to `uint64` (or saturate it). Because the field
-  is saved, this is a savegame-format change under AGENTS.md rule 5; a saturating
-  `uint32` would avoid the wrap without changing the field width.
-- [EXECUTION-VERIFIED:2026-11-06 ex-15 @ ad1815c, Profile (server), 64-bit test counter]
-
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -261,7 +197,6 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | First-join desync then clean rejoin (not a forum report: investigation 2026-09-30; see also 22203 below) | — | detailed investigation → [bug-first-join-desync](bug-first-join-desync.md); isolated to single-convoy speed divergence 3 frames after unpause; cause not yet isolated |
-| `save_path_explorer_data` override misaligns the savegame load stream (not a forum report: measurement 2026-11-06) | — | detailed entry above; non-default simuconf override only; stream corruption from the path-explorer block, crash at shutdown, and the corruption can be saved |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
@@ -302,7 +237,6 @@ confirms they affect current builds in live games.
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |
 | Industry density cap fails open when actual exceeds target (not a forum report: code inspection) | — | BOTH branches, pre-existing; unsigned subtraction `get_target_industry_density() - get_actual_industry_density()` wraps in `factory_builder_t::increase_industry_density`, so `do_not_add_beyond_target_density` stops bounding; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
-| Path explorer closure selects origins by the reverse direction (not a forum report: code inspection 2026-11-04) | — | detailed entry above; `uint32` wrap writes cells with a null next transfer → spurious "no route" and suppressed routes; triggered on ex-15 by pick-up-only/set-down-only entries and consist-order zones; same code on master, trigger there unverified |
 | [Bug with replacing signals](https://forum.simutrans.com/index.php/topic,23958.0.html) | 2026 | |
 | [48,000 jobs and no production](https://forum.simutrans.com/index.php/topic,23771.0.html) | 2026 | industry simulation |
 | ["Passengers intended for a building that has been deleted" warning](https://forum.simutrans.com/index.php/topic,23862.0.html) | 2026 | |
@@ -360,7 +294,6 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | recalc_transitions climate-byte data race (not a forum report: TSan CI triage) | — | detailed entry above; both branches; intermittent non-blocking-TSan failure only, value-benign, cannot deadlock; whether/how to fix open |
-| Path explorer `total_iterations` uint32 overflow (not a forum report: measurement 2026-11-06) | — | detailed entry above; diagnostic/desync-debug counter undercounts ~40× at H ≈ 5.4k; budget counter is uint64 and unaffected; widening is a rule-5 savegame change |
 | Walking connexion replaced by a slower line connexion (not a forum report: code inspection 2026-11-04) | — | both branches: in `phase_rebuild_connexions` a line connexion replaces an existing walking connexion for the same halt pair when its journey time is shorter, ignoring the line's waiting time (walking has none). The matrix then carries the line's larger weight, and `get_preferred_line` returns the line, so `starte_mit_route` makes passengers wait for it instead of walking. Worked example → [engine-semantics](path-explorer-optimisation/engine-semantics.md) Example E [CODE ex-15 @ bf447619a; CODE master @ fa0b18fba]; gameplay impact not measured |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | Industry-generation rework: persisted density discarded + contradictory overload docs (not a forum report: code inspection) | — | rework branch only; `karte_t::load` reads `actual_industry_density` then recomputes it unconditionally (and duplicates the call under a condition that can never add anything), so the persisted datum is never honoured; `factory_builder_t::adjust_input_consumption(fab, good)` returns the amount NOT used while its declaration documents the amount used; [CODE] → [bug-industry-generation](bug-industry-generation.md) |

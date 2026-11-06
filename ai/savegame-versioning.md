@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0d3fb4684
+verified: ex-15 @ 33958208a
 ---
 # Savegame & network versioning
 
@@ -57,6 +57,7 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
   3. Do not alter or remove existing serialization entries — saves written by existing versions must continue to load.
   4. The position of a new entry within a block does not strictly matter provided its version condition is correct; the end of the block is usually best for readability, but an entry belonging to a set of data read/written together often goes (and is often put) inside that set [RECOLLECTION:2026-09-07].
   5. Do not change data affecting network sync without following AGENTS.md rule 5 → [network](network.md).
+  6. A conditional read whose presence depends on a persisted settings value must use the value stored in the save, not one overwritten by a simuconf override applied after the settings are read. Capture the stored value before applying the overrides and use it for the read; the override applies only to subsequent save/refresh behaviour. [CODE ex-15 @ 33958208a; master @ 6194cd341]
 - Version bumps are rare, and changing them is restricted by AGENTS.md rule 5: `EX_SAVE_MINOR` (+ `EX_VERSION_*` for majors) in simversion.h AND the settings_stats.cc arrays must be extended together (simversion.h warning); present the change to the user before proceeding.
 
 ## Network/desync coupling
@@ -66,4 +67,7 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
 ## Open questions
 
 - **Extended-series future refusal for savegames**: `rd_open` and `karte_t::load` check only the BASE series; Extended-series refusal is verified only for settings.xml (simmain.cc). Intended behaviour: a 14.x client should refuse a 15.x savegame cleanly; if it instead fails during parsing, that is a bug [RECOLLECTION:2026-09-05]. Whether the code actually refuses cleanly is [UNVERIFIED — verify and fix if needed before any 15.x save is exposed to 14.x clients].
+  The same gap applies within the 15.x series: a build older than a save's Extended revision is
+  not refused, so a save whose layout differs at a revision boundary can be misread from that
+  point onwards. The settings.xml path does refuse a newer revision; the savegame path does not.
 - Does the load/save UI (gui/loadsave_frame.cc, dataobj/sve_cache.cc) filter or mark version-incompatible files? (Verify from code in a later pass.)

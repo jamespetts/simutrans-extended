@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad1815c
+verified: ex-15 @ 33958208a; master @ 6194cd341
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -15,10 +15,11 @@ performance figures are [UNVERIFIED] derivations.
 - Transfer halts are processed in `transfer_list` order (working-index order of halts whose
   serving count exceeds 1).
 - For each transfer halt `via`, a registration loop visits every working halt `idx`. If
-  `[via][idx]` is finite and `idx != via`, `idx` is appended to `inbound_connections` under
-  `transport_matrix[idx][via].last_transport` and to `outbound_connections` under
-  `transport_matrix[via][idx].first_transport`. Clusters are keyed by transport; members are
-  appended in ascending index order.
+  `[idx][via]` is finite and `idx != via`, `idx` is appended to `inbound_connections` under
+  `transport_matrix[idx][via].last_transport`; if `[via][idx]` is finite and `idx != via`, it is
+  appended to `outbound_connections` under `transport_matrix[via][idx].first_transport`. The
+  two directions are registered separately because either cell can be unreachable. Clusters are
+  keyed by transport; members are appended in ascending index order.
 - Nested loops: origin cluster → target cluster (skipped when both transports are equal and
   non-zero; 0 is walking) → origin member → target member. `combined = [o][via] + [via][t]`; if it
   is less than `[o][t]`, the code writes the time, `next_transfer = [o][via].next_transfer`,
@@ -50,11 +51,8 @@ performance figures are [UNVERIFIED] derivations.
 | bb-10-sep-2023.sve | 5,375 | 4,665 | 77.6–79.4 s | 42.6–44.0 B | 1.77–1.85 |
 
 The per-visit cost is stable at 1.8–2.1 ns; phase-5 time is proportional to the true target
-visits. The earlier apparent "cache cliff" was caused by `total_iterations` being a `uint32`:
-at H ≈ 5.4k it wraps about ten times and stores ~0.31–4.05 B instead of the true 43–44 B, so
-the per-class times looked independent of the counted work. The true visit count grows from
-0.85 B to 44 B over H 1.8k → 5.4k (×52, effective exponent ≈ 3.65), so H³ understates the
-growth by about 2×.
+visits. The true visit count grows from 0.85 B to 44 B over H 1.8k → 5.4k (×52, effective
+exponent ≈ 3.65), so H³ understates the growth by about 2×.
 
 Topology matters independently of H/T/E: `bb6-apr` and `bb6-may` have identical H, T and E
 but 2.95 B vs 3.64 B visits and 5.2 vs 6.5 s per class. Cluster counters on `bb6-apr`:
@@ -83,10 +81,9 @@ Re-running a partly processed transfer halt gives the same final cells, because 
 only on strict improvement and the inputs are unchanged. The order across transfer halts does
 matter and must be kept.
 
-Interaction with the closure bug (→ [known-bugs](../known-bugs.md)): the present output includes
-the wrapped sums written when `[o][via]` is `UINT32_MAX`. A kernel that excludes such origins (the
-dense kernel below does) is not byte-identical to the present code. Fix the bug first; the fixed
-scalar code is then the reference for every variant.
+Directional registration: an origin is registered only when `[o][via]` is finite, and the
+relaxation skips `[o][via] == UINT32_MAX`, so the dense kernel below needs no separate exclusion
+rule. The scalar code is the reference for every variant.
 
 ## Lever 1 — split arrays
 
@@ -122,7 +119,7 @@ scalar code is then the reference for every variant.
   `[via][t] + delta` when t is an outbound target outside the skipped same-transport cluster,
   otherwise `UINT32_MAX`. `delta` is the Y/H substitution for that cluster pair (0 otherwise).
   Cost O(H) per origin cluster.
-- Per origin o, with `a = [o][via]` (finite once the bug is fixed), in blocks of 4 cells:
+- Per origin o, with `a = [o][via]` (finite), in blocks of 4 cells:
   `sum = a + b_eff`; `valid = (b_eff != MAX)`; `improve = valid && sum < c`; `c = blend(improve,
   sum, c)`. SSE2 has no unsigned 32-bit compare or min: use a sign-bias XOR before `pcmpgtd`.
   Store a block only if a lane improved (`movemask`); late in a pass improvements are rare, so
@@ -136,9 +133,8 @@ scalar code is then the reference for every variant.
 - Determinism: integer operations with the same strict less-than as the scalar loop, so the
   output is byte-identical to the scalar reference.
 - Expected ~2–4× on the true target-member loop: 44 B visits per class at H ≈ 5.4k at
-  ~1.8 ns each, with contiguous target lists. SIMD is the primary CPU lever after the
-  closure fix; AVX2 (8 lanes, `vpminud`) behind runtime dispatch (lever 10) may add further
-  once SSE2 is in place.
+  ~1.8 ns each, with contiguous target lists. SIMD is the primary CPU lever; AVX2 (8 lanes,
+  `vpminud`) behind runtime dispatch (lever 10) may add further once SSE2 is in place.
 - This formulation meets the gate in [simd-applicability](../simd-applicability.md) (dense vector
   loads, no gathers); the present loop shape does not. The scalar path stays for Win32, non-x86,
   CI and as the oracle; the SSE2 variant is gated to x64.
@@ -211,6 +207,6 @@ the lever-1 layout is still worth keeping.
 ## Verification
 
 - Oracle: byte-identical finished matrices and identical total iteration counts against the
-  bug-fixed scalar reference, on the gargantuan fixture and on synthetic maps.
+  scalar reference, on the gargantuan fixture and on synthetic maps.
 - Loopback server plus client with a checklist comparison every sync step and zero divergence.
 - Performance suite: pass duration and total iterations (→ [performance](../performance.md)).

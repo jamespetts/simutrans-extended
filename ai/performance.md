@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad1815c (path-explorer sections); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ 33958208a (path-explorer sections); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -288,10 +288,10 @@ removed at load) — repeat before acting on the deltas.
    64 ms) per simulation step, so its CPU share in a short window does not indicate dormancy.
    A full unbudgeted pass measured 9.49 s at H ≈ 1.8k and 394.7 s at H ≈ 5.4k (2026-11-06;
    phase 5 is 86% / 99.6% of those passes). The true phase-5 target visits are ~44 B per
-   passenger class at H ≈ 5.4k at ~1.8 ns each; the `total_iterations` diagnostic is a
-   `uint32` and wraps there, undercounting by ~40× (→ [known-bugs](known-bugs.md)). Under
-   normal server pacing on the gargantuan fixture, a 2,400 s capture was busy 96.1% of steps
-   with ~60 ms of explorer work per step; a full five-class cycle took 18–20 min wall.
+   passenger class at H ≈ 5.4k at ~1.8 ns each; the `total_iterations` diagnostic is a `uint64`
+   (save revision 6). Under normal server pacing on the gargantuan fixture, a 2,400 s capture
+   was busy 96.1% of steps with ~60 ms of explorer work per step; a full five-class cycle took
+   18–20 min wall.
    Without an induced request the same fixture was idle for the first 296 steps after load,
    so short-window CPU share reflects the periodic request interval, not the pass cost. It
    was near-dormant in the 2026-09-10 fixture window (`get_path_between` 0.5% incl,
@@ -333,13 +333,12 @@ explorer's closure, is covered in [path-explorer-optimisation](path-explorer-opt
 The refresh closure (phase 5) dominates a full pass (86% at H ≈ 1.8k; 99.6% at H ≈ 5.4k); the
 matrices and savegame data grow as O(H²). Measured 2026-11-06 with 64-bit counters, the true
 target visits grow from 0.85 B to 44 B per passenger class over H 1.8k → 5.4k (~H^3.65) and
-cost ~1.8–2.1 ns each; H³ understates the growth by about 2×. The apparent earlier
-"iteration count does not predict time" and "memory-latency bound" readings came from the
-`uint32 total_iterations` counter wrapping at the gargantuan size. SSE2 SIMD over the
-contiguous target lists is the primary CPU lever; lever 2 (row reorder) removes under 0.1%
-of the work. GPU acceleration is limited in network play by the slowest peer; memory beyond
-~20–25% savings needs a different representation. Per-packet route search at decision time is
-rejected. Full assessment, levers, constraints and results:
+cost ~1.8–2.1 ns each; H³ understates the growth by about 2×. The five measured passenger-class
+counts at H ≈ 5.4k are 44.04 / 43.36 / 43.26 / 42.70 / 43.90 B. SSE2 SIMD over the contiguous
+target lists is the primary CPU lever; lever 2 (row reorder) removes under 0.1% of the work.
+GPU acceleration is limited in network play by the slowest peer; memory beyond ~20–25% savings
+needs a different representation. Per-packet route search at decision time is rejected. Full
+assessment, levers, constraints and results:
 [path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
@@ -352,8 +351,7 @@ rejected. Full assessment, levers, constraints and results:
 - Path-explorer measurement questions: the full-pass CPU, savegame share, budgeted wall-clock
   pass and cluster/traffic counters are measured (9.49 s / 27.0 s / 394.7 s at H ≈ 1.8k /
   2.5k / 5.4k; 36.85 MiB of 132 MiB at H ≈ 1.8k; 18–20 min per cycle under server pacing).
-  The phase-5 wrap counter was zero on the `bb6` and `bb` stat runs, but the closure bug is
-  still open; the counters do not cover the phase-2 registration path →
+  The counters do not cover the phase-2 registration path →
   [path-explorer-optimisation](path-explorer-optimisation.md).
 - The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a

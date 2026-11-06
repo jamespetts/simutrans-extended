@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad1815c; master @ fa0b18fba (shared closure code)
+verified: ex-15 @ 33958208a; master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -13,10 +13,10 @@ design (Y/H traversal) → [ex-15 yh-path-explorer](ex-15/yh-path-explorer.md); 
 for the whole simulation → [simd-applicability](simd-applicability.md); profiling method and
 measured hotspots → [performance](performance.md).
 
-Status: assessment only. Nothing in this doc is implemented; the direction is not decided (see
-Open questions). Figures marked [UNVERIFIED] are derivations from code structure, not
-measurements. Measured cost figures: [EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c,
-Profile (server), month-boundary.sve and bb-10-sep-2023.sve].
+Status: assessment and implementation plan. None of the levers in this document is implemented.
+Figures marked [UNVERIFIED] are derivations from code structure, not measurements. Measured cost
+figures: [EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c, Profile (server), month-boundary.sve
+and bb-10-sep-2023.sve].
 
 ## Priorities and sequencing
 
@@ -29,10 +29,10 @@ User decisions, 2026-11-06 [RECOLLECTION:2026-11-06]:
   this is sync-critical (→ [threading](threading.md), [sync-and-determinism](sync-and-determinism.md)).
 
 Recommended internal sequencing for the single 15.x release: finish the shared foundation
-before integrating Y/H or comfort into the route tables — closure bug, final cell layout
-(contiguous arrays, one combined comfort cost), comparison-loop rewrite/SIMD, and the
-threading/iteration model. The runtime, data and balance parts of Y/H and comfort are
-independent of that foundation and can proceed in parallel. This is sequencing within the
+before integrating Y/H or comfort into the route tables — final cell layout (contiguous arrays,
+one combined comfort cost), comparison-loop rewrite/SIMD, and the threading/iteration model.
+The runtime, data and balance parts of Y/H and comfort are independent of that foundation and
+can proceed in parallel. This is sequencing within the
 single 15.x release (no staged releases); GPU remains optional.
 
 Sub-documents (read-when):
@@ -42,9 +42,9 @@ Sub-documents (read-when):
   GPU): the order-independence invariant, the kernel designs, budget/parity, savegame and Y/H
   rules, and the verification oracle.
 - [engine-semantics](path-explorer-optimisation/engine-semantics.md) — read before any change
-  that alters route results (closure bug fix, per-source Dijkstra rows, hub labels, connexion
-  deduplication): the present route semantics and worked examples of how each alternative changes
-  passenger behaviour.
+  that alters route results (per-source Dijkstra rows, hub labels, connexion deduplication): the
+  present route semantics and worked examples of how each alternative changes passenger
+  behaviour.
 - [per-packet-routing](path-explorer-optimisation/per-packet-routing.md) — read before proposing
   route search at decision time instead of a precomputed database: the rejected assessment and
   its quantitative reasons.
@@ -55,7 +55,7 @@ Sub-documents (read-when):
 
 ## Cost and memory structure
 
-Code facts [CODE ex-15 @ bf447619a]:
+Code facts [CODE ex-15 @ 33958208a]:
 
 - **Compartments:** one per freight category, one per passenger class, one per mail class.
   `path_explorer_t::step` advances one compartment's current phase per game step; each phase
@@ -83,12 +83,9 @@ Code facts [CODE ex-15 @ bf447619a]:
   handle, 2 B padding) and transport matrix (4 B per cell) and fills them from the connexions.
 - **Phase 5 (`phase_explore_paths`):** a closure over the transfer halts; per transfer halt the
   work is |inbound| × |outbound|, and rows fill as the pass proceeds. Phase 5 is the dominant
-  phase: 86% of a full pass at H ≈ 1.8k and 99.6% at H ≈ 5.4k. The true target-member visits
-  are much larger than the old `total_iterations` diagnostic suggested: at H ≈ 5.4k they are
-  ~43–44 B per passenger class, and `total_iterations` (a `uint32`) wraps and undercounts by
-  ~40×. The cost is ~1.8–2.1 ns per true target visit across the measured fixtures; the
-  earlier "memory-latency bound" reading was an artefact of the wrapped counter (→
-  [known-bugs](known-bugs.md)).
+  phase: 86% of a full pass at H ≈ 1.8k and 99.6% at H ≈ 5.4k. The true target-member visits at
+  H ≈ 5.4k are ~43–44 B per passenger class. The diagnostic is a `uint64` (`total_iterations`).
+  The cost is ~1.8–2.1 ns per true target visit across the measured fixtures.
 - **Phase 6:** flags halts; `haltestelle_t::step` re-routes their waiting packets on the main
   thread.
 - **Savegame:** every finished cell (6 B), plus the working and transport matrices (10 B per cell)
@@ -126,14 +123,8 @@ unbudgeted refresh with per-compartment timers and 64-bit target-visit counters.
 | bb6-may-2010-standardised.sve | 2,467 | 2,280 | 92.4% | 36.3k | 6.27–7.08 s | 3.55–3.67 B | 1.9–1.97 |
 | bb-10-sep-2023.sve | 5,375 | 4,665 | 86.8% | ~109k | 77.6–79.4 s | 42.6–44.0 B | 1.77–1.85 |
 
-- **The `total_iterations` counter wraps.** It is a `uint32`; at H ≈ 5.4k the true target
-  visits are ~43–44 B per class, so the stored value (~0.31–4.05 B) undercounts by ~40× and
-  wraps about ten times. The true counts above come from a `uint64` counter added for the
-  measurement. The earlier reading that "iteration count does not predict CPU time" was
-  caused by this overflow; with 64-bit counts, time is proportional to true target visits.
-- **Per-visit cost is stable:** 1.84–2.13 ns across all four fixtures. The earlier "cache
-  cliff" and "memory-latency bound" reading is withdrawn; the 231 MB matrix at H ≈ 5.4k does
-  not change the per-visit cost materially.
+- **Per-visit cost is stable:** 1.84–2.13 ns across all four fixtures; the 231 MB matrix at
+  H ≈ 5.4k does not change the per-visit cost materially.
 - **Visit growth:** 0.85 B → 2.95 B → 44 B per passenger class over H 1.8k → 2.5k → 5.4k.
   From 1.8k to 5.4k this is ×52, an effective exponent of ≈3.65; H³ (×25.5) understates it
   by about 2×. The fraction of T·H² actually visited rises from 15.7% to 21.2% to 32.6%.
@@ -162,10 +153,10 @@ passes and budget-capped during one; the default 8192-step interval at ~5.6 step
 
 Consequence for the levers: the true target-member loop is the cost (44 B visits per class
 at H ≈ 5.4k, ~1.8 ns each), so **lever 3 (SIMD over the contiguous target lists) is the
-primary CPU lever**. Lever 2 (reorder) only removes row re-fetches, which are under 0.1% of
-the visits; its 2–8× estimate is not supported and it should be treated as a locality
-refinement, not the main gain. Lever 1 remains useful for memory and for feeding SIMD with
-contiguous arrays, but not for save size.
+primary CPU lever**. Lever 2 (reorder) only removes row re-fetches, which
+are under 0.1% of the visits; its 2–8× estimate is not supported and it should be treated as a
+locality refinement, not the main gain. Lever 1 remains useful for memory and for feeding SIMD
+with contiguous arrays, but not for save size.
 
 ## Constraints on every option
 
@@ -189,7 +180,6 @@ contiguous arrays, but not for save size.
 
 | # | Lever | Gain [UNVERIFIED] | Results unchanged? | Y/H |
 |---|---|---|---|---|
-| 0 | Fix the closure bug (→ [known-bugs](known-bugs.md)) | — | no; becomes the reference for all others | none |
 | 1 | Split arrays: contiguous `uint32` times apart from 16-bit handles, one allocation | phase-5 read traffic halved; finished 8 → 6 B per cell, working 12 → 10 B | yes; save byte format can stay identical | through edges need first ≠ last transport |
 | 2 | Reorder phase-5 loops: per origin, all target clusters | removes the repeated origin-row fetch only; measured one row fetch per 544–1,389 target visits (<0.1% of visits), so small direct gain; treat as a locality refinement [UNVERIFIED] | yes | compatible |
 | 3 | SSE2 dense masked row kernel | ~2–4× on the true target-member loop (44 B visits per class at H ≈ 5.4k); contiguous target lists make SIMD the primary CPU lever [UNVERIFIED] | yes | delta folded into the kernel |
@@ -221,7 +211,7 @@ estimates.
 | Stage | CPU per compartment pass | Full refresh cycle at the 64 ms budget |
 |---|---|---|
 | Present (measured) | 78 s at H ≈ 5.4k | 18–20 min wall (394.7 s CPU) |
-| Levers 0–3, 6 | ~20–40 s if the assumed 2–4× materialises | ~5–10 min, or the present latency at a smaller budget |
+| Levers 1–3, 6 | ~20–40 s if the assumed 2–4× materialises | ~5–10 min, or the present latency at a smaller budget |
 | + lever 4 | ~8–25 s wall (more CPU) | ~2–5 min |
 | Lever 7, threaded | ~5–8 s | ~1–2 min |
 | Lever 9 | ~0.5–1 s (sparse cluster-pair kernel) | seconds (single-player) |
@@ -238,17 +228,16 @@ that limit. Storing only transfer-halt rows does not help passenger compartments
 ## Recommended order
 
 1. Measurement: done 2026-11-06 (above).
-2. Lever 0, with the rule-5 review; its scalar output becomes the reference.
-3. Levers 1 and 3 (contiguous layout, then SIMD over the target lists), with lever 2 as a
+2. Levers 1 and 3 (contiguous layout, then SIMD over the target lists), with lever 2 as a
    locality refinement and lever 6 folded in: results unchanged, no network penalty, and
    every peer gains, which raises the shared limit.
-4. Lever 4 after the layout/SIMD kernel: extra threads shorten the rebuild cycle and are
+3. Lever 4 after the layout/SIMD kernel: extra threads shorten the rebuild cycle and are
    approved in principle; settle the deterministic iteration/stop-point model first
    (→ [threading](threading.md), [sync-and-determinism](sync-and-determinism.md)).
-5. Lever 5 for memory; it can run alongside the kernel work.
-6. Lever 7 as the compute step for maps beyond the gargantuan fixture; it needs the behaviour
+4. Lever 5 for memory; it can run alongside the kernel work.
+5. Lever 7 as the compute step for maps beyond the gargantuan fixture; it needs the behaviour
    specification in [engine-semantics](path-explorer-optimisation/engine-semantics.md).
-7. Lever 8 as a research prototype for memory. GPU (lever 9): keep the design open to it, do not
+6. Lever 8 as a research prototype for memory. GPU (lever 9): keep the design open to it, do not
    require it, and decide on implementation after a cost/benefit analysis.
 
 Y/H stays on the present engine family (not levers 7/8), but its route-table integration
@@ -267,7 +256,7 @@ share: the controller holds CPU share near its target.
 
 ## Open questions
 
-- Is the CPU-first direction (levers 0–6, then 7) adopted?
+- Is the CPU-first direction (levers 1–6, then 7) adopted?
 - Was the path explorer's near-zero share in the measured fixture window dormancy or budget
   capping? Both: it is dormant between periodic requests and budget-capped during a pass. The
   gargantuan capture was idle for at least the first 296 steps after load, then busy 96.1% of
@@ -293,8 +282,8 @@ share: the controller holds CPU share near its target.
 
 ## Provenance
 
-Cost structure, invariants and lever analysis: code inspection and derivation, 2026-11-04,
-[CODE ex-15 @ bf447619a]; the closure code is identical on master [CODE master @ fa0b18fba]. The
-staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user decision
-[RECOLLECTION:2026-09-19]. Measured shares come from the 2026-09-10 capture recorded in
-[performance](performance.md).
+Cost structure, invariants and lever analysis: code inspection and derivation, 2026-11-04;
+measured 2026-11-06 (above); code current at ex-15 @ 33958208a and master @ 6194cd341 [CODE].
+The staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user
+decision [RECOLLECTION:2026-09-19]. Measured shares come from the 2026-09-10 capture recorded
+in [performance](performance.md).

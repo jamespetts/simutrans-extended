@@ -1,11 +1,11 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ 33958208a; master @ 6194cd341
 ---
 # Path explorer optimisation: route semantics and behaviour of alternative engines
 
 **Covers:** what the present routing database computes and how passengers act on it, and the
-behaviour changes of the result-changing levers (0, 7, 8) of
+behaviour changes of the result-changing levers (7, 8) of
 [path-explorer-optimisation](../path-explorer-optimisation.md), with worked examples. Code:
 path_explorer.cc (phases 1, 2, 4, 5), `haltestelle_t::find_route`, `fetch_goods`, `liefere_an`,
 `starte_mit_route`, `calc_ready_time` (simhalt.cc), `vehicle_t::unload_cargo` (vehicle.cc).
@@ -26,8 +26,10 @@ Untagged prose is [CODE] at the frontmatter value; the examples are constructed 
 3. **Closure (phase 5):** one stored path per pair, with its first and last transport. At a
    transfer halt a composition is rejected when the stored path into the halt ends on the same
    linkage as the stored path out of it starts (walking excepted), even if a different linkage
-   also reaches the halt (Example A). Ties keep the first value found, in transfer-halt index
-   order.
+   also reaches the halt (Example A). Origins are registered only when the route into the halt
+   is finite and targets only when the route out of it is finite, so a one-way pair cannot be
+   composed in the unreachable direction (Example D). Ties keep the first value found, in
+   transfer-halt index order.
 4. **Packet behaviour:** `find_route` sets the destination halt (`ziel`) and the next transfer
    (`zwischenziel`), which is a halt, not a linkage.
    - `fetch_goods` boards the packet onto any convoy that reaches the next transfer (or the
@@ -107,7 +109,7 @@ weigh 34.
 - A query that compares (time, first-hop index) over all minimal hubs reproduces 7a's choice, at
   extra query cost.
 
-## Example D — the closure bug (levers 0, 7, 8)
+## Example D — directional cells
 
 Halts O, X, T, not within walking distance of each other.
 - Linkage L runs X→O and stops at O as set-down-only, so the connexion O→X is omitted.
@@ -117,10 +119,10 @@ Halts O, X, T, not within walking distance of each other.
   (for example, X precedes T in transfer-halt order).
 
 What happens:
-- **Present:** O is registered at X because `[X][O]` is finite. `[O][X]` is `UINT32_MAX`, so the
-  sum wraps to 19, which is below 58. `[O][T]` becomes 19 with a null next transfer and reports
-  **no route**; N's direct service is lost.
-- **Levers 0, 7, 8:** 58, next transfer T. Passengers from O to T travel on N.
+- **Present closure:** O is not registered as an origin at X because `[O][X]` is `UINT32_MAX`;
+  `[X][O]` remains usable for the opposite direction. `[O][T]` stays 58 with next transfer T.
+  Passengers from O to T travel on N.
+- **Levers 7, 8:** 58, next transfer T.
 
 ## Example E — walking deduplication (present behaviour; kept by 7a and by 8 on 7a's graph)
 
@@ -144,7 +146,7 @@ times 2.
 - **Companion rule** (Example A) is part of any adoption.
 - **Y/H:** the through-journey substitution needs the 7b state (arriving linkage) at coupling
   halts.
-- **Verification:** the present matrices cannot be a byte-identical oracle. Use cell-for-cell
-  expectations from worked examples like these on synthetic maps. Route outcomes decide later
-  `simrand` draws, so compare old and new engines per decision on frozen snapshots, not by running
-  both games forward.
+- **Verification:** the present closure's matrices are the byte-identical oracle for levers
+  1–6. Levers 7 and 8 change results, so they need cell-for-cell expectations from worked
+  examples like these on synthetic maps. Route outcomes decide later `simrand` draws, so compare
+  old and new engines per decision on frozen snapshots, not by running both games forward.
