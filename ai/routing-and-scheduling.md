@@ -77,10 +77,10 @@ Measured on the gargantuan fixture (method and full inventory: [performance](per
   ~1.2% self) but there is a mass reroute wave right after loading large saves; heuristic-failure
   diagnostics (`heur` ~10x `cost`) fire continuously at -debug >= 2.
 - The path explorer runs concurrently on its own worker and only when a refresh has been
-  requested; its per-step work is budget-capped (`path_explorer_time_midpoint`). Its near-zero
-  share (0.01%) in a quiet 120 s window is dormancy-or-budget-capping, unresolved
-  (→ [performance](performance.md); [simd-applicability](simd-applicability.md)). It governs how
-  quickly in-game routes update, not framerate.
+  requested; its per-step work is budget-capped (`path_explorer_time_midpoint`). It governs how
+  quickly in-game routes update, not framerate. Its refresh closure costs ≈ H³ per passenger
+  compartment and its matrices O(H²); optimisation options →
+  [path-explorer-optimisation](path-explorer-optimisation.md).
 - Halt cargo handling: `karte_t::check_transferring_cargoes` 2.6% self.
 
 ## Open questions

@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 2315dba1b
+verified: ex-15 @ bf447619a
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -11,6 +11,8 @@ gui/schedule_gui.*, gui/consist_order_gui.*, gui/components/gui_schedule_item.*,
 Per-feature registry for the 15.x programme. Design intent sources: forum thread 17852 (post URLs
 inline); parent doc: [ex-15](../ex-15.md). Untagged claims are [CODE] at the frontmatter value.
 
+Operational requirements, design decisions, ownership and implementation ordering:
+[recombination-design](recombination-design.md); read before planning or changing the runtime.
 Y/H-shaped journey traversal — the agreed design and rationale: [yh-path-explorer](yh-path-explorer.md);
 read when touching cross-schedule path exploration, split/join journey-time estimation, or the
 explorer's treatment of consist orders.
@@ -134,9 +136,11 @@ explorer's treatment of consist orders.
   [RECOLLECTION:2026-11-01 user statement]. UI-level order: reversal-aware picking, then
   the per-portion gate with the dividing work package [RECOLLECTION:2026-11-01 user statement]. The per-portion gate belongs to that
   package: the runtime is major and complex, so its design and implementation are undertaken
-  together and the composition rule (Open questions) is settled within the work
-  [RECOLLECTION:2026-11-01 user statement]; the gate itself is a small predicate in the
-  existing picker, written once the rule is fixed and ships with that runtime.
+  together [RECOLLECTION:2026-11-01 user statement]. The composition rule is now settled
+  (two end-state orders, one per portion —
+  [recombination-design](recombination-design.md)) [RECOLLECTION:2026-11-03 user statement]; the
+  gate itself is a small predicate in the existing picker, written from that rule and shipping with
+  the dividing runtime.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -151,11 +155,11 @@ explorer's treatment of consist orders.
   straight-line distance at the vehicle's per-km running cost (integer arithmetic; booked as
   distance-based running cost); with no such depot the vehicle is sold at its current value. The
   affected owners each receive a pop-up dialogue (on their own client) and a player-targeted
-  message. Runs inside `haltestelle_t::destroy` on every peer (skipped at world teardown). New
+  message. Runs inside `haltestelle_t::destroy` on every peer (skipped at world teardown).
   A new loose convoy's home depot is the nearest depot suitable for its first vehicle
-  (`depot_t::find_nearest_depot`; `koord3d::invalid` when the owner has none). Deferred:
-  play-testing of the visibility UI and of the evacuation — loose vehicles cannot arise in play
-  until the consist-order runtime is complete, so testing is a later job. Gaps: none outstanding
+  (`depot_t::find_nearest_depot`; `koord3d::invalid` when the owner has none). Targetless consist
+  orders can already generate loose stock; play-testing of the visibility UI and evacuation is
+  deferred until the fuller runtime is available. Gaps: none outstanding
   here — emptied joining convoys destroy promptly (`new_month`'s vehicle-less sweep acts as a
   backstop) and the layover registry is kept consistent (see "Layover registry consistency"
   below).
@@ -163,8 +167,9 @@ explorer's treatment of consist orders.
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
-  reachable in play subject to the runtime gaps below. Still absent or unwired: consist-order
-  window persistence.
+  reachable in play subject to the runtime gaps below. Consist-order window and rule-editor
+  persistence is implemented ([gui](../gui.md)); the remaining consist-order UI work is the
+  reversal-aware picker and per-portion gate described above.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
@@ -189,10 +194,9 @@ explorer's treatment of consist orders.
 - **Y/H-shaped path-explorer traversal** — the explorer never reads couple/uncouple targets;
   connexions are computed within one schedule only (linear/cyclic + mirrored). Journeys through a
   join/split cannot be discovered or time-estimated. **Design agreed and documented
-  in [yh-path-explorer](yh-path-explorer.md)**; it must satisfy the SIMD-compatible layout
-  requirements and staged implementation position (design SIMD-compatible → scalar implementation
-  verified → SIMD immediately after; design-time gate on dense vectorisability) recorded in
-  [simd-applicability](../simd-applicability.md) [RECOLLECTION:2026-09-19].
+  in [yh-path-explorer](yh-path-explorer.md)**; it must satisfy the kernel requirements and
+  staged SIMD position (design SIMD-compatible → scalar verified → SIMD immediately after) in
+  [path-explorer-optimisation](../path-explorer-optimisation.md) [RECOLLECTION:2026-09-19].
 - **Two-party coupling; dead-lock avoidance** — waiting for an absent named target now exists
   (`convoi_t::AWAITING_RECOMBINATION`, deliberately without a timeout
   [RECOLLECTION:2026-11-03 user statement]), but there is no two-sided evaluation of the
@@ -205,81 +209,10 @@ explorer's treatment of consist orders.
   other purposes but is not connected to coupling; SHUNTING is only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
-## Most difficult outstanding work (assessment, user-confirmed scope)
-
-1. Dividing runtime with schedule hand-over: create a convoy mid-stop from a live consist, assign
-   the target schedule at the right entry (incl. the reversed case), re-reserve tiles for both
-   portions, keep signalling/reservations consistent, network-deterministically. Design and
-   implementation are undertaken together (the runtime is major and complex), with the split
-   composition rule (which slots/vehicles form the split-off portion; Open questions) settled
-   within the work — the picker's per-portion authoring gate under Consist orders is specified
-   from it and ships with it.
-2. Y/H path-explorer traversal with journey times across concatenated schedules.
-3. Two-party timed coupling (probably via the existing trigger system), failure behaviour,
-   dead-lock detection/avoidance.
-4. Freight continuity across splits/joins (fares/apportionment in unload_cargo/load_cargo,
-   ware_t routing data). Must be seriously considered when building the recombination/dividing
-   runtime [RECOLLECTION:2026-11-01 user statement]: its design decides whether any
-   instance-marking mechanism is needed at all (Open questions).
-5. Platform occupancy by dormant consists (home-depot finding, sidings, call-on movements).
-6. Solver completeness; GUI wiring for the remaining unwired controls (window
-   persistence).
-
-## Multi-player consists — ownership and access model
-
-Multi-player consists are intended (through carriages, hired traction, wagon pooling)
-[RECOLLECTION:2026-10-18]. What exists:
-
-- Per-vehicle ownership: each vehicle carries its own `obj_t` owner (`owner_n`, serialised per
-  vehicle by `obj_t::rdwr`; `PLAYER_UNOWNED` when unowned). Consist-order operations preserve it:
-  `add_vehicle`, `move_vehicle`, `substitute_vehicle` and `remove_vehicle_at` never touch it, and
-  load only repairs null owners (`convoi_t::finish_rd`, depot load, `start_convoi`). The convoy
-  owner is separate and may differ by design.
-- Movement access is decided by the **leading vehicle's owner**, not the convoy owner and not each
-  vehicle: only the leading vehicle runs `hop_check` ("the leading vehicle will do all the
-  checks"); `rail_vehicle_t::can_enter_tile` asserts `leading`; route search uses `front()` as the
-  driver. `vehicle_t::check_access` allows a way if the leader's owner is the public service, or
-  the way is public right of way, unowned, or owned by the leader's owner, or the leader is
-  unowned, or the way belongs to the same owner as the way the leader is on, or its owner grants
-  access to the leader's owner. Consequences: access rights change when the leader changes
-  (reversal, re-combination); access is an entry test only; a public-service leader bypasses all
-  checks. Halt access on route registration uses the convoy owner instead.
-- Finance is booked by convoy, not by vehicle: revenue, running costs, way tolls and monthly fixed
-  costs go to the convoy owner; overhaul/mothball to the vehicle owner; depot sale value to the
-  depot owner; the replacer builds the replacement owned by the convoy owner. Vehicle and convoy
-  statistics counters move only on build, sale and destroy, not on a consist-order move.
-- Coupling-target selection is not gated by access: the GUI lists every lineless convoy registered
-  at the halt (registration itself is owner-filtered; a registered convoy serves the halt but is
-  not necessarily present) plus lines via `get_loading_convois()`.
-  Copying a convoy's order requires mutual access (`gui/consist_order_gui.cc`) — a precedent for
-  gating coupling itself.
-- Company removal destroys the vehicles in its convoys regardless of owner
-  (`complete_liquidation` self-destructs the convoys it owns; `convoi_t::destroy` deletes every
-  vehicle), so a foreign vehicle in a liquidating company's consist is deleted.
-- Liveries follow ownership. Re-combination never changes a vehicle's livery: through-worked
-  stock keeps its owner's livery [RECOLLECTION:2026-11-01 user statement]. Players cannot
-  change other players' vehicles' liveries; this is enforced in the code.
-- Open: a settlement model (who pays and receives what when a vehicle runs in another company's
-  consist — hire or through-carriage payments); the access policy for mixed consists (keep
-  leader-based rights, or use the convoy owner's rights and admit foreign vehicles by a separate
-  rule).
-
 ## Coupling semantics and reliability gaps
 
-Intended coupling semantics [RECOLLECTION:2026-10-19]: a couple order may draw on loose vehicles at
-the current stop (the halt's laid-over pool) and on vehicles released by a consist at the stop
-under that consist's own uncouple order, falling back to the pool only insofar as the target does
-not supply enough. Taking vehicles out of a consist requires an uncouple order on that consist; a
-plain uncouple naming no receiver suffices. A named target that has not arrived is waited for, not
-substituted, with a timeout and a player message (duration and post-timeout behaviour open). A
-consist that only loses vehicles and needs none from the counterpart does not wait: its released
-vehicles become loose at the stop.
-
-The two-sided specification exists in the data model: the receiver's entry carries `couple` + the
-target + its own order; the target's entry carries `uncouple` (receiver and target entry optional)
-+ its own order. What is absent is the runtime that evaluates both orders against the pre-exchange
-consists and commits both as one exchange; today only the receiver's order runs, pulling vehicles
-out of the target directly.
+The intended paired/asynchronous semantics, ownership model and outstanding design decisions are
+in [recombination-design](recombination-design.md). Implementation-only reliability facts follow.
 
 ### Leftover-vehicle recipients
 
@@ -342,22 +275,14 @@ unbound/stale handles regardless.
   player's own consists to their other consists [RECOLLECTION:2026-11-01 user statement].
   Unsettled: whether it copies the
   livery scheme (setting the targets' scheme index and re-applying) or the per-vehicle liveries,
-  and how the target consists are selected. The ownership rule above gives its semantics on
-  mixed consists (own vehicles only, with the warning). Unrelated to re-combination, which never
-  changes liveries.
+  and how the target consists are selected. The ownership rule in
+  [recombination-design](recombination-design.md) gives its semantics on mixed consists (own
+  vehicles only, with the warning). Unrelated to re-combination, which never changes liveries.
 - "Empty slot" semantics (vehicle_description_element defaults empty=true; GUI produces
   empty slots via the per-slot toggle but not rule-based slots).
-- Split composition rule for the dividing runtime: which vehicles form the split-off portion at
-  an uncouple entry — the complement of the staying consist order at that entry, the consist
-  order at the named target entry (`target_unique_entry_uncouple`), or an explicit
-  slot-to-portion assignment? The picker's per-portion gate ("v-shape filter", under Consist
-  orders) cannot be specified until this is settled; it also interacts with instance identity
-  (below).
-- Instance identity at a division: which of several descriptor-identical vehicles goes into
-  which portion, and whether any instance-marking mechanism is needed at all — cargo-derived
-  selection may suffice. Decide as part of the freight-continuity design ("Most difficult
-  outstanding work" item 4), not as a standalone feature
-  [FORUM:https://forum.simutrans.com/index.php/topic,16980.0].
+- Split composition: SETTLED — two end-state orders, one per portion (see
+  [recombination-design](recombination-design.md)). Instance identity at a division remains open
+  (same doc).
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):
   naming suggests inverted ordering; intended semantics unresolved — left open deliberately
   [RECOLLECTION:2026-09-07].

@@ -211,6 +211,7 @@ Rank on discovery; re-rank on triage.
   have asymmetric cells in ordinary play. Master has the same registration and summation code but
   none of these flags in path_explorer.cc; whether asymmetric cells arise there indirectly
   (direction-dependent best paths combined with the same-transport skip) is unverified.
+- Worked example → [engine-semantics](path-explorer-optimisation/engine-semantics.md) Example D.
 - Found by code inspection 2026-11-04 [CODE ex-15 @ bf447619a; CODE master @ fa0b18fba]; gameplay
   impact not reproduced. Candidate fix: register origins by `working_matrix[idx][via]` and skip
   the relaxation when `working_matrix[origin][via]` is `UINT32_MAX`. Any fix changes the routing
@@ -325,6 +326,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | recalc_transitions climate-byte data race (not a forum report: TSan CI triage) | — | detailed entry above; both branches; intermittent non-blocking-TSan failure only, value-benign, cannot deadlock; whether/how to fix open |
+| Walking connexion replaced by a slower line connexion (not a forum report: code inspection 2026-11-04) | — | both branches: in `phase_rebuild_connexions` a line connexion replaces an existing walking connexion for the same halt pair when its journey time is shorter, ignoring the line's waiting time (walking has none). The matrix then carries the line's larger weight, and `get_preferred_line` returns the line, so `starte_mit_route` makes passengers wait for it instead of walking. Worked example → [engine-semantics](path-explorer-optimisation/engine-semantics.md) Example E [CODE ex-15 @ bf447619a; CODE master @ fa0b18fba]; gameplay impact not measured |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | Industry-generation rework: persisted density discarded + contradictory overload docs (not a forum report: code inspection) | — | rework branch only; `karte_t::load` reads `actual_industry_density` then recomputes it unconditionally (and duplicates the call under a condition that can never add anything), so the persisted datum is never honoured; `factory_builder_t::adjust_input_consumption(fab, good)` returns the amount NOT used while its declaration documents the amount used; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |

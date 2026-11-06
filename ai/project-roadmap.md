@@ -109,6 +109,12 @@ A good enhancement would be to allow stop and stop extension buildings to specif
 
 Further, stop extension buildings (e.g.  hotels, tea rooms, etc.) ought to be able to earn revenue for every passenger that waits in excess of a certain time. This should not be cumulative: i.e., only one wait based unit of revenue ought to be able to be earned per passenger per stop. This should be based on the tile that gives the highest revenue for which the wait time in question is eligible. This should be based on the actual wait time on departure, not the average waiting time for departures for that convoy or line.
 
+Stop comfort as part of comfort-aware routing (waiting-time multiplier and hard limits): → [comfort-routing](path-explorer-optimisation/comfort-routing.md).
+
+## Comfort-aware routing and fares without comfort or speed weighting
+
+Vehicle, stop and walking comfort should affect both passengers' route choice and their journey time tolerance; fares should be per unit of distance (with class multipliers), with the speed bonus and the comfort weighting of revenue removed; and the private car alternative should have a comfort rating from the car type chosen for the journey [RECOLLECTION:2026-11-05]. Design, decisions and open questions: [comfort-routing](path-explorer-optimisation/comfort-routing.md).
+
 ## Public player finances and taxation [*S]
 
 It would rather add to the game if the public player had a limited budget and a means of raising finances. The best way of doing this is to apply the same credit limit (but not insolvency) rules to the public player as to other players, but allow it to raise money by taxation. Taxation would (1) take a certain proportion of players' profits (discussion is welcome on how exactly "profit" should be measured here); and (2) reduce the growth of all cities on the map proportionate to the rate of taxation levied.
@@ -228,6 +234,8 @@ Currently, although the rate of private car ownership varies with wealth, the ac
 It would be good if there could be different sets of private cars separate by wealth, and that passengers of each degree of wealth would, when travelling by private car, generate the appropriate graphics.
 
 Because this would involve a considerable amount of pakset work to implement, and would mostly be of cosmetic significance, this is currently a very low priority task; but anyone who has a passion for motor cars and a willingness to model (or import) a large number of motor car graphics for all levels of wealth through all time periods would be welcome to work on this.
+
+Car comfort ratings and per-packet car-type selection, which wealth-specific pools would extend: → [comfort-routing](path-explorer-optimisation/comfort-routing.md).
 
 ## Fractional power and tractive effort values[*S]
 
