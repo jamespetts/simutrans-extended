@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 1b236a4f1
+verified: ex-15 @ ad1815c
 ---
 # Project general notes
 
@@ -43,6 +43,13 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
 
 - The engine is OOP-dominant; data-oriented design exists only as local hot-path optimisations. Structural causes of the
   hot-path costs and feasible DOD directions: [data-layout-and-design-style](data-layout-and-design-style.md). [CODE master @ fd4a025a2]
+
+- Memory use is a first-class constraint: reducing it justifies a change even when the performance gain is small, and
+  small performance gains are worthwhile when the coding cost is modest. [RECOLLECTION:2026-11-06]
+
+- CPU cores are underused during normal gameplay even on large maps, and route staleness is a real in-game problem.
+  More path-explorer threads and higher CPU load to shorten rebuild cycles are worthwhile, subject to the sync rules in
+  [threading](threading.md) and [sync-and-determinism](sync-and-determinism.md). [RECOLLECTION:2026-11-06]
 
 - Use the Simutrans container and utility classes (tpl/, utils/) instead of std (etc.) equivalents
   for new code: they are profiled to be faster for this game's workloads. Inventory + gotchas:

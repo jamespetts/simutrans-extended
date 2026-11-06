@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ ad1815c
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -29,11 +29,43 @@ performance figures are [UNVERIFIED] derivations.
   reaches `limit_explore_paths`. The savegame carries the resume state: `via_index`, both cluster
   indices, `origin_member_index`, both cluster structures, `process_next_transfer` and the
   controller statistics.
-- Access pattern: for each (origin cluster, target cluster) pair the loop walks every origin row
-  of the cluster at the target cluster's columns. A transfer halt with k outbound clusters
-  therefore fetches each origin row up to k times, at typically one cache line per cell when the
-  rows do not stay in cache. This scattered access is what makes the present code unsuitable for
-  SIMD.
+- Access pattern: for each (origin cluster, target cluster) pair the loop walks origin members
+  and target members. Target members are appended in ascending index order, so for a fixed
+  origin and via the `[via][t]` and `[o][t]` accesses are contiguous over the target cluster;
+  this is the SIMD-vectorisable part. Origin rows are re-fetched per target cluster, but the
+  measured row fetches are under 0.1% of the target visits (one row fetch per 544–1,389
+  target visits), so re-fetching is not the dominant cost.
+
+### Measured cost (2026-11-06)
+
+[EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c, Profile (server), full unbudgeted pass,
+`month-boundary.sve`, `bb6-apr-2010.sve`, `bb6-may-2010-standardised.sve` and
+`bb-10-sep-2023.sve`.]
+
+| Fixture | H | T | Phase-5 time per class | True target visits per class | ns/visit |
+|---|---:|---:|---:|---:|---:|
+| month-boundary.sve | 1,828 | 1,610 | 1.5–1.8 s | 0.73–0.85 B | ~2.1 |
+| bb6-apr-2010.sve | 2,467 | 2,280 | 5.17–5.42 s | 2.95 B | 1.84 |
+| bb6-may-2010-standardised.sve | 2,467 | 2,280 | 6.27–7.08 s | 3.55–3.67 B | 1.9–1.97 |
+| bb-10-sep-2023.sve | 5,375 | 4,665 | 77.6–79.4 s | 42.6–44.0 B | 1.77–1.85 |
+
+The per-visit cost is stable at 1.8–2.1 ns; phase-5 time is proportional to the true target
+visits. The earlier apparent "cache cliff" was caused by `total_iterations` being a `uint32`:
+at H ≈ 5.4k it wraps about ten times and stores ~0.31–4.05 B instead of the true 43–44 B, so
+the per-class times looked independent of the counted work. The true visit count grows from
+0.85 B to 44 B over H 1.8k → 5.4k (×52, effective exponent ≈ 3.65), so H³ understates the
+growth by about 2×.
+
+Topology matters independently of H/T/E: `bb6-apr` and `bb6-may` have identical H, T and E
+but 2.95 B vs 3.64 B visits and 5.2 vs 6.5 s per class. Cluster counters on `bb6-apr`:
+2.20 inbound clusters per transfer, average cluster 790 members, 5.42 M row fetches versus
+2.95 B target visits, 26.9 M improvements (0.91%). On `bb`: 2.44 clusters, average 1,668
+members, 31.7 M row fetches versus 44.0 B visits, 182 M improvements (0.41%). The target
+loop dominates; the row re-fetch is under 0.1% of the work.
+
+Under normal server pacing the same 394.7 s of CPU is spread over 18–20 min wall at ~60 ms
+of kernel work per step, so a faster kernel buys fresher routes or a lower
+`path_explorer_time_midpoint`, not a proportional wall-time reduction by itself.
 
 ## Order-independence invariant
 
@@ -71,8 +103,10 @@ scalar code is then the reference for every variant.
 - Per transfer halt: for each origin cluster, for each origin member, for each target cluster
   (skipping the same-transport cluster), for each target member. Each origin row is fetched once
   per transfer halt instead of once per target cluster.
-- Expected traffic reduction ~2–8×, depending on cluster sizes; lever 1 halves the read side
-  again.
+- Expected gain is bounded by the row re-fetch share: measured one origin-row fetch per
+  544–1,389 target visits (under 0.1% of the loop work), so the direct reduction is small.
+  Its value is locality and simpler loop structure, not a 2–8× reduction. Lever 1 halves the
+  read side of the remaining target loop.
 - Budget: count iterations by the same per-origin rule in the new order. All peers run the same
   code, so stop points are identical.
 - Savegame: the saved resume counters change meaning. Either give them new semantics with savegame
@@ -101,9 +135,10 @@ scalar code is then the reference for every variant.
   results.
 - Determinism: integer operations with the same strict less-than as the scalar loop, so the
   output is byte-identical to the scalar reference.
-- Expected ~2–4× on the compute side, after which the loop is limited by DRAM bandwidth (≈ 4 B
-  read per cell). AVX2 (8 lanes, `vpminud`) behind runtime dispatch (lever 10) adds little once
-  the loop is bandwidth-bound.
+- Expected ~2–4× on the true target-member loop: 44 B visits per class at H ≈ 5.4k at
+  ~1.8 ns each, with contiguous target lists. SIMD is the primary CPU lever after the
+  closure fix; AVX2 (8 lanes, `vpminud`) behind runtime dispatch (lever 10) may add further
+  once SSE2 is in place.
 - This formulation meets the gate in [simd-applicability](../simd-applicability.md) (dense vector
   loads, no gathers); the present loop shape does not. The scalar path stays for Win32, non-x86,
   CI and as the oracle; the SSE2 variant is gated to x64.
@@ -120,6 +155,10 @@ scalar code is then the reference for every variant.
   constraint, [project-notes](../project-notes.md)); the gain is bounded at ~2–4×. CPU per step
   rises: the controller's time target becomes N × 64 ms of CPU. [threading](../threading.md) is
   mandatory.
+- User decision 2026-11-06 [RECOLLECTION:2026-11-06]: adding threads and CPU load to shorten
+  the rebuild cycle is worthwhile, because CPU cores are underused during gameplay and route
+  staleness is a real in-game problem. Implement this after the layout/SIMD kernel and settle
+  the deterministic iteration/stop-point model first; it remains sync-critical.
 
 ## Lever 9 — GPU
 
@@ -127,7 +166,10 @@ scalar code is then the reference for every variant.
   inputs are fixed for the duration (invariant), so the result is bit-exact with the CPU kernel.
 - VRAM per compartment: 10 B × H² (0.25 / 1 / 4 GB at H = 5k / 10k / 20k). Finished matrices stay
   in host memory; the download is 6 B × H² per pass.
-- Estimated 0.1–0.2 ms per transfer halt at 0.5–1 TB/s, ≈ 0.5–1 s per compartment at H = 5k.
+- Estimated 0.05–0.2 ms per transfer halt for the sparse cluster-pair work (44 B target
+  visits per class at H = 5k, 10 B/cell), ≈ 0.5–1 s per compartment at 0.5–1 TB/s. A dense
+  H² update per transfer halt is ~3× the true visit count and takes ~1.5–3 s per
+  compartment.
 - Needs a compute backend, build integration in three build systems and headless server drivers;
   the CPU path remains authoritative. Network play: limited by the slowest peer (parent doc).
 - Decision [RECOLLECTION:2026-11-06]: open to GPU optimisation, not requiring it; implementation

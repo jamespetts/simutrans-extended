@@ -218,6 +218,39 @@ Rank on discovery; re-rank on triage.
   matrices, which are synced and saved state: read
   [sync-and-determinism](sync-and-determinism.md) before fixing.
 
+### `save_path_explorer_data` override misaligns the savegame load stream — priority 1
+
+- `settings_t::rdwr` stores `save_path_explorer_data` in the savegame. `karte_t::rdwr_gamestate`
+  applies the simuconf overrides immediately after reading the settings, and `karte_t::load`
+  later decides whether to call `path_explorer_t::rdwr` from the overridden value. If an
+  override flips the value relative to the save, the loader consumes the wrong number of bytes
+  from the path-explorer block onwards.
+- Reproduced 2026-11-06 on ex-15 @ ad1815c with `month-boundary.sve` (path data present),
+  `userdir_overrides_savegame_settings = 1` and `save_path_explorer_data = 0`: the private car
+  queue read 1,291 queued cities for a world with 602 cities, 68,131 "Unknown frequency"
+  messages, and an access violation at shutdown. The stream is corrupt from that point; a save
+  made after such a load could persist the corruption.
+- Non-default configuration (progdir/pak/userdir overrides), but there is no guard.
+- Fix direction: use the value as stored in the save for the conditional read, and apply the
+  override only to subsequent refresh/save behaviour; or make this setting non-overridable.
+  Any change to the load path or settings serialization is an AGENTS.md rule-5 review.
+- [EXECUTION-VERIFIED:2026-11-06 ex-15 @ ad1815c; CODE inspection same commit]
+
+### Path explorer `total_iterations` is uint32 and wraps at gargantuan size — priority 3
+
+- `path_explorer_t::compartment_t::total_iterations` is a `uint32` "for desync debug only"
+  and is also written to the savegame (`rdwr_long`). The phase-5 target-member loop can exceed
+  2^32 visits per passenger class on a large map.
+- Measured 2026-11-06 on `bb-10-sep-2023.sve`: true target visits 42.6–44.0 B per passenger
+  class; the stored/returned `total_iterations` values were 0.31–4.05 B, an undercount of
+  about 40× (about ten wraps). The same measurement initially produced a wrong
+  "iteration count does not predict CPU time" conclusion. `iterations_processed`, which
+  drives the budget, is `uint64` and is unaffected.
+- Fix direction: widen the diagnostic counter to `uint64` (or saturate it). Because the field
+  is saved, this is a savegame-format change under AGENTS.md rule 5; a saturating
+  `uint32` would avoid the wrap without changing the field width.
+- [EXECUTION-VERIFIED:2026-11-06 ex-15 @ ad1815c, Profile (server), 64-bit test counter]
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -228,6 +261,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | First-join desync then clean rejoin (not a forum report: investigation 2026-09-30; see also 22203 below) | — | detailed investigation → [bug-first-join-desync](bug-first-join-desync.md); isolated to single-convoy speed divergence 3 frames after unpause; cause not yet isolated |
+| `save_path_explorer_data` override misaligns the savegame load stream (not a forum report: measurement 2026-11-06) | — | detailed entry above; non-default simuconf override only; stream corruption from the path-explorer block, crash at shutdown, and the corruption can be saved |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
 | [Reproducible crash when deleting road stop](https://forum.simutrans.com/index.php/topic,23834.0.html) | 2026 | reported reproducible |
@@ -326,6 +360,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | recalc_transitions climate-byte data race (not a forum report: TSan CI triage) | — | detailed entry above; both branches; intermittent non-blocking-TSan failure only, value-benign, cannot deadlock; whether/how to fix open |
+| Path explorer `total_iterations` uint32 overflow (not a forum report: measurement 2026-11-06) | — | detailed entry above; diagnostic/desync-debug counter undercounts ~40× at H ≈ 5.4k; budget counter is uint64 and unaffected; widening is a rule-5 savegame change |
 | Walking connexion replaced by a slower line connexion (not a forum report: code inspection 2026-11-04) | — | both branches: in `phase_rebuild_connexions` a line connexion replaces an existing walking connexion for the same halt pair when its journey time is shorter, ignoring the line's waiting time (walking has none). The matrix then carries the line's larger weight, and `get_preferred_line` returns the line, so `starte_mit_route` makes passengers wait for it instead of walking. Worked example → [engine-semantics](path-explorer-optimisation/engine-semantics.md) Example E [CODE ex-15 @ bf447619a; CODE master @ fa0b18fba]; gameplay impact not measured |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | Industry-generation rework: persisted density discarded + contradictory overload docs (not a forum report: code inspection) | — | rework branch only; `karte_t::load` reads `actual_industry_density` then recomputes it unconditionally (and duplicates the call under a condition that can never add anything), so the persisted datum is never honoured; `factory_builder_t::adjust_input_consumption(fab, good)` returns the amount NOT used while its declaration documents the amount used; [CODE] → [bug-industry-generation](bug-industry-generation.md) |

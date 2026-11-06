@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ ad1815c
 ---
 # ex-15: Y/H-shaped path-explorer traversal
 
@@ -198,6 +198,15 @@ platform and home-depot handling, and the remaining per-portion consist-order va
 
 Per-stage verification method (loopback determinism, performance-suite oracles, refresh timing):
 [accuracy-performance-verification](yh-path-explorer/accuracy-performance-verification.md).
+
+### Sequencing against the optimisation work
+
+The through-edge recording and substitution touch phase 2 and phase 5, the same code as the
+planned cell-layout, comparison-loop and threading work. Their route-table integration
+should therefore follow the final layout/loop/iteration model, so that it is not implemented
+twice and does not need two separate sync reviews. Y/H remains on the present engine family
+(not levers 7/8). The runtime co-requirements, dwell measurement, consist-order data and
+pakset work are independent and can start in parallel. [analysis, 2026-11-06]
 
 ## Open questions
 

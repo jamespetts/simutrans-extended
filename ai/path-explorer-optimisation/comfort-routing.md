@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ ad1815c
 ---
 # Comfort-aware routing (design)
 
@@ -168,6 +168,16 @@ precomputed table. This favours 7b over 7a if lever 7 is adopted (→
   passengers pay no stop terms during the dwell. Composition beyond the depth limit would have to
   remove the coupling stop's terms from the second cell, which a blended cell does not hold, so it
   is approximate; direct through edges up to the depth limit are exact.
+
+## Sequencing against the optimisation work
+
+Comfort weights are computed in phase 2 and do not change the comparison loop, so the
+weight/scales/pakset/revenue work can proceed in parallel with the kernel work. The final
+cell layout must be fixed before implementation: one 4-byte blended cost and the 2-byte next
+stop per cell, with no separate discomfort array initially. The measured memory and
+performance results support B over S and uniform over banded sensitivity. Adding a
+discomfort array later needs a savegame step and one refresh, but the layout should leave
+room for it [analysis, 2026-11-06].
 
 ## Blended (B) or separate (S) storage
 
