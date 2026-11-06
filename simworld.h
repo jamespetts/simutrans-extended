@@ -393,6 +393,13 @@ private:
 	uint8 loaded_rotation;
 
 	/**
+	 * Whether the savegame being loaded contains path explorer data. Captured
+	 * before simuconf overrides are applied, because the block layout follows
+	 * the value stored in the save, not the overridden value.
+	 */
+	bool path_explorer_data_in_save;
+
+	/**
 	 * The one and only camera looking at our world.
 	 */
 	viewport_t *viewport;

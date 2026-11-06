@@ -1911,9 +1911,19 @@ void path_explorer_t::compartment_t::step()
 					// identify halts which are connected with the current transfer halt
 					for ( uint16 idx = 0; idx < working_halt_count; ++idx )
 					{
-						if ( working_matrix[via][idx].aggregate_time != UINT32_MAX_VALUE && via != idx )
+						if ( via == idx )
+						{
+							continue;
+						}
+						// Register origins by the direction used by the relaxation below (idx to via)
+						// and targets by the opposite direction (via to idx). The two cells can differ
+						// when a connexion exists in one direction only.
+						if ( working_matrix[idx][via].aggregate_time != UINT32_MAX_VALUE )
 						{
 							inbound_connections->register_connection( transport_matrix[idx][via].last_transport, idx );
+						}
+						if ( working_matrix[via][idx].aggregate_time != UINT32_MAX_VALUE )
+						{
 							outbound_connections->register_connection( transport_matrix[via][idx].first_transport, idx );
 						}
 					}
@@ -1952,7 +1962,8 @@ void path_explorer_t::compartment_t::step()
 							{
 								const uint16 target = target_halt_list[target_member_index];
 
-								if ( ( combined_time = working_matrix[origin][via].aggregate_time
+								if ( working_matrix[origin][via].aggregate_time != UINT32_MAX_VALUE
+									&& ( combined_time = working_matrix[origin][via].aggregate_time
 													 + working_matrix[via][target].aggregate_time )
 											< working_matrix[origin][target].aggregate_time			   )
 								{
