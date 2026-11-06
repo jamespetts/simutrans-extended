@@ -3316,6 +3316,7 @@ karte_t::karte_t() :
 	actual_industry_density = industry_density_proportion = 0;
 
 	loaded_rotation = 0;
+	path_explorer_data_in_save = true;
 	last_year = 1930;
 	last_month = 0;
 
@@ -8669,6 +8670,11 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 	settings.rdwr(file);
 
 	if (file->is_loading()) {
+		// The path explorer block is present or absent according to the value
+		// stored in this save. Capture it before the overrides below so that
+		// the conditional read in load() follows the file layout.
+		path_explorer_data_in_save = settings.get_save_path_explorer_data();
+
 		// We may wish to override the settings saved in the file.
 		// But not if we are a network client.
 		if (  !env_t::networkmode || env_t::server  ) {
@@ -10053,7 +10059,7 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 
 	// Either reload the path explorer data or refresh the routing.
 	bool path_explorer_data_saved = false;
-	if ((file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 8)) && get_settings().get_save_path_explorer_data())
+	if ((file->get_extended_version() >= 15 || (file->get_extended_version() >= 14 && file->get_extended_revision() >= 8)) && path_explorer_data_in_save)
 	{
 		path_explorer_data_saved = true;
 		path_explorer_t::rdwr(file);
