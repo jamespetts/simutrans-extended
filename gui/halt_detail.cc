@@ -1509,8 +1509,9 @@ void gui_halt_route_info_t::build_halt_list(uint8 catg_index, uint8 g_class, boo
 		for (uint8 i = 0; i < goods_manager_t::get_max_catg_index(); i++) {
 			haltestelle_t::connexions_map *connexions = halt->get_connexions(i, goods_manager_t::get_classes_catg_index(i) - 1);
 			if (!connexions->empty()) {
-				for(auto &iter : *connexions) {
-					halthandle_t a_halt = iter.key;
+				for (const haltestelle_t::connexion &cnx : *connexions) {
+					halthandle_t a_halt;
+					a_halt.set_id(cnx.halt_id);
 					if (a_halt.is_bound()) {
 						halt_list.insert_unique_ordered(a_halt, RelativeDistanceOrdering(halt->get_basis_pos()));
 					}
@@ -1535,8 +1536,9 @@ void gui_halt_route_info_t::build_halt_list(uint8 catg_index, uint8 g_class, boo
 
 		haltestelle_t::connexions_map *connexions = halt->get_connexions(selected_route_catg_index, selected_class);
 		if (!connexions->empty()) {
-			for(auto &iter : *connexions) {
-				halthandle_t a_halt = iter.key;
+			for (const haltestelle_t::connexion &cnx : *connexions) {
+				halthandle_t a_halt;
+				a_halt.set_id(cnx.halt_id);
 				if (a_halt.is_bound()) {
 					halt_list.insert_unique_ordered(a_halt, RelativeDistanceOrdering(halt->get_basis_pos()));
 				}

@@ -2904,9 +2904,9 @@ void haltestelle_t::update_alternative_seats(convoihandle_t cnv)
 
 	for (uint8 i = 0; i < goods_manager_t::passengers->get_number_of_classes(); i++)
 	{
-		for(auto const iter: *(connexions[catg_index][i]))
+		for (connexion &cnx : *(connexions[catg_index][i]))
 		{
-			iter.value->alternative_seats = 0;
+			cnx.alternative_seats = 0;
 		}
 
 		if (loading_here.get_count() < 2) // Alternatives don't exist, only one convoy here
@@ -4780,16 +4780,16 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 					if (connexions_map_count > 0)
 					{
-						for(auto const iter : *(connexions[catg_index][i]))
+						for (const connexion &cnx : *(connexions[catg_index][i]))
 						{
-							tmp_idx = iter.key.get_id();
+							tmp_idx = cnx.halt_id;
 
-							tmp_journey_time = iter.value->journey_time;
-							tmp_waiting_time = iter.value->waiting_time;
-							tmp_transfer_time = iter.value->transfer_time;
-							tmp_best_line_idx = iter.value->best_line.get_id();
-							tmp_best_convoy_idx = iter.value->best_convoy.get_id();
-							tmp_alternative_seats = iter.value->alternative_seats;
+							tmp_journey_time = cnx.journey_time;
+							tmp_waiting_time = cnx.waiting_time;
+							tmp_transfer_time = cnx.transfer_time;
+							tmp_best_line_idx = cnx.best_line.get_id();
+							tmp_best_convoy_idx = cnx.best_convoy.get_id();
+							tmp_alternative_seats = cnx.alternative_seats;
 
 							file->rdwr_short(tmp_idx);
 							file->rdwr_long(tmp_journey_time);
@@ -4819,15 +4819,15 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 							if (i < goods_manager_t::get_classes_catg_index(catg_index))
 							{
-								connexion* tmp_cnx = new connexion();
+								connexion tmp_cnx;
 
 								tmp_halt.set_id(tmp_idx);
-								tmp_cnx->journey_time = tmp_journey_time;
-								tmp_cnx->waiting_time = tmp_waiting_time;
-								tmp_cnx->transfer_time = tmp_transfer_time;
-								tmp_cnx->best_line.set_id(tmp_best_line_idx);
-								tmp_cnx->best_convoy.set_id(tmp_best_convoy_idx);
-								tmp_cnx->alternative_seats = tmp_alternative_seats;
+								tmp_cnx.journey_time = tmp_journey_time;
+								tmp_cnx.waiting_time = tmp_waiting_time;
+								tmp_cnx.transfer_time = tmp_transfer_time;
+								tmp_cnx.best_line.set_id(tmp_best_line_idx);
+								tmp_cnx.best_convoy.set_id(tmp_best_convoy_idx);
+								tmp_cnx.alternative_seats = tmp_alternative_seats;
 
 								connexions[catg_index][i]->set(tmp_halt, tmp_cnx);
 							}
@@ -6290,17 +6290,6 @@ uint8 haltestelle_t::get_empty_lane(const grund_t *gr, convoihandle_t cnv) const
 		}
 	}
 	return 0;
-}
-
-
-void* haltestelle_t::connexion::operator new(size_t /*size*/)
-{
-	return freelist_t::gimme_node(sizeof(haltestelle_t::connexion));
-}
-
-void haltestelle_t::connexion::operator delete(void *p)
-{
-	freelist_t::putback_node(sizeof(haltestelle_t::connexion),p);
 }
 
 

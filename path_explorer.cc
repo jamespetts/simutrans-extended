@@ -240,17 +240,17 @@ void path_explorer_t::rdwr(loadsave_t* file)
 			uint32 connexion_table_count = compartment_t::connexion_list[i].connexion_table->get_count();
 			file->rdwr_long(connexion_table_count);
 
-			for(auto iter : *compartment_t::connexion_list[i].connexion_table)
+			for (const haltestelle_t::connexion &cnx : *compartment_t::connexion_list[i].connexion_table)
 			{
-				tmp_idx = iter.key.get_id();
+				tmp_idx = cnx.halt_id;
 				file->rdwr_short(tmp_idx);
 
-				tmp_journey_time = iter.value->journey_time;
-				tmp_waiting_time = iter.value->waiting_time;
-				tmp_transfer_time = iter.value->transfer_time;
-				tmp_best_line_idx = iter.value->best_line.get_id();
-				tmp_best_convoy_idx = iter.value->best_convoy.get_id();
-				tmp_alternative_seats = iter.value->alternative_seats;
+				tmp_journey_time = cnx.journey_time;
+				tmp_waiting_time = cnx.waiting_time;
+				tmp_transfer_time = cnx.transfer_time;
+				tmp_best_line_idx = cnx.best_line.get_id();
+				tmp_best_convoy_idx = cnx.best_convoy.get_id();
+				tmp_alternative_seats = cnx.alternative_seats;
 
 				file->rdwr_long(tmp_journey_time);
 				file->rdwr_long(tmp_waiting_time);
@@ -274,7 +274,7 @@ void path_explorer_t::rdwr(loadsave_t* file)
 				file->rdwr_short(tmp_idx);
 				tmp_halt.set_id(tmp_idx);
 
-				haltestelle_t::connexion* tmp_cnx = new haltestelle_t::connexion();
+				haltestelle_t::connexion tmp_cnx;
 
 				uint32 tmp_journey_time;
 				uint32 tmp_waiting_time;
@@ -291,12 +291,12 @@ void path_explorer_t::rdwr(loadsave_t* file)
 				file->rdwr_short(tmp_best_convoy_idx);
 				file->rdwr_short(tmp_alternative_seats);
 
-				tmp_cnx->journey_time = tmp_journey_time;
-				tmp_cnx->waiting_time = tmp_waiting_time;
-				tmp_cnx->transfer_time = tmp_transfer_time;
-				tmp_cnx->best_line.set_id(tmp_best_line_idx);
-				tmp_cnx->best_convoy.set_id(tmp_best_convoy_idx);
-				tmp_cnx->alternative_seats = tmp_alternative_seats;
+				tmp_cnx.journey_time = tmp_journey_time;
+				tmp_cnx.waiting_time = tmp_waiting_time;
+				tmp_cnx.transfer_time = tmp_transfer_time;
+				tmp_cnx.best_line.set_id(tmp_best_line_idx);
+				tmp_cnx.best_convoy.set_id(tmp_best_convoy_idx);
+				tmp_cnx.alternative_seats = tmp_alternative_seats;
 
 				compartment_t::connexion_list[i].connexion_table->put(tmp_halt, tmp_cnx);
 			}
@@ -1209,7 +1209,6 @@ void path_explorer_t::compartment_t::step()
 				const uint32 halts_within_walking_distance = all_halts_list[i]->get_number_of_halts_within_walking_distance();
 
 				halthandle_t walking_distance_halt;
-				haltestelle_t::connexion *new_connexion;
 
 				for ( uint32 x = 0; x < halts_within_walking_distance; ++x )
 				{
@@ -1228,13 +1227,13 @@ void path_explorer_t::compartment_t::step()
 					const uint32 journey_time = world->walking_time_tenths_from_distance(walking_journey_distance);
 
 					// Check the journey times to the connexion
-					new_connexion = new haltestelle_t::connexion;
-					new_connexion->waiting_time = 0; // People do not need to wait to walk.
-					new_connexion->transfer_time = walking_distance_halt->get_transfer_time();
-					new_connexion->best_convoy = convoihandle_t();
-					new_connexion->best_line = linehandle_t();
-					new_connexion->journey_time = journey_time;
-					new_connexion->alternative_seats = 0;
+					haltestelle_t::connexion new_connexion;
+					new_connexion.waiting_time = 0; // People do not need to wait to walk.
+					new_connexion.transfer_time = walking_distance_halt->get_transfer_time();
+					new_connexion.best_convoy = convoihandle_t();
+					new_connexion.best_line = linehandle_t();
+					new_connexion.journey_time = journey_time;
+					new_connexion.alternative_seats = 0;
 
 					// These are walking connexions only. There will not be multiple possible connexions, so no need
 					// to check for existing connexions here.
@@ -1348,7 +1347,6 @@ void path_explorer_t::compartment_t::step()
 
 			uint32 accumulated_journey_time;
 			haltestelle_t::connexions_map *catg_connexions;
-			haltestelle_t::connexion *new_connexion;
 
 			start = dr_time();	// start timing
 
@@ -1793,20 +1791,20 @@ void path_explorer_t::compartment_t::step()
 						}
 						else
 						{
-							new_connexion = new haltestelle_t::connexion;
-							new_connexion->waiting_time = halt_list[h]->get_average_waiting_time(halt_list[t], catg, g_class);
-							new_connexion->transfer_time = catg != goods_manager_t::passengers->get_catg_index() ? halt_list[h]->get_transshipment_time() : halt_list[h]->get_transfer_time();
+							haltestelle_t::connexion new_connexion;
+							new_connexion.waiting_time = halt_list[h]->get_average_waiting_time(halt_list[t], catg, g_class);
+							new_connexion.transfer_time = catg != goods_manager_t::passengers->get_catg_index() ? halt_list[h]->get_transshipment_time() : halt_list[h]->get_transfer_time();
 							if (current_linkage.line.is_bound())
 							{
 								average_tpl<uint32>* ave = current_linkage.line->get_average_journey_times().access(halt_pair);
 								if (ave && ave->count > 0)
 								{
-									new_connexion->journey_time = ave->reduce();
+									new_connexion.journey_time = ave->reduce();
 								}
 								else
 								{
 									// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
-									new_connexion->journey_time = accumulated_journey_time;
+									new_connexion.journey_time = accumulated_journey_time;
 								}
 							}
 							else if (current_linkage.convoy.is_bound())
@@ -1814,38 +1812,30 @@ void path_explorer_t::compartment_t::step()
 								average_tpl<uint32>* ave = current_linkage.convoy->get_average_journey_times().access(halt_pair);
 								if (ave && ave->count > 0)
 								{
-									new_connexion->journey_time = ave->reduce();
+									new_connexion.journey_time = ave->reduce();
 								}
 								else
 								{
 									// Fallback - use the old method. This will be an estimate, and a somewhat generous one at that.
-									new_connexion->journey_time = accumulated_journey_time;
+									new_connexion.journey_time = accumulated_journey_time;
 								}
 							}
-							new_connexion->best_convoy = current_linkage.convoy;
-							new_connexion->best_line = current_linkage.line;
-							new_connexion->alternative_seats = 0;
+							new_connexion.best_convoy = current_linkage.convoy;
+							new_connexion.best_line = current_linkage.line;
+							new_connexion.alternative_seats = 0;
 
 							// Check whether this is the best connexion so far, and, if so, add it.
-							if (!catg_connexions->put(halt_list[t], new_connexion))
+							haltestelle_t::connexion *existing_connexion = catg_connexions->get(halt_list[t]);
+							if (existing_connexion == NULL)
 							{
-								// The key exists in the hashtable already - check whether this entry is better.
-								haltestelle_t::connexion* existing_connexion = catg_connexions->get(halt_list[t]);
-								if (existing_connexion->journey_time > new_connexion->journey_time)
-								{
-									// The new connexion is better - replace it.
-									new_connexion->alternative_seats = existing_connexion->alternative_seats;
-									delete existing_connexion;
-									catg_connexions->set(halt_list[t], new_connexion);
-								}
-								else
-								{
-									delete new_connexion;
-								}
-							}
-							else
-							{
+								catg_connexions->put(halt_list[t], new_connexion);
 								halt_list[h]->prepare_goods_list(catg);
+							}
+							else if (existing_connexion->journey_time > new_connexion.journey_time)
+							{
+								// The new connexion is better - replace it.
+								new_connexion.alternative_seats = existing_connexion->alternative_seats;
+								catg_connexions->set(halt_list[t], new_connexion);
 							}
 						}
 					}
@@ -2083,7 +2073,6 @@ void path_explorer_t::compartment_t::step()
 			halthandle_t current_halt;
 			halthandle_t reachable_halt;
 			uint32 reachable_halt_index;
-			haltestelle_t::connexion *current_connexion;
 
 			start = dr_time();	// start timing
 
@@ -2106,9 +2095,9 @@ void path_explorer_t::compartment_t::step()
 				}
 
 				// iterate over the connexions of the current halt
-				for(auto const& connexions_iter : *(current_halt->get_connexions(catg, g_class)))
+				for (const haltestelle_t::connexion &cnx : *(current_halt->get_connexions(catg, g_class)))
 				{
-					reachable_halt = connexions_iter.key;
+					reachable_halt.set_id(cnx.halt_id);
 
 					// halts may be removed during the process of refresh
 					if (!reachable_halt.is_bound())
@@ -2116,24 +2105,22 @@ void path_explorer_t::compartment_t::step()
 						continue;
 					}
 
-					current_connexion = connexions_iter.value;
-
 					// validate transport and determine transport index
 					uint16 transport_idx;
-					if ( current_connexion->best_line.is_null() && current_connexion->best_convoy.is_null() )
+					if ( cnx.best_line.is_null() && cnx.best_convoy.is_null() )
 					{
 						// passengers walking between 2 halts
 						transport_idx = 0;
 					}
-					else if ( current_connexion->best_line.is_bound() )
+					else if ( cnx.best_line.is_bound() )
 					{
 						// valid line
-						transport_idx = transport_index_map[ current_connexion->best_line.get_id() ];
+						transport_idx = transport_index_map[ cnx.best_line.get_id() ];
 					}
-					else if ( current_connexion->best_convoy.is_bound() )
+					else if ( cnx.best_convoy.is_bound() )
 					{
 						// valid lineless convoy
-						transport_idx = transport_index_map[ 65536u + current_connexion->best_convoy.get_id() ];
+						transport_idx = transport_index_map[ 65536u + cnx.best_convoy.get_id() ];
 					}
 					else
 					{
@@ -2142,7 +2129,7 @@ void path_explorer_t::compartment_t::step()
 					}
 
 					// determine the matrix index of reachable halt in working halt index map
-					reachable_halt_index = working_halt_index_map[reachable_halt.get_id()];
+					reachable_halt_index = working_halt_index_map[cnx.halt_id];
 
 					if(reachable_halt_index == 65535)
 					{
@@ -2151,8 +2138,8 @@ void path_explorer_t::compartment_t::step()
 
 					// update corresponding matrix element
 					const size_t matrix_index = path_matrix_index(phase_counter, static_cast<uint16>(reachable_halt_index), working_halt_count);
-					working_next_transfers[matrix_index] = reachable_halt.get_id();
-					working_times[matrix_index] = current_connexion->waiting_time + current_connexion->journey_time + current_connexion->transfer_time;
+					working_next_transfers[matrix_index] = cnx.halt_id;
+					working_times[matrix_index] = cnx.waiting_time + cnx.journey_time + cnx.transfer_time;
 					working_first_transports[matrix_index]
 						= working_last_transports[matrix_index]
 						= transport_idx;
@@ -2707,15 +2694,7 @@ void path_explorer_t::compartment_t::initialise_connexion_list()
 
 void path_explorer_t::compartment_t::reset_connexion_entry(const uint16 halt_id)
 {
-	if ( !connexion_list[halt_id].connexion_table->empty() )
-	{
-		for(auto const iter : (*(connexion_list[halt_id].connexion_table)))
-		{
-			delete iter.value;
-		}
-
-		connexion_list[halt_id].connexion_table->clear();
-	}
+	connexion_list[halt_id].connexion_table->clear();
 	connexion_list[halt_id].serving_transport = 0;
 }
 

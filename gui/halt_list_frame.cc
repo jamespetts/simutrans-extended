@@ -359,9 +359,9 @@ static bool passes_filter_special(haltestelle_t & s)
 			if(!s.get_connexions(i, g_class)->empty())
 			{
 				// There might be a walking connexion here - do not count a walking connexion.
-				for(auto &c : *s.get_connexions(i, g_class) )
+				for (const haltestelle_t::connexion &cnx : *s.get_connexions(i, g_class))
 				{
-					if(c.value->best_line.is_bound() || c.value->best_convoy.is_bound())
+					if (cnx.best_line.is_bound() || cnx.best_convoy.is_bound())
 					{
 						walking_connexion_only = false;
 					}

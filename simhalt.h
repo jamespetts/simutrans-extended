@@ -36,6 +36,7 @@
 #include "tpl/minivec_tpl.h"
 
 #include <atomic>
+#include <string.h>
 
 #define MAX_HALT_COST				13 // Total number of cost items
 #define MAX_MONTHS					12 // Max history
@@ -311,9 +312,9 @@ public:
 
 		uint16 alternative_seats; // used in overcrowd calculations in fetch_goods, updated by update_alternative_seats
 
-		// For the memory pool
-		void* operator new(size_t size);
-		void operator delete(void *p);
+		// Destination halt ID; the key of the sorted connexions_map array.
+		// Fits in the padding after alternative_seats, so the struct stays 20 bytes.
+		uint16 halt_id;
 	};
 	bool do_alternative_seats_calculation; //for optimisations purpose
 
@@ -321,7 +322,152 @@ public:
 
 	bool is_within_walking_distance_of(halthandle_t halt) const;
 
-	typedef quickstone_hashtable_tpl<haltestelle_t, connexion*, N_BAGS_MEDIUM> connexions_map;
+	// Sorted array of direct connexions, keyed by destination halt ID. This
+	// replaces the former per-halt hash table: the key lives in
+	// connexion::halt_id and lookups are binary searches over a contiguous array.
+	class connexions_map
+	{
+		connexion *entries;
+		uint32 count;
+		uint32 capacity;
+
+		uint32 find_index(const uint16 halt_id) const
+		{
+			uint32 low = 0;
+			uint32 high = count;
+			while (low < high)
+			{
+				const uint32 mid = (low + high) / 2;
+				if (entries[mid].halt_id < halt_id)
+				{
+					low = mid + 1;
+				}
+				else
+				{
+					high = mid;
+				}
+			}
+			return low;
+		}
+
+		void grow()
+		{
+			const uint32 new_capacity = capacity == 0 ? 8 : capacity + (capacity / 2) + 1;
+			connexion *new_entries = new connexion[new_capacity];
+			for (uint32 i = 0; i < count; ++i)
+			{
+				new_entries[i] = entries[i];
+			}
+			delete[] entries;
+			entries = new_entries;
+			capacity = new_capacity;
+		}
+
+	public:
+		connexions_map() : entries(NULL), count(0), capacity(0) {}
+		~connexions_map() { delete[] entries; }
+
+		connexions_map(const connexions_map &) = delete;
+		connexions_map &operator=(const connexions_map &) = delete;
+
+		uint32 get_count() const { return count; }
+		bool empty() const { return count == 0; }
+
+		void clear()
+		{
+			delete[] entries;
+			entries = NULL;
+			count = 0;
+			capacity = 0;
+		}
+
+		// Shrink to the exact entry count; called when a rebuilt table is
+		// swapped into a halt so that the stored form does not keep the
+		// geometric growth capacity.
+		void compact()
+		{
+			if (count == capacity)
+			{
+				return;
+			}
+			if (count == 0)
+			{
+				clear();
+				return;
+			}
+			connexion *new_entries = new connexion[count];
+			for (uint32 i = 0; i < count; ++i)
+			{
+				new_entries[i] = entries[i];
+			}
+			delete[] entries;
+			entries = new_entries;
+			capacity = count;
+		}
+
+		connexion *get(const halthandle_t halt)
+		{
+			const uint32 index = find_index(halt.get_id());
+			return index < count && entries[index].halt_id == halt.get_id() ? &entries[index] : NULL;
+		}
+
+		const connexion *get(const halthandle_t halt) const
+		{
+			const uint32 index = find_index(halt.get_id());
+			return index < count && entries[index].halt_id == halt.get_id() ? &entries[index] : NULL;
+		}
+
+		bool put(const halthandle_t halt, const connexion &cnx)
+		{
+			const uint16 halt_id = halt.get_id();
+			const uint32 index = find_index(halt_id);
+			if (index < count && entries[index].halt_id == halt_id)
+			{
+				return false;
+			}
+			if (count == capacity)
+			{
+				grow();
+			}
+			if (index < count)
+			{
+				memmove(&entries[index + 1], &entries[index], (count - index) * sizeof(connexion));
+			}
+			entries[index] = cnx;
+			entries[index].halt_id = halt_id;
+			++count;
+			return true;
+		}
+
+		connexion *set(const halthandle_t halt, const connexion &cnx)
+		{
+			const uint16 halt_id = halt.get_id();
+			const uint32 index = find_index(halt_id);
+			if (count == capacity && (index >= count || entries[index].halt_id != halt_id))
+			{
+				grow();
+			}
+			if (index < count && entries[index].halt_id == halt_id)
+			{
+				entries[index] = cnx;
+				entries[index].halt_id = halt_id;
+				return &entries[index];
+			}
+			if (index < count)
+			{
+				memmove(&entries[index + 1], &entries[index], (count - index) * sizeof(connexion));
+			}
+			entries[index] = cnx;
+			entries[index].halt_id = halt_id;
+			++count;
+			return &entries[index];
+		}
+
+		connexion *begin() { return entries; }
+		const connexion *begin() const { return entries; }
+		connexion *end() { return entries + count; }
+		const connexion *end() const { return entries + count; }
+	};
 
 	struct waiting_time_set
 	{
@@ -525,7 +671,10 @@ public:
 	// Added by : Knightly
 	void swap_connexions(const uint8 category, const uint8 g_class, haltestelle_t::connexions_map* &cxns)
 	{
-		// swap the connexion hashtables
+		// Compact the rebuilt table before it becomes the stored one.
+		cxns->compact();
+
+		// swap the connexion tables
 		connexions_map *temp = connexions[category][g_class];
 		connexions[category][g_class] = cxns;
 		cxns = temp;
