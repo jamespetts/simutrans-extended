@@ -48,12 +48,15 @@ bool path_explorer_t::must_refresh_on_loading;
 bool thread_local path_explorer_t::allow_path_explorer_on_this_thread = false;
 
 pthread_mutex_t path_explorer_t::compartment_t::pool_mutex;
+pthread_mutex_t path_explorer_t::compartment_t::pool_work_mutex;
 pthread_cond_t path_explorer_t::compartment_t::pool_start_cond;
 pthread_cond_t path_explorer_t::compartment_t::pool_done_cond;
 path_explorer_t::compartment_t::pool_batch_t path_explorer_t::compartment_t::pool_batch;
 uint32 path_explorer_t::compartment_t::pool_thread_count = 1;
 uint32 path_explorer_t::compartment_t::pool_generation = 0;
 uint32 path_explorer_t::compartment_t::pool_outstanding = 0;
+uint32 path_explorer_t::compartment_t::pool_next_origin = 0;
+uint32 path_explorer_t::compartment_t::pool_end_origin = 0;
 bool path_explorer_t::compartment_t::pool_terminating = false;
 bool path_explorer_t::compartment_t::pool_initialised = false;
 #endif
@@ -531,6 +534,24 @@ void path_explorer_t::compartment_t::run_origin_slice(const uint32 thread_index,
 	}
 }
 
+#ifdef MULTI_THREAD
+void path_explorer_t::compartment_t::run_origin_batch(const uint32 thread_index)
+{
+	for ( ;; )
+	{
+		pthread_mutex_lock(&pool_work_mutex);
+		const bool available = pool_next_origin < pool_end_origin;
+		const uint32 origin = available ? pool_next_origin++ : 0;
+		pthread_mutex_unlock(&pool_work_mutex);
+		if ( !available )
+		{
+			return;
+		}
+		run_origin( (uint16)origin, thread_index );
+	}
+}
+#endif
+
 void path_explorer_t::compartment_t::pool_run(compartment_t *compartment, const uint16 origin_begin, const uint32 origin_count)
 {
 #ifdef MULTI_THREAD
@@ -538,18 +559,22 @@ void path_explorer_t::compartment_t::pool_run(compartment_t *compartment, const 
 	{
 		pool_batch_t batch;
 		batch.compartment = compartment;
-		batch.origin_begin = origin_begin;
 		batch.origin_count = origin_count;
 
 		pthread_mutex_lock(&pool_mutex);
 		pool_batch = batch;
 		pool_outstanding = pool_thread_count - 1;
 		++pool_generation;
+		pthread_mutex_lock(&pool_work_mutex);
+		pool_next_origin = origin_begin;
+		pool_end_origin = (uint32)origin_begin + origin_count;
+		pthread_mutex_unlock(&pool_work_mutex);
 		pthread_cond_broadcast(&pool_start_cond);
 		pthread_mutex_unlock(&pool_mutex);
 
-		// The lead takes slice 0; the helpers take the rest.
-		compartment->run_origin_slice(0, pool_thread_count, origin_begin, origin_count);
+		// The lead and the helpers claim origins from the batch until it is
+		// exhausted.
+		compartment->run_origin_batch(0);
 
 		pthread_mutex_lock(&pool_mutex);
 		while ( pool_outstanding != 0 )
@@ -575,15 +600,17 @@ void path_explorer_t::compartment_t::pool_initialise(const uint32 thread_count)
 	}
 
 	pthread_mutex_init(&pool_mutex, NULL);
+	pthread_mutex_init(&pool_work_mutex, NULL);
 	pthread_cond_init(&pool_start_cond, NULL);
 	pthread_cond_init(&pool_done_cond, NULL);
 
 	pool_thread_count = thread_count == 0 ? 1 : thread_count;
 	pool_generation = 0;
 	pool_outstanding = 0;
+	pool_next_origin = 0;
+	pool_end_origin = 0;
 	pool_terminating = false;
 	pool_batch.compartment = NULL;
-	pool_batch.origin_begin = 0;
 	pool_batch.origin_count = 0;
 	pool_initialised = true;
 }
@@ -609,6 +636,7 @@ void path_explorer_t::compartment_t::pool_destroy()
 	}
 
 	pthread_mutex_destroy(&pool_mutex);
+	pthread_mutex_destroy(&pool_work_mutex);
 	pthread_cond_destroy(&pool_start_cond);
 	pthread_cond_destroy(&pool_done_cond);
 	pool_initialised = false;
@@ -632,14 +660,12 @@ void path_explorer_t::compartment_t::pool_worker(const uint32 thread_index)
 
 		helper_generation = pool_generation;
 		const pool_batch_t batch = pool_batch;
-		const uint32 thread_count = pool_thread_count;
 		const bool worked = batch.compartment != NULL && batch.origin_count > 0;
 		pthread_mutex_unlock(&pool_mutex);
 
 		if ( worked )
 		{
-			batch.compartment->run_origin_slice(thread_index, thread_count,
-				batch.origin_begin, batch.origin_count);
+			batch.compartment->run_origin_batch(thread_index);
 		}
 
 		pthread_mutex_lock(&pool_mutex);
@@ -699,13 +725,13 @@ path_explorer_t::compartment_t::compartment_t()
 	full_edge_count = 0;
 	out_offset = NULL;
 	out_edge = NULL;
+	out_edges = NULL;
 	state_offset = NULL;
 	state_halt = NULL;
 	state_key = NULL;
 	state_count = 0;
 	thread_dist = NULL;
 	thread_first_hop = NULL;
-	heap_items = NULL;
 	heaps = NULL;
 	thread_scratch_count = 0;
 
@@ -1521,6 +1547,8 @@ void path_explorer_t::compartment_t::clear_search_graph()
 	out_offset = NULL;
 	delete[] out_edge;
 	out_edge = NULL;
+	delete[] out_edges;
+	out_edges = NULL;
 	delete[] state_offset;
 	state_offset = NULL;
 	delete[] state_halt;
@@ -1538,15 +1566,6 @@ void path_explorer_t::compartment_t::free_thread_scratch()
 	thread_dist = NULL;
 	delete[] thread_first_hop;
 	thread_first_hop = NULL;
-	if ( heap_items != NULL )
-	{
-		for ( uint32 i = 0; i < thread_scratch_count; ++i )
-		{
-			delete[] heap_items[i];
-		}
-		delete[] heap_items;
-		heap_items = NULL;
-	}
 	delete[] heaps;
 	heaps = NULL;
 	thread_scratch_count = 0;
@@ -1739,6 +1758,18 @@ void path_explorer_t::compartment_t::build_search_graph()
 	delete[] unique_keys;
 	delete[] unique_offset;
 
+	// Group the resolved edges by origin so that the search reads one
+	// contiguous edge stream instead of an index array plus full_edges.
+	out_edges = new full_edge_t[ edge_count > 0 ? edge_count : 1 ];
+	for ( uint32 i = 0; i < edge_count; ++i )
+	{
+		out_edges[i] = full_edges[ out_edge[i] ];
+	}
+	delete[] full_edges;
+	full_edges = NULL;
+	delete[] out_edge;
+	out_edge = NULL;
+
 	// Transfer list, retained for the diagnostic counters and the checklist.
 	if ( transfer_list == NULL )
 	{
@@ -1763,15 +1794,9 @@ void path_explorer_t::compartment_t::build_search_graph()
 	}
 #endif
 	const uint32 state_size = state_count > 0 ? state_count : 1;
-	const uint32 pool_size = full_edge_count > 0 ? full_edge_count : 1;
 	thread_dist = new uint32[ static_cast<size_t>(thread_scratch_count) * state_size ];
 	thread_first_hop = new uint16[ static_cast<size_t>(thread_scratch_count) * state_size ];
-	heap_items = new heap_item_t*[thread_scratch_count];
-	for ( uint32 i = 0; i < thread_scratch_count; ++i )
-	{
-		heap_items[i] = new heap_item_t[pool_size];
-	}
-	heaps = new binary_heap_tpl<heap_item_t*>[thread_scratch_count];
+	heaps = new binary_heap_tpl<heap_item_t>[thread_scratch_count];
 }
 
 
@@ -1787,9 +1812,7 @@ void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint3
 	const uint32 S = state_count;
 	uint32 *const dist = thread_dist + static_cast<size_t>(thread_index) * S;
 	uint16 *const first_hop = thread_first_hop + static_cast<size_t>(thread_index) * S;
-	heap_item_t *const pool = heap_items[thread_index];
-	binary_heap_tpl<heap_item_t*> &heap = heaps[thread_index];
-	const uint32 pool_size = full_edge_count > 0 ? full_edge_count : 1;
+	binary_heap_tpl<heap_item_t> &heap = heaps[thread_index];
 
 	heap.node_count = 0;
 	for ( uint32 i = 0; i < S; ++i )
@@ -1800,17 +1823,16 @@ void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint3
 
 	const uint32 origin_state = state_offset[origin];
 	dist[origin_state] = 0;
-	uint32 pool_index = 0;
-	pool[0].dist = 0;
-	pool[0].state = origin_state;
-	heap.insert(&pool[0]);
-	++pool_index;
+	heap_item_t origin_item;
+	origin_item.dist = 0;
+	origin_item.state = origin_state;
+	heap.insert(origin_item);
 
 	while ( heap.node_count > 0 )
 	{
-		heap_item_t *const item = heap.pop();
-		const uint32 d = item->dist;
-		const uint32 s = item->state;
+		const heap_item_t item = heap.pop();
+		const uint32 d = item.dist;
+		const uint32 s = item.state;
 		if ( d != dist[s] )
 		{
 			continue;
@@ -1819,7 +1841,7 @@ void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint3
 		const uint32 arriving = state_key[s];
 		for ( uint32 i = out_offset[h]; i < out_offset[ h + 1 ]; ++i )
 		{
-			const full_edge_t &edge = full_edges[ out_edge[i] ];
+			const full_edge_t &edge = out_edges[i];
 			if ( edge.transport == arriving && edge.transport != 0 )
 			{
 				continue;
@@ -1833,14 +1855,10 @@ void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint3
 			{
 				dist[ edge.target_state ] = candidate;
 				first_hop[ edge.target_state ] = ( s == origin_state ) ? edge.target : first_hop[s];
-				if ( pool_index >= pool_size )
-				{
-					continue;
-				}
-				pool[ pool_index ].dist = candidate;
-				pool[ pool_index ].state = edge.target_state;
-				heap.insert(&pool[ pool_index ]);
-				++pool_index;
+				heap_item_t next_item;
+				next_item.dist = candidate;
+				next_item.state = edge.target_state;
+				heap.insert(next_item);
 			}
 		}
 	}

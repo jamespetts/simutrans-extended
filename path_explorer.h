@@ -254,18 +254,21 @@ private:
 		full_edge_t *full_edges;
 		uint32 full_edge_count;
 		uint32 *out_offset;		// one per working halt plus a terminator
-		uint32 *out_edge;		// edge indices grouped by origin
+		uint32 *out_edge;		// build-time edge indices grouped by origin
+		full_edge_t *out_edges;	// search-time edges grouped by origin
 		uint32 *state_offset;	// one per working halt plus a terminator
 		uint16 *state_halt;
 		uint32 *state_key;		// transport index; 0xFFFFFFFF for the origin state
 		uint32 state_count;
 
-		// Per-thread Dijkstra scratch. The heap holds pointers into
-		// heap_items, so both are allocated for pool_thread_count threads.
+		// Per-thread Dijkstra scratch. The heap stores heap_item_t values
+		// directly; one heap per pool thread.
 		struct heap_item_t
 		{
 			uint32 dist;
 			uint32 state;
+			// Dereferencing hook required by binary_heap_tpl's comparisons.
+			const heap_item_t &operator*() const { return *this; }
 			bool operator<=(const heap_item_t &other) const
 			{
 				return dist < other.dist || (dist == other.dist && state <= other.state);
@@ -273,8 +276,7 @@ private:
 		};
 		uint32 *thread_dist;
 		uint16 *thread_first_hop;
-		heap_item_t **heap_items;
-		binary_heap_tpl<heap_item_t*> *heaps;
+		binary_heap_tpl<heap_item_t> *heaps;
 		uint32 thread_scratch_count;
 
 		// set of variables for full halt list
@@ -322,29 +324,37 @@ private:
 		struct pool_batch_t
 		{
 			compartment_t *compartment;
-			uint16 origin_begin;
 			uint32 origin_count;
 		};
 
 		static pthread_mutex_t pool_mutex;
+		static pthread_mutex_t pool_work_mutex;
 		static pthread_cond_t pool_start_cond;
 		static pthread_cond_t pool_done_cond;
 		static pool_batch_t pool_batch;
 		static uint32 pool_thread_count;
 		static uint32 pool_generation;
 		static uint32 pool_outstanding;
+		static uint32 pool_next_origin;
+		static uint32 pool_end_origin;
 		static bool pool_terminating;
 		static bool pool_initialised;
 #endif
 
-		// Run one batch of origins: the caller takes the lead slice and waits
-		// for the helpers; the batch is the exact set the single-threaded loop
-		// would process in this step.
+		// Run one batch of origins: the caller and the helpers claim origins
+		// from the batch until it is exhausted, then the caller waits for the
+		// helpers; the batch is the exact set the single-threaded loop would
+		// process in this step.
 		static void pool_run(compartment_t *compartment, const uint16 origin_begin, const uint32 origin_count);
 
-		// Process this thread's slice of one origin batch.
+		// Process this thread's slice of one origin batch (serial path).
 		void run_origin_slice(const uint32 thread_index, const uint32 thread_count,
 			const uint16 origin_begin, const uint32 origin_count);
+
+		// Claim and process origins from the current pool batch until exhausted.
+#ifdef MULTI_THREAD
+		void run_origin_batch(const uint32 thread_index);
+#endif
 
 		// One per-origin Dijkstra over the expanded state graph, writing one
 		// matrix row.
