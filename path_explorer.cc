@@ -10,13 +10,27 @@
 // The dense target-row sweep has one implementation per SIMD backend. SSE2 is
 // the x64 baseline; NEON is the AArch64 baseline. Everything else uses the
 // scalar path, which is also the correctness oracle for both.
-#if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || defined(__SSE2__)
-#	define PATH_EXPLORER_USE_SSE2 1
+//
+// USE_SSE2 and USE_NEON may be defined by the build system (Makefile, CMake or
+// the MSVC project); otherwise they are detected from the compiler's
+// architecture macros. Only one may be defined.
+#if defined(USE_SSE2) && defined(USE_NEON)
+#	error Only one of USE_SSE2 and USE_NEON may be defined
+#endif
+
+#if !defined(USE_SSE2) && !defined(USE_NEON)
+#	if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || defined(__SSE2__)
+#		define USE_SSE2 1
+#	elif defined(__aarch64__) || defined(_M_ARM64)
+#		define USE_NEON 1
+#	endif
+#endif
+
+#ifdef USE_SSE2
 #	include <emmintrin.h>
 #endif
 
-#if defined(__aarch64__) || defined(_M_ARM64)
-#	define PATH_EXPLORER_USE_NEON 1
+#ifdef USE_NEON
 #	include <arm_neon.h>
 #endif
 
@@ -698,7 +712,7 @@ static void relax_target_row_scalar(const uint16 halt_count,
 	}
 }
 
-#ifdef PATH_EXPLORER_USE_SSE2
+#ifdef USE_SSE2
 static void relax_target_row_sse2(const uint16 halt_count,
 	const uint32 *const target_times,
 	uint32 *const times,
@@ -759,7 +773,7 @@ static void relax_target_row_sse2(const uint16 halt_count,
 }
 #endif
 
-#ifdef PATH_EXPLORER_USE_NEON
+#ifdef USE_NEON
 static void relax_target_row_neon(const uint16 halt_count,
 	const uint32 *const target_times,
 	uint32 *const times,
@@ -810,6 +824,31 @@ static void relax_target_row_neon(const uint16 halt_count,
 	}
 }
 #endif
+
+// The selected backend. The build systems may define USE_SSE2 or USE_NEON;
+// otherwise the source auto-detects one, and the scalar path is the fallback.
+static inline void relax_target_row(const uint16 halt_count,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+#ifdef USE_SSE2
+	relax_target_row_sse2(halt_count, target_times, times, next_transfers, first_transports,
+		last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+#elif defined(USE_NEON)
+	relax_target_row_neon(halt_count, target_times, times, next_transfers, first_transports,
+		last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+#else
+	relax_target_row_scalar(halt_count, target_times, times, next_transfers, first_transports,
+		last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+#endif
+}
 
 path_explorer_t::compartment_t::compartment_t()
 {
@@ -2287,22 +2326,10 @@ void path_explorer_t::compartment_t::step()
 								const uint16 next_transfer = working_next_transfers[origin_via_index];
 								const uint16 first_transport = working_first_transports[origin_via_index];
 
-#ifdef PATH_EXPLORER_USE_SSE2
-								relax_target_row_sse2(working_halt_count, target_times,
+								relax_target_row(working_halt_count, target_times,
 									working_times + origin_row, working_next_transfers + origin_row,
 									working_first_transports + origin_row, working_last_transports + origin_row,
 									working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
-#elif defined(PATH_EXPLORER_USE_NEON)
-								relax_target_row_neon(working_halt_count, target_times,
-									working_times + origin_row, working_next_transfers + origin_row,
-									working_first_transports + origin_row, working_last_transports + origin_row,
-									working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
-#else
-								relax_target_row_scalar(working_halt_count, target_times,
-									working_times + origin_row, working_next_transfers + origin_row,
-									working_first_transports + origin_row, working_last_transports + origin_row,
-									working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
-#endif
 							}
 
 							++origin_member_index;
