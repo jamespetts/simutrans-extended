@@ -932,7 +932,7 @@ void convoi_t::increment_odometer(uint32 steps)
 		player = MAX_PLAYER_COUNT + 1;
 	}
 
-	for (auto i : departures)
+	for (auto& i : departures)
 	{
 		i.value.increment_way_distance(player, steps_since_last_odometer_increment);
 	}
@@ -6020,7 +6020,7 @@ void convoi_t::laden() //"load" (Babelfish)
 			book(comfort, CONVOI_COMFORT);
 		}
 
-		for(auto iter : departures)
+		for(auto& iter : departures)
 		{
 			// Accumulate distance since each previous stop on the schedule
 			iter.value.add_overall_distance(journey_distance);
