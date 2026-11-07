@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ abd58261e (path-explorer sections); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ ad753f5c6 (path-explorer sections, merged from path-explorer-optimisation @ 2988b9597); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 

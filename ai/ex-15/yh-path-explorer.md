@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad1815c
+verified: ex-15 @ ad753f5c6 (sequencing); design baseline ex-15 @ ad1815c
 ---
 # ex-15: Y/H-shaped path-explorer traversal
 
@@ -202,15 +202,14 @@ Per-stage verification method (loopback determinism, performance-suite oracles, 
 ### Sequencing against the optimisation work
 
 The through-edge recording and substitution touch phase 2 and phase 5, the same code as the
-cell-layout, comparison-loop and threading work. The flat-array cell layout and the dense
-SSE2/NEON comparison loop are in place on `path-explorer-optimisation`, but the
+cell-layout, comparison-loop and threading work. The flat-array cell layout, the dense SSE2/NEON
+comparison loop and the phase-5 thread pool are merged into `ex-15` (merge `ad753f5c6`), but the
 Y/H hooks (per-cluster-pair substitution in the dense target row, through edges with first !=
-last) are not yet present. Their route-table integration should follow the final
-layout/loop/iteration model; the threading/iteration model (lever 4) is still outstanding, so
-either follow lever 4 or proceed after the branch merges. Y/H remains on the present engine family
-(not levers 7/8). The runtime co-requirements, dwell measurement, consist-order data and
-pakset work are independent and can start in parallel. [analysis, 2026-11-06; layout/SIMD status
-current]
+last) are not yet present. Their route-table integration follows the final layout/loop/iteration
+model, which is now in place; lever 4 is implemented and verified. Y/H remains on the present
+engine family (not levers 7/8). The runtime co-requirements, dwell measurement, consist-order data
+and pakset work are independent and can start in parallel. [analysis, 2026-11-06; layout/SIMD/
+threading status at ex-15 @ ad753f5c6]
 
 ## Open questions
 

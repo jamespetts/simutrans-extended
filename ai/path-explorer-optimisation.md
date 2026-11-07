@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ abd58261e; master @ 6194cd341 (shared closure code)
+verified: ex-15 @ ad753f5c6 (merged from path-explorer-optimisation @ 2988b9597); master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -18,12 +18,16 @@ the dense per-origin loop, SSE2/NEON kernels and the dedicated phase-5 thread po
 execution-verified; NEON is compile-verified by the native macOS CI. The dense path is a clear
 win on the gargantuan fixture (-19% against the sparse loop), roughly neutral on the
 intermediates and 8% slower on the smallest before the pool. The pool measured 2.02x on the
-gargantuan fixture and 1.19x on month-boundary, with identical matrices and iteration totals. The pool's mid-pass
-resume and loopback network behaviour are verified. Remaining work: the optional server-path ETW
-capture, lever 5 (memory), the Y/H hooks and the later levers. The dense/sparse selector is held
-off (2026-11-07), not rejected. Figures marked [UNVERIFIED] are derivations from code structure,
-not measurements. Current measured cost: [EXECUTION-VERIFIED:2026-11-07,
-`path-explorer-optimisation` @ abd58261e, Profile (server) x64; oracle
+gargantuan fixture and 1.19x on month-boundary, with identical matrices and iteration totals. The
+pool's mid-pass resume and loopback network behaviour are verified. The branch was merged into
+`ex-15` on 2026-11-07 (merge `ad753f5c6`), the TEST harness has been removed, and the revision-6
+mid-pass restart path is execution-verified: the finished matrices match the revision-7 resume,
+with `total_iterations` higher only by the repeated current inbound cluster. The work stays on
+`ex-15` until 15.x itself is merged into `master`; it is not ported to `master` separately (user
+decision 2026-11-07). Remaining work: the optional server-path ETW capture, lever 5 (memory), the
+Y/H hooks and the later levers. The dense/sparse selector is held off (2026-11-07), not rejected.
+Figures marked [UNVERIFIED] are derivations from code structure, not measurements. Current
+measured cost: [EXECUTION-VERIFIED:2026-11-07, `ex-15` @ ad753f5c6, Profile (server) x64; oracle
 harness].
 
 ## Priorities and sequencing
@@ -39,9 +43,10 @@ User decisions, 2026-11-06 [RECOLLECTION:2026-11-06]:
 Recommended internal sequencing for the single 15.x release: finish the shared foundation
 before integrating Y/H or comfort into the route tables — final cell layout (contiguous arrays,
 one combined comfort cost), comparison-loop rewrite/SSE2/NEON, and the threading/iteration model.
-The layout, the SIMD comparison loop and the phase-5 thread pool are in place; the pool's
-mid-pass and network verification remains. The runtime, data and balance parts of Y/H and
-comfort are independent of that foundation and can proceed in parallel. This is sequencing
+The layout, the SIMD comparison loop, the phase-5 thread pool and their verification are in
+place on `ex-15`; the Y/H hooks are the next path-explorer implementation work. The runtime, data
+and balance parts of Y/H and comfort are independent of that foundation and can proceed in
+parallel. This is sequencing
 within the single 15.x release (no staged releases); GPU remains optional.
 
 Sub-documents (read-when):
@@ -243,8 +248,9 @@ that limit. Storing only transfer-halt rows does not help passenger compartments
 1. The dense/sparse selector is held off for now (2026-11-07), not rejected; revisit only if
    the small-map regression becomes a real problem.
 2. Lever 4: implemented 2026-11-07 with `get_parallel_operations()` explorer threads (lead plus
-   helpers). The mid-pass resume and loopback network behaviour are verified; the optional
-   server-path ETW capture and the main-thread frame-time measurement remain.
+   helpers). The mid-pass resume and loopback network behaviour are verified; the branch is
+   merged into `ex-15`, the TEST harness is removed and the revision-6 restart path is verified.
+   The optional server-path ETW capture and the main-thread frame-time measurement remain.
 3. Lever 5 for memory; it can run alongside the kernel work.
 4. Lever 7 as the compute step for maps beyond the gargantuan fixture; it needs the behaviour
    specification in [engine-semantics](path-explorer-optimisation/engine-semantics.md).
@@ -272,16 +278,19 @@ holds CPU share near its target.
   intermediates, 8% slower at H ≈ 1.8k and 19% faster at H ≈ 5.4k. Revisit if the small-map
   regression matters.
 - Lever 4 pool: the month-boundary, gargantuan and mid-pass oracle checks pass, and the
-  loopback network smoke run passed with 1,049 per-step route hashes identical. The optional
-  server-path ETW capture remains. The pool size is `get_parallel_operations()` threads in total
+  loopback network smoke run passed with 1,049 per-step route hashes identical. The revision-6
+  mid-pass restart path is execution-verified: every finished matrix hash matches the revision-7
+  resume, and `total_iterations` for passenger class 0 is 2,266,957,180 against 2,266,778,036, a
+  difference of 179,144 from repeating the current inbound cluster. The optional server-path ETW
+  capture remains. The pool size is `get_parallel_operations()` threads in total
   (one lead plus `get_parallel_operations() - 1` helpers); at `threads = 4`, three threads. The
   A/B measured 2.02x on the gargantuan fixture and 1.19x on month-boundary. On the 24-thread
   test machine, `threads = 6` (5 pool threads: lead + 4 helpers) measured 93.87 s and 15.60 s
   (1.13x and 1.02x against t4), with identical results; the t6 network smoke also passed with
   1,049 per-step route hashes identical. A four-core server at `threads = 6` would oversubscribe,
   so the t4 pool remains the four-core recommendation.
-  [EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ abd58261e; oracle harness
-  and network smoke.]
+  [EXECUTION-VERIFIED:2026-11-07, `ex-15` @ ad753f5c6 (merged from
+  `path-explorer-optimisation` @ 2988b9597); oracle harness and network smoke.]
 - NEON execution verification: the NEON kernel compiles on the native macOS CI but no NEON
   hardware is available to run the oracle. Whether to add a CI execution run (or accept
   compile-only) is open.
@@ -300,8 +309,10 @@ holds CPU share near its target.
 
 Cost structure, invariants and lever analysis: code inspection and derivation, 2026-11-04;
 sparse-loop measurements 2026-11-06; current layout and SIMD implementation and measurements
-2026-11-07; phase-5 pool implementation, oracle equivalence and A/B 2026-11-07; code current at
-`path-explorer-optimisation` @ abd58261e, and master @ 6194cd341 [CODE].
+2026-11-07; phase-5 pool implementation, oracle equivalence and A/B 2026-11-07; TEST-harness
+removal, revision-6 restart verification and merge into `ex-15` 2026-11-07; code current at
+`ex-15` @ ad753f5c6 (merged from `path-explorer-optimisation` @ 2988b9597), and master @
+6194cd341 [CODE].
 The staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user
 decision [RECOLLECTION:2026-09-19]; SSE2 and NEON are implemented together
 [RECOLLECTION:2026-11-07]. Measured shares come from the 2026-09-10 capture recorded

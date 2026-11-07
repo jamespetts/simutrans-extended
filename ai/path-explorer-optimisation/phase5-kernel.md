@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ abd58261e
+verified: ex-15 @ ad753f5c6 (merged from path-explorer-optimisation @ 2988b9597)
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -97,7 +97,8 @@ The scalar cell function is the reference for every variant.
 - Iteration counting is per origin member over the non-skipped outbound member count, so a full
   pass produces the same `total_iterations` under either loop shape. All peers run the same code,
   so stop points are identical.
-- `EX_SAVE_MINOR` is 7. A revision-7 save resumes exactly with (transfer, inbound cluster,
+- `EX_SAVE_MINOR` is 7 on `ex-15` (master remains at 6 until 15.x merges; user decision
+  2026-11-07). A revision-7 save resumes exactly with (transfer, inbound cluster,
   completed origins in that cluster); `target_cluster_index` is always 0. A revision-6-or-older
   mid-pass save restarts the current inbound cluster, which is idempotent and is not a full
   refresh. A network join triggers a save/reload on every peer (`nwc_sync_t`), so exact resume
@@ -288,10 +289,13 @@ The implemented rule for choosing the origins for one game step:
 ## Current position and remaining work
 
 The flat layout, the dense loop, the SSE2/NEON kernels and the phase-5 worker pool are in
-place. The pool's oracle equivalence (month-boundary, gargantuan and mid-pass) and loopback
-network determinism are verified. Remaining kernel work: the optional dense/sparse selector
-(held off), the optional server-path ETW capture, the Y/H hooks above, and the memory/GPU
-levers.
+place on `ex-15` (merged from `path-explorer-optimisation` at `ad753f5c6`). The pool's oracle
+equivalence (month-boundary, gargantuan and mid-pass), loopback network determinism and the
+revision-6 mid-pass restart path are verified; the TEST harness has been removed. For the
+revision-6 restart, every finished matrix hash matches the revision-7 resume; `total_iterations`
+is higher only by the repeated current inbound cluster. Remaining kernel work: the optional
+dense/sparse selector (held off), the optional server-path ETW capture, the Y/H hooks above,
+and the memory/GPU levers.
 
 ## Verification
 

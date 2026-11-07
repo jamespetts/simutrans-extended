@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad1815c (design); path-explorer-optimisation @ 186c92e72 (layout status)
+verified: ex-15 @ ad1815c (design); ex-15 @ ad753f5c6 (layout status, merged from path-explorer-optimisation @ 186c92e72)
 ---
 # Comfort-aware routing (design)
 

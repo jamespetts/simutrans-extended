@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: path-explorer-optimisation @ 011f9a23a
+verified: ex-15 @ ad753f5c6 (future-revision refusal, merged from path-explorer-optimisation @ 011f9a23a)
 ---
 # Savegame & network versioning
 
