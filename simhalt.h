@@ -338,16 +338,8 @@ public:
 	{
 		// Category
 		uint16 x;
-		// Halt ID
-		uint8 y;
-
-		service_frequency_specifier operator - (service_frequency_specifier s)
-		{
-			service_frequency_specifier result;
-			result.x = x - s.x;
-			result.y = y - s.y;
-			return result;
-		}
+		// Halt ID (full 16-bit; truncating it aliases halts 256 IDs apart)
+		uint16 y;
 	};
 
 	bool is_transfer(const uint8 catg, const uint8 g_class, uint8 max_classes) const { return non_identical_schedules[(catg * max_classes) + g_class] > 1u; }
