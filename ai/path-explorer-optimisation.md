@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad753f5c6 (merged from path-explorer-optimisation @ 2988b9597); master @ 6194cd341 (shared closure code)
+verified: ex-15 @ 711656d4b (merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix); master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -17,15 +17,21 @@ Status: assessment and implementation plan. The current implementation has flat 
 the dense per-origin loop, SSE2/NEON kernels and the dedicated phase-5 thread pool. SSE2 is
 execution-verified; NEON is compile-verified by the native macOS CI. The dense path is a clear
 win on the gargantuan fixture (-19% against the sparse loop), roughly neutral on the
-intermediates and 8% slower on the smallest before the pool. The pool measured 2.02x on the
-gargantuan fixture and 1.19x on month-boundary, with identical matrices and iteration totals. The
+intermediates and 8% slower on the smallest before the pool. The pool measured run totals 2.02x
+faster on the gargantuan fixture and 1.19x on month-boundary, with identical matrices and
+iteration totals. These ratios include savegame load; phase 5 alone is ≈ 2.2–2.4x faster on the
+gargantuan fixture (load of 15–28 s subtracted [UNVERIFIED derivation]), and the month-boundary
+ratio is mostly load time. Against the original sparse loop (393 s of phase 5 for the five
+passenger classes), phase 5 is ≈ 4.3–5.0x faster with three pool threads. The
 pool's mid-pass resume and loopback network behaviour are verified. The branch was merged into
 `ex-15` on 2026-11-07 (merge `ad753f5c6`), the TEST harness has been removed, and the revision-6
 mid-pass restart path is execution-verified: the finished matrices match the revision-7 resume,
-with `total_iterations` higher only by the repeated current inbound cluster. The work stays on
-`ex-15` until 15.x itself is merged into `master`; it is not ported to `master` separately (user
-decision 2026-11-07). Remaining work: the optional server-path ETW capture, lever 5 (memory), the
-Y/H hooks and the later levers. The dense/sparse selector is held off (2026-11-07), not rejected.
+with `total_iterations` higher only by the repeated current inbound cluster. The service-frequency
+cache key truncation was fixed on `ex-15` (`711656d4b`); with the full 16-bit halt ID, a full
+refresh and a resumed mid-pass pass produce identical finished matrices, resolving the mid-pass
+cross-class difference. The work stays on `ex-15` until 15.x itself is merged into `master`; it is
+not ported to `master` separately (user decision 2026-11-07). Remaining work: the optional
+server-path ETW capture, lever 5 (memory), the Y/H hooks and the later levers. The dense/sparse selector is held off (2026-11-07), not rejected.
 Figures marked [UNVERIFIED] are derivations from code structure, not measurements. Current
 measured cost: [EXECUTION-VERIFIED:2026-11-07, `ex-15` @ ad753f5c6, Profile (server) x64; oracle
 harness].
@@ -197,12 +203,12 @@ different representation).
 
 ## Options ("levers")
 
-| # | Lever | Gain [UNVERIFIED] | Results unchanged? | Y/H |
+| # | Lever | Gain (measured where tagged EXECUTION-VERIFIED; otherwise [UNVERIFIED] estimate) | Results unchanged? | Y/H |
 |---|---|---|---|---|
 | 1 | Split arrays: contiguous `uint32` times apart from 16-bit handles, one allocation | phase-5 read traffic halved; finished 8 → 6 B per cell, working 12 → 10 B | yes; save byte format can stay identical | through edges need first ≠ last transport |
-| 2 | Reorder phase-5 loops: per origin, all target clusters | in scalar, 2.2-3.9x slower in phase 5 than the sparse loop (visits every halt per origin); the staging form for lever 3, not a gain on its own [EXECUTION-VERIFIED:2026-11-07] | yes | compatible |
+| 2 | Reorder phase-5 loops: per origin, all target clusters | Reordering the sparse loop (which visits only registered target halts) is worth under 0.1%: there are 2.2–2.4 large inbound clusters per transfer halt and one row fetch per 544–1,389 target visits [EXECUTION-VERIFIED:2026-11-06; reordered sparse loop not built]. The implemented per-origin loop is instead the dense row form for lever 3: without SIMD it is 2.2–3.9x slower in phase 5 than the sparse loop, because it visits every halt per origin [EXECUTION-VERIFIED:2026-11-07] | yes | compatible |
 | 3 | SSE2/NEON dense masked row kernel | measured 1.77-2.59x against the dense scalar; roughly break-even with the sparse loop on small maps and -19% on the run total at H ≈ 5.4k [EXECUTION-VERIFIED:2026-11-07] | yes | delta folded into the kernel |
-| 4 | Split origin rows per transfer halt over the phase-5 thread pool | Implemented 2026-11-07: `parallel_operations` explorer threads (lead + helpers); measured 2.02x on the gargantuan fixture and 1.19x on month-boundary, identical results; **raises CPU per step**. Approved in principle: cores are underused and route staleness is real [RECOLLECTION:2026-11-06] | yes | compatible |
+| 4 | Split origin rows per transfer halt over the phase-5 thread pool | Implemented 2026-11-07: `parallel_operations` explorer threads (lead + helpers); run totals (including load) measured 2.02x faster on the gargantuan fixture and 1.19x on month-boundary; phase 5 alone ≈ 2.2–2.4x on the gargantuan fixture [UNVERIFIED derivation]; identical results; **raises CPU per step**. Approved in principle: cores are underused and route staleness is real [RECOLLECTION:2026-11-06] | yes | compatible |
 | 5 | Compact connexion storage (sorted arrays per halt) | ≈ −50% connexion memory; faster `get()` and phase 4 | yes, if iteration order equals bag order | compatible |
 | 6 | Phase-2 micro-optimisations (`get_average_waiting_time` copies 32 samples by value) | small | yes | none |
 | 7 | Per-source Dijkstra rows instead of the closure | H·E instead of H³: ~5× at H = 5k, ~10× at ≥ 10k; scales with threads | **no** (→ engine-semantics) | needs per-transport state at coupling halts |
@@ -229,7 +235,7 @@ projections from the lever estimates.
 
 | Stage | CPU per compartment pass | Full refresh cycle at the 64 ms budget |
 |---|---|---|
-| Current (dense SSE2 + pool, measured) | ~18 s at H ≈ 5.4k (106.47 s run total, 2.02x the single-thread 214.77 s) | proportionally shorter, or a lower budget |
+| Current (dense SSE2 + pool, measured) | ~16–18 s per passenger class at H ≈ 5.4k with three pool threads (106.47 s run total including load, against 214.77 s single-thread; original sparse loop 77.6–79.4 s per class) | proportionally shorter, or a lower budget |
 | + optional dense/sparse selector | removes the small-map regression; no change on large maps | — |
 | Lever 7, threaded | ~5–8 s | ~1–2 min |
 | Lever 9 | ~0.5–1 s (sparse cluster-pair kernel) | seconds (single-player) |
@@ -284,7 +290,8 @@ holds CPU share near its target.
   difference of 179,144 from repeating the current inbound cluster. The optional server-path ETW
   capture remains. The pool size is `get_parallel_operations()` threads in total
   (one lead plus `get_parallel_operations() - 1` helpers); at `threads = 4`, three threads. The
-  A/B measured 2.02x on the gargantuan fixture and 1.19x on month-boundary. On the 24-thread
+  A/B measured run totals (including load) 2.02x faster on the gargantuan fixture and 1.19x on
+  month-boundary; phase 5 alone ≈ 2.2–2.4x on the gargantuan fixture. On the 24-thread
   test machine, `threads = 6` (5 pool threads: lead + 4 helpers) measured 93.87 s and 15.60 s
   (1.13x and 1.02x against t4), with identical results; the t6 network smoke also passed with
   1,049 per-step route hashes identical. A four-core server at `threads = 6` would oversubscribe,
@@ -311,8 +318,8 @@ Cost structure, invariants and lever analysis: code inspection and derivation, 2
 sparse-loop measurements 2026-11-06; current layout and SIMD implementation and measurements
 2026-11-07; phase-5 pool implementation, oracle equivalence and A/B 2026-11-07; TEST-harness
 removal, revision-6 restart verification and merge into `ex-15` 2026-11-07; code current at
-`ex-15` @ ad753f5c6 (merged from `path-explorer-optimisation` @ 2988b9597), and master @
-6194cd341 [CODE].
+`ex-15` @ 711656d4b (merge `ad753f5c6`; branch merged from `path-explorer-optimisation` @
+2988b9597; service-frequency cache fix `711656d4b`), and master @ 6194cd341 [CODE].
 The staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user
 decision [RECOLLECTION:2026-09-19]; SSE2 and NEON are implemented together
 [RECOLLECTION:2026-11-07]. Measured shares come from the 2026-09-10 capture recorded

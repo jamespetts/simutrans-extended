@@ -187,6 +187,41 @@ Rank on discovery; re-rank on triage.
   loses its owner link while remaining in a running convoy
   [CODE ex-15 @ c6adde69b; not reproduced in game].
 
+### Service-frequency cache keys keep only the low 8 bits of the halt ID — priority 2 (fixed on ex-15, open on master)
+
+- `haltestelle_t::service_frequency_specifier` (simhalt.h) stores the destination halt ID in
+  `uint8 y`, but halt IDs are 16-bit. Each halt's `service_frequencies` cache is therefore keyed
+  by (category, destination ID mod 256), so destinations whose IDs share a low byte share one
+  cached service frequency. `ALWAYS_CACHE_SERVICE_INTERVAL` is defined, so the cache is used.
+- Effect on routing: when a halt pair has no waiting-time samples, `get_average_waiting_time`
+  estimates the wait as half the service frequency from `get_service_frequency`, which can
+  return another destination's cached value. The path explorer's phase 2 uses this fallback for
+  connexion weights.
+- Order dependence: the cache is not saved (`haltestelle_t::rdwr` clears it) and is filled
+  lazily, including by the phase-2 fallback itself. Which colliding destination's value is
+  stored for a key depends on the order of queries since load. This was the cause of the
+  recorded difference between a full refresh and a resumed mid-pass save
+  (→ [phase5-kernel](path-explorer-optimisation/phase5-kernel.md), "Resolved: mid-pass
+  cross-class result"). In a full refresh passenger class 0's phase 2 fills the
+  passenger-category entries first; in a resumed pass class 1 does. That matches the recorded
+  symptoms: class 0, mail and goods are identical; classes 1–4 differ; refreshing only classes
+  1–4 reproduces the resumed result. [causal link EXECUTION-VERIFIED:2026-11-07; the truncation
+  was CODE.]
+- Network play: every peer saves and reloads when a client joins (`nwc_sync_t`), and the query
+  order is deterministic, so peers keep identical caches. A peer that continued without
+  reloading would diverge, and single-player save/load changes route results.
+- Fix applied on ex-15 @ 711656d4b: `y` widened to `uint16`; `koordhash_tpl` already hashes and
+  compares `y` as a full integer. No savegame change (the cache is not saved); route results
+  change, as expected for the corrected fallback.
+- Verification: with the fix, a full refresh and a resumed mid-pass pass produce identical
+  finished matrices on month-boundary (all 16 compartments' hash fields match; iteration totals
+  differ only by the repeated work of the resume). The network smoke passes with 1,049 identical
+  per-step route hashes. The same struct and cache remain on master @ 6194cd341 with the `uint8`
+  key until 15.x merges. [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 711656d4b, Profile (server) x64;
+  oracle harness and network smoke.]
+- Found by code inspection 2026-11-07 [CODE ex-15 @ f3be628dc; same struct and cache on master @
+  6194cd341].
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -233,6 +268,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Service-frequency cache keys keep only the low 8 bits of the halt ID (not a forum report: code inspection 2026-11-07) | — | detailed entry above; originally both branches; wrong waiting-time fallback for unsampled halt pairs; order-dependent cache explained the mid-pass resume difference; fixed on ex-15 @ 711656d4b, master remains affected until 15.x merges |
 | Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |

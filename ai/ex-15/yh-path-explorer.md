@@ -119,19 +119,23 @@ unchanged. The transport pair is fixed per cluster pair at a transfer halt, so t
 is applied once per cluster pair outside the inner loop
 (→ [path-explorer-optimisation](../path-explorer-optimisation.md)).
 
-### Dwell time — open, direction recorded
+### Dwell time — settled definition; history mechanism to implement
 
-Dwell is the time a consist stands while vehicles are detached, moved, re-attached and checked; it
-is excluded from the recorded leg times (see
-[current-state](yh-path-explorer/current-state.md)). For asynchronous release followed by
-later collection, the arrival-to-departure interval can also include waiting for the collecting
-service [FORUM:https://forum.simutrans.com/index.php/topic,17892.msg170661.html]. Whether that
-waiting is part of the same recorded dwell, and how either case is reconstructed before measurement,
-is open; do not assume that the global shunting delay alone suffices. The primary source is to be
-measured per coupling point, because it depends on loading amounts; when no measurement exists the
-value is reconstructed from runtime inputs. The exact inputs, history ownership/reduction and
-initial-period rule are open. Any measured history is synchronised state; its reduction must be
-identical on all peers.
+[RECOLLECTION:2026-11-07 user decision] The recorded dwell is the actual total time observed at
+the coupling point, not a subset of it: the full arrival-to-departure interval of the through
+movement, including any wait for a later collecting service. Anything less would make through
+journeys appear faster than they are in play and produce routing anomalies. When no historical
+record exists, the value is the best realistic heuristic available, in the same manner as the
+existing journey-time and waiting-time estimates (distance-and-speed for journey times, half the
+service frequency for waiting times); the exact fallback inputs are to be chosen with the stage-2
+implementation.
+
+The history is measured per coupling point because the dwell depends on the loading amounts. The
+remaining mechanism choices are the record key (halt plus the source and target schedule entry
+pair), the reduction (the waiting-time tables use the mean of the last 32 samples), and the
+initial-period rule before the first sample. Any measured history is synchronised state; its
+reduction must be identical on all peers. The exact inputs and the history mechanism remain
+implementation choices; the definition above is settled.
 
 ### Rebuild triggers
 
@@ -213,9 +217,9 @@ threading status at ex-15 @ ad753f5c6]
 
 ## Open questions
 
-- Dwell measurement: exact runtime inputs, whether asynchronous collection waiting is included,
-  history ownership (halt, line or convoy), reduction, and the initial-period rule before any
-  measurement exists. Direction recorded under Dwell time.
+- Dwell history mechanism: record key (per coupling point), reduction (mean of the last 32
+  samples is the waiting-time precedent) and the initial-period/fallback formula. The definition
+  is settled: the full observed arrival-to-departure time, including collection waiting.
 - Depth limit default value. A starting proposal is 64, to be confirmed against the maximum
   depth actually needed on the gargantuan fixture plus the synthetic worst case.
 - Do the ex-15 consist-order edit sites already call the refresh path, or must the call be added

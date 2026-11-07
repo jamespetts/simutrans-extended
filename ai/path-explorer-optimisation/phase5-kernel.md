@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad753f5c6 (merged from path-explorer-optimisation @ 2988b9597)
+verified: ex-15 @ 711656d4b (merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix)
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -169,16 +169,22 @@ work.
 At the 64 ms budget a pass is spread over wall-clock steps, so a faster kernel buys fresher
 routes or a lower `path_explorer_time_midpoint`, not a proportional wall-time reduction by itself.
 
-## Open question: mid-pass cross-class result
+## Resolved: mid-pass cross-class result
 
-A mid-pass save whose earlier compartment is complete, then loaded and finished, gives different
-matrices for the later classes than a full refresh of the same save. A control run refreshing
-only classes 1-4 (skipping class 0) reproduces the resumed result exactly, so the difference comes
-from class 0's recomputation versus its loaded state, not from the loop order. Cause not
-identified. This does not affect network sync: every peer loads the same save and runs the same
-deterministic code, so peers compute the same matrices; the difference is between a full refresh
-and a resumed pass on the same save, not between peers [RECOLLECTION:2026-11-07, user
-instruction].
+A mid-pass save whose earlier compartment is complete, then loaded and finished, gave different
+matrices for the later classes than a full refresh of the same save. The cause was the per-halt
+service-frequency cache keying destination halts by ID mod 256: the first passenger class to run
+phase 2 decided the cached values that later classes read (→
+[known-bugs](../known-bugs.md), "Service-frequency cache keys keep only the low 8 bits of the
+halt ID"). The key was widened to the full 16-bit halt ID on ex-15 @ 711656d4b. With that fix a
+full refresh and a resumed mid-pass pass produce identical finished matrices on month-boundary;
+the 16 compartments' hash fields all match, and the iteration totals differ only by the repeated
+work of the resume [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 711656d4b, Profile (server) x64; oracle
+harness]. The earlier control result (refreshing only classes 1-4 reproduces the resumed result)
+remains as recorded and is consistent with the cache being filled by the first class to run.
+This never affected network sync: every peer loads the same save and runs the same deterministic
+code, so peers compute the same matrices; the difference was between a full refresh and a resumed
+pass on the same save, not between peers [RECOLLECTION:2026-11-07, user instruction].
 
 ## Lever 4 — extra threads
 
@@ -216,7 +222,10 @@ instruction].
   which one is the lead and `get_parallel_operations() - 1` are helpers. At `threads = 4`
   (`parallel_operations = 3`) that is three threads: the existing explorer thread plus two
   helpers. The 2026-11-07 A/B on the gargantuan fixture: run total 106.47 s against the dense
-  SSE2 single-thread 214.77 s (2.02×); month-boundary 15.89 s against 18.88 s (1.19×). The
+  SSE2 single-thread 214.77 s (2.02×); month-boundary 15.89 s against 18.88 s (1.19×). Both
+  are run totals including savegame load; with 15–28 s of load subtracted, phase 5 alone is
+  ≈ 2.2–2.4× faster on the gargantuan fixture [UNVERIFIED derivation], and the month-boundary
+  ratio is mostly load time. The
   matrix hashes and iteration totals are identical on both. Month-boundary batches are 17-25
   origins, so the wake-up cost is visible there; the gargantuan batches are larger and the pool
   pays. [EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ abd58261e, Profile
@@ -311,6 +320,7 @@ and the memory/GPU levers.
   The 2026-11-07 network smoke run passed with 1,049 per-step route hashes identical; the final
   save bytes differ only in the documented internal list-index ordering. The threads=6 retest
   (5 pool threads: lead + 4 helpers) also passed with 1,049 per-step hashes identical.
-- Performance: the pool measured 2.02x on the gargantuan fixture and 1.19x on month-boundary
-  against the single-threaded dense SSE2, with identical results. Pass duration and total
+- Performance: the pool measured run totals (including load) 2.02x faster on the gargantuan
+  fixture and 1.19x on month-boundary against the single-threaded dense SSE2, with identical
+  results; phase 5 alone ≈ 2.2–2.4x on the gargantuan fixture (above). Pass duration and total
   iterations are the metrics (→ [performance](../performance.md)).
