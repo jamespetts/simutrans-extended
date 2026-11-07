@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 63e5d2ac1; master @ 6194cd341 (shared closure code)
+verified: path-explorer-optimisation @ 3b18f76aa; master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -13,15 +13,17 @@ design (Y/H traversal) → [ex-15 yh-path-explorer](ex-15/yh-path-explorer.md); 
 for the whole simulation → [simd-applicability](simd-applicability.md); profiling method and
 measured hotspots → [performance](performance.md).
 
-Status: assessment and implementation plan. Lever 1 (flat arrays) and the lever-2 scalar loop
-reorder are implemented on `path-explorer-optimisation` (2026-11-07); lever 3 (SSE2/NEON) and
-the later levers are not. The reorder is a SIMD staging form: in scalar it is 2.2-3.9x slower in
-phase 5 than the sparse loop and must be justified by the SIMD stage. Figures marked [UNVERIFIED]
-are derivations from code structure, not measurements. Measured cost figures:
-[EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c, Profile (server), month-boundary.sve
-and bb-10-sep-2023.sve]; lever-1 result: [EXECUTION-VERIFIED:2026-11-07,
-`path-explorer-optimisation` @ e5fdd5f37]; lever-2 scalar result: [EXECUTION-VERIFIED:2026-11-07,
-`path-explorer-optimisation` @ 63e5d2ac1].
+Status: assessment and implementation plan. Levers 1–3 are implemented on
+`path-explorer-optimisation` (2026-11-07): flat arrays, the dense loop reorder, and the SSE2/NEON
+dense row kernels. SSE2 is execution-verified; NEON is compile-verified by the native macOS CI.
+The dense path is a clear win on the gargantuan fixture (-19% against the sparse loop), roughly
+neutral on the intermediates and 8% slower on the smallest; an optional dense/sparse selector
+would remove that regression. Figures marked [UNVERIFIED] are derivations from code structure,
+not measurements. Measured cost figures: [EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c, Profile
+(server), month-boundary.sve and bb-10-sep-2023.sve]; lever-1 result:
+[EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ e5fdd5f37]; lever-2 scalar result:
+[EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ 63e5d2ac1]; lever-3 SSE2 result:
+[EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ 3b18f76aa].
 
 ## Priorities and sequencing
 
@@ -188,7 +190,7 @@ with contiguous arrays, but not for save size.
 |---|---|---|---|---|
 | 1 | Split arrays: contiguous `uint32` times apart from 16-bit handles, one allocation | phase-5 read traffic halved; finished 8 → 6 B per cell, working 12 → 10 B | yes; save byte format can stay identical | through edges need first ≠ last transport |
 | 2 | Reorder phase-5 loops: per origin, all target clusters | in scalar, 2.2-3.9x slower in phase 5 than the sparse loop (visits every halt per origin); the staging form for lever 3, not a gain on its own [EXECUTION-VERIFIED:2026-11-07] | yes | compatible |
-| 3 | SSE2/NEON dense masked row kernel | ~2–4× on the true target-member loop (44 B visits per class at H ≈ 5.4k); contiguous target lists make SIMD the primary CPU lever [UNVERIFIED] | yes | delta folded into the kernel |
+| 3 | SSE2/NEON dense masked row kernel | measured 1.77-2.59x against the dense scalar; roughly break-even with the sparse loop on small maps and -19% on the run total at H ≈ 5.4k [EXECUTION-VERIFIED:2026-11-07] | yes | delta folded into the kernel |
 | 4 | Split origin rows per transfer halt over 2–4 threads | ~2–4× shorter passes until bandwidth saturates; **raises CPU per step**. Approved in principle: cores are underused and route staleness is real [RECOLLECTION:2026-11-06] | yes | compatible |
 | 5 | Compact connexion storage (sorted arrays per halt) | ≈ −50% connexion memory; faster `get()` and phase 4 | yes, if iteration order equals bag order | compatible |
 | 6 | Phase-2 micro-optimisations (`get_average_waiting_time` copies 32 samples by value) | small | yes | none |
@@ -220,6 +222,7 @@ per-fixture numbers are in [phase5-kernel](path-explorer-optimisation/phase5-ker
 |---|---|---|
 | Present before lever 1 (measured, 2026-11-06) | 78 s at H ≈ 5.4k | 18–20 min wall (394.7 s CPU) |
 | Lever 1 implemented (measured, 2026-11-07) | 40-56% less phase-5 time; 1.6-1.7× on the run total | proportionally shorter, or a lower budget |
+| Levers 1–3, SSE2 implemented (measured, 2026-11-07) | ~37 s at H ≈ 5.4k (214.77 s run total) | proportionally shorter, or a lower budget |
 | Levers 1–3, 6 | ~20–40 s if the assumed 2–4× materialises | ~5–10 min, or the present latency at a smaller budget |
 | + lever 4 | ~8–25 s wall (more CPU) | ~2–5 min |
 | Lever 7, threaded | ~5–8 s | ~1–2 min |
@@ -237,12 +240,10 @@ that limit. Storing only transfer-halt rows does not help passenger compartments
 ## Recommended order
 
 1. Measurement: done 2026-11-06 (above).
-2. Levers 1 and 3 (contiguous layout, then SSE2 and NEON over the target lists), with lever 2 as a
-   locality refinement and lever 6 folded in: results unchanged, no network penalty, and
-   every peer gains, which raises the shared limit. Lever 1 is implemented (2026-11-07) and
-   reduced phase-5 time by 40-56% on the four fixtures. Lever 2's scalar reorder is implemented
-   as the SIMD staging form and is 2.2-3.9x slower in phase 5 than the sparse loop; lever 3 must
-   recover more than that, otherwise the reorder is reverted and only lever 1 remains.
+2. Levers 1–3 are implemented: flat arrays, the dense loop reorder and the SSE2/NEON kernels.
+   The dense SIMD is a clear win at H ≈ 5.4k (-19% against sparse) and roughly neutral on the
+   smaller fixtures (8% slower at H ≈ 1.8k). Decide whether to add the dense/sparse selector
+   before lever 4; otherwise proceed to lever 4 (threads) or lever 5 (memory).
 3. Lever 4 after the layout/SIMD kernel: extra threads shorten the rebuild cycle and are
    approved in principle; settle the deterministic iteration/stop-point model first
    (→ [threading](threading.md), [sync-and-determinism](sync-and-determinism.md)).
@@ -269,6 +270,12 @@ share: the controller holds CPU share near its target.
 ## Open questions
 
 - Is the CPU-first direction (levers 1–6, then 7) adopted?
+- Dense/sparse selector: whether to add it, and at what threshold. The measured crossover is about
+  `H / outbound_member_count = 2.6`; without a selector the dense SIMD is roughly break-even on the
+  intermediates, 8% slower at H ≈ 1.8k and 19% faster at H ≈ 5.4k (2026-11-07).
+- NEON execution verification: the NEON kernel compiles on the native macOS CI but no NEON
+  hardware is available to run the oracle. Whether to add a CI execution run (or accept
+  compile-only) is open.
 - Was the path explorer's near-zero share in the measured fixture window dormancy or budget
   capping? Both: it is dormant between periodic requests and budget-capped during a pass. The
   gargantuan capture was idle for at least the first 296 steps after load, then busy 96.1% of

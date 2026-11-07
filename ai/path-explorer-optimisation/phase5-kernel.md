@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 63e5d2ac1
+verified: path-explorer-optimisation @ 3b18f76aa
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -137,7 +137,10 @@ lever 1, which is a 40-56% gain on its own [EXECUTION-VERIFIED:2026-11-07,
 and finished, gives different matrices for the later classes than a full refresh of the same save.
 A control run refreshing only classes 1-4 (skipping class 0) reproduces the resumed result exactly,
 so the difference comes from class 0's recomputation versus its loaded state, not from the loop
-order. Cause not identified; relevant to save/load determinism, not to this kernel.
+order. Cause not identified. This does not affect network sync: every peer loads the same save and
+runs the same deterministic code, so peers compute the same matrices; the difference is between a
+full refresh and a resumed pass on the same save, not between peers [RECOLLECTION:2026-11-07, user
+instruction].
 
 ## Lever 3 — SSE2 and NEON dense masked row kernel
 
@@ -160,18 +163,36 @@ order. Cause not identified; relevant to save/load determinism, not to this kern
   output is byte-identical to the scalar reference.
 - Targets: x64 SSE2 and AArch64 NEON are implemented together [RECOLLECTION:2026-11-07], because
   Apple users are a supported audience and AArch64 mandates NEON. NEON uses four `uint32` lanes
-  like SSE2 but compares unsigned directly (`vcgtq_u32`) and selects with `vminq_u32` or
-  `vbslq_u32`, so the sign-bias XOR is unnecessary; the 16-bit writes use masked NEON stores.
-  The two backends share the `b_eff` array and the same writes. macOS CI builds natively on
-  Apple Silicon, so the NEON path is compile-tested there; execution verification uses the same
-  scalar oracle on an Apple Silicon machine where available.
-- Expected ~2–4× on the true target-member loop: 44 B visits per class at H ≈ 5.4k at
-  ~1.8 ns each, with contiguous target lists. SIMD is the primary CPU lever; AVX2 (8 lanes,
-  `vpminud`) behind runtime dispatch (lever 10) may add further once SSE2 is in place.
+  like SSE2 but compares unsigned directly (`vcgtq_u32`) and selects with `vbslq_u32`, so the
+  sign-bias XOR is unnecessary. Both backends store the 32-bit times as a four-lane blend and
+  write the 16-bit arrays per improved lane, which is rare. macOS CI builds natively on Apple
+  Silicon, so the NEON path is compile-tested there; no NEON execution hardware is available.
+- Measured 1.77-2.59x against the dense scalar: roughly break-even with the sparse loop on the
+  small fixtures and a 19% win at H ≈ 5.4k. SIMD is the primary CPU lever for large maps; AVX2
+  (8 lanes, `vpminud`) behind runtime dispatch (lever 10) may add further once SSE2 is in place.
 - This formulation meets the gate in [simd-applicability](../simd-applicability.md) (dense vector
   loads, no gathers); the present loop shape does not. The scalar path stays for Win32 x86 and
   any target without SSE2/NEON, and is the oracle; the SSE2 variant is gated to x64 and the NEON
   variant to AArch64.
+
+**Implemented 2026-11-07** in commit `3b18f76aa`: SSE2 (x64) and NEON (AArch64) dense row
+kernels, with the scalar cell function as oracle and fallback. SSE2 execution-verified on the four
+fixtures and both mid-pass resume fixtures (identical hashes and `total_iterations`). Run totals
+including load:
+
+| Fixture | Sparse | Dense scalar | Dense SSE2 | SSE2 vs sparse |
+|---|---:|---:|---:|---:|
+| month-boundary | 17.47 s | 33.36 s | 18.88 s | +8% |
+| bb6-apr | 29.82 s | 57.58 s | 30.64 s | +3% |
+| bb6-may | 33.34 s | 61.14 s | 31.83 s | -5% |
+| bb-10-sep-2023 | 264.86 s | 555.28 s | 214.77 s | -19% |
+
+The dense SIMD is a clear win on the gargantuan fixture, neutral on the intermediates and 8%
+slower on the smallest. The optional dense/sparse selector (threshold on
+`H / outbound_member_count`, measured crossover about 2.6) would remove the small-map regression;
+it is not implemented. NEON is compile-verified by the native macOS CI (all macOS jobs passed on
+`3b18f76aa`), not execution-verified.
+[EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ 3b18f76aa, Profile (server) x64]
 
 ## Lever 4 — extra threads
 

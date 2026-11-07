@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 011f9a23a
+verified: path-explorer-optimisation @ 3b18f76aa
 ---
 # SIMD (SSE/AVX) applicability
 
@@ -18,8 +18,9 @@ path explorer relaxation) is designed for it from the start.
 
 ## Current state and constraints
 
-No SIMD intrinsics exist anywhere in simulation code today; the only assembler/SIMD-era code is
-graphics (`USE_ASSEMBLER`, display/simgraph16.cc, GNUC i686 only) [CODE master @ 075d540f3].
+The path explorer dense-row kernel is the first simulation SIMD code: SSE2 on x64 and NEON on
+AArch64, added 2026-11-07. The only older assembler/SIMD-era code is graphics (`USE_ASSEMBLER`,
+display/simgraph16.cc, GNUC i686 only) [CODE master @ 075d540f3].
 
 - **Baseline ISA:** builds target Win32 and x64 (MSVC) plus GNU make/CMake, including native
   macOS/Apple Silicon builds. `-march=native` is opt-in (`TUNE_NATIVE`, Makefile). SSE2 is a safe
@@ -46,7 +47,7 @@ graphics (`USE_ASSEMBLER`, display/simgraph16.cc, GNUC i686 only) [CODE master @
 | `karte_t::sync_list_t::sync_step` | Not amenable — pointer walk + virtual dispatch; fix is pooling/partitioning |
 | Convoy physics + `float32e8_t` operators | Not amenable as code stands — scalar dependent chains; `operator*` is a 64-bit multiply + branchy normalisation (`pmuludq`-shaped), `operator/` has no SIMD 64-bit-divide equivalent. Only pays off inside the cross-convoy SoA restructuring (data-layout doc) |
 | `convoi_t::unreserve_route_range` | Not amenable as-is — pointer chase over scattered `weg_t*`. SIMD-adjacent: a contiguous mirror array (waytype + reserved-convoi id) beside `weg_t::get_alle_wege()` removes the cache misses (the real win) and the scan then vectorises; a sparse reserved-ways registry likely beats both |
-| Path explorer `phase_explore_paths` | The only genuine dense-arithmetic kernel. Gather-bound as written; a dense masked row formulation runs on the SSE2 baseline without gathers and leaves results unchanged → [path-explorer-optimisation](path-explorer-optimisation.md) |
+| Path explorer `phase_explore_paths` | The only genuine dense-arithmetic kernel. Gather-bound as written; a dense masked row formulation runs on the SSE2 and NEON baselines without gathers and leaves results unchanged; implemented 2026-11-07 → [path-explorer-optimisation](path-explorer-optimisation.md) |
 | `grund_t::get_weg`, `karte_t::lookup`, private cars, pedestrians | Memory-latency/pointer-chase bound — not amenable |
 | Passenger generation, `karte_t::find_destination`, `simrand` | RNG call order is sync/output-defining — untouchable |
 | `route_t` A* | Sequential heap-driven expansion — not amenable |
@@ -57,10 +58,12 @@ graphics (`USE_ASSEMBLER`, display/simgraph16.cc, GNUC i686 only) [CODE master @
 
 The staged position [RECOLLECTION:2026-09-19 user decision] is: design SIMD-compatible, then
 implement and verify scalar, then add the gated SIMD variants immediately. The dense-vectorisation
-gate is met by a dense masked row formulation of the closure. The variants are SSE2 on x64 and
-NEON on AArch64, implemented together [RECOLLECTION:2026-11-07]; the scalar path is the oracle on
-every platform and the fallback where neither backend applies. Kernel design, invariants and
-verification: [path-explorer-optimisation](path-explorer-optimisation.md).
+gate is met by a dense masked row formulation of the closure. The variants are implemented:
+SSE2 on x64 and NEON on AArch64 [RECOLLECTION:2026-11-07]. SSE2 is execution-verified against the
+scalar oracle on the four fixtures and the mid-pass resume fixtures; NEON is compile-verified by
+the native macOS CI. The scalar path remains the oracle on every platform and the fallback where
+neither backend applies. Kernel design, invariants and verification:
+[path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
 
