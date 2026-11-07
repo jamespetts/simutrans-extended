@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 3b18f76aa
+verified: path-explorer-optimisation @ 186c92e72
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -178,10 +178,11 @@ instruction].
   and CMake `SIMUTRANS_USE_SSE2`/`SIMUTRANS_USE_NEON`. They are mutually exclusive
   (→ [build-and-toolchain](../build-and-toolchain.md)).
 
-**Implemented 2026-11-07** in commit `3b18f76aa`: SSE2 (x64) and NEON (AArch64) dense row
-kernels, with the scalar cell function as oracle and fallback. SSE2 execution-verified on the four
-fixtures and both mid-pass resume fixtures (identical hashes and `total_iterations`). Run totals
-including load:
+**Implemented 2026-11-07** in commit `3b18f76aa`, refactored to a single `relax_target_row` with
+one definition per backend in `186c92e72`: SSE2 (x64) and NEON (AArch64) dense row kernels, with
+the scalar cell function as oracle and fallback. SSE2 execution-verified on the four fixtures and
+both mid-pass resume fixtures (identical hashes and `total_iterations`); the single-function
+refactor reproduces the month-boundary oracle. Run totals including load:
 
 | Fixture | Sparse | Dense scalar | Dense SSE2 | SSE2 vs sparse |
 |---|---:|---:|---:|---:|
@@ -194,7 +195,7 @@ The dense SIMD is a clear win on the gargantuan fixture, neutral on the intermed
 slower on the smallest. The optional dense/sparse selector (threshold on
 `H / outbound_member_count`, measured crossover about 2.6) would remove the small-map regression;
 it is not implemented. NEON is compile-verified by the native macOS CI (all macOS jobs passed on
-`3b18f76aa`), not execution-verified.
+`186c92e72`), not execution-verified.
 [EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ 3b18f76aa, Profile (server) x64]
 
 ## Lever 4 — extra threads

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 33958208a (path-explorer sections); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: path-explorer-optimisation @ 186c92e72 (path-explorer sections); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -287,9 +287,11 @@ removed at load) — repeat before acting on the deltas.
    changes, but the budget controller spends only `path_explorer_time_midpoint` (default
    64 ms) per simulation step, so its CPU share in a short window does not indicate dormancy.
    A full unbudgeted pass measured 9.49 s at H ≈ 1.8k and 394.7 s at H ≈ 5.4k (2026-11-06;
-   phase 5 is 86% / 99.6% of those passes). The true phase-5 target visits are ~44 B per
-   passenger class at H ≈ 5.4k at ~1.8 ns each; the `total_iterations` diagnostic is a `uint64`
-   (save revision 6). Under normal server pacing on the gargantuan fixture, a 2,400 s capture
+   phase 5 is 86% / 99.6% of those passes). These are the pre-optimisation baselines: levers 1-3
+   are implemented on `path-explorer-optimisation` (2026-11-07) and reduce the phase-5 cost
+   substantially (summary below). The true phase-5 target visits are ~44 B per passenger class at
+   H ≈ 5.4k at ~1.8 ns each; the `total_iterations` diagnostic is a `uint64`
+   (save revision 6 or later; current revision 7 on `ex-15`). Under normal server pacing on the gargantuan fixture, a 2,400 s capture
    was busy 96.1% of steps with ~60 ms of explorer work per step; a full five-class cycle took
    18–20 min wall.
    Without an induced request the same fixture was idle for the first 296 steps after load,
@@ -323,23 +325,26 @@ must not be perturbed without reading [threading](threading.md) and
 ### SIMD applicability — summary
 
 Assessed 2026-09-19: the measured hot paths are dominated by memory latency, pointer chase and
-sequential dependence — no drop-in SIMD target exists in the current code shape, and integer-only
-SIMD is the determinism ceiling for synced code. Constraints and per-hotspot verdicts:
-[simd-applicability](simd-applicability.md). The one kernel where SIMD is feasible, the path
-explorer's closure, is covered in [path-explorer-optimisation](path-explorer-optimisation.md).
+sequential dependence — outside the path explorer there is no drop-in SIMD target in the current
+code shape, and integer-only SIMD is the determinism ceiling for synced code. The path explorer
+dense row kernel is now implemented (SSE2 on x64, NEON on AArch64, scalar fallback). Constraints
+and per-hotspot verdicts: [simd-applicability](simd-applicability.md).
 
 ### Path explorer optimisation — summary
 
 The refresh closure (phase 5) dominates a full pass (86% at H ≈ 1.8k; 99.6% at H ≈ 5.4k); the
-matrices and savegame data grow as O(H²). Measured 2026-11-06 with 64-bit counters, the true
-target visits grow from 0.85 B to 44 B per passenger class over H 1.8k → 5.4k (~H^3.65) and
-cost ~1.8–2.1 ns each; H³ understates the growth by about 2×. The five measured passenger-class
-counts at H ≈ 5.4k are 44.04 / 43.36 / 43.26 / 42.70 / 43.90 B. SSE2 SIMD over the contiguous
-target lists is the primary CPU lever; lever 2 (row reorder) removes under 0.1% of the work.
-GPU acceleration is limited in network play by the slowest peer; memory beyond ~20–25% savings
-needs a different representation. Per-packet route search at decision time is rejected. Full
-assessment, levers, constraints and results:
-[path-explorer-optimisation](path-explorer-optimisation.md).
+matrices and savegame data grow as O(H²). Measured 2026-11-06 with 64-bit counters (the
+pre-optimisation baseline), the true target visits grow from 0.85 B to 44 B per passenger class
+over H 1.8k → 5.4k (~H^3.65) and cost ~1.8–2.1 ns each; H³ understates the growth by about 2×.
+The five measured passenger-class counts at H ≈ 5.4k are 44.04 / 43.36 / 43.26 / 42.70 / 43.90 B.
+Levers 1-3 are implemented on `path-explorer-optimisation` (2026-11-07): flat arrays (-40-56%
+phase-5 time), the dense loop reorder and the SSE2/NEON kernels. SSE2 is 1.77-2.59x faster than
+the dense scalar and 19% faster than the sparse loop on the gargantuan run total, roughly
+break-even on the intermediates and 8% slower on the smallest; a dense/sparse selector is
+optional. NEON is compile-verified by the native macOS CI. GPU acceleration is limited in network
+play by the slowest peer; memory beyond ~20–25% savings needs a different representation.
+Per-packet route search at decision time is rejected. Full assessment, levers, constraints and
+results: [path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
 

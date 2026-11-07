@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 3b18f76aa; master @ 6194cd341 (shared closure code)
+verified: path-explorer-optimisation @ 186c92e72; master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -304,7 +304,7 @@ share: the controller holds CPU share near its target.
 Cost structure, invariants and original lever analysis: code inspection and derivation,
 2026-11-04; measured 2026-11-06 (above); lever 1 implemented and measured 2026-11-07 on
 `path-explorer-optimisation` (e5fdd5f37), code current at `path-explorer-optimisation` @
-011f9a23a and master @ 6194cd341 [CODE]. The staged SIMD sequence (design SIMD-compatible →
+186c92e72 and master @ 6194cd341 [CODE]. The staged SIMD sequence (design SIMD-compatible →
 scalar verified → gated SIMD) is a user decision [RECOLLECTION:2026-09-19]; SSE2 and NEON are
 implemented together [RECOLLECTION:2026-11-07]. Measured shares come from the 2026-09-10 capture
 recorded in [performance](performance.md).

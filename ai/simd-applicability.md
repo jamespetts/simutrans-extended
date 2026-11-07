@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 3b18f76aa
+verified: path-explorer-optimisation @ 186c92e72
 ---
 # SIMD (SSE/AVX) applicability
 
