@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 711656d4b (merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix)
+verified: ex-15 @ f803ef8ac (merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays)
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -259,7 +259,25 @@ The implemented rule for choosing the origins for one game step:
   helpers inside each batch. At `get_parallel_operations() == 1` the batch runs serially. The
   save format and resume counters are unchanged (`EX_SAVE_MINOR` remains 7).
 
-## Lever 9 — GPU
+## Lever 5 - compact connexion arrays
+
+Implemented 2026-11-07 (`f803ef8ac`). Each halt's `connexions_map` is a sorted contiguous array of
+`connexion` values keyed by `connexion::halt_id`; the destination halt ID occupies the padding
+after `alternative_seats`, so the value stays 20 bytes. Insertion is a sorted insert, lookup is a
+binary search, and `swap_connexions` compacts the rebuilt array to its exact count before it
+becomes the halt's stored table. The former per-connexion 20-byte pool allocation and 24-byte hash
+node are gone; the 37-bag table object is a 16-byte array header.
+
+Results: the full-refresh matrices and iteration totals on month-boundary and bb-10-sep-2023 are
+identical to the pre-change build. On bb-10-sep-2023 (583,164 connexions, 31,508 non-empty maps)
+the connexion structure falls from ≈85 MB to ≈14 MB and peak working set from 4.12 to 3.98 GB;
+phase 2 is unchanged, phase 4 falls from 34 to 24 ms, and phase 5 is ≈2-5% slower in controlled
+runs (the kernel is unchanged; the difference is consistent with allocation/code layout). The
+savegame fields and format are unchanged; only the entry iteration order differs.
+[EXECUTION-VERIFIED:2026-11-07, ex-15 @ f803ef8ac, Profile (server) x64; oracle harness and
+process memory sampling.]
+
+## Lever 9 - GPU
 
 - Per transfer halt: one dense min-plus update of the working block, one GPU thread per cell. The
   inputs are fixed for the duration (invariant), so the result is bit-exact with the CPU kernel.
@@ -302,9 +320,9 @@ place on `ex-15` (merged from `path-explorer-optimisation` at `ad753f5c6`). The 
 equivalence (month-boundary, gargantuan and mid-pass), loopback network determinism and the
 revision-6 mid-pass restart path are verified; the TEST harness has been removed. For the
 revision-6 restart, every finished matrix hash matches the revision-7 resume; `total_iterations`
-is higher only by the repeated current inbound cluster. Remaining kernel work: the optional
-dense/sparse selector (held off), the optional server-path ETW capture, the Y/H hooks above,
-and the memory/GPU levers.
+is higher only by the repeated current inbound cluster. Lever 5 (sorted connexion arrays) is
+implemented and measured below. Remaining kernel work: the optional dense/sparse selector (held
+off), the optional server-path ETW capture, the Y/H hooks above, and the GPU lever.
 
 ## Verification
 

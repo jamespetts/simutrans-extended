@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad753f5c6 (path-explorer sections, merged from path-explorer-optimisation @ 2988b9597); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ f803ef8ac (path-explorer sections, merged from path-explorer-optimisation @ 2988b9597; sorted connexion arrays); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -290,7 +290,9 @@ removed at load) — repeat before acting on the deltas.
    214.77 s at H ≈ 5.4k (run totals including load; phase 5 dominates). The phase-5 worker pool
    (`get_parallel_operations()` threads; three at `threads = 4`, one lead plus two helpers)
    reduced the gargantuan run total to 106.47 s (2.02x) and the month-boundary total to 15.89 s
-   (1.19x), with identical matrices and iteration totals [EXECUTION-VERIFIED:2026-11-07,
+   (1.19x), with identical matrices and iteration totals. These ratios include load; phase 5 alone
+   is ≈ 2.2–2.4x faster on the gargantuan fixture [UNVERIFIED derivation: 15–28 s of load
+   subtracted], and the month-boundary ratio is mostly load time [EXECUTION-VERIFIED:2026-11-07,
    Profile (server) x64, oracle harness]. At `threads = 6` (5 pool threads: lead + 4 helpers) the
    same machine measured 93.87 s and 15.60 s; the t4 pool remains the four-core recommendation.
    Without the pool, the sparse loop is faster than the
@@ -340,8 +342,11 @@ The current implementation uses flat matrices, a dense per-origin target row and
 Measured run totals are 18.88 s at H ≈ 1.8k and 214.77 s at H ≈ 5.4k (including load). SSE2 is
 1.77-2.59x faster than the dense scalar and 19% faster than the sparse loop on the gargantuan run
 total, roughly break-even on the intermediates and 8% slower on the smallest; a dense/sparse
-selector is optional. NEON is compile-verified by the native macOS CI. The sparse fallback's cost
-and the topology scaling are in [path-explorer-optimisation](path-explorer-optimisation.md). GPU
+selector is optional. NEON is compile-verified by the native macOS CI. Lever 5 (sorted connexion
+arrays) reduces the connexion structure on the gargantuan fixture from ≈85 MB to ≈14 MB and peak
+working set by ≈140 MB, with phase 2 unchanged, phase 4 faster and phase 5 ≈2–5% slower in
+controlled runs; matrices are identical. The sparse fallback's cost and the topology scaling are
+in [path-explorer-optimisation](path-explorer-optimisation.md). GPU
 acceleration is limited in network play by the slowest peer; memory beyond ~20–25% savings needs a
 different representation. Per-packet route search at decision time is rejected. Full assessment,
 levers, constraints and results: [path-explorer-optimisation](path-explorer-optimisation.md).
