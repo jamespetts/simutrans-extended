@@ -1518,7 +1518,7 @@ void haltestelle_t::new_month()
 
 		for (uint8 g_class = 0; g_class < number_of_classes; g_class++)
 		{
-			for (auto iter : *waiting_times[category][g_class])
+			for (auto& iter : *waiting_times[category][g_class])
 			{
 				// If the waiting time data are stale (more than two months old), gradually flush them.
 				// After a month, values of the estimated waiting time are appended to the list of waiting times.
