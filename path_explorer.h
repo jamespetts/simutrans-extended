@@ -259,6 +259,7 @@ private:
 		uint16 *working_next_transfers;
 		uint16 *working_first_transports;
 		uint16 *working_last_transports;
+		uint32 *target_times;		// dense per-transfer row: [via][t], or UINT32_MAX if t is not a target
 		uint16 *transport_index_map;
 		uint16 *working_halt_index_map;
 		halthandle_t *working_halt_list;
@@ -503,8 +504,14 @@ public:
 	static void next_compartment();
 
 	static void full_instant_refresh();
-	// TEST: matrix oracle for the path explorer optimisation work; remove before completion.
+	// TEST: matrix oracle and mid-pass resume harness for the path explorer
+	// optimisation work; remove before completion.
 	static void test_dump_matrices(const char *filename);
+	static void test_request_refresh();
+	static bool test_current_is_mid_phase5();
+	static void test_reset_connexion_list();
+	static void test_disable_limits();
+	static void test_request_refresh_from_class1();
 	static void refresh_all_categories(const bool reset_working_set);
 	static void refresh_category(const uint8 category);
 	static void refresh_class_category(const uint8 category, const uint8 g_class);

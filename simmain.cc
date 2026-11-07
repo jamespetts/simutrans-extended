@@ -1742,16 +1742,91 @@ int simu_main(int argc, char** argv)
 		tool_t::toolbar_tool[0]->init(welt->get_active_player());
 	}
 
-	// TEST: path explorer matrix oracle for the optimisation work; remove before completion.
+	// TEST: path explorer matrix oracle and mid-pass resume harness for the
+	// optimisation work; remove before completion.
 	if(  const char *const pe_oracle = getenv("SIMUTRANS_PE_ORACLE")  ) {
-		const char *const pe_refresh = getenv("SIMUTRANS_PE_ORACLE_REFRESH");
-		if(  pe_refresh == NULL  ||  atoi(pe_refresh) != 0  ) {
-			path_explorer_t::full_instant_refresh();
-			if(  const char *const pe_save = getenv("SIMUTRANS_PE_ORACLE_SAVE")  ) {
-				welt->save(pe_save, false, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
+		const char *const pe_mode = getenv("SIMUTRANS_PE_ORACLE_MODE");
+		if(  pe_mode != NULL  &&  strcmp(pe_mode, "midpass-save") == 0  ) {
+			path_explorer_t::test_request_refresh();
+			uint32 steps = 0;
+			while(  !path_explorer_t::test_current_is_mid_phase5()  &&  steps < 100000  ) {
+				path_explorer_t::step();
+				++steps;
 			}
+			dbg->message("TEST", "midpass-save: %u steps", steps);
+			welt->save("save/midpass.sve", false, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
+			env_t::quit_simutrans = true;
 		}
-		path_explorer_t::test_dump_matrices(pe_oracle);
+		else if(  pe_mode != NULL  &&  strcmp(pe_mode, "midpass-save-boundary") == 0  ) {
+			path_explorer_t::test_request_refresh();
+			uint32 steps = 0;
+			while(  !( path_explorer_t::get_current_compartment_category() == 0
+				&& path_explorer_t::get_current_compartment_class() == 1 )  &&  steps < 100000  ) {
+				path_explorer_t::step();
+				++steps;
+			}
+			dbg->message("TEST", "midpass-save-boundary: %u steps", steps);
+			welt->save("save/midpass-boundary.sve", false, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
+			env_t::quit_simutrans = true;
+		}
+		else if(  pe_mode != NULL  &&  strcmp(pe_mode, "budgeted-refresh") == 0  ) {
+			path_explorer_t::test_request_refresh();
+			do {
+				path_explorer_t::step();
+			} while(  path_explorer_t::is_processing()  );
+			path_explorer_t::test_dump_matrices(pe_oracle);
+		}
+		else if(  pe_mode != NULL  &&  strcmp(pe_mode, "refresh-from-class1") == 0  ) {
+			path_explorer_t::test_request_refresh_from_class1();
+			path_explorer_t::test_disable_limits();
+#ifdef MULTI_THREAD
+			path_explorer_t::allow_path_explorer_on_this_thread = true;
+#endif
+			do {
+				path_explorer_t::step();
+			} while(  path_explorer_t::is_processing()  );
+			path_explorer_t::test_dump_matrices(pe_oracle);
+		}
+		else if(  pe_mode != NULL  &&  strcmp(pe_mode, "midpass-finish-unbudgeted") == 0  ) {
+			path_explorer_t::test_disable_limits();
+#ifdef MULTI_THREAD
+			path_explorer_t::allow_path_explorer_on_this_thread = true;
+#endif
+			do {
+				path_explorer_t::step();
+			} while(  path_explorer_t::is_processing()  );
+			path_explorer_t::test_dump_matrices(pe_oracle);
+		}
+		else if(  pe_mode != NULL  &&  strcmp(pe_mode, "midpass-finish-reset") == 0  ) {
+			path_explorer_t::test_reset_connexion_list();
+#ifdef MULTI_THREAD
+			path_explorer_t::allow_path_explorer_on_this_thread = true;
+#endif
+			do {
+				path_explorer_t::step();
+			} while(  path_explorer_t::is_processing()  );
+			path_explorer_t::test_dump_matrices(pe_oracle);
+		}
+		else {
+			if(  pe_mode == NULL  ||  strcmp(pe_mode, "midpass-finish") != 0  ) {
+				const char *const pe_refresh = getenv("SIMUTRANS_PE_ORACLE_REFRESH");
+				if(  pe_refresh == NULL  ||  atoi(pe_refresh) != 0  ) {
+					path_explorer_t::full_instant_refresh();
+					if(  const char *const pe_save = getenv("SIMUTRANS_PE_ORACLE_SAVE")  ) {
+						welt->save(pe_save, false, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
+					}
+				}
+			}
+			else {
+#ifdef MULTI_THREAD
+				path_explorer_t::allow_path_explorer_on_this_thread = true;
+#endif
+				do {
+					path_explorer_t::step();
+				} while(  path_explorer_t::is_processing()  );
+			}
+			path_explorer_t::test_dump_matrices(pe_oracle);
+		}
 	}
 
 	welt->set_fast_forward(false);

@@ -346,30 +346,114 @@ void path_explorer_t::test_dump_matrices(const char *filename)
 		{
 			const compartment_t &compartment = goods_compartment[ca][cl];
 			uint64 hash = 1469598103934665603ull;
+			uint64 hash_times = 1469598103934665603ull;
+			uint64 hash_nexts = 1469598103934665603ull;
+			uint64 perm_sum = 0;
+			uint64 perm_xor = 0;
 			uint32 cells = 0;
 			if (ca != category_empty && compartment.finished_times != NULL)
 			{
-				for (uint16 i = 0; i < compartment.finished_halt_count; ++i)
+				const uint16 halt_count = compartment.finished_halt_count;
+				uint16 *inverse_map = new uint16[halt_count ? halt_count : 1];
+				if (compartment.finished_halt_index_map != NULL)
 				{
-					for (uint16 j = 0; j < compartment.finished_halt_count; ++j)
+					for (uint32 halt_id = 0; halt_id < 65536; ++halt_id)
 					{
-						const size_t matrix_index = static_cast<size_t>(i) * compartment.finished_halt_count + j;
-						hash = test_fnv1a(hash, &compartment.finished_times[matrix_index], sizeof(uint32));
+						const uint16 index = compartment.finished_halt_index_map[halt_id];
+						if (index != 65535 && index < halt_count)
+						{
+							inverse_map[index] = static_cast<uint16>(halt_id);
+						}
+					}
+				}
+				for (uint16 i = 0; i < halt_count; ++i)
+				{
+					for (uint16 j = 0; j < halt_count; ++j)
+					{
+						const size_t matrix_index = static_cast<size_t>(i) * halt_count + j;
+						const uint32 time = compartment.finished_times[matrix_index];
 						const uint16 next = compartment.finished_next_transfers[matrix_index];
+						hash = test_fnv1a(hash, &time, sizeof(uint32));
+						hash_times = test_fnv1a(hash_times, &time, sizeof(uint32));
 						hash = test_fnv1a(hash, &next, sizeof(uint16));
+						hash_nexts = test_fnv1a(hash_nexts, &next, sizeof(uint16));
+
+						// Permutation-invariant hash: cells are identified by halt id,
+						// not by matrix index, so a changed halt order does not count.
+						uint64 cell = 1469598103934665603ull;
+						cell = test_fnv1a(cell, &inverse_map[i], sizeof(uint16));
+						cell = test_fnv1a(cell, &inverse_map[j], sizeof(uint16));
+						cell = test_fnv1a(cell, &time, sizeof(uint32));
+						cell = test_fnv1a(cell, &next, sizeof(uint16));
+						perm_sum += cell;
+						perm_xor ^= cell;
 						++cells;
 					}
 				}
+				delete[] inverse_map;
 			}
-			fprintf(file, "catg=%u class=%u empty=%u H=%u cells=%u iter=%llu hash=%016llx\n",
+			fprintf(file, "catg=%u class=%u empty=%u H=%u cells=%u iter=%llu hash=%016llx hasht=%016llx hashx=%016llx permsum=%016llx permxor=%016llx phase=%u req=%u done=%u via=%u oc=%u om=%u\n",
 				ca, cl, (ca == category_empty) ? 1u : 0u,
 				compartment.finished_halt_count, cells,
 				static_cast<unsigned long long>(compartment.total_iterations),
-				static_cast<unsigned long long>(hash));
+				static_cast<unsigned long long>(hash),
+				static_cast<unsigned long long>(hash_times),
+				static_cast<unsigned long long>(hash_nexts),
+				static_cast<unsigned long long>(perm_sum),
+				static_cast<unsigned long long>(perm_xor),
+				compartment.current_phase,
+				compartment.refresh_requested ? 1u : 0u,
+				compartment.refresh_completed ? 1u : 0u,
+				compartment.via_index,
+				compartment.origin_cluster_index,
+				compartment.origin_member_index);
 		}
 	}
 
 	fclose(file);
+}
+
+// TEST: start a budgeted refresh at the first compartment for the mid-pass harness; remove before completion.
+void path_explorer_t::test_request_refresh()
+{
+#ifdef MULTI_THREAD
+	allow_path_explorer_on_this_thread = true;
+#endif
+	current_compartment_category = 0;
+	current_compartment_class = 0;
+	refresh_all_categories(false);
+}
+
+// TEST: true while the current compartment is mid-way through phase 5; remove before completion.
+bool path_explorer_t::test_current_is_mid_phase5()
+{
+	const compartment_t &compartment = goods_compartment[current_compartment_category][current_compartment_class];
+	return compartment.current_phase == compartment_t::phase_explore_paths
+		&& ( compartment.via_index > 0 || !compartment.process_next_transfer );
+}
+
+// TEST: clear the scratch connexion tables for the mid-pass diagnostics; remove before completion.
+void path_explorer_t::test_reset_connexion_list()
+{
+	compartment_t::reset_connexion_list();
+}
+
+// TEST: disable the iteration limits for the mid-pass diagnostics; remove before completion.
+void path_explorer_t::test_disable_limits()
+{
+	compartment_t::enable_limits(false);
+}
+
+// TEST: request a refresh for every compartment except passenger class 0; remove before completion.
+void path_explorer_t::test_request_refresh_from_class1()
+{
+#ifdef MULTI_THREAD
+	allow_path_explorer_on_this_thread = true;
+#endif
+	refresh_all_categories(false);
+	goods_compartment[0][0].refresh_requested = false;
+	current_compartment_category = 0;
+	current_compartment_class = 1;
 }
 
 
@@ -568,6 +652,7 @@ path_explorer_t::compartment_t::compartment_t()
 	working_next_transfers = NULL;
 	working_first_transports = NULL;
 	working_last_transports = NULL;
+	target_times = NULL;
 	transport_index_map = NULL;
 	working_halt_index_map = NULL;
 	working_halt_list = NULL;
@@ -625,6 +710,7 @@ path_explorer_t::compartment_t::~compartment_t()
 	delete[] working_next_transfers;
 	delete[] working_first_transports;
 	delete[] working_last_transports;
+	delete[] target_times;
 	if (transport_index_map)
 	{
 		delete[] transport_index_map;
@@ -698,6 +784,8 @@ void path_explorer_t::compartment_t::reset(const bool reset_finished_set)
 	working_first_transports = NULL;
 	delete[] working_last_transports;
 	working_last_transports = NULL;
+	delete[] target_times;
+	target_times = NULL;
 	if (transport_index_map)
 	{
 		delete[] transport_index_map;
@@ -1924,17 +2012,21 @@ void path_explorer_t::compartment_t::step()
 			printf("\t\tCurrent Step : %lu \n", step_count);
 #endif
 			// temporary variables
-			uint32 combined_time;
-			uint32 target_member_index;
 			uint64 iterations_processed = 0;
 
-			// initialize only when not resuming
-			if ( via_index == 0 && origin_cluster_index == 0 && target_cluster_index == 0 && origin_member_index == 0 )
+			// Build the connection lists and the dense target row once per pass. Test the
+			// pointers rather than the resume counters: the connection lists are saved and
+			// restored across a mid-pass load, while the dense row is rebuilt on demand.
+			if ( inbound_connections == NULL )
 			{
-				// build data structures for inbound/outbound connections to/from transfer halts
 				inbound_connections = new connection_t(64u, working_halt_count);
 				outbound_connections = new connection_t(64u, working_halt_count);
 			}
+			if ( target_times == NULL )
+			{
+				target_times = new uint32[working_halt_count];
+			}
+			target_cluster_index = 0;
 
 			start = dr_time();	// start timing
 
@@ -1981,19 +2073,36 @@ void path_explorer_t::compartment_t::step()
 					const uint16 inbound_transport = origin_cluster.transport;
 					const vector_tpl<uint16> &origin_halt_list = origin_cluster.connected_halts;
 
-					// for each target cluster
-					while ( target_cluster_index < outbound_connections->get_cluster_count() )
+					// Build the dense target row once for this origin cluster: [via][t] where
+					// t is a legal target, or UINT32_MAX otherwise. The same-transport outbound
+					// cluster is skipped, as in the original loop, and via itself is not a target.
+					for ( uint16 t = 0; t < working_halt_count; ++t )
 					{
-						const connection_t::connection_cluster_t &target_cluster = (*outbound_connections)[target_cluster_index];
-						const uint16 outbound_transport = target_cluster.transport;
-						if ( inbound_transport == outbound_transport && inbound_transport != 0u )
-						{
-							++target_cluster_index;
-							continue;
-						}
-						const vector_tpl<uint16> &target_halt_list = target_cluster.connected_halts;
+						const uint32 via_time = working_times[via_row + t];
+						target_times[t] = ( t != via && via_time != UINT32_MAX_VALUE ) ? via_time : UINT32_MAX_VALUE;
+					}
 
-						// for each origin cluster member
+					uint32 outbound_member_count = 0;
+					for ( uint32 cluster_index = 0; cluster_index < outbound_connections->get_cluster_count(); ++cluster_index )
+					{
+						const connection_t::connection_cluster_t &target_cluster = (*outbound_connections)[cluster_index];
+						if ( inbound_transport == target_cluster.transport && inbound_transport != 0u )
+						{
+							const vector_tpl<uint16> &target_halt_list = target_cluster.connected_halts;
+							for ( uint32 member_index = 0; member_index < target_halt_list.get_count(); ++member_index )
+							{
+								target_times[target_halt_list[member_index]] = UINT32_MAX_VALUE;
+							}
+						}
+						else
+						{
+							outbound_member_count += target_cluster.connected_halts.get_count();
+						}
+					}
+
+					if ( outbound_member_count > 0 )
+					{
+						// for each origin cluster member, sweep all legal targets in one pass
 						while ( origin_member_index < origin_halt_list.get_count() )
 						{
 							const uint16 origin = origin_halt_list[origin_member_index];
@@ -2001,43 +2110,45 @@ void path_explorer_t::compartment_t::step()
 							const size_t origin_via_index = origin_row + via;
 							const uint32 origin_via_time = working_times[origin_via_index];
 
-							// for each target cluster member
-							for ( target_member_index = 0; target_member_index < target_halt_list.get_count(); ++target_member_index )
+							if ( origin_via_time != UINT32_MAX_VALUE )
 							{
-								const uint16 target = target_halt_list[target_member_index];
-								const size_t origin_target_index = origin_row + target;
+								const uint16 next_transfer = working_next_transfers[origin_via_index];
+								const uint16 first_transport = working_first_transports[origin_via_index];
 
-								if ( origin_via_time != UINT32_MAX_VALUE
-									&& ( combined_time = origin_via_time
-												 + working_times[via_row + target] )
-											< working_times[origin_target_index]			   )
+								for ( uint16 target = 0; target < working_halt_count; ++target )
 								{
-									working_times[origin_target_index] = combined_time;
-									working_next_transfers[origin_target_index] = working_next_transfers[origin_via_index];
-									working_first_transports[origin_target_index] = working_first_transports[origin_via_index];
-									working_last_transports[origin_target_index] = working_last_transports[via_row + target];
+									const uint32 target_time = target_times[target];
+									if ( target_time == UINT32_MAX_VALUE )
+									{
+										continue;
+									}
+
+									const size_t origin_target_index = origin_row + target;
+									const uint32 combined_time = origin_via_time + target_time;
+									if ( combined_time < working_times[origin_target_index] )
+									{
+										working_times[origin_target_index] = combined_time;
+										working_next_transfers[origin_target_index] = next_transfer;
+										working_first_transports[origin_target_index] = first_transport;
+										working_last_transports[origin_target_index] = working_last_transports[via_row + target];
+									}
 								}
-							}	// loop : target cluster member
+							}
 
 							++origin_member_index;
 
-							// iteration control
-							iterations_processed += target_halt_list.get_count();
-							total_iterations += target_halt_list.get_count();
+							// iteration control: the same total as the per-target-cluster order
+							iterations_processed += outbound_member_count;
+							total_iterations += outbound_member_count;
 							if ( use_limits && iterations_processed >= limit_explore_paths )
 							{
 								goto loop_termination;
 							}
 
 						}	// loop : origin cluster member
+					}
 
-						origin_member_index = 0;
-
-						++target_cluster_index;
-
-					}	// loop : target cluster
-
-					target_cluster_index = 0;
+					origin_member_index = 0;
 
 					++origin_cluster_index;
 
@@ -2128,6 +2239,8 @@ void path_explorer_t::compartment_t::step()
 				working_first_transports = NULL;
 				delete[] working_last_transports;
 				working_last_transports = NULL;
+				delete[] target_times;
+				target_times = NULL;
 				working_halt_count = 0;
 				if (transfer_list)
 				{
@@ -2697,6 +2810,17 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 	file->rdwr_long(origin_cluster_index);
 	file->rdwr_long(target_cluster_index);
 	file->rdwr_long(origin_member_index);
+
+	// Before revision 7 the phase-5 loop stopped between target clusters, so the
+	// origin-member index was relative to the current target cluster. The current
+	// loop completes all target clusters for each origin member. Restart the current
+	// inbound cluster for such saves: repeating writes is idempotent by the
+	// order-independence invariant, and the cluster lists are restored below.
+	if (file->is_loading() && current_phase == phase_explore_paths && !file->is_version_ex_atleast(15, 7))
+	{
+		origin_member_index = 0;
+		target_cluster_index = 0;
+	}
 
 	bool inbound_connections_live = inbound_connections != NULL;
 	file->rdwr_bool(inbound_connections_live);
