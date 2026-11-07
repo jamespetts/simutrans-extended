@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f9d574ee5 + working tree
+verified: ex-15 @ a203862c1
 ---
 # Path explorer optimisation: the routing-search engine
 
@@ -151,6 +151,6 @@ compartment, and the current state/edge representation keeps one cost field per 
 ## Provenance
 
 The expanded-state engine, candidate list, state graph, pool and revision-9 savegame were
-implemented and measured on `ex-15` at `f9d574ee5` with the working-tree changes, Profile
+implemented and measured on `ex-15` at `a203862c1`, Profile
 (server) x64. The verification used a standalone expanded-state Dijkstra over the same
 candidate list. [CODE; EXECUTION-VERIFIED where tagged]

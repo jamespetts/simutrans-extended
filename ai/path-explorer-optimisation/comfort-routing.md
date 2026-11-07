@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f9d574ee5 + working tree (layout/engine status; 2026-11-07); ex-15 @ ad1815c (design)
+verified: ex-15 @ a203862c1 (layout/engine status; 2026-11-07); ex-15 @ ad1815c (design)
 ---
 # Comfort-aware routing (design)
 

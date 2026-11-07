@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ f9d574ee5 + working tree (routing-search engine)
+verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine)
 ---
 # ex-15: through-journey path explorer — current state
 
@@ -31,7 +31,7 @@ frontmatter value.
   recalibrates toward `path_explorer_time_midpoint` (simuconf; default 64 ms). In network mode
   peers write local limits and `nwc_routesearch_t` broadcasts the minimum set, so all peers
   perform identical work per step. The connexion rebuild counts one iteration per linkage; the routing search counts
-  origins per step. [CODE ex-15 @ f9d574ee5 + working tree; mechanism:
+  origins per step. [CODE ex-15 @ a203862c1; mechanism:
   [network](../../network.md)]
 - Rebuild triggers: schedule and vehicle changes call `haltestelle_t::refresh_routing` from
   simconvoi.cc and simline.cc; halt destruction calls `path_explorer_t::refresh_category` from
@@ -48,7 +48,7 @@ frontmatter value.
   `finished_next_transfers` and `working_next_transfers` flat `uint16` blocks; a cell is
   `row * count + column` in `size_t`. The routing search is a per-origin Dijkstra over the expanded
   `(halt, arriving transport)` state graph built from the full connexion-rebuild candidate list. [CODE
-  ex-15 @ f9d574ee5 + working tree; engine: [path-explorer-optimisation](../../path-explorer-optimisation.md)]
+  ex-15 @ a203862c1; engine: [path-explorer-optimisation](../../path-explorer-optimisation.md)]
 - Journey times come from per line/convoy `average_journey_times` keyed by halt pair, booked in
   `convoi_t::laden` from the interval between the booked departure at the previous stop and the
   arrival here; because departure is booked at departure, the recorded leg time excludes the dwell

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ f9d574ee5 + working tree (routing-search engine)
+verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine)
 ---
 # ex-15: through-journey path explorer — accuracy, performance and verification
 

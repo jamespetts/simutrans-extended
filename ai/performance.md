@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f9d574ee5 + working tree (path-explorer sections; 2026-11-07); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ a203862c1 (path-explorer sections; 2026-11-07); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 

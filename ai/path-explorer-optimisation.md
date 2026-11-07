@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f9d574ee5 + working tree
+verified: ex-15 @ a203862c1
 ---
 # Path explorer optimisation
 
@@ -131,7 +131,7 @@ finished matrix and a restart request when no finished matrix exists.
 ## Provenance
 
 The expanded-state engine, full candidate list, state graph, pool and revision-9 savegame
-were designed and measured on `ex-15` at `f9d574ee5` with the working-tree changes,
+were designed and measured on `ex-15` at `a203862c1`,
 Profile (server) x64, `bb-10-sep-2023.sve`. The verification used a standalone
 expanded-state Dijkstra over the same candidate list. [CODE; EXECUTION-VERIFIED where
 tagged]

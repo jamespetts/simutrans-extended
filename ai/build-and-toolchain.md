@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ f9d574ee5 + working tree (SIMD section; 2026-11-07); rest @ 29bc1a6e8
+verified: ex-15 @ a203862c1 (SIMD section; 2026-11-07); rest @ 29bc1a6e8
 ---
 # Build & toolchain
 
@@ -147,7 +147,7 @@ after the master→ex-15 merge):
 
 There is no SIMD backend in the build. The path-explorer routing search is a scalar graph
 search; the build defines no `USE_SSE2` / `USE_NEON` options and performs no SIMD backend
-detection. [CODE ex-15 @ f9d574ee5 + working tree]
+detection. [CODE ex-15 @ a203862c1]
 
 ## Revision embedding (network-play critical)
 

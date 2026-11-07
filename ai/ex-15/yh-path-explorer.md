@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (implementation, GUI and tests); routing-search engine @ f9d574ee5 + working tree (2026-11-07); design revised 2026-11-07
+verified: ex-15 @ f4f6fd2b5 (implementation, GUI and tests); routing-search engine @ a203862c1 (2026-11-07); design revised 2026-11-07
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -269,7 +269,7 @@ one ordinary edge with one transport field. The routing-search engine is the exp
 per-origin Dijkstra. The runtime
 co-requirements, the journey-time handover, consist-order data and
 pakset work are independent and can start in parallel. [analysis revised 2026-11-07; engine/pool
-status at ex-15 @ f9d574ee5 + working tree]
+status at ex-15 @ a203862c1]
 
 ## Open questions
 

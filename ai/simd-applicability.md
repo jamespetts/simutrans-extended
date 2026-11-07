@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f9d574ee5 + working tree (2026-11-07)
+verified: ex-15 @ a203862c1 (2026-11-07)
 ---
 # SIMD (SSE/AVX) applicability
 

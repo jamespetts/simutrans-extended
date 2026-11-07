@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f9d574ee5 + working tree
+verified: ex-15 @ a203862c1
 ---
 # Path explorer optimisation: route semantics
 
@@ -136,5 +136,5 @@ transfer time 2.
 ## Provenance
 
 The engine and examples were re-derived from path_explorer.cc and the routing-search measurements
-on `ex-15` at `f9d574ee5` with the working-tree changes, 2026-11-07. [CODE;
+on `ex-15` at `a203862c1`, 2026-11-07. [CODE;
 EXECUTION-VERIFIED where tagged]
