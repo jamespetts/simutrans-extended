@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f803ef8ac (path-explorer sections; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; sorted connexion arrays); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ f4f6fd2b5 (path-explorer sections; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; sorted connexion arrays; Y/H through connexions and measurements); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -295,6 +295,10 @@ removed at load) — repeat before acting on the deltas.
    subtracted], and the month-boundary ratio is mostly load time [EXECUTION-VERIFIED:2026-11-07,
    Profile (server) x64, oracle harness]. At `threads = 6` (5 pool threads: lead + 4 helpers) the
    same machine measured 93.87 s and 15.60 s; the t4 pool remains the four-core recommendation.
+   The current full unbudgeted refresh (load excluded) measures 94.2 s on the gargantuan fixture
+   (2026-11-07). The Y/H phase-2 addition measured within run-to-run noise there at 0/10/50
+   couplings (control 95.58/94.27 s; enabled 90.11–96.01 s; temporary TEST hook, removed before
+   commit) [EXECUTION-VERIFIED:2026-11-07, ex-15, Profile (server) x64].
    Without the pool, the sparse loop is faster than the
    dense SIMD on the smallest fixture; the pooled dense path is faster than both there (15.89 s).
    The sparse loop is slower on the gargantuan and remains the planned selector fallback; its
@@ -339,20 +343,27 @@ and per-hotspot verdicts: [simd-applicability](simd-applicability.md).
 
 The refresh closure (phase 5) dominates a full pass; the matrices and savegame data grow as O(H²).
 The current implementation uses flat matrices, a dense per-origin target row and SSE2/NEON kernels.
-Measured run totals are 18.88 s at H ≈ 1.8k and 214.77 s at H ≈ 5.4k (including load). SSE2 is
-1.77-2.59x faster than the dense scalar and 19% faster than the sparse loop on the gargantuan run
-total, roughly break-even on the intermediates and 8% slower on the smallest; a dense/sparse
-selector is optional. NEON is compile-verified by the native macOS CI. Lever 5 (sorted connexion
+Measured run totals are 18.88 s at H ≈ 1.8k and 214.77 s at H ≈ 5.4k (including load); the
+current full unbudgeted refresh measures 94.2 s on the gargantuan fixture (load excluded,
+2026-11-07). SSE2 is 1.77-2.59x faster than the dense scalar and 19% faster than the sparse loop
+on the gargantuan run total, roughly break-even on the intermediates and 8% slower on the
+smallest; a dense/sparse selector is optional. NEON is compile-verified by the native macOS CI. Lever 5 (sorted connexion
 arrays) reduces the connexion structure on the gargantuan fixture from ≈130 MB to ≈14 MB and peak
 working set by ≈140 MB, with phase 2 unchanged, phase 4 faster and phase 5 ≈2–5% slower in
 controlled runs; matrices are identical. A subsequent alignment experiment (64-byte base
 alignment, then odd-cache-line row padding) found no reproducible phase-5 gain: base alignment
 alone had no effect, and padding was within run-to-run variation on the gargantuan fixture; it was
-reverted. The sparse fallback's cost and the topology scaling are
-in [path-explorer-optimisation](path-explorer-optimisation.md). GPU
-acceleration is limited in network play by the slowest peer; memory beyond ~20–25% savings needs a
-different representation. Per-packet route search at decision time is rejected. Full assessment,
-levers, constraints and results: [path-explorer-optimisation](path-explorer-optimisation.md).
+reverted. The Y/H phase-2 addition measured within run-to-run noise at 0/10/50 couplings on the
+gargantuan fixture (control 95.58/94.27 s; enabled 90.11–96.01 s; 2026-11-07). The sparse
+fallback's cost and the topology scaling are in
+[path-explorer-optimisation](path-explorer-optimisation.md). GPU estimates are per compartment and
+depend on the kernel: sparse cluster-pair 0.51–1.06 s at 0.5–1 TB/s, dense H² 1.62–3.24 s; at
+300–500 GB/s roughly 1.02–1.76 s / 3.24–5.39 s. VRAM is 10 B × H² per compartment (0.29 GB at
+H ≈ 5,375; 1 GB is sufficient for the gargantuan fixture, 4 GB covers H ≤ 10k, 8–12 GB covers
+H ≈ 20k); finished matrices stay in host memory. GPU acceleration is limited in network play by
+the slowest peer; memory beyond ~20–25% savings needs a different representation. Per-packet route
+search at decision time is rejected. Full assessment, levers, constraints and results:
+[path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
 
@@ -363,9 +374,10 @@ levers, constraints and results: [path-explorer-optimisation](path-explorer-opti
   attribution artefacts. Investigate before attempting optimisation.
 - Path-explorer measurement questions: the full-pass CPU, savegame share, budgeted wall-clock
   pass and cluster/traffic counters are measured (9.49 s / 27.0 s / 394.7 s at H ≈ 1.8k /
-  2.5k / 5.4k; 36.85 MiB of 132 MiB at H ≈ 1.8k; 18–20 min per cycle under server pacing).
-  The counters do not cover the phase-2 registration path →
-  [path-explorer-optimisation](path-explorer-optimisation.md).
+  2.5k / 5.4k; 36.85 MiB of 132 MiB at H ≈ 1.8k; 18–20 min per cycle under server pacing). The
+  current dense pooled full refresh is 94.2 s at H ≈ 5.4k (load excluded), and the Y/H phase-2
+  addition is within run-to-run noise at 0/10/50 couplings. The counters do not cover the phase-2
+  registration path → [path-explorer-optimisation](path-explorer-optimisation.md).
 - The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a
   post-load-wave problem, not a steady-state one; investigate with a Load-phase or

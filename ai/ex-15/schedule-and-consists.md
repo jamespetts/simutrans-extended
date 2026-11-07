@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ bf447619a
+verified: ex-15 @ f4f6fd2b5
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -24,13 +24,13 @@ explorer's treatment of consist orders.
   store / maintain_or_overhaul); `spacing_shift`; `unique_entry_id` (uint16, stable identity via
   `schedule_t::get_next_free_unique_id`); `condition_bitfield_broadcaster` / `_receiver`;
   `target_id_condition_trigger` / `target_id_couple` / `target_id_uncouple`;
-  `target_unique_entry_uncouple`; `waiting_time_shift`; `reverse`; `max_speed_kmh` (per-entry speed
-  limit, 65535 = none).
+  `target_unique_entry_uncouple` / `target_unique_entry_couple`; `waiting_time_shift`; `reverse`;
+  `max_speed_kmh` (per-entry speed limit, 65535 = none).
 - Flags: wait_for_time, lay_over, ignore_choose, force_range_stop, conditional_depart_before_wait,
   conditional_depart_after_wait, conditional_skip, send_trigger, cond_trigger_is_line_or_cnv,
   clear_stored_triggers_on_dep, trigger_one_only, couple, uncouple, couple_target_is_line_or_cnv,
-  uncouple_target_is_line_or_cnv, uncouple_target_sch_is_reversed, discharge_payload,
-  set_down_only, pick_up_only.
+  uncouple_target_is_line_or_cnv, uncouple_target_sch_is_reversed, couple_target_sch_is_reversed,
+  discharge_payload, set_down_only, pick_up_only.
 - Storage model: consist orders live on `schedule_t::orders` (inthashtable keyed by
   `unique_entry_id`), one per entry; entries are copied by value and heavyweight orders are kept
   apart. There is no whole-schedule list of referring schedules.
@@ -169,7 +169,11 @@ explorer's treatment of consist orders.
   enablement gating that preserves stored values while disarmed); those runtime paths are
   reachable in play subject to the runtime gaps below. Consist-order window and rule-editor
   persistence is implemented ([gui](../gui.md)); the remaining consist-order UI work is the
-  reversal-aware picker and per-portion gate described above.
+  reversal-aware picker and per-portion gate described above. The couple target-entry picker and
+  the "Target schedule is reversed" controls for both sides are now present, enabled only for
+  mirrored target schedules; target changes clear the stored entry id and direction. They are
+  compile-verified but have not been exercised in an interactive game. They are additional UI
+  work beyond the schedule/consist UI previously treated as finished.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
@@ -193,10 +197,22 @@ explorer's treatment of consist orders.
   portion's schedule to the target line/convoy schedule at the target entry.
 - **Y/H-shaped path-explorer traversal** — the explorer never reads couple/uncouple targets;
   connexions are computed within one schedule only (linear/cyclic + mirrored). Journeys through a
-  join/split cannot be discovered or time-estimated. **Design agreed and documented
-  in [yh-path-explorer](yh-path-explorer.md)**; it must satisfy the kernel requirements and
-  staged SIMD position (design SIMD-compatible → scalar verified → SIMD immediately after) in
-  [path-explorer-optimisation](../path-explorer-optimisation.md) [RECOLLECTION:2026-09-19].
+  join/split cannot be discovered or time-estimated. **Design revised 2026-11-07 and documented
+  in [yh-path-explorer](yh-path-explorer.md)**: through connexions are direct phase-2 records
+  whose time is the actual recorded through pair, with the existing accumulated-leg fallback;
+  phase 5 is unchanged. `target_unique_entry_couple` and `couple_target_sch_is_reversed` were
+  added to `schedule_entry_t` (savegame revision 8). The phase-2 generation, the cross-boundary
+  predicate, the depth setting and the GUI controls are implemented and committed at
+  `f4f6fd2b5`. A TEST-gated
+  hook on `month-boundary.sve` passed seven modes: uncouple, one-sided couple, reversed target,
+  mirrored source reverse pass, nested couplings (record present at depth 64, absent at depth 1),
+  broken target (no record) and blocked coupling (no record), plus a repeated-refresh determinism
+  check. The TEST hook was removed before commit. The category/class consist-order predicate,
+  cross-process determinism of saves containing couplings and interactive GUI operation remain
+  untested. The work must satisfy
+  the kernel requirements and staged SIMD position in
+  [path-explorer-optimisation](../path-explorer-optimisation.md) [RECOLLECTION:2026-09-19;
+  revised 2026-11-07].
 - **Two-party coupling; dead-lock avoidance** — waiting for an absent named target now exists
   (`convoi_t::AWAITING_RECOMBINATION`, deliberately without a timeout
   [RECOLLECTION:2026-11-03 user statement]), but there is no two-sided evaluation of the

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ f4f6fd2b5 (Y/H path-explorer changes; design revised 2026-11-07)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -164,14 +164,16 @@ a locomotive [FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.
 
 ### Path exploration
 
-The agreed explorer design records through journeys from saved schedule/order data and saved
-operating state, not live convoy positions or loose-pool contents
-[RECOLLECTION:2026-09-19]. It substitutes through-movement dwell for walking transfer and measures
-dwell per coupling point where data exist; see
+The explorer design records through journeys from saved schedule/order data and saved operating
+state, not live convoy positions or loose-pool contents [RECOLLECTION:2026-09-19]. Revised
+2026-11-07: a through connexion's time is the actual pair time recorded by the consist that
+carries the passengers or goods across the coupling, with the existing accumulated-leg fallback;
+there is no separate dwell term and phase 5 is unchanged. See
 [yh-path-explorer](yh-path-explorer.md). Differing service frequencies and asynchronous collection
 were already considered in the 2018 explorer discussion
-[FORUM:https://forum.simutrans.com/index.php/topic,17892.msg170661.html]. The treatment of waiting
-for a later collecting service remains an open dwell question, not a reason to replace the design.
+[FORUM:https://forum.simutrans.com/index.php/topic,17892.msg170661.html]. The runtime must record
+the through pair across the schedule handover for the actual time to exist; until then the
+fallback applies.
 
 ## Implementation order
 

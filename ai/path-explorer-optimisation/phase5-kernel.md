@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f803ef8ac (code; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays)
+verified: ex-15 @ f4f6fd2b5 (code; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays; Y/H no phase-5 kernel change)
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -296,9 +296,12 @@ oracle harness.]
   inputs are fixed for the duration (invariant), so the result is bit-exact with the CPU kernel.
 - VRAM per compartment: 10 B × H² (0.25 / 1 / 4 GB at H = 5k / 10k / 20k). Finished matrices stay
   in host memory; the download is 6 B × H² per pass.
-- Estimated 0.05–0.2 ms per transfer halt for the sparse cluster-pair work, ≈ 0.5–1 s per
-  compartment at 0.5–1 TB/s. A dense H² update per transfer halt is ~3× the true sparse visit
-  count and takes ~1.5–3 s per compartment.
+- Re-derived from the measured gargantuan data: 42.6–44.0 B true visits per passenger class →
+  511–528 GB at ~12 B of traffic per cell → 0.51–1.06 s at 0.5–1 TB/s. A dense H² update is
+  H² × T = 134.77 B cells → 1.62 TB → 1.62–3.24 s. At 300–500 GB/s: 1.02–1.76 s sparse /
+  3.24–5.39 s dense. The 10 B/cell figure is storage; the traffic is ~12 B/cell (two 4 B reads
+  plus a conditional 4 B write). These are per-compartment estimates; the full refresh adds the
+  other compartments and phases.
 - Needs a compute backend, build integration in three build systems and headless server drivers;
   the CPU path remains authoritative. Network play: limited by the slowest peer (parent doc).
 - Decision [RECOLLECTION:2026-11-06]: open to GPU optimisation, not requiring it; implementation
@@ -306,25 +309,19 @@ oracle harness.]
   be added without redesign:
   - contiguous, pointer-free arrays, including the per-origin-cluster `target_times` row;
   - per-transfer-halt updates expressed as dense operations whose result does not depend on the
-    order of updates (the invariant above), with any Y/H adjustment as a per-cluster-pair value;
+    order of updates (the invariant above); Y/H needs no adjustment because through records are
+    direct cells and phase 5 is unchanged;
   - iteration counting and stop points defined from the data, not from the executing engine;
   - one selection point for the kernel implementation, with the scalar CPU path complete,
     default and the verification oracle.
 
 ## Y/H requirements on the kernel
 
-- The through-journey substitution (→ [ex-15 yh-path-explorer](../ex-15/yh-path-explorer.md),
-  "Through-journey substitution") depends only on the inbound and outbound cluster transports at
-  the transfer halt. It is therefore one constant per (origin cluster, target cluster) pair:
-  compute it once per pair outside the inner loop (sparse loop) or fold it into `target_times`
-  (dense loop). The invariant is preserved. This is cheaper than a lookup and a branch per cell.
-  The hook is not implemented.
-- The substituted sum cannot become negative: for a through pair the outbound transport is a
-  linkage, so the first connexion of `[via][t]` includes via's own transfer time.
-- Through edges recorded in phase 2 span two linkages, but phase 4 sets
-  `first_transport = last_transport`. Through edges need the source linkage as first and the
-  target linkage as last.
-- The added edges change neither the matrix size nor the kernel shape.
+None. Y/H records through connexions as direct phase-2 cells with `first_transport =
+last_transport`; phase 5 composes them like any other record. There is no through-journey
+substitution, no per-cluster-pair adjustment and no second transport field. The added edges change
+neither the matrix size nor the kernel shape. The GPU design therefore has no Y/H-specific
+requirement.
 
 ## Current position and remaining work
 
@@ -336,7 +333,8 @@ revision-6 restart, every finished matrix hash matches the revision-7 resume; `t
 is higher only by the repeated current inbound cluster. Lever 5 (sorted connexion arrays) is
 implemented and measured below; the matrix alignment/padding experiment is rejected below.
 Remaining kernel work: the optional dense/sparse selector (held off), the optional server-path ETW
-capture, the Y/H hooks above, and the GPU lever.
+capture, and the GPU lever. Y/H has no phase-5 kernel work: it is phase-2 only, and its measured
+cost on the gargantuan fixture is within run-to-run noise (parent doc).
 
 ## Verification
 

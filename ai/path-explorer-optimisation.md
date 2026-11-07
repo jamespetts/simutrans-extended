@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f803ef8ac (code; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays); master @ 6194cd341 (shared closure code)
+verified: ex-15 @ f4f6fd2b5 (code; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays; Y/H through connexions and measurements); master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -33,7 +33,10 @@ cross-class difference. The work stays on `ex-15` until 15.x itself is merged in
 not ported to `master` separately (user decision 2026-11-07). Remaining work: the optional
 server-path ETW capture, the Y/H hooks and the later levers. Lever 5 (sorted connexion arrays) is
 implemented and measured. Matrix base alignment and padded row strides were tested and rejected
-(see below). The dense/sparse selector is held off (2026-11-07), not rejected.
+(see below). The dense/sparse selector is held off (2026-11-07), not rejected. The Y/H phase-2
+addition measured within run-to-run noise at 0/10/50 couplings on the gargantuan fixture
+(2026-11-07). The GPU estimates are re-derived from the measured 42.6–44.0 B true visits and the
+H² × T cell count at ~12 B of traffic per cell (Lever 9), not from the 10 B/cell storage figure.
 Figures marked [UNVERIFIED] are derivations from code structure, not measurements. Current
 measured cost: [EXECUTION-VERIFIED:2026-11-07, `ex-15` @ f803ef8ac, Profile (server) x64; oracle
 harness].
@@ -215,7 +218,7 @@ lever 8 (a different representation).
 | 6 | Phase-2 micro-optimisations (`get_average_waiting_time` copies 32 samples by value) | small | yes | none |
 | 7 | Per-source Dijkstra rows instead of the closure | H·E instead of H³: ~5× at H = 5k, ~10× at ≥ 10k; scales with threads | **no** (→ engine-semantics) | needs per-transport state at coupling halts |
 | 8 | Compact distance oracle (hub labels) | memory O(H·L) instead of O(H²); ~1 µs queries; smaller saves | **no**; as 7 on the same graph | needs adaptation |
-| 9 | GPU per-transfer-halt update | ~0.5–1 s per compartment at H = 5k with sparse cluster-pair work; ~1.5–3 s with a dense H² update per transfer [UNVERIFIED] | yes, if it reproduces the CPU kernel | compatible |
+| 9 | GPU per-transfer-halt update | Sparse cluster-pair kernel: 0.51–1.06 s per compartment at 0.5–1 TB/s; dense H²: 1.62–3.24 s. At 300–500 GB/s: 1.02–1.76 s / 3.24–5.39 s. These follow from the measured 42.6–44.0 B true visits and H² × T = 134.77 B dense cells at ~12 B of traffic per cell, not from the 10 B storage figure. From the measured 94.2 s full-refresh CPU baseline: ≈4–10 s (sparse, high-end), ≈10–21 s (dense, high-end), ≈6–12 s / ≈18–32 s at mid-range. [UNVERIFIED derivation; measured visit counts] | yes, if it reproduces the CPU kernel | no GPU-side Y/H adjustment: through records are direct cells and phase 5 is unchanged |
 | 10 | AVX2 via runtime dispatch | small once bandwidth-bound | yes | — |
 
 Designs, proofs and rules for levers 1–5, 9 and 10 → [phase5-kernel](path-explorer-optimisation/phase5-kernel.md);
@@ -243,6 +246,27 @@ was reverted: the indexing complexity, platform-specific allocation and the row/
 trade-off are not justified by the measured effect. [EXECUTION-VERIFIED:2026-11-07, ex-15 @
 7bf8a0f81, Profile (server) x64; oracle harness.]
 
+### Y/H phase-2 cost (measured)
+
+The Y/H through-connexion generation adds work to phase 2 only. On the gargantuan fixture
+(`bb-10-sep-2023.sve`, Profile (server) x64, `threads = 4`), the full unbudgeted refresh measured:
+
+| Configuration | Pass 0 | Pass 1 |
+|---|---:|---:|
+| Control: Y/H work skipped | 95.58 s | 94.27 s |
+| Y/H enabled, 0 couplings | 90.11 s | 96.01 s |
+| Y/H enabled, 10 couplings | 94.46 s | 94.77 s |
+| Y/H enabled, 50 couplings | 93.89 s | 94.78 s |
+
+The differences are below the run-to-run variation (the 90.11 s pass is an outlier; the remaining
+passes span 93.9–96.0 s). The 0-coupling path only scans each schedule for coupling flags; the
+10- and 50-coupling cases add the through records but phase 5 is unchanged. No measurable
+regression was detected at these densities; a phase-2-only timer or more repetitions would be
+needed to resolve a sub-1% effect. The measurement used a temporary TEST hook
+(`SIMUTRANS_YH_PERF` / `SIMUTRANS_YH_CONTROL`), removed before commit.
+[EXECUTION-VERIFIED:2026-11-07, ex-15, Profile (server) x64; 913 lines available, 0/10/50
+couplings.]
+
 ## Combined projection (passenger compartment, H ≈ 5k)
 
 Current is measured (dense SSE2 plus the phase-5 pool); later stages are [UNVERIFIED]
@@ -250,10 +274,12 @@ projections from the lever estimates.
 
 | Stage | CPU per compartment pass | Full refresh cycle at the 64 ms budget |
 |---|---|---|
-| Current (dense SSE2 + pool, measured) | ~16–18 s per passenger class at H ≈ 5.4k with three pool threads (106.47 s run total including load, against 214.77 s single-thread; original sparse loop 77.6–79.4 s per class) | proportionally shorter, or a lower budget |
+| Current (dense SSE2 + pool, measured) | ~17–19 s per passenger class at H ≈ 5.4k with three pool threads; full unbudgeted refresh **94.2 s** excluding load (2026-11-07). Earlier run total including load was 106.47 s, against 214.77 s single-thread; original sparse loop 77.6–79.4 s per class | proportionally shorter, or a lower budget |
 | + optional dense/sparse selector | removes the small-map regression; no change on large maps | — |
 | Lever 7, threaded | ~5–8 s | ~1–2 min |
-| Lever 9 | ~0.5–1 s (sparse cluster-pair kernel) | seconds (single-player) |
+| Lever 9, sparse cluster-pair, 0.5–1 TB/s | ~0.5–1.1 s | ≈4–10 s full refresh |
+| Lever 9, dense H², 0.5–1 TB/s | ~1.6–3.2 s | ≈10–21 s |
+| Lever 9, 300–500 GB/s | ~1.0–1.8 s sparse / ~3.2–5.4 s dense | ≈6–12 s / ≈18–32 s |
 
 The current gains can be taken as fresher routes or as a lower
 `path_explorer_time_midpoint`, which returns CPU and memory bandwidth to the simulation.
@@ -319,11 +345,15 @@ holds CPU share near its target.
   hardware is available to run the oracle. Whether to add a CI execution run (or accept
   compile-only) is open.
 - How large do hub labels become on dense town walking networks?
-- GPU backend: the cost/benefit analysis that decides whether to implement it (inputs: current
-  CPU pass times, the share of players and servers with suitable GPUs, the slowest-peer limit in
-  network play, and the build and maintenance cost of a compute backend). A GPU backend must keep
-  the working matrix resident and process the same cells as the current dense kernel; a sparse
-  cluster-pair kernel does far less work than a dense H² update per transfer halt.
+- GPU backend: the cost/benefit analysis that decides whether to implement it. Inputs: the
+  measured 94.2 s full unbudgeted CPU refresh (17–19 s per large passenger class); the share of
+  players and servers with suitable GPUs; the slowest-peer limit in network play; and the build
+  and maintenance cost of a compute backend. The estimates above are per compartment at 0.5–1
+  TB/s; mid-range 300–500 GB/s cards scale the times by roughly 1–3.3x. A sparse cluster-pair
+  kernel does about one third of the cell work of a dense H² update per transfer halt. VRAM is
+  10 B x H² per compartment (289 MB at H ≈ 5,375; 1 GB is sufficient for the gargantuan fixture,
+  4 GB covers H ≤ 10k, 8–12 GB covers H ≈ 20k); finished matrices stay in host memory. Y/H needs
+  no GPU-side adjustment: through records are direct cells and phase 5 is unchanged.
 - If lever 7 or 8 is adopted, which companion boarding rule (stay aboard, or a stored next
   linkage) is chosen (→ [engine-semantics](path-explorer-optimisation/engine-semantics.md))?
   Comfort routing makes a boarding rule mandatory regardless of lever 7.
