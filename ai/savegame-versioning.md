@@ -32,7 +32,7 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
 
 ## Loading & refusal
 
-- `loadsave_t::rd_open` (dataobj/loadsave.cc): `FILE_STATUS_ERR_NO_VERSION` if unversioned; `FILE_STATUS_ERR_FUTURE_VERSION` if base version > `SIM_VERSION_MAJOR*1000 + SIM_SERVER_MINOR`, or if the Extended major version or Extended save revision is newer than the build. The Extended revision is checked after the explicit revision long has been read from the stream, because that long is authoritative for saves [CODE ex-15 @ 011f9a23a].
+- `loadsave_t::rd_open` (dataobj/loadsave.cc): `FILE_STATUS_ERR_NO_VERSION` if unversioned; `FILE_STATUS_ERR_FUTURE_VERSION` if base version > `SIM_VERSION_MAJOR*1000 + SIM_SERVER_MINOR`, or if the Extended major version or Extended save revision is newer than the build. The Extended revision is checked after the explicit revision long has been read from the stream, because that long is authoritative for saves [CODE ex-15 @ 011f9a23a; verified by patching a valid revision-6 binary save to revision 7 in the header string and the revision long: the build refuses it and generates a new world, while the unpatched body loads and reproduces the established matrix hash — EXECUTION-VERIFIED:2026-11-07].
 - `karte_t::load` (simworld.cc): rejects version 0 or base version newer than `env_t::savegame_version_str` [CODE].
 - Settings xml (simmain.cc): a newer base, Extended version or Extended revision is now refused by `rd_open` before the file is opened; the later version check remains as a guard. A refused file is left in place rather than deleted [CODE ex-15 @ 011f9a23a].
 - Network transfer handles the future-version status in network/network_file_transfer.cc; a newer server revision now reaches the "Server version too new" branch instead of being parsed [CODE ex-15 @ 011f9a23a].
@@ -66,11 +66,4 @@ In-file warning (simversion.h): when changing versions, also update gui/settings
 
 ## Open questions
 
-- **Extended-series future refusal for savegames**: resolved for savegames, network transfer and
-  settings XML by the `rd_open` Extended-version/revision check (2026-11-07). A 14.x client now
-  refuses a 15.x savegame cleanly, and a 15.x build refuses a save from a newer 15.x revision,
-  before parsing any changed field. Verified by patching a valid revision-6 binary save to
-  revision 7 in both the header string and the explicit revision long: the fixed build refuses it
-  and generates a new world, while the unpatched body loads and reproduces the established matrix
-  hash [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 011f9a23a].
 - Does the load/save UI (gui/loadsave_frame.cc, dataobj/sve_cache.cc) filter or mark version-incompatible files? (Verify from code in a later pass.)

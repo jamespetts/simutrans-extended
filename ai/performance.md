@@ -286,22 +286,18 @@ removed at load) — repeat before acting on the deltas.
    requested every `reroute_check_interval_steps` (default 8192) and monthly, not only by
    changes, but the budget controller spends only `path_explorer_time_midpoint` (default
    64 ms) per simulation step, so its CPU share in a short window does not indicate dormancy.
-   A full unbudgeted pass measured 9.49 s at H ≈ 1.8k and 394.7 s at H ≈ 5.4k (2026-11-06;
-   phase 5 is 86% / 99.6% of those passes). These are the pre-optimisation baselines: levers 1-3
-   are implemented on `path-explorer-optimisation` (2026-11-07) and reduce the phase-5 cost
-   substantially (summary below). The true phase-5 target visits are ~44 B per passenger class at
-   H ≈ 5.4k at ~1.8 ns each; the `total_iterations` diagnostic is a `uint64`
-   (save revision 6 or later; current revision 7 on `ex-15`). Under normal server pacing on the gargantuan fixture, a 2,400 s capture
-   was busy 96.1% of steps with ~60 ms of explorer work per step; a full five-class cycle took
-   18–20 min wall.
-   Without an induced request the same fixture was idle for the first 296 steps after load,
-   so short-window CPU share reflects the periodic request interval, not the pass cost. It
-   was near-dormant in the 2026-09-10 fixture window (`get_path_between` 0.5% incl,
-   `path_explorer_threaded` 0.007%) [EXECUTION-VERIFIED:2026-09-10]; see the measurement
-   results for the full-pass context. User datum 2026-11-06: CPU cores are underused during
-   normal gameplay even on large maps, and route staleness is a real in-game problem, so
-   extra path-explorer threads and higher CPU load to shorten the rebuild cycle are
-   worthwhile, subject to the sync rules [RECOLLECTION:2026-11-06]. Optimisation options →
+   A full unbudgeted pass with the current dense SIMD kernel measures 18.88 s at H ≈ 1.8k and
+   214.77 s at H ≈ 5.4k (run totals including load; phase 5 dominates). The sparse loop is faster
+   on the smallest fixture and slower on the gargantuan, and is the planned selector fallback; its
+   cost and the topology scaling are in [path-explorer-optimisation](path-explorer-optimisation.md).
+   The `total_iterations` diagnostic is a `uint64` (save revision 7). The controller is dormant
+   between periodic requests and budget-capped during a pass; at the default 8192-step interval the
+   duty cycle depends on server speed and the pass duration. Query cost was 0.5% incl on the
+   gargantuan fixture (`path_explorer_threaded` 0.007%) [EXECUTION-VERIFIED:2026-09-10]. User
+   datum 2026-11-06: CPU cores are underused during normal gameplay even on large maps, and route
+   staleness is a real in-game problem, so extra path-explorer threads and higher CPU load to
+   shorten the rebuild cycle are worthwhile, subject to the sync rules
+   [RECOLLECTION:2026-11-06]. Optimisation options →
    [path-explorer-optimisation](path-explorer-optimisation.md).
 10. **Display — simview/simgraph pipeline.** Secondary in server-paced running on this fixture
     (`main_view_t::display_region` 4.9% incl), but dominated a CaptureGui window on the small
@@ -332,19 +328,16 @@ and per-hotspot verdicts: [simd-applicability](simd-applicability.md).
 
 ### Path explorer optimisation — summary
 
-The refresh closure (phase 5) dominates a full pass (86% at H ≈ 1.8k; 99.6% at H ≈ 5.4k); the
-matrices and savegame data grow as O(H²). Measured 2026-11-06 with 64-bit counters (the
-pre-optimisation baseline), the true target visits grow from 0.85 B to 44 B per passenger class
-over H 1.8k → 5.4k (~H^3.65) and cost ~1.8–2.1 ns each; H³ understates the growth by about 2×.
-The five measured passenger-class counts at H ≈ 5.4k are 44.04 / 43.36 / 43.26 / 42.70 / 43.90 B.
-Levers 1-3 are implemented on `path-explorer-optimisation` (2026-11-07): flat arrays (-40-56%
-phase-5 time), the dense loop reorder and the SSE2/NEON kernels. SSE2 is 1.77-2.59x faster than
-the dense scalar and 19% faster than the sparse loop on the gargantuan run total, roughly
-break-even on the intermediates and 8% slower on the smallest; a dense/sparse selector is
-optional. NEON is compile-verified by the native macOS CI. GPU acceleration is limited in network
-play by the slowest peer; memory beyond ~20–25% savings needs a different representation.
-Per-packet route search at decision time is rejected. Full assessment, levers, constraints and
-results: [path-explorer-optimisation](path-explorer-optimisation.md).
+The refresh closure (phase 5) dominates a full pass; the matrices and savegame data grow as O(H²).
+The current implementation uses flat matrices, a dense per-origin target row and SSE2/NEON kernels.
+Measured run totals are 18.88 s at H ≈ 1.8k and 214.77 s at H ≈ 5.4k (including load). SSE2 is
+1.77-2.59x faster than the dense scalar and 19% faster than the sparse loop on the gargantuan run
+total, roughly break-even on the intermediates and 8% slower on the smallest; a dense/sparse
+selector is optional. NEON is compile-verified by the native macOS CI. The sparse fallback's cost
+and the topology scaling are in [path-explorer-optimisation](path-explorer-optimisation.md). GPU
+acceleration is limited in network play by the slowest peer; memory beyond ~20–25% savings needs a
+different representation. Per-packet route search at decision time is rejected. Full assessment,
+levers, constraints and results: [path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
 

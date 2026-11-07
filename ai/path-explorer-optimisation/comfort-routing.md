@@ -172,13 +172,13 @@ precomputed table. This favours 7b over 7a if lever 7 is adopted (→
 ## Sequencing against the optimisation work
 
 Comfort weights are computed in phase 2 and do not change the comparison loop, so the
-weight/scales/pakset/revenue work can proceed in parallel. The cell layout is fixed and
-implemented (2026-11-07): one 4-byte cost field (`finished_times`/`working_times`, currently the
-aggregate time; it can hold the blended cost when comfort weights land) and the 2-byte next stop
+weight/scales/pakset/revenue work can proceed in parallel. The cell layout is fixed: one 4-byte
+cost field (`finished_times`/`working_times`, currently the aggregate time; it can hold the
+blended cost when comfort weights land) and the 2-byte next stop
 (`finished_next_transfers`/`working_next_transfers`), with no separate discomfort array. The
 measured memory and performance results support B over S and uniform over banded sensitivity.
 Adding a discomfort array later needs a savegame step and one refresh, but the flat arrays leave
-room for it [analysis, 2026-11-06; layout implemented 2026-11-07].
+room for it [analysis, 2026-11-06].
 
 ## Blended (B) or separate (S) storage
 
@@ -186,13 +186,13 @@ room for it [analysis, 2026-11-06; layout implemented 2026-11-07].
 - **S:** B plus a 2-byte discomfort total D for the stored route (actual time = cost − D), packed
   beside the next stop.
 
-| Bytes per cell | Before lever 1 | B (implemented) | S |
-|---|---|---|---|
-| Finished table | 8 | 6 | 8 |
-| Working table | 12 | 10 | 12 |
-| Savegame | 6 | 6 | 8 |
+| Bytes per cell | B (current) | S (alternative) |
+|---|---|---|
+| Finished table | 6 | 8 |
+| Working table | 10 | 12 |
+| Savegame | 6 | 8 |
 
-Peak with 5 large compartments: before lever 1 and S 1.3 / 5.2 / 20.8 GB, B 1.0 / 4.0 / 16.0 GB at
+Peak with 5 large compartments: S 1.3 / 5.2 / 20.8 GB, B 1.0 / 4.0 / 16.0 GB at
 H = 5k / 10k / 20k. Compute: with levers 0–6 S is within ~1–2% of B (routes are still chosen on
 the blended cost; D is written only when a cell improves and is read beside the next stop)
 [UNVERIFIED].
@@ -206,8 +206,8 @@ statistics. Both can be had without per-cell storage:
   (~1–5 µs per failed passenger; approximate, adequate for statistics);
 - drop tie-breaking by actual time; no GUI reads table times.
 
-B is implemented; with these measures, a D array can be added later beside the next-stop array
-(savegame version step and one refresh) without changing the kernel's comparison.
+With these measures, a D array can be added later beside the next-stop array (savegame version
+step and one refresh) without changing the kernel's comparison.
 
 ## Individual comfort sensitivity
 
@@ -263,7 +263,7 @@ most max(s, 1/s) times their optimum. A whole-trip cap has no such bound.
 - Stop facility data in the pakset: which buildings, which attribute, per goods category?
 - Line comfort for an edge: capacity- or frequency-weighted mean of the line's convoys, or the
   minimum?
-- S storage (B is implemented; S would add a 2-byte discomfort array and a savegame step).
+- S storage (would add a 2-byte discomfort array and a savegame step).
 - Is individual comfort sensitivity in route choice required (bands), or is uniform weighting
   accepted?
 - Penalty from waiting samples (recommended) or from the mean?
