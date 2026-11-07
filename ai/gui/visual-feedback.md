@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d6bf8f3e7
+verified: ex-15 @ d6bf8f3e7 (rest); ex-15 @ edd49a130 (scripting note)
 ---
 # Visual feedback for GUI work
 
@@ -15,11 +15,12 @@ For text-only geometry verification (no pixels) see [gui-layout-dump](layout-dum
 
 ## Why a compiled hook
 
-Squirrel scripting is non-working in Extended (→ [scripting-and-tests](../scripting-and-tests.md)),
-so scenarios cannot drive the GUI. The automation surface is therefore two small hooks in the
-simmain.cc main loop, compiled ONLY when `SIMUTRANS_UI_AUTOMATION` is defined, so shipped and
-CI binaries never carry it. The feature is for UI iteration only; do not grow it into
-gameplay/test automation.
+Scenario scripting cannot drive the GUI: the scenario host's tool-call suspension is never
+resumed, so a scenario that calls a tool during `start` hangs (→
+[scripting-and-tests](../scripting-and-tests.md)) [CODE ex-15 @ edd49a130]. The automation
+surface is therefore two small hooks in the simmain.cc main loop, compiled ONLY when
+`SIMUTRANS_UI_AUTOMATION` is defined, so shipped and CI binaries never carry it. The feature is
+for UI iteration only; do not grow it into gameplay/test automation.
 
 ## Build gates
 

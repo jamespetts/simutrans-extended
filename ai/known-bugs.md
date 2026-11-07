@@ -47,8 +47,9 @@ Rank on discovery; re-rank on triage.
   not read. Descriptions are the topic titles. Re-rank and expand on triage.
 - Excluded: guidance/meta stickies, moved-topic redirects, junk posts, OTRP-fork-specific
   reports, patch/pull-request threads, pure question threads.
-- Scripting-specific bugs are not tracked here at all: the scripting system is non-working
-  in Extended and low priority (→ [scripting-and-tests](scripting-and-tests.md)).
+- Scripting-specific bugs are not tracked here at all: the Squirrel scenario host is
+  non-working (its tool-call suspension is never resumed) and low priority
+  (→ [scripting-and-tests](scripting-and-tests.md)).
 
 ## Detailed entries
 

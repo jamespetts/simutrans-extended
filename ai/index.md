@@ -33,6 +33,7 @@ Note: the documents may be nested. Only top level documents are shown here.
 
 - [high-level-design-goals](high-level-design-goals.md) — read when doing any design work on a feature: the project's normative design goals (realism, economics, multiplayer balance) that new features must serve.
 - [project-roadmap](project-roadmap.md) — read when planning what features to add in what order: registry of planned features with balance-critical/simple/15.x markers; also check after implementing a feature to close its entry (per [conventions](conventions.md)).
+- [bot-api](bot-api.md) — read when planning an external AI/bot interface, assessing whether an AI can build new infrastructure or only maintain existing infrastructure, adding query or planning functions to the Squirrel API, or automating a company in a network game.
 - [data-layout-and-design-style](data-layout-and-design-style.md) — read when choosing or reviewing a container/data layout, wondering whether a path is OOP or data-oriented, or considering restructuring a hot path for cache/bandwidth reasons.
 - [simd-applicability](simd-applicability.md) — read when considering SIMD/intrinsics work in any simulation code path: baseline-ISA and determinism constraints, per-hotspot verdicts.
 - [path-explorer-optimisation](path-explorer-optimisation.md) — read when doing ANY work on path-explorer (routing database) performance or memory, changing route semantics, implementing the ex-15 Y/H changes in phase 5, or considering per-packet routing, SIMD or GPU for routing: cost model, levers, constraints, staged SIMD position, measurement plan.
@@ -65,6 +66,6 @@ Note: the documents may be nested. Only top level documents are shown here.
 
 - [gui](gui.md) — read when touching windows, frames, GUI components, themes, or any user-interface work.
 - [rendering](rendering.md) — read when touching drawing, graphics backends, images, colours, or the viewport.
-- [scripting-and-tests](scripting-and-tests.md) — read when touching the Squirrel API, scenarios, or the automated tests in tests/.
+- [scripting-and-tests](scripting-and-tests.md) — read when touching the Squirrel VM or API, scenarios, or the automated tests in tests/, or when assessing what world state a script can read.
 - [performance](performance.md) — read when doing ANY performance work, profiling or benchmarking, or when a change touches code that runs under step()/sync_step(): the canonical profiling suite (gargantuan-save fixture, scripts/run-perf-suite.ps1) and the full hotspot inventory. Per-area hotspot summaries live in the domain docs themselves (see the protocol note above).
 - [utilities](utilities.md) — read when touching tpl/ containers, utils/, sys/ platform backends, sound/music, or unicode/ICU. Threading → [threading](threading.md).

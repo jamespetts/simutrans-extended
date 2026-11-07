@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 78a4bb3b9
+verified: master @ 78a4bb3b9; ex-15 @ edd49a130 (scripted-call note)
 ---
 # Network & multiplayer architecture
 
@@ -28,6 +28,7 @@ Deterministic lockstep: only commands travel during play; full game state travel
 - `network_broadcast_world_command_t`: server-side pattern — server validates via virtual `clone()`, re-stamps `sync_step = welt->get_sync_steps()+1`, sets `exec=true`, broadcasts to ALL peers including itself; clients' `exec` packets are refused. On the server, own broadcasts are re-queued via `sent_by_server()` so server and clients share one execution path [CODE].
 - Command inventory [CODE]:
   - `nwc_tool_t` (NWC_TOOL) — the workhorse: serialised `tool_t` invocation (tool_id, pos, init vs work, flags, player_nr, ≤256 bytes custom_data). Carries the sender's `last_sync_step` + `last_checklist` (desync guard). `clone()` enforces player unlock + scenario rules (violations become `TOOL_ERROR_MESSAGE` back to the initiator); `do_command()` re-instantiates the tool and calls init/work/exit; `WFL_LOCAL` only for the initiator. Execution model → [sync-and-determinism](sync-and-determinism.md).
+    Scripted calls: `clone()` clears `WFL_SCRIPT` for commands not sent by the server, and `karte_t::set_tool_api` queues a server-local tool without broadcasting; it is therefore not a safe path for multiplayer-synchronised scripted actions [CODE ex-15 @ edd49a130].
   - `nwc_chg_player_t` (NWC_CHG_PLAYER) — company create/delete/AI/freeplay via `karte_t::change_player_tool`; statics record which connection founded/plays each company (admin reports).
   - `nwc_sync_t` (NWC_SYNC) — full save/reload resync at join or admin force-sync; `do_command()` runs on every peer (see lifecycle).
   - `nwc_check_t` (NWC_CHECK) — server→clients: server's checklist for the previous sync step; comparison happens in `karte_t::do_network_world_command`.
