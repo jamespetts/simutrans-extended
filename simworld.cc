@@ -2213,6 +2213,16 @@ void* path_explorer_threaded(void* args)
 
 	return args;
 }
+
+#ifdef MULTI_THREAD_PATH_EXPLORER
+void* path_explorer_helper_threaded(void* args)
+{
+	const uint32 thread_index = *static_cast<uint32*>(args);
+	delete static_cast<uint32*>(args);
+	path_explorer_t::worker_thread(thread_index);
+	return NULL;
+}
+#endif
 #endif
 
 void karte_t::await_path_explorer()
@@ -2434,10 +2444,23 @@ void karte_t::init_threads()
 
 #ifdef MULTI_THREAD_PATH_EXPLORER
 
+	path_explorer_t::initialise_thread_pool((uint32)parallel_operations);
+
 	rc = pthread_create(&path_explorer_thread, &thread_attributes, &path_explorer_threaded, (void*)this);
 	if (rc)
 	{
 		dbg->fatal("void karte_t::init_threads()", "Failed to create path explorer thread, error %d. See here for a translation of the error numbers: http://epydoc.sourceforge.net/stdlib/errno-module.html", rc);
+	}
+	for (uint32 i = 1; i < (uint32)parallel_operations; ++i)
+	{
+		uint32* thread_number = new uint32;
+		*thread_number = i;
+		rc = pthread_create(&thread, &thread_attributes, &path_explorer_helper_threaded, (void*)thread_number);
+		if (rc)
+		{
+			dbg->fatal("void karte_t::init_threads()", "Failed to create path explorer helper thread, error %d. See here for a translation of the error numbers: http://epydoc.sourceforge.net/stdlib/errno-module.html", rc);
+		}
+		path_explorer_threads.append(thread);
 	}
 	path_explorer_working = false;
 #endif
@@ -2481,8 +2504,12 @@ void karte_t::destroy_threads()
 
 		simthread_barrier_wait(&unreserve_route_barrier);
 #ifdef MULTI_THREAD_PATH_EXPLORER
+		path_explorer_t::shutdown_thread_pool();
 		simthread_barrier_wait(&path_explorer_barrier);
 		pthread_join(path_explorer_thread, 0);
+		clean_threads(&path_explorer_threads);
+		path_explorer_threads.clear();
+		path_explorer_t::destroy_thread_pool();
 #endif
 #ifdef MULTI_THREAD_CONVOYS
 		pthread_join(convoy_step_master_thread, 0);

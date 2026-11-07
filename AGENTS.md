@@ -32,7 +32,10 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
 ## Hard rules
 
 1. Use only precise, literal language, including internal reasoning. No metaphors
-   or figurative expressions.
+   or figurative expressions. Do not invent project-specific jargon, shorthand or labels.
+   This is a first-order rule: name the actual code entity (function, file, phase, setting)
+   or describe the mechanism directly (what loops over what, what a boundary lies between),
+   and define any non-standard term at first use.
 2. AI-facing documentation goes ONLY in `ai/` (plus this file). NEVER create documentation
    colocated with code files, and never create new .md files anywhere else in the repo.
 3. Inside `ai/`, use relative markdown links (`[text](file.md)`) — they work in both

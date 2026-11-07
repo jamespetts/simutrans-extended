@@ -115,7 +115,8 @@ after the master→ex-15 merge):
   unlike the MSVC configurations and the usual GNU-make configs, which enable MULTI_THREAD),
   `SIMUTRANS_VALGRIND_SUPPORT`, `SIMUTRANS_ENABLE_PROFILING`, `SIMUTRANS_USE_SYSLOG`,
   `SIMUTRANS_USE_IP4_ONLY`, `SIMUTRANS_STEAM_BUILT`, `DEBUG_FLUSH_BUFFER`, `ENABLE_WATERWAY_SIGNS`,
-  `AUTOJOIN_PUBLIC`, `SIMUTRANS_MSG_LEVEL` (default 3), plus USE_ZSTD/UPNP/FREETYPE/FLUIDSYNTH paths.
+  `AUTOJOIN_PUBLIC`, `SIMUTRANS_MSG_LEVEL` (default 3), `SIMUTRANS_USE_SSE2`/`SIMUTRANS_USE_NEON`
+  (force the path explorer SIMD backend; normally auto-detected), plus USE_ZSTD/UPNP/FREETYPE/FLUIDSYNTH paths.
 - Outputs: `build/simutrans/`, `build/makeobj/`, `build/nettools/`; MSVC adds per-config subdirs.
 - Custom target `test` runs the binary with `-use_workdir -objects pak128.britain-ex-nightly
   -scenario automated-tests -debug 2 -lang en -fps 100` (→ [scripting-and-tests](scripting-and-tests.md)).
@@ -131,8 +132,8 @@ after the master→ex-15 merge):
   `../uncommon.mk`. Top-level targets: `all`, `clean`, `makeobj`, `nettool`, `test`.
 - Variables: `BACKEND` (gdi/sdl2/mixer_sdl2/posix), `COLOUR_DEPTH` (0/16), `OSTYPE` (linux, mingw32,
   mingw64, mac, cygwin, haiku, …), `DEBUG` 1–3, `MSG_LEVEL`, `OPTIMISE`, `PROFILE`, `LTO`,
-  `TUNE_NATIVE`, `USE_UPNP`, `USE_FREETYPE`, `USE_ZSTD`, `USE_FLUIDSYNTH_MIDI`, `MULTI_THREAD`,
-  `WITH_REVISION`; Windows `PROG` = `Simutrans-Extended.exe`.
+  `TUNE_NATIVE`, `USE_UPNP`, `USE_FREETYPE`, `USE_ZSTD`, `USE_FLUIDSYNTH_MIDI`, `USE_SSE2`, `USE_NEON`,
+  `MULTI_THREAD`, `WITH_REVISION`; Windows `PROG` = `Simutrans-Extended.exe`.
 - `test` target: runs the built binary with `-set_workdir $(pwd)/simutrans -objects pak -scenario
   automated-tests -debug 2 -lang en -fps 100` (note: differs from the CMake `test` target).
 - Configuration sources: copy `config.template` → `config.default`; presets in `configs/`
@@ -141,6 +142,28 @@ after the master→ex-15 merge):
   `autoconf && ./configure` fills `config.default` from `config.default.in` + `configure.ac`
   (detects libs/OS/backend; `--enable-server` for headless). CI's test workflows use this route.
 - `OSX/osx.mk` adds macOS bundle rules when `OSTYPE=mac`.
+
+## SIMD backends (USE_SSE2 / USE_NEON)
+
+- `path_explorer.cc` has three implementations of the dense phase-5 row sweep: scalar, SSE2 and
+  NEON. The scalar version is the oracle and the fallback. The source selects one at compile time;
+  they are mutually exclusive and defining both is a compile-time error.
+- Without a build definition the source detects the backend from compiler macros: `_M_X64`,
+  `_M_IX86_FP >= 2` or `__SSE2__` selects SSE2; `__aarch64__` or `_M_ARM64` selects NEON; anything
+  else uses scalar. `USE_SSE2` and `USE_NEON` are the generic override macros.
+- GNU make: `USE_SSE2=1` or `USE_NEON=1` adds `-DUSE_SSE2` / `-DUSE_NEON`; see the commented block
+  in `Makefile`. 32-bit x86 also needs `-msse2` in `CFLAGS`.
+- CMake: `-DSIMUTRANS_USE_SSE2=ON` or `-DSIMUTRANS_USE_NEON=ON` adds the corresponding definition;
+  see the commented options in `cmake/SimutransCompileOptions.cmake`. The root `CMakeLists.txt`
+  rejects both being ON.
+- MSVC solutions need no change: x64 defines `_M_X64` and ARM64 defines `_M_ARM64`, so the normal
+  configurations select the backend automatically.
+- SSE2 is the x86-64 baseline and NEON the AArch64 baseline, so ordinary x64 and Apple Silicon
+  builds use SIMD with no flag. Win32 x86 uses scalar unless built with `-msse2` and `USE_SSE2=1`.
+- Verification: SSE2 is execution-verified against the scalar oracle; NEON is compile-verified by
+  the native macOS CI, with execution verification still outstanding
+  (→ [path-explorer-optimisation](path-explorer-optimisation/phase5-kernel.md), Lever 3).
+  [CODE path-explorer-optimisation @ 1b194b2a4]
 
 ## Revision embedding (network-play critical)
 

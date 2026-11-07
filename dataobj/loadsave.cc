@@ -375,6 +375,20 @@ loadsave_t::file_status_t loadsave_t::rd_open(const char *filename_utf8)
 		finfo.ext_version.extended_revision = 0;
 	}
 
+	// Refuse a save from a newer Extended major version or a newer Extended save
+	// revision. Field widths and meanings are only guaranteed up to the build's
+	// own revision, so accepting it can misread the stream from the first
+	// changed field onwards. Checking here covers savegames, network transfers
+	// and the settings XML in one place.
+	if (finfo.ext_version.extended_version != 0
+		&& (finfo.ext_version.extended_version > EX_VERSION_MAJOR
+			|| (finfo.ext_version.extended_version == EX_VERSION_MAJOR
+				&& finfo.ext_version.extended_revision > EX_SAVE_MINOR)))
+	{
+		close();
+		return FILE_STATUS_ERR_FUTURE_VERSION;
+	}
+
 	return FILE_STATUS_OK;
 }
 

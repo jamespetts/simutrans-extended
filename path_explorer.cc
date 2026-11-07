@@ -5,6 +5,35 @@
 
 #include "path_explorer.h"
 
+#include <string.h>
+
+// The dense target-row sweep has one implementation per SIMD backend. SSE2 is
+// the x64 baseline; NEON is the AArch64 baseline. Everything else uses the
+// scalar path, which is also the correctness oracle for both.
+//
+// USE_SSE2 and USE_NEON may be defined by the build system (Makefile, CMake or
+// the MSVC project); otherwise they are detected from the compiler's
+// architecture macros. Only one may be defined.
+#if defined(USE_SSE2) && defined(USE_NEON)
+#	error Only one of USE_SSE2 and USE_NEON may be defined
+#endif
+
+#if !defined(USE_SSE2) && !defined(USE_NEON)
+#	if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || defined(__SSE2__)
+#		define USE_SSE2 1
+#	elif defined(__aarch64__) || defined(_M_ARM64)
+#		define USE_NEON 1
+#	endif
+#endif
+
+#ifdef USE_SSE2
+#	include <emmintrin.h>
+#endif
+
+#ifdef USE_NEON
+#	include <arm_neon.h>
+#endif
+
 #include "tpl/slist_tpl.h"
 #include "dataobj/translator.h"
 #include "bauer/goods_manager.h"
@@ -42,6 +71,16 @@ bool path_explorer_t::must_refresh_on_loading;
 
 #ifdef MULTI_THREAD
 bool thread_local path_explorer_t::allow_path_explorer_on_this_thread = false;
+
+pthread_mutex_t path_explorer_t::compartment_t::pool_mutex;
+pthread_cond_t path_explorer_t::compartment_t::pool_start_cond;
+pthread_cond_t path_explorer_t::compartment_t::pool_done_cond;
+path_explorer_t::compartment_t::pool_batch_t path_explorer_t::compartment_t::pool_batch;
+uint32 path_explorer_t::compartment_t::pool_thread_count = 1;
+uint32 path_explorer_t::compartment_t::pool_generation = 0;
+uint32 path_explorer_t::compartment_t::pool_outstanding = 0;
+bool path_explorer_t::compartment_t::pool_terminating = false;
+bool path_explorer_t::compartment_t::pool_initialised = false;
 #endif
 
 void path_explorer_t::initialise(karte_t *welt)
@@ -475,17 +514,389 @@ bool path_explorer_t::compartment_t::local_limits_changed = false;
 uint16 path_explorer_t::compartment_t::representative_halt_count = 0;
 uint8 path_explorer_t::compartment_t::representative_category = 0;
 
+// The path matrices are stored as one flat block per field. A cell is addressed
+// as row * count + column; the product is computed in size_t so that it cannot
+// overflow a 32-bit int on large maps.
+static inline size_t path_matrix_index(const uint16 row, const uint16 column, const uint16 count)
+{
+	return static_cast<size_t>(row) * static_cast<size_t>(count) + column;
+}
+
+static uint32 *new_time_matrix(const uint16 count)
+{
+	const size_t cells = static_cast<size_t>(count) * static_cast<size_t>(count);
+	uint32 *times = new uint32[cells];
+	memset(times, 0xFF, cells * sizeof(uint32));
+	return times;
+}
+
+static uint16 *new_short_matrix(const uint16 count)
+{
+	const size_t cells = static_cast<size_t>(count) * static_cast<size_t>(count);
+	return new uint16[cells]();
+}
+
+// One cell of the phase-5 relaxation. target_times[] holds [via][t], or
+// UINT32_MAX where t is not a legal target for this transfer and origin cluster.
+static inline void relax_target_cell(const uint32 target,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	const uint32 target_time = target_times[target];
+	if (target_time == UINT32_MAX_VALUE)
+	{
+		return;
+	}
+	const uint32 combined_time = origin_via_time + target_time;
+	if (combined_time < times[target])
+	{
+		times[target] = combined_time;
+		next_transfers[target] = next_transfer;
+		first_transports[target] = first_transport;
+		last_transports[target] = via_last_transports[target];
+	}
+}
+
+#ifdef USE_SSE2
+static void relax_target_row(const uint16 halt_count,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	const __m128i all_ones = _mm_set1_epi32(-1);
+	const __m128i sign_bit = _mm_set1_epi32(static_cast<int>(0x80000000u));
+	const __m128i origin_time = _mm_set1_epi32(static_cast<int>(origin_via_time));
+
+	uint32 target = 0;
+	for (; target + 4 <= halt_count; target += 4)
+	{
+		const __m128i via_times = _mm_loadu_si128(reinterpret_cast<const __m128i *>(target_times + target));
+		const __m128i current = _mm_loadu_si128(reinterpret_cast<const __m128i *>(times + target));
+		const __m128i combined = _mm_add_epi32(origin_time, via_times);
+
+		// SSE2 has no unsigned 32-bit compare: bias both sides by 0x80000000 and
+		// use the signed compare. current > combined is the strict improvement.
+		const __m128i lower = _mm_cmpgt_epi32(
+			_mm_xor_si128(current, sign_bit),
+			_mm_xor_si128(combined, sign_bit));
+		const __m128i improve = _mm_andnot_si128(_mm_cmpeq_epi32(via_times, all_ones), lower);
+
+		if (_mm_movemask_epi8(improve) == 0)
+		{
+			continue;
+		}
+
+		const __m128i updated = _mm_or_si128(
+			_mm_and_si128(improve, combined),
+			_mm_andnot_si128(improve, current));
+		_mm_storeu_si128(reinterpret_cast<__m128i *>(times + target), updated);
+
+		// The 16-bit arrays are written only on improvement, which is rare late in a pass.
+		const uint32 improved_lanes = static_cast<uint32>(_mm_movemask_ps(_mm_castsi128_ps(improve)));
+		for (uint32 lane = 0; lane < 4; ++lane)
+		{
+			if (improved_lanes & (1u << lane))
+			{
+				next_transfers[target + lane] = next_transfer;
+				first_transports[target + lane] = first_transport;
+				last_transports[target + lane] = via_last_transports[target + lane];
+			}
+		}
+	}
+
+	for (; target < halt_count; ++target)
+	{
+		relax_target_cell(target, target_times, times, next_transfers, first_transports,
+			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+	}
+}
+#elif defined(USE_NEON)
+static void relax_target_row(const uint16 halt_count,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	const uint32x4_t all_ones = vdupq_n_u32(UINT32_MAX_VALUE);
+	const uint32x4_t origin_time = vdupq_n_u32(origin_via_time);
+
+	uint32 target = 0;
+	for (; target + 4 <= halt_count; target += 4)
+	{
+		const uint32x4_t via_times = vld1q_u32(target_times + target);
+		const uint32x4_t current = vld1q_u32(times + target);
+		const uint32x4_t combined = vaddq_u32(origin_time, via_times);
+		const uint32x4_t valid = vmvnq_u32(vceqq_u32(via_times, all_ones));
+		const uint32x4_t improve = vandq_u32(vcgtq_u32(current, combined), valid);
+
+		if (vmaxvq_u32(improve) == 0)
+		{
+			continue;
+		}
+
+		vst1q_u32(times + target, vbslq_u32(improve, combined, current));
+
+		uint32 improved_lanes[4];
+		vst1q_u32(improved_lanes, improve);
+		for (uint32 lane = 0; lane < 4; ++lane)
+		{
+			if (improved_lanes[lane] != 0)
+			{
+				next_transfers[target + lane] = next_transfer;
+				first_transports[target + lane] = first_transport;
+				last_transports[target + lane] = via_last_transports[target + lane];
+			}
+		}
+	}
+
+	for (; target < halt_count; ++target)
+	{
+		relax_target_cell(target, target_times, times, next_transfers, first_transports,
+			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+	}
+}
+#else
+static void relax_target_row(const uint16 halt_count,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	for (uint32 target = 0; target < halt_count; ++target)
+	{
+		relax_target_cell(target, target_times, times, next_transfers, first_transports,
+			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+	}
+}
+#endif
+
+void path_explorer_t::compartment_t::help_phase_explore_paths(const uint32 thread_index, const uint32 thread_count,
+	const vector_tpl<uint16> &origin_halt_list, const uint16 via,
+	const uint32 origin_member_begin, const uint32 origin_member_count)
+{
+	if ( thread_count == 0 || origin_member_count == 0 )
+	{
+		return;
+	}
+
+	const uint32 slice_begin = origin_member_begin + (uint32)( ( (uint64)thread_index * origin_member_count ) / thread_count );
+	const uint32 slice_end = origin_member_begin + (uint32)( ( (uint64)( thread_index + 1 ) * origin_member_count ) / thread_count );
+	const size_t via_row = static_cast<size_t>(via) * working_halt_count;
+
+	for ( uint32 member = slice_begin; member < slice_end; ++member )
+	{
+		const uint16 origin = origin_halt_list[member];
+		const size_t origin_row = static_cast<size_t>(origin) * working_halt_count;
+		const size_t origin_via_index = origin_row + via;
+		const uint32 origin_via_time = working_times[origin_via_index];
+
+		if ( origin_via_time != UINT32_MAX_VALUE )
+		{
+			const uint16 next_transfer = working_next_transfers[origin_via_index];
+			const uint16 first_transport = working_first_transports[origin_via_index];
+
+			relax_target_row(working_halt_count, target_times,
+				working_times + origin_row, working_next_transfers + origin_row,
+				working_first_transports + origin_row, working_last_transports + origin_row,
+				working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
+		}
+	}
+}
+
+void path_explorer_t::compartment_t::pool_run(compartment_t *compartment, const vector_tpl<uint16> *origin_halt_list,
+	const uint16 via, const uint32 origin_member_begin, const uint32 origin_member_count)
+{
+#ifdef MULTI_THREAD
+	if ( pool_initialised && pool_thread_count > 1 )
+	{
+		pool_batch_t batch;
+		batch.compartment = compartment;
+		batch.origin_halt_list = origin_halt_list;
+		batch.via = via;
+		batch.origin_member_begin = origin_member_begin;
+		batch.origin_member_count = origin_member_count;
+
+		pthread_mutex_lock(&pool_mutex);
+		pool_batch = batch;
+		pool_outstanding = pool_thread_count - 1;
+		++pool_generation;
+		pthread_cond_broadcast(&pool_start_cond);
+		pthread_mutex_unlock(&pool_mutex);
+
+		// The lead takes slice 0; the helpers take the rest.
+		compartment->help_phase_explore_paths(0, pool_thread_count, *origin_halt_list, via,
+			origin_member_begin, origin_member_count);
+
+		pthread_mutex_lock(&pool_mutex);
+		while ( pool_outstanding != 0 )
+		{
+			pthread_cond_wait(&pool_done_cond, &pool_mutex);
+		}
+		// A helper that starts late must not process this batch again against a
+		// later target_times row; clear the stale pointers before releasing the lock.
+		pool_batch.compartment = NULL;
+		pool_batch.origin_halt_list = NULL;
+		pthread_mutex_unlock(&pool_mutex);
+		return;
+	}
+#endif
+	compartment->help_phase_explore_paths(0, 1, *origin_halt_list, via,
+		origin_member_begin, origin_member_count);
+}
+
+#ifdef MULTI_THREAD
+void path_explorer_t::compartment_t::pool_initialise(const uint32 thread_count)
+{
+	if ( pool_initialised )
+	{
+		return;
+	}
+
+	pthread_mutex_init(&pool_mutex, NULL);
+	pthread_cond_init(&pool_start_cond, NULL);
+	pthread_cond_init(&pool_done_cond, NULL);
+
+	pool_thread_count = thread_count == 0 ? 1 : thread_count;
+	pool_generation = 0;
+	pool_outstanding = 0;
+	pool_terminating = false;
+	pool_batch.compartment = NULL;
+	pool_batch.origin_halt_list = NULL;
+	pool_batch.via = 0;
+	pool_batch.origin_member_begin = 0;
+	pool_batch.origin_member_count = 0;
+	pool_initialised = true;
+}
+
+void path_explorer_t::compartment_t::pool_shutdown()
+{
+	if ( !pool_initialised )
+	{
+		return;
+	}
+
+	pthread_mutex_lock(&pool_mutex);
+	pool_terminating = true;
+	pthread_cond_broadcast(&pool_start_cond);
+	pthread_mutex_unlock(&pool_mutex);
+}
+
+void path_explorer_t::compartment_t::pool_destroy()
+{
+	if ( !pool_initialised )
+	{
+		return;
+	}
+
+	pthread_mutex_destroy(&pool_mutex);
+	pthread_cond_destroy(&pool_start_cond);
+	pthread_cond_destroy(&pool_done_cond);
+	pool_initialised = false;
+}
+
+void path_explorer_t::compartment_t::pool_worker(const uint32 thread_index)
+{
+	uint32 helper_generation = 0;
+
+	pthread_mutex_lock(&pool_mutex);
+	while ( !pool_terminating )
+	{
+		while ( !pool_terminating && pool_generation == helper_generation )
+		{
+			pthread_cond_wait(&pool_start_cond, &pool_mutex);
+		}
+		if ( pool_terminating )
+		{
+			break;
+		}
+
+		helper_generation = pool_generation;
+		const pool_batch_t batch = pool_batch;
+		const uint32 thread_count = pool_thread_count;
+		const bool worked = batch.compartment != NULL && batch.origin_halt_list != NULL;
+		pthread_mutex_unlock(&pool_mutex);
+
+		if ( worked )
+		{
+			batch.compartment->help_phase_explore_paths(thread_index, thread_count,
+				*batch.origin_halt_list, batch.via, batch.origin_member_begin, batch.origin_member_count);
+		}
+
+		pthread_mutex_lock(&pool_mutex);
+		// A helper that starts after a batch was completed sees the cleared batch
+		// and must not consume the outstanding count of a later batch.
+		if ( worked && pool_outstanding > 0 )
+		{
+			--pool_outstanding;
+		}
+		if ( pool_outstanding == 0 )
+		{
+			pthread_cond_broadcast(&pool_done_cond);
+		}
+	}
+	pthread_mutex_unlock(&pool_mutex);
+}
+
+void path_explorer_t::initialise_thread_pool(const uint32 thread_count)
+{
+	compartment_t::pool_initialise(thread_count);
+}
+
+void path_explorer_t::shutdown_thread_pool()
+{
+	compartment_t::pool_shutdown();
+}
+
+void path_explorer_t::destroy_thread_pool()
+{
+	compartment_t::pool_destroy();
+}
+
+void path_explorer_t::worker_thread(const uint32 thread_index)
+{
+	allow_path_explorer_on_this_thread = true;
+	compartment_t::pool_worker(thread_index);
+}
+#endif
+
 path_explorer_t::compartment_t::compartment_t()
 {
 	refresh_start_time = 0;
 
-	finished_matrix = NULL;
+	finished_times = NULL;
+	finished_next_transfers = NULL;
 	finished_halt_index_map = NULL;
 	finished_halt_count = 0;
 
-	working_matrix = NULL;
+	working_times = NULL;
+	working_next_transfers = NULL;
+	working_first_transports = NULL;
+	working_last_transports = NULL;
+	target_times = NULL;
 	transport_index_map = NULL;
-	transport_matrix = NULL;
 	working_halt_index_map = NULL;
 	working_halt_list = NULL;
 	working_halt_count = 0;
@@ -530,39 +941,22 @@ path_explorer_t::compartment_t::compartment_t()
 
 path_explorer_t::compartment_t::~compartment_t()
 {
-	if (finished_matrix)
-	{
-		for (uint16 i = 0; i < finished_halt_count; ++i)
-		{
-			delete[] finished_matrix[i];
-		}
-		delete[] finished_matrix;
-	}
+	delete[] finished_times;
+	delete[] finished_next_transfers;
 	if (finished_halt_index_map)
 	{
 		delete[] finished_halt_index_map;
 	}
 
 
-	if (working_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] working_matrix[i];
-		}
-		delete[] working_matrix;
-	}
+	delete[] working_times;
+	delete[] working_next_transfers;
+	delete[] working_first_transports;
+	delete[] working_last_transports;
+	delete[] target_times;
 	if (transport_index_map)
 	{
 		delete[] transport_index_map;
-	}
-	if (transport_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] transport_matrix[i];
-		}
-		delete[] transport_matrix;
 	}
 	if (working_halt_index_map)
 	{
@@ -612,15 +1006,10 @@ void path_explorer_t::compartment_t::reset(const bool reset_finished_set)
 
 	if (reset_finished_set)
 	{
-		if (finished_matrix)
-		{
-			for (uint16 i = 0; i < finished_halt_count; ++i)
-			{
-				delete[] finished_matrix[i];
-			}
-			delete[] finished_matrix;
-			finished_matrix = NULL;
-		}
+		delete[] finished_times;
+		finished_times = NULL;
+		delete[] finished_next_transfers;
+		finished_next_transfers = NULL;
 		if (finished_halt_index_map)
 		{
 			delete[] finished_halt_index_map;
@@ -630,28 +1019,20 @@ void path_explorer_t::compartment_t::reset(const bool reset_finished_set)
 	}
 
 
-	if (working_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] working_matrix[i];
-		}
-		delete[] working_matrix;
-		working_matrix = NULL;
-	}
+	delete[] working_times;
+	working_times = NULL;
+	delete[] working_next_transfers;
+	working_next_transfers = NULL;
+	delete[] working_first_transports;
+	working_first_transports = NULL;
+	delete[] working_last_transports;
+	working_last_transports = NULL;
+	delete[] target_times;
+	target_times = NULL;
 	if (transport_index_map)
 	{
 		delete[] transport_index_map;
 		transport_index_map = NULL;
-	}
-	if (transport_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] transport_matrix[i];
-		}
-		delete[] transport_matrix;
-		transport_matrix = NULL;
 	}
 	if (working_halt_index_map)
 	{
@@ -1687,19 +2068,11 @@ void path_explorer_t::compartment_t::step()
 			{
 				if (working_halt_count > 0)
 				{
-					// build working matrix
-					working_matrix = new path_element_t*[working_halt_count];
-					for (uint16 i = 0; i < working_halt_count; ++i)
-					{
-						working_matrix[i] = new path_element_t[working_halt_count];
-					}
-
-					// build transport matrix
-					transport_matrix = new transport_element_t*[working_halt_count];
-					for (uint16 i = 0; i < working_halt_count; ++i)
-					{
-						transport_matrix[i] = new transport_element_t[working_halt_count];
-					}
+					// build the working matrices as one flat block per field
+					working_times = new_time_matrix(working_halt_count);
+					working_next_transfers = new_short_matrix(working_halt_count);
+					working_first_transports = new_short_matrix(working_halt_count);
+					working_last_transports = new_short_matrix(working_halt_count);
 
 					// build transfer list
 					transfer_list = new uint16[working_halt_count];
@@ -1777,18 +2150,16 @@ void path_explorer_t::compartment_t::step()
 					}
 
 					// update corresponding matrix element
-					working_matrix[phase_counter][reachable_halt_index].next_transfer = reachable_halt;
-					working_matrix[phase_counter][reachable_halt_index].aggregate_time = current_connexion->waiting_time + current_connexion->journey_time + current_connexion->transfer_time;
-					transport_matrix[phase_counter][reachable_halt_index].first_transport
-						= transport_matrix[phase_counter][reachable_halt_index].last_transport
+					const size_t matrix_index = path_matrix_index(phase_counter, static_cast<uint16>(reachable_halt_index), working_halt_count);
+					working_next_transfers[matrix_index] = reachable_halt.get_id();
+					working_times[matrix_index] = current_connexion->waiting_time + current_connexion->journey_time + current_connexion->transfer_time;
+					working_first_transports[matrix_index]
+						= working_last_transports[matrix_index]
 						= transport_idx;
-
-					// Debug journey times
-					// printf("\n%s -> %s : %lu \n",current_halt->get_name(), reachable_halt->get_name(), working_matrix[phase_counter][reachable_halt_index].journey_time);
 				}
 
 				// Special case
-				working_matrix[phase_counter][phase_counter].aggregate_time = 0;
+				working_times[path_matrix_index(phase_counter, phase_counter, working_halt_count)] = 0;
 
 				++phase_counter;
 
@@ -1884,17 +2255,21 @@ void path_explorer_t::compartment_t::step()
 			printf("\t\tCurrent Step : %lu \n", step_count);
 #endif
 			// temporary variables
-			uint32 combined_time;
-			uint32 target_member_index;
 			uint64 iterations_processed = 0;
 
-			// initialize only when not resuming
-			if ( via_index == 0 && origin_cluster_index == 0 && target_cluster_index == 0 && origin_member_index == 0 )
+			// Build the connection lists and the dense target row once per pass. Test the
+			// pointers rather than the resume counters: the connection lists are saved and
+			// restored across a mid-pass load, while the dense row is rebuilt on demand.
+			if ( inbound_connections == NULL )
 			{
-				// build data structures for inbound/outbound connections to/from transfer halts
 				inbound_connections = new connection_t(64u, working_halt_count);
 				outbound_connections = new connection_t(64u, working_halt_count);
 			}
+			if ( target_times == NULL )
+			{
+				target_times = new uint32[working_halt_count];
+			}
+			target_cluster_index = 0;
 
 			start = dr_time();	// start timing
 
@@ -1902,6 +2277,7 @@ void path_explorer_t::compartment_t::step()
 			while ( via_index < transfer_count )
 			{
 				const uint16 via = transfer_list[via_index];
+				const size_t via_row = static_cast<size_t>(via) * working_halt_count;
 
 				if ( process_next_transfer )
 				{
@@ -1918,13 +2294,13 @@ void path_explorer_t::compartment_t::step()
 						// Register origins by the direction used by the relaxation below (idx to via)
 						// and targets by the opposite direction (via to idx). The two cells can differ
 						// when a connexion exists in one direction only.
-						if ( working_matrix[idx][via].aggregate_time != UINT32_MAX_VALUE )
+						if ( working_times[path_matrix_index(idx, via, working_halt_count)] != UINT32_MAX_VALUE )
 						{
-							inbound_connections->register_connection( transport_matrix[idx][via].last_transport, idx );
+							inbound_connections->register_connection( working_last_transports[path_matrix_index(idx, via, working_halt_count)], idx );
 						}
-						if ( working_matrix[via][idx].aggregate_time != UINT32_MAX_VALUE )
+						if ( working_times[path_matrix_index(via, idx, working_halt_count)] != UINT32_MAX_VALUE )
 						{
-							outbound_connections->register_connection( transport_matrix[via][idx].first_transport, idx );
+							outbound_connections->register_connection( working_first_transports[path_matrix_index(via, idx, working_halt_count)], idx );
 						}
 					}
 
@@ -1940,59 +2316,77 @@ void path_explorer_t::compartment_t::step()
 					const uint16 inbound_transport = origin_cluster.transport;
 					const vector_tpl<uint16> &origin_halt_list = origin_cluster.connected_halts;
 
-					// for each target cluster
-					while ( target_cluster_index < outbound_connections->get_cluster_count() )
+					// Build the dense target row once for this origin cluster: [via][t] where
+					// t is a legal target, or UINT32_MAX otherwise. The same-transport outbound
+					// cluster is skipped, as in the original loop, and via itself is not a target.
+					for ( uint16 t = 0; t < working_halt_count; ++t )
 					{
-						const connection_t::connection_cluster_t &target_cluster = (*outbound_connections)[target_cluster_index];
-						const uint16 outbound_transport = target_cluster.transport;
-						if ( inbound_transport == outbound_transport && inbound_transport != 0u )
-						{
-							++target_cluster_index;
-							continue;
-						}
-						const vector_tpl<uint16> &target_halt_list = target_cluster.connected_halts;
+						const uint32 via_time = working_times[via_row + t];
+						target_times[t] = ( t != via && via_time != UINT32_MAX_VALUE ) ? via_time : UINT32_MAX_VALUE;
+					}
 
-						// for each origin cluster member
-						while ( origin_member_index < origin_halt_list.get_count() )
+					uint32 outbound_member_count = 0;
+					for ( uint32 cluster_index = 0; cluster_index < outbound_connections->get_cluster_count(); ++cluster_index )
+					{
+						const connection_t::connection_cluster_t &target_cluster = (*outbound_connections)[cluster_index];
+						if ( inbound_transport == target_cluster.transport && inbound_transport != 0u )
 						{
-							const uint16 origin = origin_halt_list[origin_member_index];
-
-							// for each target cluster member
-							for ( target_member_index = 0; target_member_index < target_halt_list.get_count(); ++target_member_index )
+							const vector_tpl<uint16> &target_halt_list = target_cluster.connected_halts;
+							for ( uint32 member_index = 0; member_index < target_halt_list.get_count(); ++member_index )
 							{
-								const uint16 target = target_halt_list[target_member_index];
+								target_times[target_halt_list[member_index]] = UINT32_MAX_VALUE;
+							}
+						}
+						else
+						{
+							outbound_member_count += target_cluster.connected_halts.get_count();
+						}
+					}
 
-								if ( working_matrix[origin][via].aggregate_time != UINT32_MAX_VALUE
-									&& ( combined_time = working_matrix[origin][via].aggregate_time
-													 + working_matrix[via][target].aggregate_time )
-											< working_matrix[origin][target].aggregate_time			   )
-								{
-									working_matrix[origin][target].aggregate_time = combined_time;
-									working_matrix[origin][target].next_transfer = working_matrix[origin][via].next_transfer;
-									transport_matrix[origin][target].first_transport = transport_matrix[origin][via].first_transport;
-									transport_matrix[origin][target].last_transport = transport_matrix[via][target].last_transport;
-								}
-							}	// loop : target cluster member
+					if ( outbound_member_count > 0 )
+					{
+						// Process exactly the origins that the single-threaded loop would
+						// reach in this step. The charge per origin is the same for every
+						// origin in the group, so the count is a division, not a rehearsal
+						// of the matrix work. Round up because the loop stops after the
+						// origin that reaches the limit; process at least one origin when
+						// a group is entered with no budget left (the check is after the
+						// origin, not before it).
+						const uint32 origin_count = origin_halt_list.get_count();
+						uint32 members_to_process = origin_member_index < origin_count
+							? origin_count - origin_member_index : 0;
+						if ( use_limits )
+						{
+							const uint64 remaining = iterations_processed < limit_explore_paths
+								? limit_explore_paths - iterations_processed : 0;
+							const uint64 fit = ( remaining + outbound_member_count - 1 ) / outbound_member_count;
+							if ( fit < members_to_process )
+							{
+								members_to_process = (uint32)fit;
+							}
+							if ( members_to_process == 0 && origin_member_index < origin_count )
+							{
+								members_to_process = 1;
+							}
+						}
 
-							++origin_member_index;
+						if ( members_to_process > 0 )
+						{
+							pool_run(this, &origin_halt_list, via, origin_member_index, members_to_process);
 
-							// iteration control
-							iterations_processed += target_halt_list.get_count();
-							total_iterations += target_halt_list.get_count();
+							origin_member_index += members_to_process;
+
+							// iteration control: the same total as the per-target-cluster order
+							iterations_processed += (uint64)members_to_process * outbound_member_count;
+							total_iterations += (uint64)members_to_process * outbound_member_count;
 							if ( use_limits && iterations_processed >= limit_explore_paths )
 							{
 								goto loop_termination;
 							}
+						}
+					}
 
-						}	// loop : origin cluster member
-
-						origin_member_index = 0;
-
-						++target_cluster_index;
-
-					}	// loop : target cluster
-
-					target_cluster_index = 0;
+					origin_member_index = 0;
 
 					++origin_cluster_index;
 
@@ -2058,15 +2452,10 @@ void path_explorer_t::compartment_t::step()
 
 
 				// path search completed -> delete old path info
-				if (finished_matrix)
-				{
-					for (uint16 i = 0; i < finished_halt_count; ++i)
-					{
-						delete[] finished_matrix[i];
-					}
-					delete[] finished_matrix;
-					finished_matrix = NULL;
-				}
+				delete[] finished_times;
+				finished_times = NULL;
+				delete[] finished_next_transfers;
+				finished_next_transfers = NULL;
 				if (finished_halt_index_map)
 				{
 					delete[] finished_halt_index_map;
@@ -2074,23 +2463,22 @@ void path_explorer_t::compartment_t::step()
 				}
 
 				// transfer working to finished
-				finished_matrix = working_matrix;
-				working_matrix = NULL;
+				finished_times = working_times;
+				working_times = NULL;
+				finished_next_transfers = working_next_transfers;
+				working_next_transfers = NULL;
 				finished_halt_index_map = working_halt_index_map;
 				working_halt_index_map = NULL;
 				finished_halt_count = working_halt_count;
-				// working_halt_count is reset below after deleting transport matrix
+				// working_halt_count is reset below after deleting the transport arrays
 
 				// path search completed -> delete auxilliary data structures
-				if (transport_matrix)
-				{
-					for (uint16 i = 0; i < working_halt_count; ++i)
-					{
-						delete[] transport_matrix[i];
-					}
-					delete[] transport_matrix;
-					transport_matrix = NULL;
-				}
+				delete[] working_first_transports;
+				working_first_transports = NULL;
+				delete[] working_last_transports;
+				working_last_transports = NULL;
+				delete[] target_times;
+				target_times = NULL;
 				working_halt_count = 0;
 				if (transfer_list)
 				{
@@ -2110,9 +2498,6 @@ void path_explorer_t::compartment_t::step()
 					outbound_connections = NULL;
 				}
 				process_next_transfer = true;
-
-				// Debug paths : to execute, working_halt_list should not be deleted in the previous phase
-				// enumerate_all_paths(finished_matrix, working_halt_list, finished_halt_index_map, finished_halt_count);
 
 				current_phase = phase_reroute_goods;	// proceed to the next phase
 
@@ -2252,53 +2637,6 @@ void path_explorer_t::compartment_t::step()
 }
 
 
-void path_explorer_t::compartment_t::enumerate_all_paths(const path_element_t *const *const matrix, const halthandle_t *const halt_list,
-														 const uint16 *const halt_map, const uint16 halt_count)
-{
-	// Debugging code : Enumerate all paths for validation
-	halthandle_t transfer_halt;
-
-	for (uint16 x = 0; x < halt_count; ++x)
-	{
-		for (uint16 y = 0; y < halt_count; ++y)
-		{
-			if (x != y)
-			{
-				// print origin
-				printf("\n\nOrigin :  %s\n", halt_list[x]->get_name());
-
-				transfer_halt = matrix[x][y].next_transfer;
-
-				if (matrix[x][y].aggregate_time == UINT32_MAX_VALUE)
-				{
-					printf("\t\t\t\t******** No Route ********\n");
-				}
-				else
-				{
-					while (transfer_halt != halt_list[y])
-					{
-						printf("\t\t\t\t%s\n", transfer_halt->get_name());
-
-						if ( halt_map[transfer_halt.get_id()] != 65535)
-						{
-							transfer_halt = matrix[ halt_map[transfer_halt.get_id()] ][y].next_transfer;
-						}
-						else
-						{
-							printf("\t\t\t\tError!!!");
-							break;
-						}
-					}
-				}
-
-				// print destination
-				printf("Target :  %s\n\n", halt_list[y]->get_name());
-			}
-		}
-	}
-}
-
-
 bool path_explorer_t::compartment_t::get_path_between(const halthandle_t origin_halt, const halthandle_t target_halt,
 													  uint32 &aggregate_time, halthandle_t &next_transfer)
 {
@@ -2307,12 +2645,17 @@ bool path_explorer_t::compartment_t::get_path_between(const halthandle_t origin_
 	// check if origin and target halts are both present in matrix; if yes, check the validity of the next transfer
 	if ( paths_available /*&& origin_halt.is_bound() && target_halt.is_bound()*/
 			&& ( origin_index = finished_halt_index_map[ origin_halt.get_id() ] ) != 65535
-			&& ( target_index = finished_halt_index_map[ target_halt.get_id() ] ) != 65535
-			&& finished_matrix[origin_index][target_index].next_transfer.is_bound() )
+			&& ( target_index = finished_halt_index_map[ target_halt.get_id() ] ) != 65535 )
 	{
-		aggregate_time = finished_matrix[origin_index][target_index].aggregate_time;
-		next_transfer = finished_matrix[origin_index][target_index].next_transfer;
-		return true;
+		const size_t matrix_index = path_matrix_index(origin_index, target_index, finished_halt_count);
+		halthandle_t stored_next_transfer;
+		stored_next_transfer.set_id(finished_next_transfers[matrix_index]);
+		if (stored_next_transfer.is_bound())
+		{
+			aggregate_time = finished_times[matrix_index];
+			next_transfer = stored_next_transfer;
+			return true;
+		}
 	}
 
 	// requested path not found
@@ -2420,7 +2763,7 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 		}
 	}
 
-	bool finished_matrix_live = finished_matrix != NULL;
+	bool finished_matrix_live = finished_times != NULL;
 	file->rdwr_bool(finished_matrix_live);
 
 	if (finished_matrix_live)
@@ -2430,11 +2773,11 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			uint16 tmp_idx;
 			for (uint16 i = 0; i < finished_halt_count; i++)
 			{
-				//  This is a 2 dimensional array
-				for (uint32 j = 0; j < finished_halt_count; j++)
+				for (uint16 j = 0; j < finished_halt_count; j++)
 				{
-					file->rdwr_long(finished_matrix[i][j].aggregate_time);
-					tmp_idx = finished_matrix[i][j].next_transfer.get_id();
+					const size_t matrix_index = path_matrix_index(i, j, finished_halt_count);
+					file->rdwr_long(finished_times[matrix_index]);
+					tmp_idx = finished_next_transfers[matrix_index];
 					file->rdwr_short(tmp_idx);
 				}
 			}
@@ -2446,20 +2789,18 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			{
 				// Build the (empty) finished matrix
 				uint16 tmp_idx;
-				finished_matrix = new path_element_t*[finished_halt_count];
-				for (uint16 i = 0; i < finished_halt_count; ++i)
-				{
-					finished_matrix[i] = new path_element_t[finished_halt_count];
-				}
+				finished_times = new_time_matrix(finished_halt_count);
+				finished_next_transfers = new_short_matrix(finished_halt_count);
 
-				// Now load them. These are 2 dimensional arrays.
+				// Now load them.
 				for (uint16 i = 0; i < finished_halt_count; i++)
 				{
-					for (uint32 j = 0; j < finished_halt_count; j++)
+					for (uint16 j = 0; j < finished_halt_count; j++)
 					{
-						file->rdwr_long(finished_matrix[i][j].aggregate_time);
+						const size_t matrix_index = path_matrix_index(i, j, finished_halt_count);
+						file->rdwr_long(finished_times[matrix_index]);
 						file->rdwr_short(tmp_idx);
-						finished_matrix[i][j].next_transfer.set_id(tmp_idx);
+						finished_next_transfers[matrix_index] = tmp_idx;
 					}
 				}
 			}
@@ -2469,7 +2810,7 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 	file->rdwr_short(working_halt_count);
 
 	// Working matrix
-	bool working_matrix_live = working_matrix != NULL;
+	bool working_matrix_live = working_times != NULL;
 	file->rdwr_bool(working_matrix_live);
 
 	if (working_matrix_live)
@@ -2479,14 +2820,15 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			uint16 tmp_idx;
 			for (uint16 i = 0; i < working_halt_count; i++)
 			{
-				for (uint32 j = 0; j < working_halt_count; j++)
+				for (uint16 j = 0; j < working_halt_count; j++)
 				{
-					file->rdwr_long(working_matrix[i][j].aggregate_time);
-					tmp_idx = working_matrix[i][j].next_transfer.get_id();
+					const size_t matrix_index = path_matrix_index(i, j, working_halt_count);
+					file->rdwr_long(working_times[matrix_index]);
+					tmp_idx = working_next_transfers[matrix_index];
 					file->rdwr_short(tmp_idx);
 
-					file->rdwr_short(transport_matrix[i][j].first_transport);
-					file->rdwr_short(transport_matrix[i][j].last_transport);
+					file->rdwr_short(working_first_transports[matrix_index]);
+					file->rdwr_short(working_last_transports[matrix_index]);
 				}
 			}
 		}
@@ -2496,33 +2838,24 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			// Create the matrices
 			if (working_halt_count > 0)
 			{
-				// build working matrix
 				uint16 tmp_idx;
-				working_matrix = new path_element_t*[working_halt_count];
-				for (uint16 i = 0; i < working_halt_count; ++i)
-				{
-					working_matrix[i] = new path_element_t[working_halt_count];
+				working_times = new_time_matrix(working_halt_count);
+				working_next_transfers = new_short_matrix(working_halt_count);
+				working_first_transports = new_short_matrix(working_halt_count);
+				working_last_transports = new_short_matrix(working_halt_count);
 
-				}
-
-				// build transport matrix
-				transport_matrix = new transport_element_t*[working_halt_count];
-				for (uint16 i = 0; i < working_halt_count; ++i)
-				{
-					transport_matrix[i] = new transport_element_t[working_halt_count];
-				}
-
-				// Now load them. These are 2 dimensional arrays.
+				// Now load them.
 				for (uint16 i = 0; i < working_halt_count; i++)
 				{
-					for (uint32 j = 0; j < working_halt_count; j++)
+					for (uint16 j = 0; j < working_halt_count; j++)
 					{
-						file->rdwr_long(working_matrix[i][j].aggregate_time);
+						const size_t matrix_index = path_matrix_index(i, j, working_halt_count);
+						file->rdwr_long(working_times[matrix_index]);
 						file->rdwr_short(tmp_idx);
-						working_matrix[i][j].next_transfer.set_id(tmp_idx);
+						working_next_transfers[matrix_index] = tmp_idx;
 
-						file->rdwr_short(transport_matrix[i][j].first_transport);
-						file->rdwr_short(transport_matrix[i][j].last_transport);
+						file->rdwr_short(working_first_transports[matrix_index]);
+						file->rdwr_short(working_last_transports[matrix_index]);
 					}
 				}
 			}
@@ -2715,6 +3048,17 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 	file->rdwr_long(origin_cluster_index);
 	file->rdwr_long(target_cluster_index);
 	file->rdwr_long(origin_member_index);
+
+	// Before revision 7 the phase-5 loop stopped between target clusters, so the
+	// origin-member index was relative to the current target cluster. The current
+	// loop completes all target clusters for each origin member. Restart the current
+	// inbound cluster for such saves: repeating writes is idempotent by the
+	// order-independence invariant, and the cluster lists are restored below.
+	if (file->is_loading() && current_phase == phase_explore_paths && !file->is_version_ex_atleast(15, 7))
+	{
+		origin_member_index = 0;
+		target_cluster_index = 0;
+	}
 
 	bool inbound_connections_live = inbound_connections != NULL;
 	file->rdwr_bool(inbound_connections_live);

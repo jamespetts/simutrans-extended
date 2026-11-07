@@ -37,6 +37,14 @@ if (ZSTD_FOUND OR zstd_FOUND)
 	option(SIMUTRANS_USE_ZSTD "Enable support for zstd save file compression (larger save files than bzip2, but faster)" ON)
 endif (ZSTD_FOUND OR zstd_FOUND)
 
+# SIMD backend for the path explorer dense row kernel. The source selects SSE2
+# automatically on x86-64 and NEON on AArch64 from the compiler's architecture
+# macros; these options force a backend when that detection is not suitable, for
+# example when cross-compiling or using an unusual toolchain. Do not enable both;
+# the source rejects that with a compile-time error.
+option(SIMUTRANS_USE_SSE2 "Force the SSE2 path explorer kernel (automatic on x86-64)" OFF)
+option(SIMUTRANS_USE_NEON "Force the NEON path explorer kernel (automatic on AArch64)" OFF)
+
 if (FluidSynth_FOUND AND NOT WIN32)
 	option(SIMUTRANS_USE_FLUIDSYNTH_MIDI "Enable FluidSynth for MIDI playback" ON)
 endif (FluidSynth_FOUND AND NOT WIN32)

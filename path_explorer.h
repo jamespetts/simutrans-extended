@@ -125,29 +125,6 @@ private:
 
 	private:
 
-		// element used during path search and for storing calculated paths
-		struct path_element_t
-		{
-			uint32 aggregate_time;
-			halthandle_t next_transfer;
-
-			path_element_t() :
-				aggregate_time(UINT32_MAX_VALUE)
-			{}
-		};
-
-		// element used during path search only for storing best lines/convoys
-		struct transport_element_t
-		{
-			uint16 first_transport;
-			uint16 last_transport;
-
-			transport_element_t() :
-				first_transport(0),
-				last_transport(0)
-			{}
-		};
-
 		// structure used for storing indices of halts connected to a transfer, grouped by transport
 		class connection_t
 		{
@@ -272,14 +249,18 @@ private:
 		sint64 refresh_start_time;
 
 		// set of variables for finished path data
-		path_element_t **finished_matrix;
+		uint32 *finished_times;
+		uint16 *finished_next_transfers;
 		uint16 *finished_halt_index_map;
 		uint16 finished_halt_count;
 
 		// set of variables for working path data
-		path_element_t **working_matrix;
+		uint32 *working_times;
+		uint16 *working_next_transfers;
+		uint16 *working_first_transports;
+		uint16 *working_last_transports;
+		uint32 *target_times;		// dense per-transfer row: [via][t], or UINT32_MAX if t is not a target
 		uint16 *transport_index_map;
-		transport_element_t **transport_matrix;
 		uint16 *working_halt_index_map;
 		halthandle_t *working_halt_list;
 		uint16 working_halt_count;
@@ -328,6 +309,41 @@ private:
 		// statistics for determining limits
 		uint32 statistic_duration;
 		uint32 statistic_iteration;
+
+#ifdef MULTI_THREAD
+		// Worker-pool state for the phase 5 origin scan. The pool has
+		// pool_thread_count threads: the caller of pool_run() (thread index 0,
+		// the lead) and pool_thread_count - 1 parked helpers.
+		struct pool_batch_t
+		{
+			compartment_t *compartment;
+			const vector_tpl<uint16> *origin_halt_list;
+			uint16 via;
+			uint32 origin_member_begin;
+			uint32 origin_member_count;
+		};
+
+		static pthread_mutex_t pool_mutex;
+		static pthread_cond_t pool_start_cond;
+		static pthread_cond_t pool_done_cond;
+		static pool_batch_t pool_batch;
+		static uint32 pool_thread_count;
+		static uint32 pool_generation;
+		static uint32 pool_outstanding;
+		static bool pool_terminating;
+		static bool pool_initialised;
+#endif
+
+		// Run one batch of origin members: the caller takes the lead slice and
+		// waits for the helpers; the batch is the exact set the single-threaded
+		// loop would process in this step.
+		static void pool_run(compartment_t *compartment, const vector_tpl<uint16> *origin_halt_list,
+			const uint16 via, const uint32 origin_member_begin, const uint32 origin_member_count);
+
+		// Process this thread's slice of one origin batch.
+		void help_phase_explore_paths(const uint32 thread_index, const uint32 thread_count,
+			const vector_tpl<uint16> &origin_halt_list, const uint16 via,
+			const uint32 origin_member_begin, const uint32 origin_member_count);
 
 		// an array of names for the various phases
 		static const char *const phase_name[];
@@ -394,9 +410,6 @@ private:
 		static const uint32 percent_lower_limit = 100 - percent_deviation;
 		static const uint32 percent_upper_limit = 100 + percent_deviation;
 
-		void enumerate_all_paths(const path_element_t *const *const matrix, const halthandle_t *const halt_list,
-								 const uint16 *const halt_map, const uint16 halt_count);
-
 		enum schedule_flags
 		{
 			recurrence = (1u << 0),
@@ -415,6 +428,13 @@ private:
 		void clear_flag(uint8& data, schedule_flags flag) { data &= ~flag; }
 
 	public:
+
+#ifdef MULTI_THREAD
+		static void pool_initialise(const uint32 thread_count);
+		static void pool_shutdown();
+		static void pool_destroy();
+		static void pool_worker(const uint32 thread_index);
+#endif
 
 		compartment_t();
 		~compartment_t();
@@ -519,6 +539,14 @@ public:
 #ifdef MULTI_THREAD
 	static thread_local bool allow_path_explorer_on_this_thread;
 	friend void *path_explorer_threaded(void* args);
+
+	// Dedicated phase 5 worker pool. The existing path explorer thread is the lead;
+	// the helpers are parked on the pool condition variable and are released per
+	// origin batch by the lead.
+	static void initialise_thread_pool(const uint32 thread_count);
+	static void shutdown_thread_pool();
+	static void destroy_thread_pool();
+	static void worker_thread(const uint32 thread_index);
 #endif
 	static void initialise(karte_t *welt);
 	static void finalise();

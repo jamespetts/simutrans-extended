@@ -17,6 +17,7 @@
 #include "gui/gui_theme.h"
 #include "gui/messagebox.h"
 #include "simhalt.h"
+#include "path_explorer.h"
 #include "display/simimg.h"
 #include "simcolor.h"
 #include "simskin.h"
