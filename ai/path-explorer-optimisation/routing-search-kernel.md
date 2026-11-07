@@ -24,7 +24,7 @@ full_connexion_t { origin_halt_id, target_halt_id, transport_idx, weight }
 
 - `transport_idx` is the compact line/convoy index from `transport_index_map`; walking is 0.
 - `weight` is `waiting_time + journey_time + transfer_time`, clamped to `uint32`.
-- The connexion rebuild deduplicates each halt's `connexions_map` (one best connexion per
+- The connexion rebuild deduplicates each halt's `connexions_map` (one best full weight per
   halt pair); that table drives runtime boarding. The full list is the input to the
   routing-search graph.
 - The full list is cleared at the start of a new pass and after the routing search.

@@ -96,8 +96,8 @@ Requirements on the connexion-rebuild weight model and the routing-search engine
   the stored route can fail a passenger while a slower, more comfortable route would pass. Uniform
   per-edge hard limits, the per-passenger time tolerance, and per-passenger choices at boarding
   (class, waiting for a more comfortable convoy on the same next stop) do not break it.
-- **Deduplication** in the connexion rebuild must compare full weights, not journey times; this also removes
-  the walking-replaced-by-slower-bus defect (→ [known-bugs](../known-bugs.md)).
+- **Deduplication** in the connexion rebuild compares the full weight, not journey time
+  alone, so a walking edge with no waiting time can beat a line whose ride is shorter.
 - **Settings changes** that affect weights must force a refresh when a save is loaded
   (`path_explorer_t::set_must_refresh_on_loading`); otherwise the saved tables keep old weights.
 

@@ -355,6 +355,12 @@ private:
 		void clear_search_graph();
 		void free_thread_scratch();
 
+		// Waiting + journey + transfer, saturating at UINT32_MAX_VALUE. The
+		// runtime-table deduplication compares this full weight so that a
+		// walking connexion, which has no waiting time, is not replaced by a
+		// slower line.
+		static uint32 get_connexion_weight(const haltestelle_t::connexion &cnx);
+
 		// Append one full stop-to-stop candidate before deduplication.
 		void add_full_connexion(const halthandle_t origin, const halthandle_t target,
 			const haltestelle_t::connexion &cnx);

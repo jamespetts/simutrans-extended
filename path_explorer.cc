@@ -1462,7 +1462,7 @@ void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &cur
 						table->put(destination.halt, new_connexion);
 						origin.halt->prepare_goods_list(catg);
 					}
-					else if (existing_connexion->journey_time > new_connexion.journey_time)
+					else if (get_connexion_weight(*existing_connexion) > get_connexion_weight(new_connexion))
 					{
 						new_connexion.alternative_seats = existing_connexion->alternative_seats;
 						table->set(destination.halt, new_connexion);
@@ -1471,6 +1471,14 @@ void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &cur
 			}
 		}
 	}
+}
+
+
+uint32 path_explorer_t::compartment_t::get_connexion_weight(const haltestelle_t::connexion &cnx)
+{
+	const uint64 weight = static_cast<uint64>(cnx.waiting_time)
+		+ static_cast<uint64>(cnx.journey_time) + static_cast<uint64>(cnx.transfer_time);
+	return weight > static_cast<uint64>(UINT32_MAX_VALUE) ? UINT32_MAX_VALUE : static_cast<uint32>(weight);
 }
 
 
@@ -1500,9 +1508,7 @@ void path_explorer_t::compartment_t::add_full_connexion(const halthandle_t origi
 		fc.transport_idx = 0;
 	}
 
-	const uint64 weight = static_cast<uint64>(cnx.waiting_time)
-		+ static_cast<uint64>(cnx.journey_time) + static_cast<uint64>(cnx.transfer_time);
-	fc.weight = weight > static_cast<uint64>(UINT32_MAX_VALUE) ? UINT32_MAX_VALUE : static_cast<uint32>(weight);
+	fc.weight = get_connexion_weight(cnx);
 	full_connexions.append(fc);
 }
 
@@ -2616,7 +2622,7 @@ void path_explorer_t::compartment_t::step()
 								catg_connexions->put(halt_list[t], new_connexion);
 								halt_list[h]->prepare_goods_list(catg);
 							}
-							else if (existing_connexion->journey_time > new_connexion.journey_time)
+							else if (get_connexion_weight(*existing_connexion) > get_connexion_weight(new_connexion))
 							{
 								// The new connexion is better - replace it.
 								new_connexion.alternative_seats = existing_connexion->alternative_seats;

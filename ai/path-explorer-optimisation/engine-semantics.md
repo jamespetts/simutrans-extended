@@ -21,9 +21,10 @@ the examples are constructed illustrations.
    Passengers also get walking candidates between halts within walking distance (waiting 0,
    walking time, destination halt's transfer time).
 2. **Candidate list:** every candidate is kept in `full_connexions` before the round's
-   deduplication. The halts' runtime `connexions_map` keeps one best connexion per halt
-   pair; the routing-search graph uses the full list. This matters where deduplication would
-   discard a better walking edge (Example E).
+   deduplication. The halts' runtime `connexions_map` keeps one best full weight per halt
+   pair; the routing-search graph uses the full list. The best weight compares waiting,
+   journey and transfer time together, so a walking edge with no waiting time can beat a
+   line whose ride is shorter (Example E).
 3. **State graph (graph build):** a state is `(halt, arriving transport)`; transport 0 is
    walking and is exempt from the no-reboarding rule. The origin state has no arriving
    transport. An edge from a state on transport X to transport X is forbidden unless X is
@@ -104,10 +105,10 @@ Halts P and Q are 7 min apart on foot; bus Z rides P→Q in 3 min with a 10 min 
 transfer time 2.
 
 - Walking: 0 + 7 + 2 = 9. Bus: 10 + 3 + 2 = 15.
-- The connexion rebuild's deduplication compares journey times (3 < 7) and keeps the bus in
-  the runtime `connexions_map`, so `get_preferred_line` prefers Z and the passenger can wait
-  for it instead of walking. Open bug → [known-bugs](../known-bugs.md).
-- The matrix keeps both candidates and can choose the walk (9).
+- The connexion rebuild compares full weights (9 < 15) and keeps the walking connexion in
+  the runtime `connexions_map`, so `get_preferred_line` leaves the line unbound and the
+  passenger walks.
+- The matrix keeps both candidates and chooses the walk (9).
 
 ## Consequences
 
