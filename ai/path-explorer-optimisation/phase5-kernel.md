@@ -270,7 +270,7 @@ node are gone; the 37-bag table object is a 16-byte array header.
 
 Results: the full-refresh matrices and iteration totals on month-boundary and bb-10-sep-2023 are
 identical to the pre-change build. On bb-10-sep-2023 (583,164 connexions, 31,508 non-empty maps)
-the connexion structure falls from ≈85 MB to ≈14 MB and peak working set from 4.12 to 3.98 GB;
+the connexion structure falls from ≈130 MB to ≈14 MB and peak working set from 4.12 to 3.98 GB;
 phase 2 is unchanged, phase 4 falls from 34 to 24 ms, and phase 5 is ≈2-5% slower in controlled
 runs (the kernel is unchanged; the difference is consistent with allocation/code layout). The
 savegame fields and format are unchanged; only the entry iteration order differs.

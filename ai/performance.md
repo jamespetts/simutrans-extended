@@ -343,7 +343,7 @@ Measured run totals are 18.88 s at H ≈ 1.8k and 214.77 s at H ≈ 5.4k (includ
 1.77-2.59x faster than the dense scalar and 19% faster than the sparse loop on the gargantuan run
 total, roughly break-even on the intermediates and 8% slower on the smallest; a dense/sparse
 selector is optional. NEON is compile-verified by the native macOS CI. Lever 5 (sorted connexion
-arrays) reduces the connexion structure on the gargantuan fixture from ≈85 MB to ≈14 MB and peak
+arrays) reduces the connexion structure on the gargantuan fixture from ≈130 MB to ≈14 MB and peak
 working set by ≈140 MB, with phase 2 unchanged, phase 4 faster and phase 5 ≈2–5% slower in
 controlled runs; matrices are identical. The sparse fallback's cost and the topology scaling are
 in [path-explorer-optimisation](path-explorer-optimisation.md). GPU
