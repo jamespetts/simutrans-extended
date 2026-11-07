@@ -7,6 +7,19 @@
 
 #include <string.h>
 
+// The dense target-row sweep has one implementation per SIMD backend. SSE2 is
+// the x64 baseline; NEON is the AArch64 baseline. Everything else uses the
+// scalar path, which is also the correctness oracle for both.
+#if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || defined(__SSE2__)
+#	define PATH_EXPLORER_USE_SSE2 1
+#	include <emmintrin.h>
+#endif
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+#	define PATH_EXPLORER_USE_NEON 1
+#	include <arm_neon.h>
+#endif
+
 #include "tpl/slist_tpl.h"
 #include "dataobj/translator.h"
 #include "bauer/goods_manager.h"
@@ -638,6 +651,165 @@ static uint16 *new_short_matrix(const uint16 count)
 	const size_t cells = static_cast<size_t>(count) * static_cast<size_t>(count);
 	return new uint16[cells]();
 }
+
+// One cell of the phase-5 relaxation. target_times[] holds [via][t], or
+// UINT32_MAX where t is not a legal target for this transfer and origin cluster.
+static inline void relax_target_cell(const uint32 target,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	const uint32 target_time = target_times[target];
+	if (target_time == UINT32_MAX_VALUE)
+	{
+		return;
+	}
+	const uint32 combined_time = origin_via_time + target_time;
+	if (combined_time < times[target])
+	{
+		times[target] = combined_time;
+		next_transfers[target] = next_transfer;
+		first_transports[target] = first_transport;
+		last_transports[target] = via_last_transports[target];
+	}
+}
+
+static void relax_target_row_scalar(const uint16 halt_count,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	for (uint32 target = 0; target < halt_count; ++target)
+	{
+		relax_target_cell(target, target_times, times, next_transfers, first_transports,
+			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+	}
+}
+
+#ifdef PATH_EXPLORER_USE_SSE2
+static void relax_target_row_sse2(const uint16 halt_count,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	const __m128i all_ones = _mm_set1_epi32(-1);
+	const __m128i sign_bit = _mm_set1_epi32(static_cast<int>(0x80000000u));
+	const __m128i origin_time = _mm_set1_epi32(static_cast<int>(origin_via_time));
+
+	uint32 target = 0;
+	for (; target + 4 <= halt_count; target += 4)
+	{
+		const __m128i via_times = _mm_loadu_si128(reinterpret_cast<const __m128i *>(target_times + target));
+		const __m128i current = _mm_loadu_si128(reinterpret_cast<const __m128i *>(times + target));
+		const __m128i combined = _mm_add_epi32(origin_time, via_times);
+
+		// SSE2 has no unsigned 32-bit compare: bias both sides by 0x80000000 and
+		// use the signed compare. current > combined is the strict improvement.
+		const __m128i lower = _mm_cmpgt_epi32(
+			_mm_xor_si128(current, sign_bit),
+			_mm_xor_si128(combined, sign_bit));
+		const __m128i improve = _mm_andnot_si128(_mm_cmpeq_epi32(via_times, all_ones), lower);
+
+		if (_mm_movemask_epi8(improve) == 0)
+		{
+			continue;
+		}
+
+		const __m128i updated = _mm_or_si128(
+			_mm_and_si128(improve, combined),
+			_mm_andnot_si128(improve, current));
+		_mm_storeu_si128(reinterpret_cast<__m128i *>(times + target), updated);
+
+		// The 16-bit arrays are written only on improvement, which is rare late in a pass.
+		const uint32 improved_lanes = static_cast<uint32>(_mm_movemask_ps(_mm_castsi128_ps(improve)));
+		for (uint32 lane = 0; lane < 4; ++lane)
+		{
+			if (improved_lanes & (1u << lane))
+			{
+				next_transfers[target + lane] = next_transfer;
+				first_transports[target + lane] = first_transport;
+				last_transports[target + lane] = via_last_transports[target + lane];
+			}
+		}
+	}
+
+	for (; target < halt_count; ++target)
+	{
+		relax_target_cell(target, target_times, times, next_transfers, first_transports,
+			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+	}
+}
+#endif
+
+#ifdef PATH_EXPLORER_USE_NEON
+static void relax_target_row_neon(const uint16 halt_count,
+	const uint32 *const target_times,
+	uint32 *const times,
+	uint16 *const next_transfers,
+	uint16 *const first_transports,
+	uint16 *const last_transports,
+	const uint16 *const via_last_transports,
+	const uint32 origin_via_time,
+	const uint16 next_transfer,
+	const uint16 first_transport)
+{
+	const uint32x4_t all_ones = vdupq_n_u32(UINT32_MAX_VALUE);
+	const uint32x4_t origin_time = vdupq_n_u32(origin_via_time);
+
+	uint32 target = 0;
+	for (; target + 4 <= halt_count; target += 4)
+	{
+		const uint32x4_t via_times = vld1q_u32(target_times + target);
+		const uint32x4_t current = vld1q_u32(times + target);
+		const uint32x4_t combined = vaddq_u32(origin_time, via_times);
+		const uint32x4_t valid = vmvnq_u32(vceqq_u32(via_times, all_ones));
+		const uint32x4_t improve = vandq_u32(vcgtq_u32(current, combined), valid);
+
+		if (vmaxvq_u32(improve) == 0)
+		{
+			continue;
+		}
+
+		vst1q_u32(times + target, vbslq_u32(improve, combined, current));
+
+		uint32 improved_lanes[4];
+		vst1q_u32(improved_lanes, improve);
+		for (uint32 lane = 0; lane < 4; ++lane)
+		{
+			if (improved_lanes[lane] != 0)
+			{
+				next_transfers[target + lane] = next_transfer;
+				first_transports[target + lane] = first_transport;
+				last_transports[target + lane] = via_last_transports[target + lane];
+			}
+		}
+	}
+
+	for (; target < halt_count; ++target)
+	{
+		relax_target_cell(target, target_times, times, next_transfers, first_transports,
+			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+	}
+}
+#endif
 
 path_explorer_t::compartment_t::compartment_t()
 {
@@ -2115,24 +2287,22 @@ void path_explorer_t::compartment_t::step()
 								const uint16 next_transfer = working_next_transfers[origin_via_index];
 								const uint16 first_transport = working_first_transports[origin_via_index];
 
-								for ( uint16 target = 0; target < working_halt_count; ++target )
-								{
-									const uint32 target_time = target_times[target];
-									if ( target_time == UINT32_MAX_VALUE )
-									{
-										continue;
-									}
-
-									const size_t origin_target_index = origin_row + target;
-									const uint32 combined_time = origin_via_time + target_time;
-									if ( combined_time < working_times[origin_target_index] )
-									{
-										working_times[origin_target_index] = combined_time;
-										working_next_transfers[origin_target_index] = next_transfer;
-										working_first_transports[origin_target_index] = first_transport;
-										working_last_transports[origin_target_index] = working_last_transports[via_row + target];
-									}
-								}
+#ifdef PATH_EXPLORER_USE_SSE2
+								relax_target_row_sse2(working_halt_count, target_times,
+									working_times + origin_row, working_next_transfers + origin_row,
+									working_first_transports + origin_row, working_last_transports + origin_row,
+									working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
+#elif defined(PATH_EXPLORER_USE_NEON)
+								relax_target_row_neon(working_halt_count, target_times,
+									working_times + origin_row, working_next_transfers + origin_row,
+									working_first_transports + origin_row, working_last_transports + origin_row,
+									working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
+#else
+								relax_target_row_scalar(working_halt_count, target_times,
+									working_times + origin_row, working_next_transfers + origin_row,
+									working_first_transports + origin_row, working_last_transports + origin_row,
+									working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
+#endif
 							}
 
 							++origin_member_index;
