@@ -4729,28 +4729,33 @@ void haltestelle_t::rdwr(loadsave_t *file)
 	{
 		const uint8 max_categories = goods_manager_t::get_max_catg_index();
 		const uint8 max_classes = max(goods_manager_t::passengers->get_number_of_classes(), goods_manager_t::mail->get_number_of_classes());
-		uint32 iteration_limit = (uint32)max_classes * (uint32)max_categories;
-		const uint32 il = iteration_limit;
+		const uint32 current_iteration_limit = (uint32)max_classes * (uint32)max_categories;
+		uint32 file_iteration_limit = current_iteration_limit;
 
-		file->rdwr_long(iteration_limit);
+		file->rdwr_long(file_iteration_limit);
 
-		if (file->is_loading() && il != iteration_limit)
+		if (file->is_loading() && current_iteration_limit != file_iteration_limit)
 		{
 			// The number of categories or classes in the pakset has changed since loading. We cannot load pathing data and must fall back to reconstructing it.
-			// We must still go through the motions of reading the data to move the file onto the correct place, however.
 			path_explorer_t::set_must_refresh_on_loading();
 		}
 
-		for (uint8 i = 0; i < iteration_limit; i++)
+		// The saved block is self-describing: it holds file_iteration_limit
+		// count-plus-entries blocks. The data must always be read to keep the
+		// file position aligned, even when it is discarded because the pakset
+		// changed and a full refresh will replace it.
+		const bool discard_connexions = file->is_loading() && path_explorer_t::get_must_refresh_on_loading();
+
+		for (uint32 i = 0; i < file_iteration_limit; i++)
 		{
-			uint8 tmp_nis;
+			uint8 tmp_nis = 0;
 
 			if (file->is_saving())
 			{
 				tmp_nis = non_identical_schedules[i];
 			}
 			file->rdwr_byte(tmp_nis);
-			if (file->is_loading())
+			if (file->is_loading() && !discard_connexions && i < non_identical_schedules.get_count())
 			{
 				non_identical_schedules[i] = tmp_nis;
 			}
@@ -4768,70 +4773,67 @@ void haltestelle_t::rdwr(loadsave_t *file)
 
 		halthandle_t tmp_halt;
 
-		for (uint8 catg_index = 0; catg_index < max_categories; catg_index++)
+		const uint32 connexion_block_count = file->is_loading() ? file_iteration_limit : current_iteration_limit;
+		for (uint32 block = 0; block < connexion_block_count; block++)
 		{
-			for (uint8 i = 0; i < max_classes; i++)
+			const uint8 catg_index = (uint8)(block / max_classes);
+			const uint8 i = (uint8)(block % max_classes);
+			uint32 connexions_map_count = 0;
+			if (file->is_saving())
 			{
-				uint32 connexions_map_count = 0;
-				if (file->is_saving())
+				connexions_map_count = (i < goods_manager_t::get_classes_catg_index(catg_index) && connexions[catg_index][i]) ? connexions[catg_index][i]->get_count() : 0;
+				file->rdwr_long(connexions_map_count);
+
+				if (connexions_map_count > 0)
 				{
-					connexions_map_count = (i < goods_manager_t::get_classes_catg_index(catg_index) && connexions[catg_index][i]) ? connexions[catg_index][i]->get_count() : 0;
-					file->rdwr_long(connexions_map_count);
-
-					if (connexions_map_count > 0)
+					for (const connexion &cnx : *(connexions[catg_index][i]))
 					{
-						for (const connexion &cnx : *(connexions[catg_index][i]))
-						{
-							tmp_idx = cnx.halt_id;
+						tmp_idx = cnx.halt_id;
 
-							tmp_journey_time = cnx.journey_time;
-							tmp_waiting_time = cnx.waiting_time;
-							tmp_transfer_time = cnx.transfer_time;
-							tmp_best_line_idx = cnx.best_line.get_id();
-							tmp_best_convoy_idx = cnx.best_convoy.get_id();
-							tmp_alternative_seats = cnx.alternative_seats;
+						tmp_journey_time = cnx.journey_time;
+						tmp_waiting_time = cnx.waiting_time;
+						tmp_transfer_time = cnx.transfer_time;
+						tmp_best_line_idx = cnx.best_line.get_id();
+						tmp_best_convoy_idx = cnx.best_convoy.get_id();
+						tmp_alternative_seats = cnx.alternative_seats;
 
-							file->rdwr_short(tmp_idx);
-							file->rdwr_long(tmp_journey_time);
-							file->rdwr_long(tmp_waiting_time);
-							file->rdwr_long(tmp_transfer_time);
-							file->rdwr_short(tmp_best_convoy_idx);
-							file->rdwr_short(tmp_best_line_idx);
-							file->rdwr_short(tmp_alternative_seats);
-						}
+						file->rdwr_short(tmp_idx);
+						file->rdwr_long(tmp_journey_time);
+						file->rdwr_long(tmp_waiting_time);
+						file->rdwr_long(tmp_transfer_time);
+						file->rdwr_short(tmp_best_convoy_idx);
+						file->rdwr_short(tmp_best_line_idx);
+						file->rdwr_short(tmp_alternative_seats);
 					}
 				}
+			}
 
-				if (file->is_loading())
+			if (file->is_loading())
+			{
+				file->rdwr_long(connexions_map_count);
+				for (uint32 j = 0; j < connexions_map_count; j++)
 				{
-					if (path_explorer_t::get_must_refresh_on_loading() == false)
+					file->rdwr_short(tmp_idx);
+					file->rdwr_long(tmp_journey_time);
+					file->rdwr_long(tmp_waiting_time);
+					file->rdwr_long(tmp_transfer_time);
+					file->rdwr_short(tmp_best_convoy_idx);
+					file->rdwr_short(tmp_best_line_idx);
+					file->rdwr_short(tmp_alternative_seats);
+
+					if (!discard_connexions && catg_index < max_categories && i < goods_manager_t::get_classes_catg_index(catg_index))
 					{
-						file->rdwr_long(connexions_map_count);
-						for (uint32 j = 0; j < connexions_map_count; j++)
-						{
-							file->rdwr_short(tmp_idx);
-							file->rdwr_long(tmp_journey_time);
-							file->rdwr_long(tmp_waiting_time);
-							file->rdwr_long(tmp_transfer_time);
-							file->rdwr_short(tmp_best_convoy_idx);
-							file->rdwr_short(tmp_best_line_idx);
-							file->rdwr_short(tmp_alternative_seats);
+						connexion tmp_cnx;
 
-							if (i < goods_manager_t::get_classes_catg_index(catg_index))
-							{
-								connexion tmp_cnx;
+						tmp_halt.set_id(tmp_idx);
+						tmp_cnx.journey_time = tmp_journey_time;
+						tmp_cnx.waiting_time = tmp_waiting_time;
+						tmp_cnx.transfer_time = tmp_transfer_time;
+						tmp_cnx.best_line.set_id(tmp_best_line_idx);
+						tmp_cnx.best_convoy.set_id(tmp_best_convoy_idx);
+						tmp_cnx.alternative_seats = tmp_alternative_seats;
 
-								tmp_halt.set_id(tmp_idx);
-								tmp_cnx.journey_time = tmp_journey_time;
-								tmp_cnx.waiting_time = tmp_waiting_time;
-								tmp_cnx.transfer_time = tmp_transfer_time;
-								tmp_cnx.best_line.set_id(tmp_best_line_idx);
-								tmp_cnx.best_convoy.set_id(tmp_best_convoy_idx);
-								tmp_cnx.alternative_seats = tmp_alternative_seats;
-
-								connexions[catg_index][i]->set(tmp_halt, tmp_cnx);
-							}
-						}
+						connexions[catg_index][i]->set(tmp_halt, tmp_cnx);
 					}
 				}
 			}
