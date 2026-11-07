@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 33958208a; master @ 6194cd341 (shared closure code)
+verified: path-explorer-optimisation @ 011f9a23a; master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -13,10 +13,12 @@ design (Y/H traversal) → [ex-15 yh-path-explorer](ex-15/yh-path-explorer.md); 
 for the whole simulation → [simd-applicability](simd-applicability.md); profiling method and
 measured hotspots → [performance](performance.md).
 
-Status: assessment and implementation plan. None of the levers in this document is implemented.
-Figures marked [UNVERIFIED] are derivations from code structure, not measurements. Measured cost
-figures: [EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c, Profile (server), month-boundary.sve
-and bb-10-sep-2023.sve].
+Status: assessment and implementation plan. Lever 1 (flat arrays) is implemented on
+`path-explorer-optimisation` (2026-11-07); the other levers are not. Figures marked [UNVERIFIED]
+are derivations from code structure, not measurements. Measured cost figures:
+[EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c, Profile (server), month-boundary.sve
+and bb-10-sep-2023.sve]; lever-1 result: [EXECUTION-VERIFIED:2026-11-07,
+`path-explorer-optimisation` @ e5fdd5f37].
 
 ## Priorities and sequencing
 
@@ -30,7 +32,7 @@ User decisions, 2026-11-06 [RECOLLECTION:2026-11-06]:
 
 Recommended internal sequencing for the single 15.x release: finish the shared foundation
 before integrating Y/H or comfort into the route tables — final cell layout (contiguous arrays,
-one combined comfort cost), comparison-loop rewrite/SIMD, and the threading/iteration model.
+one combined comfort cost), comparison-loop rewrite/SSE2/NEON, and the threading/iteration model.
 The runtime, data and balance parts of Y/H and comfort are independent of that foundation and
 can proceed in parallel. This is sequencing within the
 single 15.x release (no staged releases); GPU remains optional.
@@ -166,8 +168,9 @@ with contiguous arrays, but not for save size.
 - Iteration counts per quantum must be deterministic functions of the data, independent of
   timing and thread count, so that every peer stops each quantum at the same point and finishes
   each phase on the same step (→ [sync-and-determinism](sync-and-determinism.md)).
-- Integer arithmetic only. x64 SSE2 is the SIMD floor; no runtime ISA dispatch exists; Win32 and
-  non-x86 builds need the scalar path (→ [simd-applicability](simd-applicability.md)).
+- Integer arithmetic only. x64 SSE2 and AArch64 NEON are the two SIMD targets, implemented
+  together (user decision 2026-11-07); no runtime ISA dispatch exists. Win32 x86 and other targets
+  use the scalar path (→ [simd-applicability](simd-applicability.md)).
 - New threads or a changed thread window require [threading](threading.md); the explorer runs
   between steps, concurrently with `sync_step` and the convoy route-finding threads.
 - Y/H (→ [ex-15 yh-path-explorer](ex-15/yh-path-explorer.md)) adds through edges in phase 2 and
@@ -182,7 +185,7 @@ with contiguous arrays, but not for save size.
 |---|---|---|---|---|
 | 1 | Split arrays: contiguous `uint32` times apart from 16-bit handles, one allocation | phase-5 read traffic halved; finished 8 → 6 B per cell, working 12 → 10 B | yes; save byte format can stay identical | through edges need first ≠ last transport |
 | 2 | Reorder phase-5 loops: per origin, all target clusters | removes the repeated origin-row fetch only; measured one row fetch per 544–1,389 target visits (<0.1% of visits), so small direct gain; treat as a locality refinement [UNVERIFIED] | yes | compatible |
-| 3 | SSE2 dense masked row kernel | ~2–4× on the true target-member loop (44 B visits per class at H ≈ 5.4k); contiguous target lists make SIMD the primary CPU lever [UNVERIFIED] | yes | delta folded into the kernel |
+| 3 | SSE2/NEON dense masked row kernel | ~2–4× on the true target-member loop (44 B visits per class at H ≈ 5.4k); contiguous target lists make SIMD the primary CPU lever [UNVERIFIED] | yes | delta folded into the kernel |
 | 4 | Split origin rows per transfer halt over 2–4 threads | ~2–4× shorter passes until bandwidth saturates; **raises CPU per step**. Approved in principle: cores are underused and route staleness is real [RECOLLECTION:2026-11-06] | yes | compatible |
 | 5 | Compact connexion storage (sorted arrays per halt) | ≈ −50% connexion memory; faster `get()` and phase 4 | yes, if iteration order equals bag order | compatible |
 | 6 | Phase-2 micro-optimisations (`get_average_waiting_time` copies 32 samples by value) | small | yes | none |
@@ -206,11 +209,14 @@ Levers 1–3 are to be designed so that such a backend can be added without rede
 ## Combined projection (passenger compartment, H ≈ 5k)
 
 Present is measured (2026-11-06); later stages are [UNVERIFIED] projections from the lever
-estimates.
+estimates. Lever 1 is now implemented: it reduced phase-5 time by 40-56% on the four fixtures
+(1.6-1.7× on the pass total including load), so the "Present" row is the pre-lever-1 figure; the
+per-fixture numbers are in [phase5-kernel](path-explorer-optimisation/phase5-kernel.md), Lever 1.
 
 | Stage | CPU per compartment pass | Full refresh cycle at the 64 ms budget |
 |---|---|---|
-| Present (measured) | 78 s at H ≈ 5.4k | 18–20 min wall (394.7 s CPU) |
+| Present before lever 1 (measured, 2026-11-06) | 78 s at H ≈ 5.4k | 18–20 min wall (394.7 s CPU) |
+| Lever 1 implemented (measured, 2026-11-07) | 40-56% less phase-5 time; 1.6-1.7× on the run total | proportionally shorter, or a lower budget |
 | Levers 1–3, 6 | ~20–40 s if the assumed 2–4× materialises | ~5–10 min, or the present latency at a smaller budget |
 | + lever 4 | ~8–25 s wall (more CPU) | ~2–5 min |
 | Lever 7, threaded | ~5–8 s | ~1–2 min |
@@ -228,9 +234,10 @@ that limit. Storing only transfer-halt rows does not help passenger compartments
 ## Recommended order
 
 1. Measurement: done 2026-11-06 (above).
-2. Levers 1 and 3 (contiguous layout, then SIMD over the target lists), with lever 2 as a
+2. Levers 1 and 3 (contiguous layout, then SSE2 and NEON over the target lists), with lever 2 as a
    locality refinement and lever 6 folded in: results unchanged, no network penalty, and
-   every peer gains, which raises the shared limit.
+   every peer gains, which raises the shared limit. Lever 1 is implemented (2026-11-07) and
+   reduced phase-5 time by 40-56% on the four fixtures; the SIMD stage remains.
 3. Lever 4 after the layout/SIMD kernel: extra threads shorten the rebuild cycle and are
    approved in principle; settle the deterministic iteration/stop-point model first
    (→ [threading](threading.md), [sync-and-determinism](sync-and-determinism.md)).
@@ -282,8 +289,10 @@ share: the controller holds CPU share near its target.
 
 ## Provenance
 
-Cost structure, invariants and lever analysis: code inspection and derivation, 2026-11-04;
-measured 2026-11-06 (above); code current at ex-15 @ 33958208a and master @ 6194cd341 [CODE].
-The staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user
-decision [RECOLLECTION:2026-09-19]. Measured shares come from the 2026-09-10 capture recorded
-in [performance](performance.md).
+Cost structure, invariants and original lever analysis: code inspection and derivation,
+2026-11-04; measured 2026-11-06 (above); lever 1 implemented and measured 2026-11-07 on
+`path-explorer-optimisation` (e5fdd5f37), code current at `path-explorer-optimisation` @
+011f9a23a and master @ 6194cd341 [CODE]. The staged SIMD sequence (design SIMD-compatible →
+scalar verified → gated SIMD) is a user decision [RECOLLECTION:2026-09-19]; SSE2 and NEON are
+implemented together [RECOLLECTION:2026-11-07]. Measured shares come from the 2026-09-10 capture
+recorded in [performance](performance.md).

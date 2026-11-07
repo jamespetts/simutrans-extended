@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 33958208a; master @ 6194cd341
+verified: path-explorer-optimisation @ 011f9a23a
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -92,8 +92,18 @@ rule. The scalar code is the reference for every variant.
   per row.
 - Finished matrix 6 B per cell (from 8), working 10 B per cell (from 12). `get_path_between` loses
   one dependent load (the row pointer).
-- `rdwr` can write the same byte sequence as now (time then handle per cell), so the savegame
+- `rdwr` writes the same byte sequence as before (time then handle per cell), so the savegame
   format does not change.
+
+**Implemented 2026-11-07** on `path-explorer-optimisation`, commit `e5fdd5f37`. The arrays are
+`finished_times` / `finished_next_transfers` and `working_times` / `working_next_transfers` /
+`working_first_transports` / `working_last_transports`; a cell is `row * count + column`, with the
+product computed in `size_t`. The dead `enumerate_all_paths` debug printer, whose signature exposed
+the row-pointer layout, was removed. A TEST oracle hashing every finished cell after an unbudgeted
+refresh produced identical matrices and `total_iterations` on `month-boundary`, `bb6-apr`,
+`bb6-may` and `bb-10-sep-2023`, and an identical save/load round trip; phase-5 time fell by 40-56%
+(1.6-1.7x) on those fixtures [EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @
+e5fdd5f37, Profile (server) x64].
 
 ## Lever 2 — loop reorder
 
@@ -106,14 +116,15 @@ rule. The scalar code is the reference for every variant.
   read side of the remaining target loop.
 - Budget: count iterations by the same per-origin rule in the new order. All peers run the same
   code, so stop points are identical.
-- Savegame: the saved resume counters change meaning. Either give them new semantics with savegame
-  version handling, or restart the current transfer halt from its first origin on load
-  (idempotent by the invariant). Restarting is consistent in network play because every peer saves
-  and reloads on a client join (`nwc_sync_t`). Loading saves written by the present code while a
-  transfer halt was part-processed needs the restart rule in either case. Both options are
-  AGENTS.md rule-5 load/save changes.
+- Savegame: the saved resume counters change meaning. Decision 2026-11-07 [RECOLLECTION:2026-11-07]:
+  bump `EX_SAVE_MINOR` to 7 and resume exactly with (transfer, inbound cluster, completed origins in
+  that cluster); `target_cluster_index` is always 0 in a revision-7 save. A save from revision 6 or
+  older, if it is mid-pass, restarts the current inbound cluster (set the origin-member and
+  target-cluster counters to 0 and keep the cluster and transfer). That is idempotent by the
+  invariant above and is not a full refresh. A network join triggers a save/reload on every peer
+  (`nwc_sync_t`), so exact resume avoids discarding path-explorer progress at every join.
 
-## Lever 3 — SSE2 dense masked row kernel
+## Lever 3 — SSE2 and NEON dense masked row kernel
 
 - Per (transfer halt, origin cluster), build a dense `uint32` array `b_eff[t]`:
   `[via][t] + delta` when t is an outbound target outside the skipped same-transport cluster,
@@ -132,12 +143,20 @@ rule. The scalar code is the reference for every variant.
   results.
 - Determinism: integer operations with the same strict less-than as the scalar loop, so the
   output is byte-identical to the scalar reference.
+- Targets: x64 SSE2 and AArch64 NEON are implemented together [RECOLLECTION:2026-11-07], because
+  Apple users are a supported audience and AArch64 mandates NEON. NEON uses four `uint32` lanes
+  like SSE2 but compares unsigned directly (`vcgtq_u32`) and selects with `vminq_u32` or
+  `vbslq_u32`, so the sign-bias XOR is unnecessary; the 16-bit writes use masked NEON stores.
+  The two backends share the `b_eff` array and the same writes. macOS CI builds natively on
+  Apple Silicon, so the NEON path is compile-tested there; execution verification uses the same
+  scalar oracle on an Apple Silicon machine where available.
 - Expected ~2–4× on the true target-member loop: 44 B visits per class at H ≈ 5.4k at
   ~1.8 ns each, with contiguous target lists. SIMD is the primary CPU lever; AVX2 (8 lanes,
   `vpminud`) behind runtime dispatch (lever 10) may add further once SSE2 is in place.
 - This formulation meets the gate in [simd-applicability](../simd-applicability.md) (dense vector
-  loads, no gathers); the present loop shape does not. The scalar path stays for Win32, non-x86,
-  CI and as the oracle; the SSE2 variant is gated to x64.
+  loads, no gathers); the present loop shape does not. The scalar path stays for Win32 x86 and
+  any target without SSE2/NEON, and is the oracle; the SSE2 variant is gated to x64 and the NEON
+  variant to AArch64.
 
 ## Lever 4 — extra threads
 
@@ -197,16 +216,20 @@ rule. The scalar code is the reference for every variant.
 [RECOLLECTION:2026-09-19]: one programme with the Y/H work. (1) Design SIMD-compatible: dense
 contiguous `uint32` time array, conditions as dense mask/adjustment arrays rather than per-cell
 branches, iteration counting defined for budget and network parity. (2) Implement scalar first
-and verify correctness, determinism and iteration parity. (3) Add the SIMD variant immediately
-after verification, gated to x64. CPU share is not a demand indicator, because the controller
-holds each phase near `path_explorer_time_midpoint`; a faster kernel shows up as shorter passes
-(fresher connexions) or as budget headroom. Fallback rule: if the kernel prototype shows that the
-dense formulation does not pay (or the post-Y/H loop cannot be made dense), drop the SIMD stage;
-the lever-1 layout is still worth keeping.
+and verify correctness, determinism and iteration parity. (3) Add the SIMD variants immediately
+after verification: SSE2 gated to x64 and NEON gated to AArch64. CPU share is not a demand
+indicator, because the controller holds each phase near `path_explorer_time_midpoint`; a faster
+kernel shows up as shorter passes (fresher connexions) or as budget headroom. Fallback rule: if
+the kernel prototype shows that the dense formulation does not pay (or the post-Y/H loop cannot be
+made dense), drop the SIMD stage; the lever-1 layout is already implemented and is worth keeping
+on its own (40-56% phase-5 reduction, above).
 
 ## Verification
 
 - Oracle: byte-identical finished matrices and identical total iteration counts against the
-  scalar reference, on the gargantuan fixture and on synthetic maps.
+  scalar reference, on the gargantuan fixture and on synthetic maps. The scalar oracle is identical
+  on every platform, which is what makes the SSE2 and NEON variants independently checkable.
+- SSE2: execution-verified on x64. NEON: compile-verified by the native macOS CI build; execution
+  verification uses the same oracle on Apple Silicon where available.
 - Loopback server plus client with a checklist comparison every sync step and zero divergence.
 - Performance suite: pass duration and total iterations (→ [performance](../performance.md)).

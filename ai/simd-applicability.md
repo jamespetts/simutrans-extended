@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 075d540f3
+verified: path-explorer-optimisation @ 011f9a23a
 ---
 # SIMD (SSE/AVX) applicability
 
@@ -21,10 +21,16 @@ path explorer relaxation) is designed for it from the start.
 No SIMD intrinsics exist anywhere in simulation code today; the only assembler/SIMD-era code is
 graphics (`USE_ASSEMBLER`, display/simgraph16.cc, GNUC i686 only) [CODE master @ 075d540f3].
 
-- **Baseline ISA:** builds target Win32 and x64 (MSVC) plus GNU make/CMake; `-march=native` is
-  opt-in (`TUNE_NATIVE`, Makefile). SSE2 is a safe floor on x64 only (x86-64 ABI guarantee);
-  Win32 needs compile-flag gating; AVX2+ needs runtime dispatch that does not exist. MMX is
-  obsolete — never prefer it to SSE2.
+- **Baseline ISA:** builds target Win32 and x64 (MSVC) plus GNU make/CMake, including native
+  macOS/Apple Silicon builds. `-march=native` is opt-in (`TUNE_NATIVE`, Makefile). SSE2 is a safe
+  floor on x64 only (x86-64 ABI guarantee); Win32 x86 needs compile-flag gating. AArch64 mandates
+  NEON, so Apple Silicon and ARM64 Linux have a first-class SIMD target; NEON intrinsics use
+  `<arm_neon.h>`. AVX2+ needs runtime dispatch that does not exist. MMX is obsolete — never
+  prefer it to SSE2.
+- **Platform decision 2026-11-07** [RECOLLECTION:2026-11-07]: the path explorer kernel implements
+  SSE2 (x64) and NEON (AArch64) together, not SSE2 alone, because Apple users are a supported
+  audience. The scalar path remains the portable base and the oracle on every target, including
+  Win32 x86 and any platform without either backend.
 - **Determinism:** only integer SIMD is bit-exact across platforms; FP SIMD in synced code
   violates the no-float rule ([project-notes](project-notes.md)). All candidates below are
   integer-shaped.
@@ -50,9 +56,11 @@ graphics (`USE_ASSEMBLER`, display/simgraph16.cc, GNUC i686 only) [CODE master @
 ## Path explorer
 
 The staged position [RECOLLECTION:2026-09-19 user decision] is: design SIMD-compatible, then
-implement and verify scalar, then add a gated SIMD variant. The dense-vectorisation gate is met
-by a dense masked row formulation of the closure. Kernel design, invariants and verification:
-[path-explorer-optimisation](path-explorer-optimisation.md).
+implement and verify scalar, then add the gated SIMD variants immediately. The dense-vectorisation
+gate is met by a dense masked row formulation of the closure. The variants are SSE2 on x64 and
+NEON on AArch64, implemented together [RECOLLECTION:2026-11-07]; the scalar path is the oracle on
+every platform and the fallback where neither backend applies. Kernel design, invariants and
+verification: [path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
 
