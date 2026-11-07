@@ -13,7 +13,7 @@ inline); parent doc: [ex-15](../ex-15.md). Untagged claims are [CODE] at the fro
 
 Operational requirements, design decisions, ownership and implementation ordering:
 [recombination-design](recombination-design.md); read before planning or changing the runtime.
-Y/H-shaped journey traversal — the agreed design and rationale: [yh-path-explorer](yh-path-explorer.md);
+Through-journey traversal across couplings — the agreed design and rationale: [yh-path-explorer](yh-path-explorer.md);
 read when touching cross-schedule path exploration, split/join journey-time estimation, or the
 explorer's treatment of consist orders.
 
@@ -195,22 +195,20 @@ explorer's treatment of consist orders.
   is incidental (consist-order displaced vehicles → layover convoy, no schedule).
 - **Schedule adoption/concatenation for divided portions** — no mechanism sets a split-off
   portion's schedule to the target line/convoy schedule at the target entry.
-- **Y/H-shaped path-explorer traversal** — the explorer never reads couple/uncouple targets;
-  connexions are computed within one schedule only (linear/cyclic + mirrored). Journeys through a
-  join/split cannot be discovered or time-estimated. **Design revised 2026-11-07 and documented
-  in [yh-path-explorer](yh-path-explorer.md)**: through connexions are direct phase-2 records
-  whose time is the actual recorded through pair, with the existing accumulated-leg fallback;
-  phase 5 is unchanged. `target_unique_entry_couple` and `couple_target_sch_is_reversed` were
-  added to `schedule_entry_t` (savegame revision 8). The phase-2 generation, the cross-boundary
-  predicate, the depth setting and the GUI controls are implemented and committed at
-  `f4f6fd2b5`. A TEST-gated
-  hook on `month-boundary.sve` passed seven modes: uncouple, one-sided couple, reversed target,
-  mirrored source reverse pass, nested couplings (record present at depth 64, absent at depth 1),
-  broken target (no record) and blocked coupling (no record), plus a repeated-refresh determinism
-  check. The TEST hook was removed before commit. The category/class consist-order predicate,
-  cross-process determinism of saves containing couplings and interactive GUI operation remain
-  untested. The work must satisfy
-  the kernel requirements and staged SIMD position in
+- **Through-journey path-explorer traversal** — the connexion-rebuild generation reads couple/uncouple
+  targets and records through connexions as direct candidates whose time is the actual recorded
+  through pair, with the existing accumulated-leg fallback. There is no routing-search substitution.
+  The runtime divider and schedule handover remain outstanding. Design:
+  [yh-path-explorer](yh-path-explorer.md). `target_unique_entry_couple` and
+  `couple_target_sch_is_reversed` were added to `schedule_entry_t` (savegame revision 8). The
+  connexion-rebuild generation, the cross-boundary predicate, the depth setting and the GUI controls are
+  implemented and committed at `f4f6fd2b5`. A temporary verification hook on
+  `month-boundary.sve` passed seven modes: uncouple, one-sided couple, reversed target, mirrored
+  source reverse pass, nested couplings (record present at depth 64, absent at depth 1), broken
+  target (no record) and blocked coupling (no record), plus a repeated-refresh determinism check.
+  The hook is not in the code. The category/class consist-order predicate, cross-process
+  determinism of saves containing couplings and interactive GUI operation remain untested. The
+  work must satisfy the routing-search engine requirements in
   [path-explorer-optimisation](../path-explorer-optimisation.md) [RECOLLECTION:2026-09-19;
   revised 2026-11-07].
 - **Two-party coupling; dead-lock avoidance** — waiting for an absent named target now exists

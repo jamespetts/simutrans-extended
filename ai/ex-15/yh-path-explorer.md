@@ -1,20 +1,28 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (implementation, GUI and tests); design revised 2026-11-07
+verified: ex-15 @ f4f6fd2b5 (implementation, GUI and tests); routing-search engine @ f9d574ee5 + working tree (2026-11-07); design revised 2026-11-07
 ---
-# ex-15: Y/H-shaped path-explorer traversal
+# ex-15: through-journey path-explorer traversal
 
 **Covers:** the design for discovering and time-estimating journeys that pass through a
-schedule split or join; the affected code is path_explorer.{cc,h} (phases
+schedule split or join; the affected code is path_explorer.{cc,h} (the functions
 `phase_rebuild_connexions` and `phase_explore_paths`), dataobj/schedule.{cc,h},
 dataobj/schedule_entry.h, simconvoi.cc (re-combination runtime), simhalt.cc (connexion tables,
 laid-over registry), dataobj/settings.cc + simuconf.tab (the depth limit). Parent registry:
-[schedule-and-consists](schedule-and-consists.md). Determinism, threading, performance and SIMD
+[schedule-and-consists](schedule-and-consists.md). Determinism, threading and performance
 rules are defined elsewhere and only referenced here.
 
-This document records the agreed design and its rationale. Implementation has not started.
-All decisions marked [RECOLLECTION:2026-09-19] were taken by the user in the planning session
-of that date.
+**Terminology.** The design was originally described as "Y/H-shaped": a **Y-shaped** service
+has one convoy that divides into two portions, each continuing on a different schedule; an
+**H-shaped** service has two convoys that both divide and join at the same stop, each taking
+vehicles from the other. The routing concern in both cases is the **through journey**:
+passengers or goods that stay aboard the same vehicles across the coupling. This doc uses
+"through" for the journey and "Y/H-shaped" only for the service shape; the definitions below
+are the authority.
+
+The connexion-rebuild exploration and the GUI are implemented; the runtime split/join is not. All
+decisions marked [RECOLLECTION:2026-09-19] were taken by the user in the planning session of
+that date.
 
 Sub-documents (read-when):
 
@@ -23,8 +31,8 @@ Sub-documents (read-when):
   implementing or re-verifying.
 - [accuracy-performance-verification](yh-path-explorer/accuracy-performance-verification.md) — the
   worked accuracy oracle, the performance model against virtual concatenation and the per-stage
-  verification plan; read when implementing stages 1–5 or assessing performance. Phase-5 kernel
-  and SIMD requirements → [path-explorer-optimisation](../path-explorer-optimisation.md).
+  verification plan; read when implementing stages 1–5 or assessing performance. routing-search engine
+  requirements → [path-explorer-optimisation](../path-explorer-optimisation.md).
 
 ## Definitions
 
@@ -74,7 +82,7 @@ superseded parts must not be reintroduced:
 Record cross-schedule through journeys as direct connexion records at the exits of a
 splitting/joining section, using the existing matrix search. A record's time is the actual
 through pair time recorded by the consist that carries the passengers or goods across the
-coupling. No phase-5 substitution and no separate dwell term are used.
+coupling, including the coupling stop.
 
 ### Inputs the explorer may read
 
@@ -92,7 +100,7 @@ recorded whenever the saved data permit it, including at moments when the joinin
 present; the runtime handles absence as waiting, retry, or a specified failure (see
 Co-requirements). The recorded set changes only on schedule, line, vehicle or station changes.
 
-### Connexion generation (phase 2)
+### Connexion rebuild
 
 For each coupling entry, record directed through connexions from stops upstream of the coupling
 point on the source schedule to stops downstream of it on the destination schedule.
@@ -117,10 +125,9 @@ Each record's time is:
    schedules, using the existing fallback (recorded consecutive pair, else distance-and-speed; the
    layover/discharge transfer penalty applies exactly as it does within one schedule).
 
-The origin stop's waiting time and transfer time are stored as for any other connexion. No special
-coupling dwell is added: an actual pair time already includes the interval at every intermediate
-stop, and the accumulated-leg fallback omits it exactly as it does at every other intermediate
-stop.
+The origin stop's waiting time and transfer time are stored as for any other connexion. An
+actual pair time already includes the interval at every intermediate stop, and the
+accumulated-leg fallback omits it exactly as it does at every other intermediate stop.
 
 The record is owned by the linkage on which the passenger or goods board at the origin (the source
 linkage). Nested couplings extend the destination walk through further uncouple entries, up to the
@@ -136,13 +143,14 @@ forcing-discharge stop must not be joined to a continuing portion; the continuin
 an internal divide is exempt. Non-through directions (for example from the target branch back to
 the source branch) are not recorded.
 
-### Phase 5 — unchanged
+### Routing search
 
-No substitution is applied in the search. A through connexion is a direct record, like any other
-connexion, and the existing relaxation consumes it unchanged. The recorded time already includes
-the coupling stop (point 1 above), and the accumulated-leg fallback treats the coupling stop like
-any other intermediate stop (point 2). There is no separate dwell history and no per-cluster-pair
-adjustment; the phase-5 kernel and its iteration accounting are untouched.
+A through connexion is a direct candidate in the full connexion-rebuild list, like any other
+connexion, and the expanded-state per-origin Dijkstra consumes it as one edge whose transport
+is the boarding linkage. The recorded time already includes the coupling stop (point 1 above),
+and the accumulated-leg fallback treats the coupling stop like any other intermediate stop
+(point 2). The routing search consumes the recorded time directly; iteration accounting is in
+origins.
 
 ### Coupling data added for the explorer
 
@@ -164,10 +172,9 @@ fallback for every through pair; tests inject the pair times directly.
 
 ### Verification status
 
-[EXECUTION-VERIFIED:2026-11-07, Profile (server) x64, `month-boundary.sve`] A TEST-gated hook
-(`SIMUTRANS_YH_TEST` or `-yh-test`) chooses line pairs, injects through pair times, runs full
-unbudgeted refreshes and checks the origin halt's connexion and the matrix cell. Seven modes
-passed:
+[EXECUTION-VERIFIED:2026-11-07, Profile (server) x64, `month-boundary.sve`] A temporary
+verification hook chose line pairs, injected through pair times, ran full unbudgeted refreshes
+and checked the origin halt's connexion and the matrix cell. Seven modes passed:
 
 - mode 0, uncouple forward: record owner line 372, origin 2243, coupling 9, destination 37,
   injected 1, matrix 18 = direct 18;
@@ -182,8 +189,8 @@ passed:
 - mode 6, blocked coupling (`lay_over`): no through record.
 
 The uncouple scenario was repeated after the other modes and returned the same record and matrix,
-a within-process determinism check. The TEST hook was removed before commit; the results above are
-the recorded verification. Not yet covered: the category/class consist-order predicate,
+a within-process determinism check. The temporary hook is not in the code; the results above are
+the verification record. Not yet covered: the category/class consist-order predicate,
 cross-process determinism of saves containing couplings, and interactive GUI operation.
 
 ### Rebuild triggers
@@ -207,7 +214,7 @@ other settings and server-authoritative in network mode.
 
 ### Scope
 
-The full feature ships in the 15.x release with no partial versions: splits, joins, H-shape
+The full feature ships in the 15.x release as one package: splits, joins, H-shape
 exchanges, nested splits, and portion-sensitive discharge
 [RECOLLECTION:2026-09-19].
 
@@ -238,7 +245,7 @@ platform and home-depot handling, and the remaining per-portion consist-order va
 
 ## Implementation stages
 
-1. Baselines: per-phase durations and iteration counts on an active window and on the synthetic
+1. Baselines: per-step durations and iteration counts on an active window and on the synthetic
    maps, with the accuracy oracle in
    [accuracy-performance-verification](yh-path-explorer/accuracy-performance-verification.md) as a
    cell-for-cell oracle and byte-identical matrices plus iteration counts as a regression oracle.
@@ -248,7 +255,7 @@ platform and home-depot handling, and the remaining per-portion consist-order va
 4. Transfer status for coupling stops, the added rebuild triggers, and the depth limit.
 5. GUI controls: a couple target-entry picker and "Target schedule is reversed" controls for both
    sides. Implemented and compile-verified; not yet exercised interactively. Additional UI work
-   beyond the previously finished schedule/consist UI.
+   beyond the existing schedule/consist UI.
 6. Runtime co-requirements and remaining consist-order validation (same release).
 
 Per-stage verification method (loopback determinism, performance-suite oracles, refresh timing):
@@ -256,14 +263,13 @@ Per-stage verification method (loopback determinism, performance-suite oracles, 
 
 ### Sequencing against the optimisation work
 
-The through-connexion generation touches phase 2 only. Phase 5 is unchanged: a through connexion
-is a direct record with the same first and last transport, so there is no per-cluster-pair
-adjustment, no second transport field and no change to the dense kernel or its iteration
-accounting. The flat-array cell layout, the dense SSE2/NEON comparison loop and the phase-5 thread
-pool are merged into `ex-15` (merge `ad753f5c6`); Y/H remains on the present engine family (not
-levers 7/8). The runtime co-requirements, the journey-time handover, consist-order data and
-pakset work are independent and can start in parallel. [analysis revised 2026-11-07; layout/SIMD/
-threading status at ex-15 @ f803ef8ac]
+The through-connexion generation touches the connexion rebuild only. A through connexion is a
+direct candidate with the same first and last transport, so the routing search consumes it as
+one ordinary edge with one transport field. The routing-search engine is the expanded-state
+per-origin Dijkstra. The runtime
+co-requirements, the journey-time handover, consist-order data and
+pakset work are independent and can start in parallel. [analysis revised 2026-11-07; engine/pool
+status at ex-15 @ f9d574ee5 + working tree]
 
 ## Open questions
 
@@ -289,14 +295,17 @@ Design and performance/accuracy reasoning: user planning session 2026-09-19
 absence of explorer target reads were rechecked locally at ex-15 @ bf447619a. Superseded 2018 items
 are recorded only to prevent reintroduction; live runtime status lives in
 [schedule-and-consists](schedule-and-consists.md). Split 2026-11-03: the code-verified baseline and
-the accuracy/performance/SIMD/verification detail moved to the two sub-documents listed above
+the accuracy/performance/verification detail moved to the two sub-documents listed above
 (user instruction; no content dropped). Revised 2026-11-07 [user decisions]: the through record's
-time is the actual recorded pair time, not stitched legs plus a dwell; phase 5 is unchanged and
-there is no substitution; a join is generated from the paired uncouple entry, with the new
+time is the actual recorded pair time, including the coupling stop; the routing search
+consumes the through connexion as an ordinary edge (the engine is the expanded-state per-origin
+Dijkstra); a join is
+generated from the paired uncouple entry, with the new
 `target_unique_entry_couple`/`couple_target_sch_is_reversed` fields for the one-sided case. The
-data fields and savegame revision 8, the phase-2 generation, the cross-boundary predicate, the
-depth setting and the GUI controls are implemented and committed at `f4f6fd2b5`. The TEST hook passed the
-uncouple and one-sided couple cases on `month-boundary.sve`; the TEST hook and runner must be
-removed before commit or promoted to a permanent test mode. Reversed targets, mirrored source
-passes, nested couplings, depth truncation, broken targets, the cross-boundary category/class
-cases, determinism and the GUI interaction remain untested.
+data fields and savegame revision 8, the connexion-rebuild generation, the cross-boundary predicate, the
+depth setting and the GUI controls are implemented and committed at `f4f6fd2b5`. The connexion-rebuild
+generation was verified on `month-boundary.sve` for uncouple, one-sided couple, reversed target,
+mirrored-source reverse pass, nested couplings to depth 64, broken target, blocked coupling and
+repeated-refresh determinism. The temporary verification hook was removed before commit; the
+runner scripts require the test functions to be re-added before they can run again. Interactive
+GUI operation and cross-process determinism with couplings present remain to be verified.

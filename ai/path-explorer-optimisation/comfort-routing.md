@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ ad1815c (design); ex-15 @ ad753f5c6 (layout status, merged from path-explorer-optimisation @ 186c92e72)
+verified: ex-15 @ f9d574ee5 + working tree (layout/engine status; 2026-11-07); ex-15 @ ad1815c (design)
 ---
 # Comfort-aware routing (design)
 
@@ -83,11 +83,12 @@ Per connexion h → t, per compartment, in tenths of minutes:
 - Mid-journey walking connexions carry the default walking penalty; first and last walks are
   costed per packet outside the tables.
 
-Requirements on every engine and lever (→ parent):
+Requirements on the connexion-rebuild weight model and the routing-search engine (→ parent):
 
 - **Decomposability:** weights must be one non-negative number per edge per compartment,
-  depending only on that edge. Then the closure, Dijkstra rows (7), hub labels (8), the SIMD
-  kernel and the GPU path all work unchanged; only phase 2 and the table consumers change.
+  depending only on that edge. Then the routing-search engine (an expanded-state per-origin
+  Dijkstra) and any future graph search work unchanged; only the connexion rebuild and the table
+  consumers change.
 - **Single-route sufficiency:** one stored route per halt pair is right for every passenger only
   if every passenger is judged by the same blended cost with the same weights and differs only in
   the limit on it. Individual comfort sensitivity in the tolerance test, a different comfort weight
@@ -95,7 +96,7 @@ Requirements on every engine and lever (→ parent):
   the stored route can fail a passenger while a slower, more comfortable route would pass. Uniform
   per-edge hard limits, the per-passenger time tolerance, and per-passenger choices at boarding
   (class, waiting for a more comfortable convoy on the same next stop) do not break it.
-- **Deduplication** in phase 2 must compare full weights, not journey times; this also removes
+- **Deduplication** in the connexion rebuild must compare full weights, not journey times; this also removes
   the walking-replaced-by-slower-bus defect (→ [known-bugs](../known-bugs.md)).
 - **Settings changes** that affect weights must force a refresh when a save is loaded
   (`path_explorer_t::set_must_refresh_on_loading`); otherwise the saved tables keep old weights.
@@ -104,7 +105,7 @@ Requirements on every engine and lever (→ parent):
 
 Rounding is not a problem if: weights stay in tenths of minutes (`uint32`); rates are fixed point
 (e.g. scale 2¹⁶) from an integer table indexed by comfort shortfall (comfort is an integer);
-each edge's weight is computed once in phase 2 in one expression with a 64-bit intermediate,
+each edge's weight is computed once in the connexion rebuild in one expression with a 64-bit intermediate,
 `(L × (S + r) + S/2) / S`; results round to nearest; nothing is built up by repeated small
 increments. Error ≤ 0.5 tenth of a minute (3 s) per edge, unbiased; ≤ 15 s over 5 legs. The
 32-sample waiting means already carry standard errors of ~0.5 min (10-minute headway) to ~3 min
@@ -126,10 +127,10 @@ the pak128.Britain-Ex table, a vehicle of comfort 60 and an illustrative penalty
 | 300 min | ≈ 128 min | ≈ 3 min | ≈ 124 min |
 
 A typical change costs 10–30 min, so it does not offset this. The "no re-boarding the same
-linkage" rule (present closure, lever 7b) blocks it on one line only. Every per-leg tolerance that
-rises with ride length has this property; a per-minute rate depending on comfort alone does not,
-but is not per-leg sensitivity. Relief from discomfort during a break cannot be represented in a
-precomputed table. This favours 7b over 7a if lever 7 is adopted (→
+linkage" rule (the current expanded-state engine) blocks it on one line only. Every per-leg
+tolerance that rises with ride length has this property; a per-minute rate depending on comfort
+alone does not, but is not per-leg sensitivity. Relief from discomfort during a break cannot be
+represented in a precomputed table. The current expanded-state engine enforces the rule (→
 [engine-semantics](engine-semantics.md)).
 
 ## Stop comfort details
@@ -156,14 +157,14 @@ precomputed table. This favours 7b over 7a if lever 7 is adopted (→
   issue]. Per-packet routing could mitigate this but is not feasible at scale (→
   [per-packet-routing](per-packet-routing.md)).
 
-## Companion behaviour and Y/H
+## Companion behaviour and through journeys
 
 - Routes store only the next stop, and boarding takes the fastest convoy to it. Boarding must
   compare perceived costs (including the convoy's comfort) or prefer the connexion's best line, and
   passengers must stay aboard where the route continues on the same convoy (→
   [engine-semantics](engine-semantics.md) Example A); otherwise realised stop and comfort costs
   differ from routed ones.
-- Y/H: stop penalties make correct deboarding more critical [RECOLLECTION:2026-11-04]. Through
+- Through journeys: stop penalties make correct deboarding more critical [RECOLLECTION:2026-11-04]. Through
   edges take the comfort of the portion the passenger stays in and count as one leg; through
   passengers pay no stop terms during the dwell. Composition beyond the depth limit would have to
   remove the coupling stop's terms from the second cell, which a blended cell does not hold, so it
@@ -171,14 +172,14 @@ precomputed table. This favours 7b over 7a if lever 7 is adopted (→
 
 ## Sequencing against the optimisation work
 
-Comfort weights are computed in phase 2 and do not change the comparison loop, so the
+Comfort weights are computed in the connexion rebuild; the routing-search kernel is unchanged, so the
 weight/scales/pakset/revenue work can proceed in parallel. The cell layout is fixed: one 4-byte
 cost field (`finished_times`/`working_times`, currently the aggregate time; it can hold the
 blended cost when comfort weights land) and the 2-byte next stop
 (`finished_next_transfers`/`working_next_transfers`), with no separate discomfort array. The
-measured memory and performance results support B over S and uniform over banded sensitivity.
-Adding a discomfort array later needs a savegame step and one refresh, but the flat arrays leave
-room for it [analysis, 2026-11-06].
+comfort cost is one field per cell. The measured memory and performance results support B over S
+and uniform over banded sensitivity. Adding a discomfort array later needs a savegame step and one
+refresh, but the flat arrays leave room for it [analysis, 2026-11-06].
 
 ## Blended (B) or separate (S) storage
 
@@ -193,7 +194,7 @@ room for it [analysis, 2026-11-06].
 | Savegame | 6 | 8 |
 
 Peak with 5 large compartments: S 1.3 / 5.2 / 20.8 GB, B 1.0 / 4.0 / 16.0 GB at
-H = 5k / 10k / 20k. Compute: with levers 0–6 S is within ~1–2% of B (routes are still chosen on
+H = 5k / 10k / 20k. Compute: with the current engine S is within ~1-2% of B (routes are still chosen on
 the blended cost; D is written only when a cell improves and is read beside the next stop)
 [UNVERIFIED].
 
@@ -214,7 +215,7 @@ step and one refresh) without changing the kernel's comparison.
 Recommended: one uniform comfort weighting in route choice and tolerance, individual variation
 only in time tolerance and at boarding; a comfort-sensitive individual then cannot choose a
 different stop-to-stop route. If individual route choice is needed, the options are:
-- **bands** of tables (memory and phase-5 compute ×k; worst-case cost overstatement
+- **bands** of tables (memory and routing-search compute ×k; worst-case cost overstatement
   (s_max/s_min)^(1/2k), e.g. 1.41 at k = 2 for a 0.5–2× spread; each packet stores its band, a
   savegame change);
 - **on-demand search** on comfort-only failures (20 µs–3 ms each on the critical path; viable only

@@ -19,10 +19,17 @@
 
 #include "tpl/vector_tpl.h"
 #include "tpl/quickstone_hashtable_tpl.h"
+#include "tpl/binary_heap_tpl.h"
 
 
 /*
- * A centralised, steppable path searching system using Floyd-Warshall Algorithm
+ * A centralised, steppable path searching system. It maintains the routing
+ * database used by passenger, mail and goods packets: for every pair of
+ * stops it stores an estimated journey time and the next stop to head for.
+ * A refresh rebuilds the stop-to-stop connexions from the schedules and
+ * searches from each origin while tracking the line or lineless convoy used
+ * to arrive, so a route cannot re-board the same one at a transfer. The work
+ * is spread over simulation steps.
  */
 class path_explorer_t
 {
@@ -125,7 +132,9 @@ private:
 
 	private:
 
-		// structure used for storing indices of halts connected to a transfer, grouped by transport
+		// Legacy routing-refresh cluster state from older savegames. The class
+		// and its reader exist only to load those saves and discard the
+		// obsolete state. The savegame version gate is in compartment_t::rdwr.
 		class connection_t
 		{
 
@@ -136,13 +145,6 @@ private:
 			{
 				uint16 transport;
 				vector_tpl<uint16> connected_halts;
-
-				connection_cluster_t(const uint32 halt_vector_size, const uint16 transport_id, const uint16 halt_id) :
-					transport(transport_id),
-					connected_halts(halt_vector_size)
-				{
-					connected_halts.append(halt_id);
-				}
 
 				connection_cluster_t(loadsave_t* file);
 
@@ -174,67 +176,6 @@ private:
 				}
 			}
 
-			void reset()
-			{
-				// reset only clears the connected halt vectors of used connection clusters
-				// connection clusters are not deallocated so that they can be re-used later
-				for ( uint32 i = 0; i < usage_level; ++i )
-				{
-					connection_clusters[i]->connected_halts.clear();
-				}
-				usage_level = 0;
-				cluster_map.clear();
-			}
-
-			void register_connection(const uint16 transport_id, const uint16 halt_id)
-			{
-				// check against each existing cluster
-				connection_cluster_t *const existing_cluster = cluster_map.get(transport_id);
-				if ( existing_cluster )
-				{
-					existing_cluster->connected_halts.append(halt_id);
-					return;
-				}
-
-				// reaching here means no match is found --> re-use or create a new connection cluster
-				if ( usage_level < connection_clusters.get_count() )
-				{
-					// case : free connection clusters available for use
-					connection_clusters[usage_level]->transport = transport_id;
-					connection_clusters[usage_level]->connected_halts.append(halt_id);
-					cluster_map.put(transport_id, connection_clusters[usage_level]);
-				}
-				else
-				{
-					// case : no more available connection cluster for use --> requires allocation
-					connection_cluster_t *const new_cluster = new connection_cluster_t( halt_vector_size, transport_id, halt_id );
-					connection_clusters.append( new_cluster );
-					cluster_map.put(transport_id, new_cluster);
-				}
-				++usage_level;
-			};
-
-			uint32 get_cluster_count() const { return usage_level; }
-
-			uint32 get_total_member_count() const
-			{
-				uint32 total = 0;
-				for ( uint32 i = 0; i < usage_level; ++i )
-				{
-					total += connection_clusters[i]->connected_halts.get_count();
-				}
-				return total;
-			}
-
-			const connection_cluster_t& operator[](const uint32 element_id) const
-			{
-				if ( element_id >= usage_level )
-				{
-					dbg->fatal("connection_t::operator[]()", "Index out of bounds: %i not in 0..%i", element_id, (sint32)usage_level - 1);
-				}
-				return *(connection_clusters[element_id]);
-			}
-
 			void rdwr(loadsave_t* file);
 		};
 
@@ -247,7 +188,8 @@ private:
 
 		// A stop reachable from a coupling point, with the time from that
 		// point and the linkage operating the final segment. Used while
-		// generating cross-schedule (Y/H) connexions in phase 2.
+		// generating through connexions across schedule couplings during the
+		// connexion rebuild.
 		struct through_stop_t
 		{
 			halthandle_t halt;
@@ -280,13 +222,60 @@ private:
 		// set of variables for working path data
 		uint32 *working_times;
 		uint16 *working_next_transfers;
-		uint16 *working_first_transports;
-		uint16 *working_last_transports;
-		uint32 *target_times;		// dense per-transfer row: [via][t], or UINT32_MAX if t is not a target
 		uint16 *transport_index_map;
 		uint16 *working_halt_index_map;
 		halthandle_t *working_halt_list;
 		uint16 working_halt_count;
+
+		// Full stop-to-stop connexion candidates: every walking candidate,
+		// every direct ride, and every through candidate generated across a
+		// coupling (a journey that stays aboard when portions join or split),
+		// before cross-linkage deduplication. The routing search graph is
+		// built from this list.
+		struct full_connexion_t
+		{
+			uint16 origin_halt_id;
+			uint16 target_halt_id;
+			uint16 transport_idx;
+			uint32 weight;
+		};
+		vector_tpl<full_connexion_t> full_connexions;
+
+		// Compact routing-search graph: per-origin outgoing edges and the
+		// expanded (halt, arriving transport) state space. Rebuilt from
+		// full_connexions before the search.
+		struct full_edge_t
+		{
+			uint16 target;
+			uint16 transport;
+			uint32 weight;
+			uint32 target_state;
+		};
+		full_edge_t *full_edges;
+		uint32 full_edge_count;
+		uint32 *out_offset;		// one per working halt plus a terminator
+		uint32 *out_edge;		// edge indices grouped by origin
+		uint32 *state_offset;	// one per working halt plus a terminator
+		uint16 *state_halt;
+		uint32 *state_key;		// transport index; 0xFFFFFFFF for the origin state
+		uint32 state_count;
+
+		// Per-thread Dijkstra scratch. The heap holds pointers into
+		// heap_items, so both are allocated for pool_thread_count threads.
+		struct heap_item_t
+		{
+			uint32 dist;
+			uint32 state;
+			bool operator<=(const heap_item_t &other) const
+			{
+				return dist < other.dist || (dist == other.dist && state <= other.state);
+			}
+		};
+		uint32 *thread_dist;
+		uint16 *thread_first_hop;
+		heap_item_t **heap_items;
+		binary_heap_tpl<heap_item_t*> *heaps;
+		uint32 thread_scratch_count;
 
 		// set of variables for full halt list
 		halthandle_t *all_halts_list;
@@ -310,40 +299,31 @@ private:
 		bool refresh_completed;
 		bool refresh_requested;
 
-		// phase indicator
+		// Current refresh step.
 		uint8 current_phase;
 
-		// phase counters
+		// Per-step counters.
 		uint16 phase_counter;
 		uint32 iterations;
 		uint64 total_iterations; // for desync debug only
 
-		// phase counters for path searching
-		uint16 via_index;
-		uint32 origin_cluster_index;
-		uint32 target_cluster_index;
-		uint32 origin_member_index;
-
-		// variables for limiting search around transfers
-		connection_t *inbound_connections;		// relative to the current transfer
-		connection_t *outbound_connections;		// relative to the current transfer
-		bool process_next_transfer;
+		// Routing-search resume position: the next origin (working index) to
+		// search.
+		uint16 origin_index;
 
 		// statistics for determining limits
 		uint32 statistic_duration;
 		uint32 statistic_iteration;
 
 #ifdef MULTI_THREAD
-		// Worker-pool state for the phase 5 origin scan. The pool has
+		// Worker-pool state for the routing-search origin scan. The pool has
 		// pool_thread_count threads: the caller of pool_run() (thread index 0,
 		// the lead) and pool_thread_count - 1 parked helpers.
 		struct pool_batch_t
 		{
 			compartment_t *compartment;
-			const vector_tpl<uint16> *origin_halt_list;
-			uint16 via;
-			uint32 origin_member_begin;
-			uint32 origin_member_count;
+			uint16 origin_begin;
+			uint32 origin_count;
 		};
 
 		static pthread_mutex_t pool_mutex;
@@ -357,18 +337,29 @@ private:
 		static bool pool_initialised;
 #endif
 
-		// Run one batch of origin members: the caller takes the lead slice and
-		// waits for the helpers; the batch is the exact set the single-threaded
-		// loop would process in this step.
-		static void pool_run(compartment_t *compartment, const vector_tpl<uint16> *origin_halt_list,
-			const uint16 via, const uint32 origin_member_begin, const uint32 origin_member_count);
+		// Run one batch of origins: the caller takes the lead slice and waits
+		// for the helpers; the batch is the exact set the single-threaded loop
+		// would process in this step.
+		static void pool_run(compartment_t *compartment, const uint16 origin_begin, const uint32 origin_count);
 
 		// Process this thread's slice of one origin batch.
-		void help_phase_explore_paths(const uint32 thread_index, const uint32 thread_count,
-			const vector_tpl<uint16> &origin_halt_list, const uint16 via,
-			const uint32 origin_member_begin, const uint32 origin_member_count);
+		void run_origin_slice(const uint32 thread_index, const uint32 thread_count,
+			const uint16 origin_begin, const uint32 origin_count);
 
-		// an array of names for the various phases
+		// One per-origin Dijkstra over the expanded state graph, writing one
+		// matrix row.
+		void run_origin(const uint16 origin, const uint32 thread_index);
+
+		// Build and release the routing-search graph and thread scratch.
+		void build_search_graph();
+		void clear_search_graph();
+		void free_thread_scratch();
+
+		// Append one full stop-to-stop candidate before deduplication.
+		void add_full_connexion(const halthandle_t origin, const halthandle_t target,
+			const haltestelle_t::connexion &cnx);
+
+		// Names of the refresh steps.
 		static const char *const phase_name[];
 
 protected:
@@ -381,8 +372,8 @@ private:
 		static uint16 representative_halt_count;
 		static uint8 representative_category;
 
-		// indicate whether phase limits are used or not
-		// -> it is turned off for initial full instant search
+		// Whether per-step iteration limits are used. Turned off for the
+		// initial full instant search.
 		static bool use_limits;
 
 		// iteration limitslinkages
@@ -406,10 +397,11 @@ private:
 		static const uint32 default_rebuild_connexions  = 0x0400;
 		static const uint32 default_filter_eligible = 0x00018000;
 		static const uint32 default_fill_matrix     = 0x00010000;
-		static const uint64 default_explore_paths   = 0x01000000;
+		// Routing-refresh search budget in origins per step.
+		static const uint64 default_explore_paths   = 16;
 		static const uint32 default_reroute_goods       = 0x0100;
 
-		// phase indices
+		// Refresh step indices.
 		static const uint8 phase_check_flag = 0;
 		static const uint8 phase_init_prepare = 1;
 		static const uint8 phase_rebuild_connexions = 2;
@@ -563,7 +555,7 @@ public:
 	static thread_local bool allow_path_explorer_on_this_thread;
 	friend void *path_explorer_threaded(void* args);
 
-	// Dedicated phase 5 worker pool. The existing path explorer thread is the lead;
+	// Dedicated routing-search worker pool. The existing path explorer thread is the lead;
 	// the helpers are parked on the pool condition variable and are released per
 	// origin batch by the lead.
 	static void initialise_thread_pool(const uint32 thread_count);

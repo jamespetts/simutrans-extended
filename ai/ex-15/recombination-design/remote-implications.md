@@ -9,7 +9,7 @@ anomalies/exploits) of the consist re-combination design decisions, as an indepe
 analysis recorded in [cargo-continuity](cargo-continuity.md),
 [recombination-design](../recombination-design.md) and [yh-path-explorer](../yh-path-explorer.md).
 Read before settling the cargo/instance decision or the fare booking model, and before finalising
-the Y/H stages. Severity: [H] high, [M] medium, [L] low. Items are analysis, not decisions; code
+the through-journey stages. Severity: [H] high, [M] medium, [L] low. Items are analysis, not decisions; code
 anchors are [CODE] at the frontmatter value, inferences are [UNVERIFIED].
 
 Provenance: two independent review agents contributed to this file on 2026-11-03 — **Review A**
@@ -43,14 +43,15 @@ recorded per item in *Conflicts between the two reviews* and inline in
   (1–2 min) from detaching a locomotive, running round and attaching another (10–20 min); the
   balance point that loco-hauled operation has realistic turnaround penalties versus MUs is lost.
   The reversing code already classifies MU / run-round / turntable; the dwell model should reuse
-  that classification per operation type. Also affects the Y/H reconstruction rule.
+  that classification per operation type. Also affects how through journeys are recorded.
 - **R4 [M] — fare booking model at coupling events.** The `calc_revenue` lookup failure occurs at
   joins as well as splits. Alternative to "fix the lookup": book the leg at the coupling event
   (mileage apportionment — Railway Clearing House model), which sidesteps it and is the realistic
   multi-operator answer. Trade-offs: concave pakset fares make two legs earn more than one through
   fare (see A1); whichever leg absorbs the coupling dwell, the dwell must appear in some leg's
-  journey time or the speed bonus is inflated (leg times currently exclude dwell). The Y/H
-  alight-and-reboard rejection concerns the explorer; its fare clause does not settle booking.
+  journey time or the speed bonus is inflated (leg times currently exclude dwell). The
+  alight-and-reboard alternative for through journeys concerns the explorer; its fare clause
+  does not settle booking.
 - **R5 [M] — loco-less waiting portions cannot move.** Through coaches detached at a through
   platform occupy it until traction arrives; real practice used bay platforms or a pilot shunt.
   Without a pilot mechanism, realistic branch-coach working requires the divide itself to occur in
@@ -91,7 +92,7 @@ recorded per item in *Conflicts between the two reviews* and inline in
   merged, so its connexions vanish and reappear across passes; and every divide/join (convoy
   created, convoy destroyed) may trigger a category refresh — with frequent divides the explorer
   may never complete a pass. Both the "has convoys" predicate and the refresh triggers need
-  redefining for portion-fed lines before the Y/H stages are finalised.
+  redefining for portion-fed lines before the through-journey stages are finalised.
 - **P2 [M] — dormant convoys in the hot lists.** `sync_list_t::sync_step` is the measured #1
   hotspot (23.7% self, a raw list walk; [performance](../../performance.md)). Loose wagons and
   waiting portions are full `convoi_t` objects; if LAYOVER/AWAITING convoys remain in the sync list
@@ -146,7 +147,7 @@ Add as decisions (not sub-questions):
 
 Correct these assumptions in [cargo-continuity](cargo-continuity.md): passengers get load-time
 portion grouping (R1); contiguity constrains assignment or prices the dwell (R2). P1 is a
-pre-condition check before the Y/H stages are finalised. C1 justifies the narrow commit-time form
+pre-condition check before the through-journey stages are finalised. C1 justifies the narrow commit-time form
 of the referring-list question.
 
 ## Addendum — second review (2026-11-03)

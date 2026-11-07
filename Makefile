@@ -219,29 +219,6 @@ ifdef USE_ZSTD
   endif
 endif
 
-# SIMD backend for the path explorer dense row kernel.
-# The source selects a backend automatically from the compiler's architecture
-# macros: SSE2 on x86-64, NEON on AArch64, scalar otherwise. Set one of these
-# to 1 only to force a backend explicitly, for example when cross-compiling or
-# when the compiler does not define the usual architecture macros. Do not set
-# both; the source rejects that with a compile-time error.
-#
-#   USE_SSE2=1   SSE2 kernel. x86-64 always has SSE2; on 32-bit x86 add -msse2
-#                to CFLAGS as well.
-#   USE_NEON=1   NEON kernel. AArch64 always has NEON; 32-bit ARM is not
-#                supported by this gate.
-ifdef USE_SSE2
-  ifeq ($(shell expr $(USE_SSE2) \>= 1), 1)
-    CFLAGS += -DUSE_SSE2
-  endif
-endif
-
-ifdef USE_NEON
-  ifeq ($(shell expr $(USE_NEON) \>= 1), 1)
-    CFLAGS += -DUSE_NEON
-  endif
-endif
-
 ifdef USE_FLUIDSYNTH_MIDI
   ifeq ($(shell expr $(USE_FLUIDSYNTH_MIDI) \>= 1), 1)
     CFLAGS  += -DUSE_FLUIDSYNTH_MIDI

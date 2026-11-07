@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (Y/H path-explorer changes; design revised 2026-11-07)
+verified: ex-15 @ f4f6fd2b5 (through-journey path-explorer changes; design revised 2026-11-07)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -23,8 +23,8 @@ Sub-documents (read-when):
   its sub-questions; read when working on that decision or on load/unload paths at a divide.
 - [remote-implications](recombination-design/remote-implications.md) — the cross-cutting review of
   realism, player cognitive overhead, performance and anomaly/exploit implications (R/C/P/A items);
-  read before settling the cargo/instance or fare-booking decisions and before finalising the Y/H
-  stages.
+  read before settling the cargo/instance or fare-booking decisions and before finalising the
+  through-journey stages.
 
 ## Operational scope
 
@@ -168,7 +168,8 @@ The explorer design records through journeys from saved schedule/order data and 
 state, not live convoy positions or loose-pool contents [RECOLLECTION:2026-09-19]. Revised
 2026-11-07: a through connexion's time is the actual pair time recorded by the consist that
 carries the passengers or goods across the coupling, with the existing accumulated-leg fallback;
-there is no separate dwell term and phase 5 is unchanged. See
+the recorded time includes the coupling stop and the routing search consumes the connexion as an
+ordinary edge. See
 [yh-path-explorer](yh-path-explorer.md). Differing service frequencies and asynchronous collection
 were already considered in the 2018 explorer discussion
 [FORUM:https://forum.simutrans.com/index.php/topic,17892.msg170661.html]. The runtime must record
@@ -185,11 +186,10 @@ The agreed ordering constraints are:
   ships with the runtime [RECOLLECTION:2026-11-01 user statement].
 - At UI level, implement reversal-aware picking first, then the per-portion gate with the dividing
   package [RECOLLECTION:2026-11-01 user statement].
-- The Y/H explorer has its own documented stages: baselines, edge generation, cross-boundary
-  condition, through-journey substitution, then transfer status/rebuild triggers/depth limit. Use a
-  verified scalar implementation before the gated SIMD variant
-  (→ [path-explorer-optimisation](../path-explorer-optimisation.md)). Its through journeys must not be
-  released before the runtime can execute them; splits, joins, H-exchanges, nested splits,
+- The through-journey explorer has its own documented stages: baselines, edge generation,
+  cross-boundary condition, then transfer status/rebuild triggers/depth limit
+  (→ [yh-path-explorer](yh-path-explorer.md)). Its through journeys must not be released before
+  the runtime can execute them; splits, joins, two-convoy exchanges, nested splits,
   portion-sensitive discharge, freight continuity, platform handling and the remaining
   consist-order validation are release co-requirements
   [RECOLLECTION:2026-09-19; RECOLLECTION:2026-11-01].
@@ -204,7 +204,7 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
 3. Implement the paired exchange, failure behaviour and deadlock avoidance, while preserving the
    separate plain-uncouple/asynchronous pool-collection path. Complete recipient eligibility at
    pickup. This follows division because the target's uncouple order supplies the paired exchange.
-4. Implement the Y/H stages in parallel where useful, but release them only with the runtime and
+4. Implement the through-journey stages in parallel where useful, but release them only with the runtime and
    freight-continuity work. Resolve asynchronous collection dwell within that package.
 5. Complete platform/siding/home-depot and call-on handling, solver completeness, ownership/access
    decisions and the remaining authoring validation. Basic loose-pool storage and visibility already

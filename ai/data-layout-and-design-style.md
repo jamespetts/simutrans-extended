@@ -78,13 +78,15 @@ codebase-specific structural patterns are recorded here.
   ([utilities](utilities.md), [known-bugs](known-bugs.md)). It is the intended shape of a
   pool-based replacement for pointer-list stepping.
 - **Sparse connectivity storage.** `sparse_tpl<T>` (Compressed Row Storage) backs per-city
-  passenger-destination maps (simcity.h); the path explorer works on a connectivity representation
-  rather than per-object state ([utilities](utilities.md), [routing-and-scheduling](routing-and-scheduling.md)).
+  passenger-destination maps (simcity.h); the path explorer uses the full connexion-rebuild candidate list
+  and a compact per-origin edge list plus an expanded `(halt, arriving transport)` state graph
+  rather than per-object state ([utilities](utilities.md),
+  [routing-and-scheduling](routing-and-scheduling.md)).
 - **Value summaries.** `vehicle_summary_t`, `weight_summary_t`, `freight_summary_t` and
   `nearby_halt_t` are plain data computed from the entity graph and passed/aggregated by value
   (convoy.h). The path explorer uses flat structure-of-arrays blocks (`finished_times` /
   `finished_next_transfers` and the working equivalents) rather than a path-element struct
-  (path_explorer.h).
+  (path_explorer.h); the working matrix stores only times and next transfers.
 - **Invalidate-by-flag caches.** `lazy_convoy_t` keeps computed summaries plus an `is_valid`
   bitmask of `convoy_detail_e` flags, recomputing only invalidated entries (convoy.h).
 - **Copy-on-write way lists.** `weg_t` shares stored destination lists between slots behind a

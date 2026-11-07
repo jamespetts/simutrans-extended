@@ -196,15 +196,14 @@ Rank on discovery; re-rank on triage.
   cached service frequency. `ALWAYS_CACHE_SERVICE_INTERVAL` is defined, so the cache is used.
 - Effect on routing: when a halt pair has no waiting-time samples, `get_average_waiting_time`
   estimates the wait as half the service frequency from `get_service_frequency`, which can
-  return another destination's cached value. The path explorer's phase 2 uses this fallback for
-  connexion weights.
+  return another destination's cached value. The path explorer's connexion rebuild uses this
+  fallback for connexion weights.
 - Order dependence: the cache is not saved (`haltestelle_t::rdwr` clears it) and is filled
-  lazily, including by the phase-2 fallback itself. Which colliding destination's value is
-  stored for a key depends on the order of queries since load. This was the cause of the
-  recorded difference between a full refresh and a resumed mid-pass save
-  (→ [phase5-kernel](path-explorer-optimisation/phase5-kernel.md), "Resolved: mid-pass
-  cross-class result"). In a full refresh passenger class 0's phase 2 fills the
-  passenger-category entries first; in a resumed pass class 1 does. That matches the recorded
+  lazily, including through the connexion rebuild's fallback. Which colliding destination's
+  value is stored for a key depends on the order of queries since load. This was the cause of
+  the recorded difference between a full refresh and a resumed mid-pass save. In a full refresh
+  passenger class 0's connexion rebuild fills the passenger-category entries first; in a
+  resumed pass class 1 does. That matches the recorded
   symptoms: class 0, mail and goods are identical; classes 1–4 differ; refreshing only classes
   1–4 reproduces the resumed result. [causal link EXECUTION-VERIFIED:2026-11-07; the truncation
   was CODE.]
@@ -331,7 +330,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | recalc_transitions climate-byte data race (not a forum report: TSan CI triage) | — | detailed entry above; both branches; intermittent non-blocking-TSan failure only, value-benign, cannot deadlock; whether/how to fix open |
-| Walking connexion replaced by a slower line connexion (not a forum report: code inspection 2026-11-04) | — | both branches: in `phase_rebuild_connexions` a line connexion replaces an existing walking connexion for the same halt pair when its journey time is shorter, ignoring the line's waiting time (walking has none). The matrix then carries the line's larger weight, and `get_preferred_line` returns the line, so `starte_mit_route` makes passengers wait for it instead of walking. Worked example → [engine-semantics](path-explorer-optimisation/engine-semantics.md) Example E [CODE ex-15 @ bf447619a; CODE master @ fa0b18fba]; gameplay impact not measured |
+| Walking connexion replaced by a slower line connexion (not a forum report: code inspection 2026-11-04) | - | both branches: the connexion rebuild's deduplication compares `journey_time` alone, so a line whose ride is shorter than the walk replaces the walking connexion in the halt's runtime `connexions_map`, even when waiting makes the line slower door to door. `get_preferred_line` and `starte_mit_route` read that table, so passengers can wait for the line instead of walking. On ex-15 the routing matrix uses the full candidate list but boarding does not; on master the matrix uses the table too. Worked example → [engine-semantics](path-explorer-optimisation/engine-semantics.md) Example E [CODE ex-15 @ f9d574ee5 + working tree; CODE master @ fa0b18fba]; gameplay impact not measured |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | Industry-generation rework: persisted density discarded + contradictory overload docs (not a forum report: code inspection) | — | rework branch only; `karte_t::load` reads `actual_industry_density` then recomputes it unconditionally (and duplicates the call under a condition that can never add anything), so the persisted datum is never honoured; `factory_builder_t::adjust_input_consumption(fab, good)` returns the amount NOT used while its declaration documents the amount used; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |

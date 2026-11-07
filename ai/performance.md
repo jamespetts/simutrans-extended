@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (path-explorer sections; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; sorted connexion arrays; Y/H through connexions and measurements); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ f9d574ee5 + working tree (path-explorer sections; 2026-11-07); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -280,38 +280,32 @@ removed at load) — repeat before acting on the deltas.
    [EXECUTION-VERIFIED:2026-09-09]) do not translate into a top steady-state cost. Concentrated
    in the post-load reroute wave instead. `max_route_steps` (simuconf, default 1.5M) bounds
    search memory.
-9. **Path explorer — `path_explorer_t` (path_explorer.{h,cc}).** Centralised, *steppable*
-   Floyd-Warshall connection search, budgeted per step via `limit_set_t`; runs concurrently and
-   governs how quickly in-game routes update, not framerate [RECOLLECTION:2026-09-09]. It is
-   requested every `reroute_check_interval_steps` (default 8192) and monthly, not only by
-   changes, but the budget controller spends only `path_explorer_time_midpoint` (default
-   64 ms) per simulation step, so its CPU share in a short window does not indicate dormancy.
-   A full unbudgeted pass with the current dense SIMD kernel measures 18.88 s at H ≈ 1.8k and
-   214.77 s at H ≈ 5.4k (run totals including load; phase 5 dominates). The phase-5 worker pool
-   (`get_parallel_operations()` threads; three at `threads = 4`, one lead plus two helpers)
-   reduced the gargantuan run total to 106.47 s (2.02x) and the month-boundary total to 15.89 s
-   (1.19x), with identical matrices and iteration totals. These ratios include load; phase 5 alone
-   is ≈ 2.2–2.4x faster on the gargantuan fixture [UNVERIFIED derivation: 15–28 s of load
-   subtracted], and the month-boundary ratio is mostly load time [EXECUTION-VERIFIED:2026-11-07,
-   Profile (server) x64, oracle harness]. At `threads = 6` (5 pool threads: lead + 4 helpers) the
-   same machine measured 93.87 s and 15.60 s; the t4 pool remains the four-core recommendation.
-   The current full unbudgeted refresh (load excluded) measures 94.2 s on the gargantuan fixture
-   (2026-11-07). The Y/H phase-2 addition measured within run-to-run noise there at 0/10/50
-   couplings (control 95.58/94.27 s; enabled 90.11–96.01 s; temporary TEST hook, removed before
-   commit) [EXECUTION-VERIFIED:2026-11-07, ex-15, Profile (server) x64].
-   Without the pool, the sparse loop is faster than the
-   dense SIMD on the smallest fixture; the pooled dense path is faster than both there (15.89 s).
-   The sparse loop is slower on the gargantuan and remains the planned selector fallback; its
-   cost and the topology scaling are in [path-explorer-optimisation](path-explorer-optimisation.md).
-   The `total_iterations` diagnostic is a `uint64` (save revision 7). The controller is dormant
-   between periodic requests and budget-capped during a pass; at the default 8192-step interval the
-   duty cycle depends on server speed and the pass duration. Query cost was 0.5% incl on the
-   gargantuan fixture (`path_explorer_threaded` 0.007%) [EXECUTION-VERIFIED:2026-09-10]. User
-   datum 2026-11-06: CPU cores are underused during normal gameplay even on large maps, and route
-   staleness is a real in-game problem, so extra path-explorer threads and higher CPU load to
-   shorten the rebuild cycle are worthwhile, subject to the sync rules
-   [RECOLLECTION:2026-11-06]. Optimisation options →
+9. **Path explorer — `path_explorer_t` (path_explorer.{h,cc}).** Centralised, steppable
+   routing database; budgeted per step via `limit_set_t`; runs concurrently and governs how
+   quickly in-game routes update, not framerate [RECOLLECTION:2026-09-09]. The routing search is one
+   Dijkstra per origin over an expanded `(halt, arriving transport)` state graph built from the
+   full connexion-rebuild candidate list (177,672 candidates against 108,542 deduplicated connexions on
+   the gargantuan passenger class). The finished and working matrices are 6 B/cell. The budget
+   unit is origins per step: `default_explore_paths` is 16; the controller targets
+   `path_explorer_time_midpoint` (64 ms code default; the shipped simuconf sets 128 ms). At the
+   default 8192-step request interval the duty cycle depends on server speed and pass duration;
+   the controller is dormant between requests and budget-capped during a pass. Measured full
+   unbudgeted refresh on the gargantuan fixture (load excluded): **≈68 s**; peak working set
+   3,880 MB; peak private bytes 3,911 MB (two runs, median). The routing search is 10.5-11.7 s per large
+   passenger class with the three-thread pool (1.55-1.71x over single-thread). The engine's
+   times matched a standalone Dijkstra over the same candidate list on all 27,989,638 finite
+   pairs (zero differences; 0.13% tie-order next-transfer differences). Through candidates
+   across couplings are direct connexion-rebuild edges; they measured within run-to-run noise (0/10/50
+   couplings, 2026-11-07). Query cost was 0.5% incl on the gargantuan fixture (`path_explorer_threaded`
+   0.007%) [EXECUTION-VERIFIED:2026-09-10]. User datum 2026-11-06: CPU cores are underused
+   during normal gameplay even on large maps, and route staleness is a real in-game problem, so
+   extra path-explorer threads and higher CPU load to shorten the rebuild cycle are worthwhile,
+   subject to the sync rules [RECOLLECTION:2026-11-06]. A mid-refresh revision-9 save carries the
+   finished matrix only; a load restarts the current compartment and keeps the previous finished
+   matrix; the measured join loss is ≈8-9 s expected / ≈17-18 s worst at
+   128 ms and 5.6 steps/s. Optimisation options →
    [path-explorer-optimisation](path-explorer-optimisation.md).
+
 10. **Display — simview/simgraph pipeline.** Secondary in server-paced running on this fixture
     (`main_view_t::display_region` 4.9% incl), but dominated a CaptureGui window on the small
     demo map (73% incl) — display share is workload-dependent; use CaptureGui + -Trace for
@@ -333,37 +327,21 @@ must not be perturbed without reading [threading](threading.md) and
 
 ### SIMD applicability — summary
 
-Assessed 2026-09-19: the measured hot paths are dominated by memory latency, pointer chase and
-sequential dependence — outside the path explorer there is no drop-in SIMD target in the current
-code shape, and integer-only SIMD is the determinism ceiling for synced code. The path explorer
-dense row kernel is now implemented (SSE2 on x64, NEON on AArch64, scalar fallback). Constraints
-and per-hotspot verdicts: [simd-applicability](simd-applicability.md).
+The simulation has no SIMD kernel. The routing search is a scalar graph search.
+Outside the path explorer there is no drop-in SIMD target in the current code shape, and
+integer-only SIMD is the determinism ceiling for synced code. Constraints and per-hotspot
+verdicts: [simd-applicability](simd-applicability.md).
 
 ### Path explorer optimisation — summary
 
-The refresh closure (phase 5) dominates a full pass; the matrices and savegame data grow as O(H²).
-The current implementation uses flat matrices, a dense per-origin target row and SSE2/NEON kernels.
-Measured run totals are 18.88 s at H ≈ 1.8k and 214.77 s at H ≈ 5.4k (including load); the
-current full unbudgeted refresh measures 94.2 s on the gargantuan fixture (load excluded,
-2026-11-07). SSE2 is 1.77-2.59x faster than the dense scalar and 19% faster than the sparse loop
-on the gargantuan run total, roughly break-even on the intermediates and 8% slower on the
-smallest; a dense/sparse selector is optional. NEON is compile-verified by the native macOS CI. Lever 5 (sorted connexion
-arrays) reduces the connexion structure on the gargantuan fixture from ≈130 MB to ≈14 MB and peak
-working set by ≈140 MB, with phase 2 unchanged, phase 4 faster and phase 5 ≈2–5% slower in
-controlled runs; matrices are identical. A subsequent alignment experiment (64-byte base
-alignment, then odd-cache-line row padding) found no reproducible phase-5 gain: base alignment
-alone had no effect, and padding was within run-to-run variation on the gargantuan fixture; it was
-reverted. The Y/H phase-2 addition measured within run-to-run noise at 0/10/50 couplings on the
-gargantuan fixture (control 95.58/94.27 s; enabled 90.11–96.01 s; 2026-11-07). The sparse
-fallback's cost and the topology scaling are in
-[path-explorer-optimisation](path-explorer-optimisation.md). GPU estimates are per compartment and
-depend on the kernel: sparse cluster-pair 0.51–1.06 s at 0.5–1 TB/s, dense H² 1.62–3.24 s; at
-300–500 GB/s roughly 1.02–1.76 s / 3.24–5.39 s. VRAM is 10 B × H² per compartment (0.29 GB at
-H ≈ 5,375; 1 GB is sufficient for the gargantuan fixture, 4 GB covers H ≤ 10k, 8–12 GB covers
-H ≈ 20k); finished matrices stay in host memory. GPU acceleration is limited in network play by
-the slowest peer; memory beyond ~20–25% savings needs a different representation. Per-packet route
-search at decision time is rejected. Full assessment, levers, constraints and results:
-[path-explorer-optimisation](path-explorer-optimisation.md).
+The routing search is one Dijkstra per origin over the expanded `(halt, arriving transport)` state graph
+built from the full connexion-rebuild candidate list. Finished and working matrices are 6 B/cell; the O(H²)
+memory limit remains. Measured on the gargantuan fixture: full unbudgeted refresh ≈68 s; the routing search
+10.5-11.7 s per large passenger class with three pool threads; peak working set 3,880 MB and peak
+private bytes 3,911 MB. The engine's times matched a standalone Dijkstra over the same candidate
+list on all 27,989,638 finite pairs (0.13% tie-order next-transfer differences). A GPU backend for
+the graph search is unassessed. Per-packet route search at decision time remains rejected. Full
+assessment: [path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
 
@@ -372,12 +350,12 @@ search at decision time is rejected. Full assessment, levers, constraints and re
 - Why is `sync_list_t::sync_step` itself (not the objects it steps) 23.7% *self*? Candidates:
   list iteration cost at this object count, cache misses on the node walk, or inlining
   attribution artefacts. Investigate before attempting optimisation.
-- Path-explorer measurement questions: the full-pass CPU, savegame share, budgeted wall-clock
-  pass and cluster/traffic counters are measured (9.49 s / 27.0 s / 394.7 s at H ≈ 1.8k /
-  2.5k / 5.4k; 36.85 MiB of 132 MiB at H ≈ 1.8k; 18–20 min per cycle under server pacing). The
-  current dense pooled full refresh is 94.2 s at H ≈ 5.4k (load excluded), and the Y/H phase-2
-  addition is within run-to-run noise at 0/10/50 couplings. The counters do not cover the phase-2
-  registration path → [path-explorer-optimisation](path-explorer-optimisation.md).
+- Path-explorer measurement questions: the current full refresh, routing-search per-class time, pool
+  scaling, RAM and accuracy are measured (≈68 s gargantuan refresh; 10.5-11.7 s per large
+  passenger class; 3,880 MB peak working set / 3,911 MB private; exact times against a
+  standalone expanded-state Dijkstra). Open: exact mid-pass resume versus restart-on-load; the
+  client join and revision-9 save roundtrip; the pool's 1.55-1.71x scaling; the O(H²) memory
+  limit → [path-explorer-optimisation](path-explorer-optimisation.md).
 - The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a
   post-load-wave problem, not a steady-state one; investigate with a Load-phase or

@@ -1,152 +1,140 @@
 ---
 status: draft
-verified: ex-15 @ 33958208a; master @ 6194cd341
+verified: ex-15 @ f9d574ee5 + working tree
 ---
-# Path explorer optimisation: route semantics and behaviour of alternative engines
+# Path explorer optimisation: route semantics
 
-**Covers:** what the present routing database computes and how passengers act on it, and the
-behaviour changes of the result-changing levers (7, 8) of
-[path-explorer-optimisation](../path-explorer-optimisation.md), with worked examples. Code:
-path_explorer.cc (phases 1, 2, 4, 5), `haltestelle_t::find_route`, `fetch_goods`, `liefere_an`,
-`starte_mit_route`, `calc_ready_time` (simhalt.cc), `vehicle_t::unload_cargo` (vehicle.cc).
-Untagged prose is [CODE] at the frontmatter value; the examples are constructed illustrations.
+**Covers:** what the routing database computes and how passengers act on it. Code:
+path_explorer.cc (connexion rebuild, graph build, routing search),
+`haltestelle_t::find_route`, `fetch_goods`,
+`liefere_an`, `starte_mit_route`, `calc_ready_time` (simhalt.cc),
+`vehicle_t::unload_cargo` (vehicle.cc). Untagged prose is [CODE] at the frontmatter value;
+the examples are constructed illustrations.
 
-## Present semantics
+## Engine
 
-1. **Edges (phase 2):** per linkage (line with convoys, or lineless convoy), a connexion from
-   every stop to every other stop, omitting (on ex-15; master has none of these flags)
-   set-down-only origins, pick-up-only targets and pairs across consist-order validity zones.
-   Weight = waiting time (origin halt, destination halt) +
-   journey time (linkage average for the pair) + the origin halt's transfer time. For passengers,
-   phase 1 also adds walking connexions between halts within walking distance (waiting 0, walking
-   time, the *destination* halt's transfer time).
-2. **Deduplication:** one connexion per halt pair, the one with the smallest journey time. Between
-   linkages this keeps the smallest weight, because waiting and transfer times are the same for
-   every linkage of a pair. Against a walking connexion it does not (Example E).
-3. **Closure (phase 5):** one stored path per pair, with its first and last transport. At a
-   transfer halt a composition is rejected when the stored path into the halt ends on the same
-   linkage as the stored path out of it starts (walking excepted), even if a different linkage
-   also reaches the halt (Example A). Origins are registered only when the route into the halt
-   is finite and targets only when the route out of it is finite, so a one-way pair cannot be
-   composed in the unreachable direction (Example D). Ties keep the first value found, in
-   transfer-halt index order.
-4. **Packet behaviour:** `find_route` sets the destination halt (`ziel`) and the next transfer
-   (`zwischenziel`), which is a halt, not a linkage.
-   - `fetch_goods` boards the packet onto any convoy that reaches the next transfer (or the
-     destination), subject to the wait-for-a-faster-convoy check.
-   - `unload_cargo` unloads it at its next transfer.
-   - `liefere_an` re-routes it there, and it can board again only after that halt's transfer time
-     (`calc_ready_time`).
-   - At generation, the route's journey time decides the tolerance test (trip accepted or "too
-     slow").
+1. **Edges (connexion rebuild):** per linkage (line with convoys, or lineless convoy), a candidate
+   from every stop to every other stop, omitting (on ex-15) set-down-only origins,
+   pick-up-only targets and pairs across consist-order validity zones. Weight = waiting
+   time (origin and destination halt, mean of the last 32 samples) + journey time (linkage
+   average for the pair, else an accumulated estimate) + the origin halt's transfer time.
+   Passengers also get walking candidates between halts within walking distance (waiting 0,
+   walking time, destination halt's transfer time).
+2. **Candidate list:** every candidate is kept in `full_connexions` before the round's
+   deduplication. The halts' runtime `connexions_map` keeps one best connexion per halt
+   pair; the routing-search graph uses the full list. This matters where deduplication would
+   discard a better walking edge (Example E).
+3. **State graph (graph build):** a state is `(halt, arriving transport)`; transport 0 is
+   walking and is exempt from the no-reboarding rule. The origin state has no arriving
+   transport. An edge from a state on transport X to transport X is forbidden unless X is
+   walking.
+4. **Search:** one Dijkstra per origin over the state graph. The stored cell is
+   `(time, next transfer halt)`; the next transfer is the first hop of the best path. The
+   search is exact under the no-reboarding rule.
+5. **Packet behaviour:** `find_route` sets the destination halt (`ziel`) and the next
+   transfer (`zwischenziel`), which is a halt, not a linkage. `fetch_goods` boards a packet
+   onto a convoy that reaches the next transfer (or the destination), subject to the
+   wait-for-a-faster-convoy check. `unload_cargo` unloads at the next transfer;
+   `liefere_an` re-routes there, and the packet can board again only after that halt's
+   transfer time (`calc_ready_time`). At generation the route's journey time decides the
+   tolerance test.
 
-## The alternative engines
+The matrix stores one route per halt pair. The expanded state is internal to the search;
+the consumer sees only `(time, next transfer)`.
 
-- **7a — Dijkstra rows on the present graph:** one shortest-path search per source over the
-  deduplicated connexions, with no transport condition. Next transfer = first hop; ties resolved
-  by settle order (time, then halt index).
-- **7b — Dijkstra rows on an expanded graph:** node = (halt, arriving linkage); edges per linkage
-  without cross-linkage deduplication (walking connexions kept as separate edges); continuing
-  from linkage X onto linkage X at a halt is
-  forbidden (walking excepted). This gives the exact minimum under "no re-boarding of the same
-  linkage". The graph is larger: nodes ≈ Σ over halts of (serving linkages + 1), edges ≈ Σ S².
-- **8 — hub labels** built on the 7a or the 7b graph: the same distances as that variant. The next
-  transfer comes from first hops stored in the label entries; ties are resolved by hub order
-  unless the query compares (time, first hop) (Example C).
+## The no-reboarding rule
 
-Every route the present closure records is a valid path in both graphs (it composes stored paths
-only where their transports differ). So for every pair the present engine resolves, 7a and 7b
-each give an estimate no greater than the present one: **estimated times never increase, and more
-trips pass the tolerance test.** 7a is usually the lower of the two, but not always: 7b keeps
-edges that phase 2's deduplication discards (Example E).
+The rule is why the routing-search state includes the arriving transport. For a halt V reached on
+linkage X:
 
-## Example A — a composition the present closure misses
+- Staying on X is represented by a single direct edge on X from the origin to the
+  destination; it excludes V's transfer time.
+- Changing to a different linkage Y at V pays V's transfer time and the waiting time for Y.
+- An edge out of V on X is not available from the X-arrival state. Composing an arrival on X
+  with a departure on X would charge the average wait for X, but a passenger who has just
+  arrived on X has just missed that convoy; the next X is a full headway away, not the
+  average. Allowing the composition under-estimates the journey.
 
-Halts O, V, T. Linkage A runs O–V–T hourly; linkage B runs O–V every 10 min, timed to connect
-into A at V. Measured values (minutes): waiting O→V 5, O→T 30, V→T 4; transfer time O 2, V 3;
-rides A O→V 10, V→T 10, O→T 21 (including the dwell at V), B O→V 12.
+The state graph makes that distinction exactly. A hub label or a halt-only graph cannot:
+it either forbids a valid X→Y change or uses the average wait for an X→X change.
 
-- Connexions: O→V keeps A (ride 10 beats 12): 5 + 10 + 2 = **17**. V→T (A): 4 + 10 + 3 = **17**.
-  O→T (A): 30 + 21 + 2 = **53**.
+## Example A — the no-reboarding rule in action
 
-| Engine | O→T estimate | Next transfer | Why |
-|---|---|---|---|
-| Present | 53 | T | at V, O is registered under A and T under A: same linkage, composition rejected; B's path to V is not stored |
-| 7a | 34 | V | 17 + 17; no transport condition |
-| 7b | 36 | V | arriving on A cannot continue on A; via B: (5 + 12 + 2) + 17 |
-| 8 | 34 / 36 | V | as 7a / 7b, whichever graph it is built on |
+Halts O, V, T. Linkage A runs O–V–T hourly; linkage B runs O–V every 10 min, timed to
+connect into A at V. Measured values (minutes): waiting O→V 5, O→T 30, V→T 4; transfer
+times O 2, V 3; rides A O→V 10, V→T 10, O→T 21; B O→V 12.
+
+- Candidates: O→V keeps A (ride 10 beats 12): 5 + 10 + 2 = **17**. V→T (A): 4 + 10 + 3 =
+  **17**. O→T (A): 30 + 21 + 2 = **53**.
+
+The engine gives O→T = **36** with next transfer V: B into V (5 + 12 + 2) + A out of V
+(17). The X→X composition is unavailable; the engine uses the valid B→A change.
 
 Realised behaviour:
-- **Present:** packets wait at O for A (B does not reach T); ≈ 53. With a tolerance of 45 the trip
-  is "too slow" and is not made.
-- **7a and 7b:** the trip is accepted; packets board the first convoy that reaches V.
-  - On B: unloaded at V, boardable after 3, the timed A follows: ≈ 36. The 7b estimate is right;
-    7a's is 2 low (it costs the first leg at A's ride).
-  - On A (whenever an A is the first convoy to V): unloaded at V because V is their next
-    transfer. They can board only after V's transfer time, so if that A leaves V sooner they wait
-    for the next A: ≈ 5 + 10 + 3 + ~57 + 10 ≈ 85. Neither estimate holds for them.
-
-Hence 7 and 8 need a **companion rule** so that realised journeys match estimates. Either keep a
-packet aboard at its next transfer when its convoy serves the continuation from there, or store
-the next linkage in `ware_t` (a savegame change). Without it, some present "too slow" rejections
-become accepted trips that take longer than estimated.
+- The B→A passenger realises ≈36.
+- The passenger who boards A first and alights at V waits for the next A (≈85); the
+  companion boarding rule is what keeps the realised journey on the estimate.
 
 ## Example B — results unchanged
 
-As A, plus linkage C on V–T (ride 9). V→T keeps C: 4 + 9 + 3 = 16. At V the stored transports are
-A (in) and C (out), so the present closure composes 17 + 16 = 33. 7a gives 33 and 7b gives
-min(A then C 33, B then C 35, direct 53) = 33; next transfer V in all engines. Behaviour is
-unchanged wherever each transfer's best continuation is on a different linkage.
+As A, plus linkage C on V–T (ride 9). V→T keeps C: 4 + 9 + 3 = 16. The stored transports
+are A (in) and C (out), so the engine gives 17 + 16 = 33, next transfer V.
 
-## Example C — ties (lever 8)
+## Example C — ties
 
-Linkages P: O→V, Q: V→T, R: O→W, S: W→T, each connexion weighing 17; no direct O→T. Both routes
-weigh 34.
-- Present and 7a: V has the lower working index, so V is found first and kept; next transfer V.
-- 8: the query finds hubs V and W, both at 34. A query that keeps the first minimum in hub order
-  returns W when W ranks above V (for example, more serving linkages). Passengers from O to T then
-  board R to W instead of P to V: same estimate, different line loads.
-- A query that compares (time, first-hop index) over all minimal hubs reproduces 7a's choice, at
-  extra query cost.
+Linkages P: O→V, Q: V→T, R: O→W, S: W→T, each candidate weighing 17; no direct O→T. Both
+routes weigh 34. The engine's tie-break is `(distance, state index)`, so V and W are ordered
+by state index. A compact distance oracle (hub labels) would tie by hub order unless the
+query compares `(time, first hop)`. Ties change line loads, not the minimum time.
 
 ## Example D — directional cells
 
-Halts O, X, T, not within walking distance of each other.
-- Linkage L runs X→O and stops at O as set-down-only, so the connexion O→X is omitted.
-- Linkage M runs X↔T; connexion X→T weighs 20.
-- Linkage N runs O↔T; direct connexion O→T weighs 58.
-- X is a transfer halt (served by L and M). Assume no other O→X path is known when X is processed
-  (for example, X precedes T in transfer-halt order).
+Halts O, X, T, not within walking distance.
+- Linkage L runs X→O and stops at O set-down-only, so O→X is omitted.
+- Linkage M runs X↔T; X→T weighs 20.
+- Linkage N runs O↔T; direct O→T weighs 58.
+- X is a transfer halt; assume no other O→X path is known.
 
-What happens:
-- **Present closure:** O is not registered as an origin at X because `[O][X]` is `UINT32_MAX`;
-  `[X][O]` remains usable for the opposite direction. `[O][T]` stays 58 with next transfer T.
-  Passengers from O to T travel on N.
-- **Levers 7, 8:** 58, next transfer T.
+The engine gives O→T = 58, next transfer T: O is not an origin at X because O→X is
+infinite, while X→O remains usable in the opposite direction.
 
-## Example E — walking deduplication (present behaviour; kept by 7a and by 8 on 7a's graph)
+## Example E — walking deduplication
 
-Halts P and Q, 7 min apart on foot; bus linkage Z rides P→Q in 3 min; waiting P→Q 10; transfer
-times 2.
-- Walking connexion: 0 + 7 + 2 = 9. Bus connexion: 10 + 3 + 2 = 15.
-- Phase 2 compares journey times (3 < 7), so the bus replaces the walk: `[P][Q]` = 15 and the
-  preferred line is Z.
-- At generation `starte_mit_route` walks only when there is no preferred line or convoy, so these
-  passengers wait for Z. At transfers `liefere_an` compares estimated arrival times and may walk.
-  The matrix carries 15 instead of 9 in every route through P→Q.
-- 7a (and 8 built on its graph) consumes phase 2's deduplicated output, so it keeps the 15 until
-  phase 2 compares full weights (→ [known-bugs](../known-bugs.md)). 7b keeps both edges and
-  chooses the walk (9).
+Halts P and Q are 7 min apart on foot; bus Z rides P→Q in 3 min with a 10 min wait;
+transfer time 2.
 
-## Consequences for adopting 7 or 8
+- Walking: 0 + 7 + 2 = 9. Bus: 10 + 3 + 2 = 15.
+- The connexion rebuild's deduplication compares journey times (3 < 7) and keeps the bus in
+  the runtime `connexions_map`, so `get_preferred_line` prefers Z and the passenger can wait
+  for it instead of walking. Open bug → [known-bugs](../known-bugs.md).
+- The matrix keeps both candidates and can choose the walk (9).
 
-- **Balance:** more routes are found and estimates fall, so more trips pass tolerance tests,
-  demand on networks with many transfers rises, and line loads and revenue shift. Long-running
-  network games change at the upgrade.
-- **Companion rule** (Example A) is part of any adoption.
-- **Y/H:** the through-journey substitution needs the 7b state (arriving linkage) at coupling
-  halts.
-- **Verification:** the present closure's matrices are the byte-identical oracle for levers
-  1–6. Levers 7 and 8 change results, so they need cell-for-cell expectations from worked
-  examples like these on synthetic maps. Route outcomes decide later `simrand` draws, so compare
-  old and new engines per decision on frozen snapshots, not by running both games forward.
+## Consequences
+
+- **Balance:** the engine finds the exact no-reboarding route, so more trips pass the
+  tolerance test and demand and line loads reflect the full candidate list. This is an
+  intentional balance change.
+- **Companion rule:** the stored route is a halt, not a linkage. Without a stay-aboard rule
+  or a stored next linkage in `ware_t`, a passenger who reaches its next transfer on a
+  convoy that continues can be forced to alight and wait. The rule is required by the
+  current engine and by comfort routing.
+- **Through journeys:** the through candidates are direct connexion-rebuild edges; the state
+  records the boarding transport.
+- **Verification:** the engine's times were checked cell-for-cell against a standalone
+  Dijkstra over the same full candidate list (zero differences on 27,989,638 finite pairs;
+  next transfers differed only by tie order on 0.13%).
+
+## Open questions
+
+- Companion boarding rule: exact form (stay aboard vs stored next linkage in `ware_t`).
+- Comfort routing: connexion-rebuild weights and the per-leg split incentive; the engine supports the
+  decomposable weights.
+- Tie-breaking: `(distance, state index)` is deterministic; should it prefer a specific line
+  or halt order to match player expectations?
+- Compact distance oracle: only if the O(H²) memory limit becomes binding.
+
+## Provenance
+
+The engine and examples were re-derived from path_explorer.cc and the routing-search measurements
+on `ex-15` at `f9d574ee5` with the working-tree changes, 2026-11-07. [CODE;
+EXECUTION-VERIFIED where tagged]

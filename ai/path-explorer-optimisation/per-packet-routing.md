@@ -55,15 +55,16 @@ Not feasible at gargantuan scale.
 
 ## Further consequences
 
-- **Phase 2 remains** (loading, walking decisions, the GUI, the AI and the waiting-time fallback
-  read the connexion tables), together with its budget synchronisation. Only phases 3–5 would
-  go, and routes are only as fresh as the last phase-2 rebuild.
+- **The connexion rebuild remains** (loading, walking decisions, the GUI, the AI and the
+  waiting-time fallback read the connexion tables), together with its budget synchronisation.
+  Only the eligible-halt selection, graph build and routing search would go, and routes are only
+  as fresh as the last connexion rebuild.
 - **Network play:** millisecond-scale, unbudgeted work inside `step()` on every peer. Decisions
   cannot be deferred without changing outcomes, so slow peers fall behind
   (→ [frame-pacing-smoothness](../frame-pacing-smoothness.md)).
 - **Savegame and join:** a joining client needs the server's exact weight snapshot, so the
-  snapshot must be serialised. Phase 3 swaps connexion tables over several steps, so reading
-  them directly would give searches a mixture of old and new tables.
+  snapshot must be serialised. The eligible-halt selection swaps connexion tables over several
+  steps, so reading them directly would give searches a mixture of old and new tables.
 - **Route loops:** packets re-route at every transfer. With weights changing between hops, a
   packet can be sent from A to B and back; the loop guard covers walking only.
 - **Feedback instability:** waiting times are 32-sample means that the routing decisions
@@ -77,4 +78,4 @@ Not feasible at gargantuan scale.
 
 - For packets that evaluate thousands of alternatives, one tolerance-bounded search per packet
   costs about as much as their per-alternative lookups. This is not a reason to change engines.
-- Freshness and memory are addressed better by the precomputed-database levers in the parent doc.
+- Freshness and memory are addressed better by the precomputed-database design in the parent doc.
