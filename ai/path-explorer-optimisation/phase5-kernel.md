@@ -173,7 +173,10 @@ instruction].
 - This formulation meets the gate in [simd-applicability](../simd-applicability.md) (dense vector
   loads, no gathers); the present loop shape does not. The scalar path stays for Win32 x86 and
   any target without SSE2/NEON, and is the oracle; the SSE2 variant is gated to x64 and the NEON
-  variant to AArch64.
+  variant to AArch64. The source auto-detects from the compiler's architecture macros; `USE_SSE2`
+  and `USE_NEON` are the generic override macros, exposed as GNU make `USE_SSE2=1`/`USE_NEON=1`
+  and CMake `SIMUTRANS_USE_SSE2`/`SIMUTRANS_USE_NEON`. They are mutually exclusive
+  (→ [build-and-toolchain](../build-and-toolchain.md)).
 
 **Implemented 2026-11-07** in commit `3b18f76aa`: SSE2 (x64) and NEON (AArch64) dense row
 kernels, with the scalar cell function as oracle and fallback. SSE2 execution-verified on the four

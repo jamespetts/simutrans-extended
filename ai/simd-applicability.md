@@ -32,6 +32,10 @@ display/simgraph16.cc, GNUC i686 only) [CODE master @ 075d540f3].
   SSE2 (x64) and NEON (AArch64) together, not SSE2 alone, because Apple users are a supported
   audience. The scalar path remains the portable base and the oracle on every target, including
   Win32 x86 and any platform without either backend.
+- **Backend selection:** compile-time and mutually exclusive. The source auto-detects x86-64 SSE2
+  and AArch64 NEON; `USE_SSE2`/`USE_NEON` are the generic override macros, exposed as GNU make
+  `USE_SSE2=1`/`USE_NEON=1` and CMake `SIMUTRANS_USE_SSE2`/`SIMUTRANS_USE_NEON`
+  (→ [build-and-toolchain](build-and-toolchain.md)).
 - **Determinism:** only integer SIMD is bit-exact across platforms; FP SIMD in synced code
   violates the no-float rule ([project-notes](project-notes.md)). All candidates below are
   integer-shaped.
