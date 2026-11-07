@@ -245,6 +245,29 @@ private:
 			convoihandle_t convoy;
 		};
 
+		// A stop reachable from a coupling point, with the time from that
+		// point and the linkage operating the final segment. Used while
+		// generating cross-schedule (Y/H) connexions in phase 2.
+		struct through_stop_t
+		{
+			halthandle_t halt;
+			uint32 time;
+			linkage_t linkage;
+			const schedule_t *schedule;
+			uint8 entry_index;
+			const schedule_entry_t *coupling_entry;
+		};
+
+		bool linkage_carries(const linkage_t &linkage) const;
+		uint32 get_linkage_average_speed(const linkage_t &linkage) const;
+		uint32 get_leg_time(const linkage_t &linkage, const schedule_entry_t &from, const schedule_entry_t &to, uint32 average_speed) const;
+		uint32 get_recorded_pair_time(const linkage_t &linkage, const halthandle_t from, const halthandle_t to) const;
+		bool entry_carries(const schedule_t *schedule, const schedule_entry_t &entry, bool to, uint8 category, uint8 g_class) const;
+		bool through_predicate_allows(const schedule_t *source_schedule, const schedule_entry_t &source_origin, const schedule_entry_t &source_coupling, const schedule_t *destination_schedule, const schedule_entry_t &destination_coupling, const schedule_entry_t &destination_entry) const;
+		void collect_downstream_stops(const linkage_t &linkage, const schedule_t *schedule, uint8 entry_index, bool reverse, uint32 base_time, uint8 depth, const schedule_entry_t *coupling_entry, vector_tpl<through_stop_t> &out) const;
+		void collect_upstream_stops(const linkage_t &linkage, const schedule_t *schedule, uint8 entry_index, bool reverse, vector_tpl<through_stop_t> &out) const;
+		void add_through_connexions(const linkage_t &current_linkage, const schedule_t *schedule);
+
 		// store the start time of refresh
 		sint64 refresh_start_time;
 

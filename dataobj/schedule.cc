@@ -153,7 +153,7 @@ halthandle_t schedule_t::get_destination_halt(player_t *player) const
 }
 
 
-bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, bool show_failure, uint16 max_speed_kmh)
+bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, bool show_failure, uint16 max_speed_kmh, uint16 target_unique_entry_couple)
 {
 	// stored in minivec, so we have to avoid adding too many
 	if(entries.get_count() >= 254)
@@ -178,7 +178,7 @@ bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting
 	}
 
 	if(  is_stop_allowed(gr)  ) {
-		entries.insert_at(current_stop, schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple, max_speed_kmh));
+		entries.insert_at(current_stop, schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple, max_speed_kmh, target_unique_entry_couple));
 		current_stop ++;
 		make_current_stop_valid();
 		return true;
@@ -195,7 +195,7 @@ bool schedule_t::insert(const grund_t* gr, uint16 minimum_loading, uint8 waiting
 
 
 
-bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, uint16 target_max_speed_kmh)
+bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting_time_shift, sint16 spacing_shift, uint32 flags, uint16 condition_bitfield_broadcaster, uint16 condition_bitfield_receiver, uint16 target_id_condition_trigger, uint16 target_id_couple, uint16 target_id_uncouple, uint16 target_unique_entry_uncouple, uint16 target_max_speed_kmh, uint16 target_unique_entry_couple)
 {
 	// stored in minivec, so we have to avoid adding too many
 	if(entries.get_count()>=254) {
@@ -216,7 +216,7 @@ bool schedule_t::append(const grund_t* gr, uint16 minimum_loading, uint8 waiting
 	}
 
 	if(is_stop_allowed(gr)) {
-		entries.append(schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple, target_max_speed_kmh), 4);
+		entries.append(schedule_entry_t(gr->get_pos(), minimum_loading, waiting_time_shift, spacing_shift, -1, flags, get_next_free_unique_id(), condition_bitfield_broadcaster, condition_bitfield_receiver, target_id_condition_trigger, target_id_couple, target_id_uncouple, target_unique_entry_uncouple, target_max_speed_kmh, target_unique_entry_couple), 4);
 		return true;
 	}
 	else {
@@ -505,6 +505,14 @@ void schedule_t::rdwr(loadsave_t *file)
 					file->rdwr_short(entries[i].target_id_uncouple);
 					file->rdwr_short(entries[i].target_unique_entry_uncouple);
 					file->rdwr_short(entries[i].max_speed_kmh);
+					if (file->is_version_ex_atleast(15, 8))
+					{
+						file->rdwr_short(entries[i].target_unique_entry_couple);
+					}
+					else if (file->is_loading())
+					{
+						entries[i].target_unique_entry_couple = 0;
+					}
 				}
 			}
 
@@ -628,6 +636,7 @@ bool schedule_t::matches(karte_t *welt, const schedule_t *schedule)
 			&& schedule->entries[(uint8)f2].target_id_couple == entries[(uint8)f1].target_id_couple
 			&& schedule->entries[(uint8)f2].target_id_uncouple == entries[(uint8)f1].target_id_uncouple
 			&& schedule->entries[(uint8)f2].target_unique_entry_uncouple == entries[(uint8)f1].target_unique_entry_uncouple
+			&& schedule->entries[(uint8)f2].target_unique_entry_couple == entries[(uint8)f1].target_unique_entry_couple
 			&& check_consist_orders_for_match(entries[(uint8)f1].unique_entry_id, schedule, schedule->entries[(uint8)f2].unique_entry_id)
 		  ) {
 			f1++;
@@ -794,6 +803,8 @@ void schedule_t::remove_couple_without_target(karte_t *welt)
 		{
 			e.clear_flag(schedule_entry_t::schedule_entry_flag::couple);
 			e.clear_flag(schedule_entry_t::schedule_entry_flag::couple_target_is_line_or_cnv);
+			e.clear_flag(schedule_entry_t::schedule_entry_flag::couple_target_sch_is_reversed);
+			e.target_unique_entry_couple = 0;
 			orders.remove(e.unique_entry_id);
 			const grund_t *gr = welt->lookup(e.pos);
 			removed_stops.append(gr && gr->get_halt().is_bound() ? gr->get_halt()->get_name() : e.pos.get_str());
@@ -870,6 +881,8 @@ uint32 schedule_t::sweep_references(karte_t *welt, bool to_convoy, uint16 id, bo
 						if (remove)
 						{
 							e.target_id_couple = 0;
+							e.target_unique_entry_couple = 0;
+							e.clear_flag(schedule_entry_t::schedule_entry_flag::couple_target_sch_is_reversed);
 						}
 						affects = true;
 					}
@@ -1109,7 +1122,7 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 	buf.append( "|" );
 	FOR(minivec_tpl<schedule_entry_t>, const& i, entries)
 	{
-		buf.printf( "%s,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i|", i.pos.get_str(),
+		buf.printf( "%s,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i|", i.pos.get_str(),
 			i.minimum_loading,
 			(int)i.waiting_time_shift,
 			(int)i.spacing_shift,
@@ -1122,7 +1135,8 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 			(int)i.target_id_couple,
 			(int)i.target_id_uncouple,
 			(int)i.target_unique_entry_uncouple,
-			(int)i.max_speed_kmh
+			(int)i.max_speed_kmh,
+			(int)i.target_unique_entry_couple
 		);
 	}
 	buf.append('!'); // This terminates if there are consist orders
@@ -1194,7 +1208,7 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 		return false;
 	}
 	p++;
-	const uint32 number_of_data_per_entry = 14 + 2; // +2 is necessary as a koord3d takes 3 values
+	const uint32 number_of_data_per_entry = 15 + 2; // +2 is necessary as a koord3d takes 3 values
 	// now scan the entries
 	while (*p > 0)
 	{
@@ -1224,7 +1238,7 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 			p++;
 		}
 		// ok, now we have a complete entry
-		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15]));
+		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15], (uint16)values[16]));
 	}
 
 	if (consist_order_count > 0)

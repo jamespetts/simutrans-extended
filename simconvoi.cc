@@ -7015,6 +7015,7 @@ void convoi_t::check_pending_updates()
 					removed_depot_entry.target_id_couple = schedule->get_current_entry().target_id_couple;
 					removed_depot_entry.target_id_uncouple = schedule->get_current_entry().target_id_uncouple;
 					removed_depot_entry.target_unique_entry_uncouple = schedule->get_current_entry().target_unique_entry_uncouple;
+					removed_depot_entry.target_unique_entry_couple = schedule->get_current_entry().target_unique_entry_couple;
 					removed_depot_entry.unique_entry_id = schedule->get_current_entry().unique_entry_id;
 					removed_depot_entry.waiting_time_shift = schedule->get_current_entry().waiting_time_shift;
 					removed_depot_entry.max_speed_kmh = schedule->get_current_entry().max_speed_kmh;
@@ -7108,7 +7109,7 @@ end_check:
 		{
 			// next was depot. restore it
 			///schedule->insert(welt->lookup(depot), 0, 0, 0, false, owner == welt->get_active_player()); // TODO: Confirm whether the last "false" is needed below and remove this comment line once that is done.
-			schedule->insert(welt->lookup(depot), removed_depot_entry.minimum_loading, removed_depot_entry.waiting_time_shift, removed_depot_entry.spacing_shift, removed_depot_entry.flags, removed_depot_entry.condition_bitfield_broadcaster, removed_depot_entry.condition_bitfield_receiver, removed_depot_entry.target_id_condition_trigger, removed_depot_entry.target_id_couple, removed_depot_entry.target_id_uncouple, removed_depot_entry.target_unique_entry_uncouple, owner == welt->get_active_player(), removed_depot_entry.max_speed_kmh);
+			schedule->insert(welt->lookup(depot), removed_depot_entry.minimum_loading, removed_depot_entry.waiting_time_shift, removed_depot_entry.spacing_shift, removed_depot_entry.flags, removed_depot_entry.condition_bitfield_broadcaster, removed_depot_entry.condition_bitfield_receiver, removed_depot_entry.target_id_condition_trigger, removed_depot_entry.target_id_couple, removed_depot_entry.target_id_uncouple, removed_depot_entry.target_unique_entry_uncouple, owner == welt->get_active_player(), removed_depot_entry.max_speed_kmh, removed_depot_entry.target_unique_entry_couple);
 			// Insert will move the pointer past the inserted item; move back to it
 			schedule->advance_reverse();
 		}

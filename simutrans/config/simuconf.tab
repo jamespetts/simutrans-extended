@@ -59,6 +59,12 @@ max_route_steps = 1500000
 # Unlimited: 0
 max_choose_route_steps = 0
 
+# The maximum number of dividing/joining movements that the path explorer
+# may compose into one through journey. A journey beyond the limit is
+# recorded up to the limit and continues as an ordinary transfer.
+# Default: 64
+max_through_coupling_depth = 64
+
 # size of catchment area of a station (default 2)
 # older game size was 3
 # savegames with another catch area will give strange results

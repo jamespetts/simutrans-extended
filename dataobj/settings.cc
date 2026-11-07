@@ -169,6 +169,7 @@ settings_t::settings_t() :
 
 	max_route_steps = 1000000;
 	max_choose_route_steps = 200;
+	max_through_coupling_depth = 64;
 	max_transfers = 9;
 	max_hops = 2000;
 
@@ -1695,6 +1696,15 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_long(max_choose_route_steps );
 		}
 
+		if (file->is_version_ex_atleast(15, 8))
+		{
+			file->rdwr_long(max_through_coupling_depth);
+		}
+		else if (file->is_loading())
+		{
+			max_through_coupling_depth = 64;
+		}
+
 		if ((file->is_version_atleast(120, 4) && (file->get_extended_version() == 0 || file->get_extended_revision() >= 19)) || file->get_extended_version() >= 13)
 		{
 			file->rdwr_bool(disable_make_way_public);
@@ -2402,6 +2412,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// routing stuff
 	max_route_steps        = contents.get_int_clamped( "max_route_steps",        max_route_steps,        0, INT_MAX );
 	max_choose_route_steps = contents.get_int_clamped( "max_choose_route_steps", max_choose_route_steps, 0, INT_MAX );
+	max_through_coupling_depth = contents.get_int_clamped( "max_through_coupling_depth", max_through_coupling_depth, 0, INT_MAX );
 	max_hops               = contents.get_int_clamped( "max_hops",               max_hops,               0, INT_MAX );
 	max_transfers          = contents.get_int_clamped( "max_transfers",          max_transfers,          0, INT_MAX );
 

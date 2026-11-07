@@ -26,6 +26,7 @@ public:
 		target_id_couple(0),
 		target_id_uncouple(0),
 		target_unique_entry_uncouple(0),
+		target_unique_entry_couple(0),
 		waiting_time_shift(0),
 		reverse(-1)
 	{}
@@ -43,7 +44,8 @@ public:
 		uint16 target_id_couple,
 		uint16 target_id_uncouple,
 		uint16 target_unique_entry_uncouple,
-		uint16 target_max_speed_kmh) :
+		uint16 target_max_speed_kmh,
+		uint16 target_unique_entry_couple = 0) :
 		pos(pos),
 		minimum_loading(minimum_loading),
 		spacing_shift(spacing_shift),
@@ -57,6 +59,7 @@ public:
 		target_id_couple(target_id_couple),
 		target_id_uncouple(target_id_uncouple),
 		target_unique_entry_uncouple(target_unique_entry_uncouple),
+		target_unique_entry_couple(target_unique_entry_couple),
 		max_speed_kmh(target_max_speed_kmh)
 	{}
 
@@ -91,7 +94,8 @@ public:
 		uncouple                        = (1u << 12u),
 		couple_target_is_line_or_cnv    = (1u << 13u),
 		uncouple_target_is_line_or_cnv  = (1u << 14u),
-		uncouple_target_sch_is_reversed = (1u << 15u)
+		uncouple_target_sch_is_reversed = (1u << 15u),
+		couple_target_sch_is_reversed   = (1u << 19u)
 
 	};
 
@@ -173,12 +177,19 @@ public:
 	* in target_id_uncouple from which the convoy comprising
 	* the vehicles uncoupled at this schedule entry will
 	* start.
-	*
-	* There is no equivalent for couple because the
-	* convoy to which this convoy will be coupled will
-	* already be at the correct point in its schedule.
 	*/
 	uint16 target_unique_entry_uncouple;
+
+	/*
+	* The unique ID of the point in the schedule specified
+	* in target_id_couple from which the vehicles taken by
+	* the convoy with this schedule are travelling when the
+	* coupling takes place. The path explorer needs this to
+	* determine which stops are upstream of the coupling on
+	* the target schedule; it is not required by the runtime,
+	* which finds the target at the stop itself.
+	*/
+	uint16 target_unique_entry_couple;
 
 	/**
 	* maximum waiting time in 1/2^(16-n) parts of a month

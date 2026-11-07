@@ -146,26 +146,33 @@ public:
 
 
 /**
- * Picker window for the uncouple target entry: shows the target line/convoy
- * schedule's entries at the dividing halt as full schedule-entry rows (the
- * same visual presentation as the schedule window's stop list). Built over a
- * snapshot copy owned by the window. Commits the picked entry's unique id to
- * its listeners, then closes itself (self-destroy is kill-list-deferred while
- * inside event handling, so closing on commit is safe).
- * Transient: default get_rdwr_id (magic_reserved) keeps it out of savegames.
+ * Picker window for a schedule-entry target: shows the target line/convoy
+ * schedule's entries at the dividing/coupling halt as full schedule-entry rows
+ * (the same visual presentation as the schedule window's stop list). Used for
+ * both the uncouple target entry and the couple target entry (for_couple).
+ * Built over a snapshot copy owned by the window. Commits the picked entry's
+ * unique id to its listeners, then closes itself (self-destroy is
+ * kill-list-deferred while inside event handling, so closing on commit is
+ * safe). Transient: default get_rdwr_id (magic_reserved) keeps it out of
+ * savegames.
  */
 class uncouple_entry_picker_t : public gui_frame_t, public action_listener_t, public gui_action_creator_t
 {
 	schedule_t *target_schedule; // snapshot copy, owned
 	player_t *player;
 	cbuffer_t title;
+	// True when this instance picks the couple target entry rather than the
+	// uncouple one; the commit is routed to the matching schedule-entry field.
+	bool for_couple;
 
 	gui_aligned_container_t rows;
 	gui_scrollpane_t scroll;
 
 public:
-	uncouple_entry_picker_t(player_t *pl, schedule_t *target_snapshot, halthandle_t halt, const char *target_name);
+	uncouple_entry_picker_t(player_t *pl, schedule_t *target_snapshot, halthandle_t halt, const char *target_name, bool for_couple = false);
 	~uncouple_entry_picker_t() { delete target_schedule; }
+
+	bool is_for_couple() const { return for_couple; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;
 };
@@ -290,9 +297,12 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	void update_target_line_selection(bool condition, bool couple, bool uncouple);
 	void update_target_convoy_selection(bool couple, bool uncouple, bool condition);
 
-	// Opens the uncouple-target-entry picker; text follows the Line/Convoy
-	// toggle mode ("Use this target line/consist/schedule from...").
+	// Opens the target-entry picker; text follows the Line/Convoy toggle
+	// mode ("Use this target line/consist/schedule from..."). The couple and
+	// uncouple pickers share one window id (magic_uncouple_entry_picker), so
+	// opening either closes the other first.
 	button_t bt_uncouple_entry_picker;
+	button_t bt_couple_entry_picker;
 	// Inline display of the selected target entry (one schedule-entry row).
 	// The red X clears the selection; plain clicks on the row are ignored.
 	// Rebuilds are draw-deferred (see request_uncouple_entry_display):
@@ -300,14 +310,28 @@ class schedule_gui_t : public gui_frame_t, public action_listener_t
 	// remove its rows synchronously (use-after-free of the dispatch's
 	// comp pointer, observed as 0xC00000FD in gui_container_t).
 	gui_aligned_container_t cont_uncouple_entry;
+	gui_aligned_container_t cont_couple_entry;
 	gui_schedule_entry_t *uncouple_entry_row = NULL;
+	gui_schedule_entry_t *couple_entry_row = NULL;
 	bool uncouple_display_dirty = false;
+	bool couple_display_dirty = false;
 	void request_uncouple_entry_display() { uncouple_display_dirty = true; }
+	void request_couple_entry_display() { couple_display_dirty = true; }
 	// Live target schedule of the current entry, or NULL if none/invalid.
 	schedule_t* get_uncouple_target_schedule();
+	schedule_t* get_couple_target_schedule();
 	void update_uncouple_entry_button();
+	void update_couple_entry_button();
 	void update_uncouple_entry_display();
-	void close_uncouple_picker() { destroy_win(magic_uncouple_entry_picker); }
+	void update_couple_entry_display();
+	void close_entry_picker() { destroy_win(magic_uncouple_entry_picker); }
+
+	// Sets the matching *_target_sch_is_reversed flag. A button is enabled
+	// only while its target schedule resolves and is mirrored; a non-mirrored
+	// target's flag is cleared. Stored values are preserved while the
+	// couple/uncouple flag is disarmed, like the other gated controls.
+	button_t bt_couple_sch_reversed, bt_uncouple_sch_reversed;
+	void update_direction_controls();
 
 	gui_aligned_container_t cont_settings_1, cont_settings_2;
 	gui_tab_panel_t tabs;

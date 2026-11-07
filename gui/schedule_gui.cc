@@ -441,10 +441,11 @@ bool gui_pickable_schedule_entry_t::action_triggered(gui_action_creator_t *, val
 }
 
 
-uncouple_entry_picker_t::uncouple_entry_picker_t(player_t *pl, schedule_t *target_snapshot, halthandle_t halt, const char *target_name) :
+uncouple_entry_picker_t::uncouple_entry_picker_t(player_t *pl, schedule_t *target_snapshot, halthandle_t halt, const char *target_name, bool for_couple_) :
 	gui_frame_t("", NULL),
 	target_schedule(target_snapshot),
 	player(pl),
+	for_couple(for_couple_),
 	scroll(&rows, true, true)
 {
 	set_owner(pl);
@@ -1338,6 +1339,34 @@ void schedule_gui_t::build_table()
 			}
 			cont_settings_2.end_table();
 
+			bt_couple_entry_picker.init(button_t::roundbox, "Use this target schedule from...");
+			bt_couple_entry_picker.set_tooltip("The schedule entry at which the vehicles taken by this consist are travelling when the coupling takes place");
+			bt_couple_entry_picker.add_listener(this);
+			cont_settings_2.add_table(2, 1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				cont_settings_2.add_component(&bt_couple_entry_picker);
+			}
+			cont_settings_2.end_table();
+			bt_couple_sch_reversed.init(button_t::square_automatic, "Target schedule is reversed");
+			bt_couple_sch_reversed.set_tooltip("The target line's or consist's schedule is traversed in reverse from the selected entry");
+			bt_couple_sch_reversed.add_listener(this);
+			cont_settings_2.add_table(2, 1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				cont_settings_2.add_component(&bt_couple_sch_reversed);
+			}
+			cont_settings_2.end_table();
+			update_couple_entry_button();
+			cont_couple_entry.set_table_layout(1, 0);
+			update_couple_entry_display();
+			cont_settings_2.add_table(2, 1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				cont_settings_2.add_component(&cont_couple_entry);
+			}
+			cont_settings_2.end_table();
+
 			cont_settings_2.new_component<gui_divider_t>();
 
 			bt_uncouple.init(button_t::square_automatic, "Divide at this stop");
@@ -1378,6 +1407,15 @@ void schedule_gui_t::build_table()
 				cont_settings_2.add_component(&bt_uncouple_entry_picker);
 			}
 			cont_settings_2.end_table();
+			bt_uncouple_sch_reversed.init(button_t::square_automatic, "Target schedule is reversed");
+			bt_uncouple_sch_reversed.set_tooltip("The target line's or consist's schedule is traversed in reverse from the selected entry");
+			bt_uncouple_sch_reversed.add_listener(this);
+			cont_settings_2.add_table(2, 1)->set_spacing(scr_size(0, 0));
+			{
+				cont_settings_2.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
+				cont_settings_2.add_component(&bt_uncouple_sch_reversed);
+			}
+			cont_settings_2.end_table();
 			update_uncouple_entry_button();
 			cont_uncouple_entry.set_table_layout(1, 0);
 			update_uncouple_entry_display();
@@ -1387,6 +1425,7 @@ void schedule_gui_t::build_table()
 				cont_settings_2.add_component(&cont_uncouple_entry);
 			}
 			cont_settings_2.end_table();
+			update_direction_controls();
 
 		}
 		end_table();
@@ -1480,6 +1519,7 @@ void schedule_gui_t::update_target_line_selection(bool condition, bool couple, b
 					couple_target_selector.new_component<line_scrollitem_t>(line);
 					if (line.get_id() == schedule->entries[current_stop].target_id_couple) {
 						couple_target_selector.set_selection(couple_target_selector.count_elements()-1);
+						request_couple_entry_display();
 					}
 				}
 				if (uncouple && bt_uncouple_is_line.pressed) {
@@ -1546,6 +1586,7 @@ void schedule_gui_t::update_target_convoy_selection(bool couple, bool uncouple, 
 					couple_target_selector.new_component<convoy_scrollitem_t>(connected_cnv, false);
 					if (connected_cnv.get_id() == schedule->entries[current_stop].target_id_couple) {
 						couple_target_selector.set_selection(couple_target_selector.count_elements() - 1);
+						request_couple_entry_display();
 					}
 				}
 				if ( uncouple  &&  bt_uncouple_is_cnv.pressed ) {
@@ -1635,7 +1676,7 @@ void schedule_gui_t::disable_couple_target_selector(bool is_uncouple)
 		cont_uncouple_entry.set_visible(false);
 		update_uncouple_entry_button();
 		request_uncouple_entry_display();
-		close_uncouple_picker();
+		close_entry_picker();
 	}
 	else {
 		couple_target_selector.clear_elements();
@@ -1650,6 +1691,12 @@ void schedule_gui_t::disable_couple_target_selector(bool is_uncouple)
 		}
 		couple_target_selector.set_selection(0);
 		couple_target_selector.disable();
+		schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = 65535;
+		couple_entry_row = NULL;
+		cont_couple_entry.set_visible(false);
+		update_couple_entry_button();
+		request_couple_entry_display();
+		close_entry_picker();
 	}
 }
 
@@ -1660,6 +1707,11 @@ void schedule_gui_t::update_arm_gating()
 		return;
 	}
 	const schedule_entry_t &e = schedule->get_current_entry();
+	// Picker button text and enablement are refreshed here, after the
+	// Line/Consist mode has been restored for the shown entry, and before the
+	// disarm gating below can disable them.
+	update_uncouple_entry_button();
+	update_couple_entry_button();
 	const bool waiting = e.is_flag_set(schedule_entry_t::conditional_depart_before_wait)
 		|| e.is_flag_set(schedule_entry_t::conditional_depart_after_wait);
 	const bool sending = e.is_flag_set(schedule_entry_t::send_trigger);
@@ -1681,6 +1733,7 @@ void schedule_gui_t::update_arm_gating()
 	bt_couple_is_cnv.enable(coupling);
 	if (!coupling) {
 		couple_target_selector.disable();
+		bt_couple_entry_picker.disable();
 	}
 	const bool dividing = e.is_flag_set(schedule_entry_t::uncouple);
 	bt_uncouple_is_line.enable(dividing);
@@ -1689,6 +1742,7 @@ void schedule_gui_t::update_arm_gating()
 		uncouple_target_selector.disable();
 		bt_uncouple_entry_picker.disable();
 	}
+	update_direction_controls();
 }
 
 schedule_t* schedule_gui_t::get_uncouple_target_schedule()
@@ -1717,6 +1771,32 @@ schedule_t* schedule_gui_t::get_uncouple_target_schedule()
 	return NULL;
 }
 
+schedule_t* schedule_gui_t::get_couple_target_schedule()
+{
+	if (schedule->empty()) {
+		return NULL;
+	}
+	const schedule_entry_t &e = schedule->get_current_entry();
+	if (!e.target_id_couple) {
+		return NULL;
+	}
+	if (!e.is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv)) {
+		linehandle_t line;
+		line.set_id(e.target_id_couple);
+		if (line.is_bound()) {
+			return line->get_schedule();
+		}
+	}
+	else {
+		convoihandle_t cnv;
+		cnv.set_id(e.target_id_couple);
+		if (cnv.is_bound()) {
+			return cnv->get_schedule();
+		}
+	}
+	return NULL;
+}
+
 
 void schedule_gui_t::update_uncouple_entry_button()
 {
@@ -1730,6 +1810,20 @@ void schedule_gui_t::update_uncouple_entry_button()
 		bt_uncouple_entry_picker.set_text("Use this target schedule from...");
 	}
 	bt_uncouple_entry_picker.enable(get_uncouple_target_schedule() != NULL);
+}
+
+void schedule_gui_t::update_couple_entry_button()
+{
+	if (bt_couple_is_line.pressed) {
+		bt_couple_entry_picker.set_text("Use this target line from...");
+	}
+	else if (bt_couple_is_cnv.pressed) {
+		bt_couple_entry_picker.set_text("Use this target consist from...");
+	}
+	else {
+		bt_couple_entry_picker.set_text("Use this target schedule from...");
+	}
+	bt_couple_entry_picker.enable(get_couple_target_schedule() != NULL);
 }
 
 
@@ -1756,6 +1850,59 @@ void schedule_gui_t::update_uncouple_entry_display()
 		}
 	}
 	cont_uncouple_entry.set_visible(shown);
+}
+
+void schedule_gui_t::update_couple_entry_display()
+{
+	cont_couple_entry.remove_all();
+	couple_entry_row = NULL;
+	bool shown = false;
+	// As for the uncouple display: hidden while Couple is unchecked, but the
+	// stored pick is preserved and reappears on arming.
+	if (schedule->get_current_entry().is_flag_set(schedule_entry_t::couple)) {
+		if (schedule_t* target = get_couple_target_schedule()) {
+			const uint16 uid = schedule->get_current_entry().target_unique_entry_couple;
+			for (uint8 i = 0; i < target->get_count(); i++) {
+				if (target->entries[i].unique_entry_id == uid) {
+					couple_entry_row = cont_couple_entry.new_component<gui_schedule_entry_t>(player, target->entries[i], i);
+					couple_entry_row->hide_swap_button();
+					couple_entry_row->add_listener(this);
+					shown = true;
+					break;
+				}
+			}
+		}
+	}
+	cont_couple_entry.set_visible(shown);
+}
+
+void schedule_gui_t::update_direction_controls()
+{
+	if (schedule->empty()) {
+		return;
+	}
+	schedule_entry_t &e = schedule->entries[schedule->get_current_stop()];
+	// A direction is usable only while its order is armed and the target
+	// schedule is mirrored; an armed order whose target cannot be reversed
+	// drops a stale flag. While disarmed the stored flag is preserved (the
+	// button is merely greyed), like the other gated controls.
+	const bool coupling = e.is_flag_set(schedule_entry_t::couple);
+	schedule_t *const couple_target = get_couple_target_schedule();
+	const bool couple_reversible = coupling && couple_target != NULL && couple_target->is_mirrored();
+	bt_couple_sch_reversed.enable(couple_reversible);
+	if (coupling && !couple_reversible) {
+		e.clear_flag(schedule_entry_t::couple_target_sch_is_reversed);
+	}
+	bt_couple_sch_reversed.pressed = e.is_flag_set(schedule_entry_t::couple_target_sch_is_reversed);
+
+	const bool dividing = e.is_flag_set(schedule_entry_t::uncouple);
+	schedule_t *const uncouple_target = get_uncouple_target_schedule();
+	const bool uncouple_reversible = dividing && uncouple_target != NULL && uncouple_target->is_mirrored();
+	bt_uncouple_sch_reversed.enable(uncouple_reversible);
+	if (dividing && !uncouple_reversible) {
+		e.clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
+	}
+	bt_uncouple_sch_reversed.pressed = e.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed);
 }
 
 void schedule_gui_t::update_selection()
@@ -1809,8 +1956,8 @@ void schedule_gui_t::update_selection()
 		bt_cond_after_wait.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_after_wait);
 		bt_clear_triggers_on_dep.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::clear_stored_triggers_on_dep);
 		bt_trigger_one_only.pressed = schedule->get_current_entry().is_flag_set(schedule_entry_t::trigger_one_only);
-		update_uncouple_entry_button();
 		request_uncouple_entry_display();
+		request_couple_entry_display();
 		bt_speed_limit.pressed = (schedule->get_current_entry().max_speed_kmh != 65535);
 		numimp_speed_limit.set_value(schedule->get_current_entry().max_speed_kmh);
 		numimp_speed_limit.enable(bt_speed_limit.pressed);
@@ -1998,7 +2145,7 @@ bool schedule_gui_t::infowin_event(const event_t *ev)
 
 		update_tool( false );
 		destroy_win(magic_consist_order); // it may creates data conflicts
-		close_uncouple_picker();
+		close_entry_picker();
 		schedule->cleanup();
 		schedule->finish_editing();
 		// A couple order with no coupling target selected is not authorable and is
@@ -2160,7 +2307,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 
 		if(  line >= 0 && line < schedule->get_count()  ) {
 			schedule->set_current_stop( line );
-			close_uncouple_picker(); // entry switch: picker snapshot is stale
+			close_entry_picker(); // entry switch: picker snapshot is stale
 			if(  mode == removing  ) {
 				stats->highlight_schedule( schedule, false );
 				schedule->remove();
@@ -2354,6 +2501,8 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple);
 			}
 			update_arm_gating();
+			// Refresh the picked-stop display (hidden while disarmed).
+			request_couple_entry_display();
 		}
 		else if (comp == &bt_uncouple)
 		{
@@ -2381,8 +2530,14 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				bt_couple_is_line.pressed = true;
 				bt_couple_is_cnv.pressed = false;
 				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = 0;
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_sch_is_reversed);
 				update_target_line_selection(false, true, false);
+				update_couple_entry_button();
+				request_couple_entry_display();
+				update_direction_controls();
+				close_entry_picker();
 			}
 		}
 		else if (comp == &bt_couple_is_cnv) {
@@ -2390,8 +2545,14 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				bt_couple_is_cnv.pressed = true;
 				bt_couple_is_line.pressed = false;
 				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = 0;
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_sch_is_reversed);
 				update_target_convoy_selection(true, false, false);
+				update_couple_entry_button();
+				request_couple_entry_display();
+				update_direction_controls();
+				close_entry_picker();
 			}
 		}
 		else if (comp == &bt_uncouple_is_line) {
@@ -2399,10 +2560,14 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				bt_uncouple_is_line.pressed = true;
 				bt_uncouple_is_cnv.pressed = false;
 				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 0;
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
 				update_target_line_selection(false, false, true);
 				update_uncouple_entry_button();
-				close_uncouple_picker();
+				request_uncouple_entry_display();
+				update_direction_controls();
+				close_entry_picker();
 			}
 		}
 		else if (comp == &bt_uncouple_is_cnv) {
@@ -2410,10 +2575,14 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				bt_uncouple_is_cnv.pressed = true;
 				bt_uncouple_is_line.pressed = false;
 				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 0;
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
 				update_target_convoy_selection(false, true, false);
 				update_uncouple_entry_button();
-				close_uncouple_picker();
+				request_uncouple_entry_display();
+				update_direction_controls();
+				close_entry_picker();
 			}
 		}
 		else if (comp == &condition_line_selector) {
@@ -2534,6 +2703,12 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			int selection = p.i;
 			if (selection == 0) {
 				schedule->entries[schedule->get_current_stop()].target_id_couple = 0;
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = 0;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_sch_is_reversed);
+				update_couple_entry_button();
+				request_couple_entry_display();
+				update_direction_controls();
+				close_entry_picker();
 				return true;
 			}
 			else {
@@ -2541,7 +2716,13 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 					line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(couple_target_selector.get_element(selection));
 					if (item) {
 						schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_line().get_id();
+						schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = 0;
 						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_sch_is_reversed);
+						update_couple_entry_button();
+						request_couple_entry_display();
+						update_direction_controls();
+						close_entry_picker();
 						return true;
 					}
 				}
@@ -2549,7 +2730,13 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 					convoy_scrollitem_t *item = (convoy_scrollitem_t*)couple_target_selector.get_element(selection);
 					if (item) {
 						schedule->entries[schedule->get_current_stop()].target_id_couple = item->get_convoy().get_id();
+						schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = 0;
 						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::couple_target_is_line_or_cnv);
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_sch_is_reversed);
+						update_couple_entry_button();
+						request_couple_entry_display();
+						update_direction_controls();
+						close_entry_picker();
 						return true;
 					}
 				}
@@ -2559,9 +2746,12 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			int selection = p.i;
 			if (selection == 0) {
 				schedule->entries[schedule->get_current_stop()].target_id_uncouple = 0;
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 0;
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
 				update_uncouple_entry_button();
 				request_uncouple_entry_display();
-				close_uncouple_picker();
+				update_direction_controls();
+				close_entry_picker();
 				return true;
 			}
 			else {
@@ -2569,10 +2759,13 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 					line_scrollitem_t *item = dynamic_cast<line_scrollitem_t*>(uncouple_target_selector.get_element(selection));
 					if (item) {
 						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_line().get_id();
+						schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 0;
 						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
 						update_uncouple_entry_button();
 						request_uncouple_entry_display();
-						close_uncouple_picker();
+						update_direction_controls();
+						close_entry_picker();
 						return true;
 					}
 				}
@@ -2580,10 +2773,13 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 					convoy_scrollitem_t *item = (convoy_scrollitem_t*)uncouple_target_selector.get_element(selection);
 					if (item) {
 						schedule->entries[schedule->get_current_stop()].target_id_uncouple = item->get_convoy().get_id();
+						schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = 0;
 						schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple_target_is_line_or_cnv);
+						schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
 						update_uncouple_entry_button();
 						request_uncouple_entry_display();
-						close_uncouple_picker();
+						update_direction_controls();
+						close_entry_picker();
 						return true;
 					}
 				}
@@ -2592,7 +2788,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 		else if (comp == &bt_uncouple_entry_picker) {
 			// Open the target-entry picker over a snapshot of the live target schedule.
 			if (schedule_t* target = get_uncouple_target_schedule()) {
-				close_uncouple_picker(); // fresh, never stale
+				close_entry_picker(); // fresh, never stale
 				schedule_t* snap = target->copy();
 				halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, player);
 				cbuffer_t target_name;
@@ -2621,11 +2817,49 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				}
 			}
 		}
+		else if (comp == &bt_couple_entry_picker) {
+			// As for the uncouple picker, over the couple target's schedule.
+			if (schedule_t* target = get_couple_target_schedule()) {
+				close_entry_picker(); // fresh, never stale
+				schedule_t* snap = target->copy();
+				halthandle_t halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, player);
+				cbuffer_t target_name;
+				const schedule_entry_t &e = schedule->get_current_entry();
+				if (!e.is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv)) {
+					linehandle_t line;
+					line.set_id(e.target_id_couple);
+					if (line.is_bound()) {
+						target_name.printf("%s", line->get_name());
+					}
+				}
+				else {
+					convoihandle_t target_cnv;
+					target_cnv.set_id(e.target_id_couple);
+					if (target_cnv.is_bound()) {
+						target_name.printf("%s", target_cnv->get_name());
+					}
+				}
+				create_win({ -1, -1 }, new uncouple_entry_picker_t(player, snap, halt, target_name, true), w_info, magic_uncouple_entry_picker);
+				if (uncouple_entry_picker_t *win = dynamic_cast<uncouple_entry_picker_t*>(win_get_magic(magic_uncouple_entry_picker))) {
+					win->add_listener(this);
+					top_win(win);
+				}
+				else {
+					delete snap;
+				}
+			}
+		}
 		else if (open_picker && comp == open_picker) {
-			// Picker commit: store the picked unique entry id.
-			// (The picker closes itself.)
-			schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = (uint16)p.i;
-			request_uncouple_entry_display();
+			// Picker commit: store the picked unique entry id in the field
+			// the picker was opened for. (The picker closes itself.)
+			if (open_picker->is_for_couple()) {
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = (uint16)p.i;
+				request_couple_entry_display();
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_uncouple = (uint16)p.i;
+				request_uncouple_entry_display();
+			}
 		}
 		else if (comp == uncouple_entry_row) {
 			// Inline display row: red X clears the selection (swap is
@@ -2637,6 +2871,32 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				uncouple_entry_row = NULL;
 				cont_uncouple_entry.set_visible(false);
 				request_uncouple_entry_display();
+			}
+		}
+		else if (comp == couple_entry_row) {
+			// Couple parallel of the uncouple display row; the deferred
+			// rebuild has the same reason.
+			if (p.i & DELETE_FLAG) {
+				schedule->entries[schedule->get_current_stop()].target_unique_entry_couple = 65535;
+				couple_entry_row = NULL;
+				cont_couple_entry.set_visible(false);
+				request_couple_entry_display();
+			}
+		}
+		else if (comp == &bt_couple_sch_reversed) {
+			if (bt_couple_sch_reversed.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::couple_target_sch_is_reversed);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::couple_target_sch_is_reversed);
+			}
+		}
+		else if (comp == &bt_uncouple_sch_reversed) {
+			if (bt_uncouple_sch_reversed.pressed) {
+				schedule->entries[schedule->get_current_stop()].set_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
+			}
+			else {
+				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
 			}
 		}
 		else if (comp == &bt_consist_order) {
@@ -2755,6 +3015,10 @@ void schedule_gui_t::draw(scr_coord pos, scr_size size)
 	if (uncouple_display_dirty && schedule) {
 		uncouple_display_dirty = false;
 		update_uncouple_entry_display();
+	}
+	if (couple_display_dirty && schedule) {
+		couple_display_dirty = false;
+		update_couple_entry_display();
 	}
 	if (cnv.is_bound()) {
 		if (cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS)) {

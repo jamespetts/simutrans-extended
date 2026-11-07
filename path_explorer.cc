@@ -427,6 +427,8 @@ void path_explorer_t::full_instant_refresh()
 }
 
 
+
+
 void path_explorer_t::refresh_all_categories(const bool reset_working_set)
 {
 	if (reset_working_set)
@@ -1126,6 +1128,579 @@ void path_explorer_t::compartment_t::set_absolute_limits()
 	time_upper_limit = time_midpoint + time_deviation;
 	time_threshold = time_midpoint / 2;
 }
+
+// ---------------------------------------------------------------------------
+// Cross-schedule (Y/H) connexion generation.
+//
+// These helpers run inside phase 2, once per linkage, after the ordinary
+// within-schedule connexions have been generated. They add direct connexions
+// from stops upstream of a coupling entry on the source schedule to stops
+// downstream of it on the destination schedule. The record is owned by the
+// source linkage (the one the passenger or goods board at the origin); the
+// record's time is the actual pair time recorded by the destination linkage
+// when one exists, otherwise the sum of the consecutive leg values.
+// ---------------------------------------------------------------------------
+
+bool path_explorer_t::compartment_t::linkage_carries(const linkage_t &linkage) const
+{
+	if (linkage.line.is_bound())
+	{
+		return linkage.line->carries_this_category(catg) && (catg >= 2 || linkage.line->carries_this_or_lower_class(catg, g_class));
+	}
+	if (linkage.convoy.is_bound())
+	{
+		return linkage.convoy->carries_this_category(catg) && (catg >= 2 || linkage.convoy->carries_this_or_lower_class(catg, g_class));
+	}
+	return false;
+}
+
+
+uint32 path_explorer_t::compartment_t::get_linkage_average_speed(const linkage_t &linkage) const
+{
+	if (linkage.line.is_bound())
+	{
+		if (linkage.line->get_finance_history(1, LINE_AVERAGE_SPEED) > 0)
+		{
+			return (uint32)linkage.line->get_finance_history(1, LINE_AVERAGE_SPEED);
+		}
+		if (linkage.line->count_convoys() > 0)
+		{
+			return speed_to_kmh(linkage.line->get_convoy(0)->get_min_top_speed()) >> 1;
+		}
+		return 1;
+	}
+	if (linkage.convoy.is_bound())
+	{
+		if (linkage.convoy->get_finance_history(1, convoi_t::CONVOI_AVERAGE_SPEED) > 0)
+		{
+			return (uint32)linkage.convoy->get_finance_history(1, convoi_t::CONVOI_AVERAGE_SPEED);
+		}
+		return speed_to_kmh(linkage.convoy->get_min_top_speed()) >> 1;
+	}
+	return 1;
+}
+
+
+uint32 path_explorer_t::compartment_t::get_recorded_pair_time(const linkage_t &linkage, const halthandle_t from, const halthandle_t to) const
+{
+	if (!from.is_bound() || !to.is_bound())
+	{
+		return 0;
+	}
+	const id_pair pair(from.get_id(), to.get_id());
+	average_tpl<uint32> *average = NULL;
+	if (linkage.line.is_bound())
+	{
+		journey_times_map &times = linkage.line->get_average_journey_times();
+		if (times.is_contained(pair))
+		{
+			average = times.access(pair);
+		}
+	}
+	else if (linkage.convoy.is_bound())
+	{
+		journey_times_map &times = linkage.convoy->get_average_journey_times();
+		if (times.is_contained(pair))
+		{
+			average = times.access(pair);
+		}
+	}
+	return average != NULL && average->count > 0 ? average->reduce() : 0;
+}
+
+
+uint32 path_explorer_t::compartment_t::get_leg_time(const linkage_t &linkage, const schedule_entry_t &from, const schedule_entry_t &to, uint32 average_speed) const
+{
+	player_t *const owner = linkage.line.is_bound() ? linkage.line->get_owner() : (linkage.convoy.is_bound() ? linkage.convoy->get_owner() : NULL);
+	if (owner == NULL)
+	{
+		return 0;
+	}
+	const halthandle_t from_halt = haltestelle_t::get_halt(from.pos, owner);
+	const halthandle_t to_halt = haltestelle_t::get_halt(to.pos, owner);
+	if (!from_halt.is_bound() || !to_halt.is_bound())
+	{
+		return 0;
+	}
+	uint32 journey_time = get_recorded_pair_time(linkage, from_halt, to_halt);
+	if (journey_time == 0)
+	{
+		const uint32 distance = shortest_distance(from_halt->get_basis_pos(), to_halt->get_basis_pos());
+		journey_time = world->travel_time_tenths_from_distance(distance, average_speed);
+	}
+	if (from.is_flag_set(schedule_entry_t::lay_over) ||
+		(from.is_flag_set(schedule_entry_t::discharge_payload) && !from.is_flag_set(schedule_entry_t::set_down_only)))
+	{
+		journey_time += catg != goods_manager_t::passengers->get_catg_index() ? from_halt->get_transshipment_time() : from_halt->get_transfer_time();
+	}
+	return journey_time;
+}
+
+
+bool path_explorer_t::compartment_t::entry_carries(const schedule_t *schedule, const schedule_entry_t &entry, bool to, uint8 category, uint8 g_class) const
+{
+	if (schedule == NULL || !schedule->has_consist_orders())
+	{
+		return true;
+	}
+	const inthashtable_tpl<uint16, vector_tpl<uint8>, N_BAGS_SMALL> &catg_table = to ? schedule->get_catg_carried_to() : schedule->get_catg_carried_from();
+	if (catg_table.empty() || !catg_table.is_contained(entry.unique_entry_id))
+	{
+		return true;
+	}
+	if (!catg_table.get(entry.unique_entry_id).is_contained(category))
+	{
+		return false;
+	}
+	if (category == goods_manager_t::passengers->get_catg_index())
+	{
+		const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> &min_class = to ? schedule->get_passenger_min_class_carried_to() : schedule->get_passenger_min_class_carried_from();
+		return !min_class.is_contained(entry.unique_entry_id) || min_class.get(entry.unique_entry_id) <= g_class;
+	}
+	if (category == goods_manager_t::mail->get_catg_index())
+	{
+		const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> &min_class = to ? schedule->get_mail_min_class_carried_to() : schedule->get_mail_min_class_carried_from();
+		return !min_class.is_contained(entry.unique_entry_id) || min_class.get(entry.unique_entry_id) <= g_class;
+	}
+	return true;
+}
+
+
+bool path_explorer_t::compartment_t::through_predicate_allows(const schedule_t *source_schedule, const schedule_entry_t &source_origin, const schedule_entry_t &source_coupling,
+	const schedule_t *destination_schedule, const schedule_entry_t &destination_coupling, const schedule_entry_t &destination_entry) const
+{
+	if (source_origin.is_flag_set(schedule_entry_t::set_down_only) || destination_entry.is_flag_set(schedule_entry_t::pick_up_only))
+	{
+		return false;
+	}
+	if (source_coupling.is_flag_set(schedule_entry_t::lay_over) || source_coupling.is_flag_set(schedule_entry_t::discharge_payload) || source_coupling.is_flag_set(schedule_entry_t::force_range_stop))
+	{
+		return false;
+	}
+	if (destination_coupling.is_flag_set(schedule_entry_t::lay_over) || destination_coupling.is_flag_set(schedule_entry_t::discharge_payload) || destination_coupling.is_flag_set(schedule_entry_t::force_range_stop))
+	{
+		return false;
+	}
+	return entry_carries(source_schedule, source_origin, true, catg, g_class) &&
+		entry_carries(source_schedule, source_coupling, true, catg, g_class) &&
+		entry_carries(destination_schedule, destination_coupling, false, catg, g_class) &&
+		entry_carries(destination_schedule, destination_entry, false, catg, g_class);
+}
+
+
+void path_explorer_t::compartment_t::collect_upstream_stops(const linkage_t &linkage, const schedule_t *schedule, uint8 entry_index, bool reverse, vector_tpl<through_stop_t> &out) const
+{
+	const uint32 average_speed = get_linkage_average_speed(linkage);
+	const bool effective_reverse = reverse && schedule->is_mirrored();
+	uint32 time = 0;
+	if (!effective_reverse)
+	{
+		for (sint32 i = (sint32)entry_index - 1; i >= 0; --i)
+		{
+			time += get_leg_time(linkage, schedule->entries[(uint8)i], schedule->entries[(uint8)i + 1], average_speed);
+			const halthandle_t halt = haltestelle_t::get_halt(schedule->entries[(uint8)i].pos, linkage.line.is_bound() ? linkage.line->get_owner() : linkage.convoy->get_owner());
+			if (halt.is_bound())
+			{
+				through_stop_t stop;
+				stop.halt = halt;
+				stop.time = time;
+				stop.linkage = linkage;
+				stop.schedule = schedule;
+				stop.entry_index = (uint8)i;
+				stop.coupling_entry = NULL;
+				out.append(stop);
+			}
+		}
+	}
+	else
+	{
+		const uint32 count = schedule->get_count();
+		for (uint32 i = (uint32)entry_index + 1; i < count; ++i)
+		{
+			time += get_leg_time(linkage, schedule->entries[(uint8)i], schedule->entries[(uint8)i - 1], average_speed);
+			const halthandle_t halt = haltestelle_t::get_halt(schedule->entries[(uint8)i].pos, linkage.line.is_bound() ? linkage.line->get_owner() : linkage.convoy->get_owner());
+			if (halt.is_bound())
+			{
+				through_stop_t stop;
+				stop.halt = halt;
+				stop.time = time;
+				stop.linkage = linkage;
+				stop.schedule = schedule;
+				stop.entry_index = (uint8)i;
+				stop.coupling_entry = NULL;
+				out.append(stop);
+			}
+		}
+	}
+}
+
+
+void path_explorer_t::compartment_t::collect_downstream_stops(const linkage_t &linkage, const schedule_t *schedule, uint8 entry_index, bool reverse, uint32 base_time, uint8 depth, const schedule_entry_t *coupling_entry, vector_tpl<through_stop_t> &out) const
+{
+	const uint32 average_speed = get_linkage_average_speed(linkage);
+	const sint32 max_depth = world->get_settings().get_max_through_coupling_depth();
+	player_t *const owner = linkage.line.is_bound() ? linkage.line->get_owner() : (linkage.convoy.is_bound() ? linkage.convoy->get_owner() : NULL);
+	if (owner == NULL)
+	{
+		return;
+	}
+	uint8 index = entry_index;
+	bool rev = reverse && schedule->is_mirrored();
+	uint32 time = base_time;
+	for (uint32 step = 0; step < schedule->get_count(); ++step)
+	{
+		uint8 next = index;
+		bool next_reverse = rev;
+		schedule->increment_index(&next, &next_reverse);
+		if (next_reverse != rev)
+		{
+			// Reached the turning point of a mirrored schedule.
+			break;
+		}
+		if (rev ? next >= index : next <= index)
+		{
+			// Wrapped around the end of the schedule.
+			break;
+		}
+		const schedule_entry_t &next_entry = schedule->entries[next];
+		// A portion that forces discharge cannot continue as a through movement.
+		if (next_entry.is_flag_set(schedule_entry_t::lay_over) || next_entry.is_flag_set(schedule_entry_t::discharge_payload) || next_entry.is_flag_set(schedule_entry_t::force_range_stop))
+		{
+			break;
+		}
+		time += get_leg_time(linkage, schedule->entries[index], next_entry, average_speed);
+		const halthandle_t halt = haltestelle_t::get_halt(next_entry.pos, owner);
+		if (halt.is_bound())
+		{
+			bool updated = false;
+			for (uint32 i = 0; i < out.get_count(); ++i)
+			{
+				if (out[i].halt == halt)
+				{
+					if (time < out[i].time)
+					{
+						out[i].time = time;
+						out[i].linkage = linkage;
+						out[i].schedule = schedule;
+						out[i].entry_index = next;
+						out[i].coupling_entry = coupling_entry;
+					}
+					updated = true;
+					break;
+				}
+			}
+			if (!updated)
+			{
+				through_stop_t stop;
+				stop.halt = halt;
+				stop.time = time;
+				stop.linkage = linkage;
+				stop.schedule = schedule;
+				stop.entry_index = next;
+				stop.coupling_entry = coupling_entry;
+				out.append(stop);
+			}
+		}
+		if (next_entry.is_flag_set(schedule_entry_t::uncouple) && depth < (uint8)max_depth)
+		{
+			linehandle_t target_line;
+			convoihandle_t target_convoy;
+			if (next_entry.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv))
+			{
+				target_convoy.set_id(next_entry.target_id_uncouple);
+				if (target_convoy.is_bound() && target_convoy->get_line().is_bound())
+				{
+					target_line = target_convoy->get_line();
+				}
+			}
+			else
+			{
+				target_line.set_id(next_entry.target_id_uncouple);
+			}
+			schedule_t *const target_schedule = target_line.is_bound() ? target_line->get_schedule() : (target_convoy.is_bound() ? target_convoy->get_schedule() : NULL);
+			if (target_schedule != NULL)
+			{
+				const uint8 target_entry = target_schedule->get_entry_from_unique_id(next_entry.target_unique_entry_uncouple);
+				if (target_entry != 255)
+				{
+					linkage_t target_linkage;
+					target_linkage.line = target_line;
+					target_linkage.convoy = target_convoy;
+					if (linkage_carries(target_linkage))
+					{
+						collect_downstream_stops(target_linkage, target_schedule, target_entry,
+							next_entry.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed), time, depth + 1,
+							&target_schedule->entries[target_entry], out);
+					}
+				}
+			}
+		}
+		index = next;
+		rev = next_reverse;
+	}
+}
+
+
+void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &current_linkage, const schedule_t *schedule)
+{
+	if (world->get_settings().get_max_through_coupling_depth() <= 0 || schedule == NULL)
+	{
+		return;
+	}
+	bool has_coupling = false;
+	for (uint8 i = 0; i < schedule->get_count() && !has_coupling; ++i)
+	{
+		has_coupling = schedule->entries[i].is_flag_set(schedule_entry_t::uncouple) || schedule->entries[i].is_flag_set(schedule_entry_t::couple);
+	}
+	if (!has_coupling)
+	{
+		return;
+	}
+	player_t *const current_owner = current_linkage.line.is_bound() ? current_linkage.line->get_owner() : (current_linkage.convoy.is_bound() ? current_linkage.convoy->get_owner() : NULL);
+	if (current_owner == NULL)
+	{
+		return;
+	}
+	const uint32 count = schedule->get_count();
+	const bool mirrored = schedule->is_mirrored();
+	for (uint8 pass = 0; pass < (mirrored ? 2 : 1); ++pass)
+	{
+		const bool current_reverse = pass == 1;
+		for (uint32 step = 0; step < count; ++step)
+		{
+			const uint8 entry_index = current_reverse ? (uint8)(count - 1 - step) : (uint8)step;
+			const schedule_entry_t &entry = schedule->entries[entry_index];
+
+			linkage_t source_linkage;
+			const schedule_t *source_schedule = NULL;
+			uint8 source_entry_index = 255;
+			bool source_reverse = false;
+			linkage_t destination_linkage;
+			const schedule_t *destination_schedule = NULL;
+			uint8 destination_entry_index = 255;
+			bool destination_reverse = false;
+
+			if (entry.is_flag_set(schedule_entry_t::uncouple))
+			{
+				if (entry.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv))
+				{
+					destination_linkage.convoy.set_id(entry.target_id_uncouple);
+					if (destination_linkage.convoy.is_bound() && destination_linkage.convoy->get_line().is_bound())
+					{
+						destination_linkage.line = destination_linkage.convoy->get_line();
+					}
+				}
+				else
+				{
+					destination_linkage.line.set_id(entry.target_id_uncouple);
+				}
+				destination_schedule = destination_linkage.line.is_bound() ? destination_linkage.line->get_schedule() : (destination_linkage.convoy.is_bound() ? destination_linkage.convoy->get_schedule() : NULL);
+				if (destination_schedule == NULL)
+				{
+					continue;
+				}
+				destination_entry_index = destination_schedule->get_entry_from_unique_id(entry.target_unique_entry_uncouple);
+				if (destination_entry_index == 255)
+				{
+					continue;
+				}
+				if (!linkage_carries(destination_linkage) ||
+					(destination_linkage.line.is_bound() ? destination_linkage.line->count_convoys() == 0 : !destination_linkage.convoy.is_bound()))
+				{
+					continue;
+				}
+				player_t *const destination_owner = destination_linkage.line.is_bound() ? destination_linkage.line->get_owner() : destination_linkage.convoy->get_owner();
+				const halthandle_t source_halt = haltestelle_t::get_halt(entry.pos, current_owner);
+				const halthandle_t destination_halt = haltestelle_t::get_halt(destination_schedule->entries[destination_entry_index].pos, destination_owner);
+				if (!source_halt.is_bound() || source_halt != destination_halt)
+				{
+					continue;
+				}
+				source_linkage = current_linkage;
+				source_schedule = schedule;
+				source_entry_index = entry_index;
+				source_reverse = current_reverse;
+				destination_reverse = entry.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed);
+			}
+			else if (entry.is_flag_set(schedule_entry_t::couple))
+			{
+				if (entry.is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv))
+				{
+					source_linkage.convoy.set_id(entry.target_id_couple);
+					if (source_linkage.convoy.is_bound() && source_linkage.convoy->get_line().is_bound())
+					{
+						source_linkage.line = source_linkage.convoy->get_line();
+					}
+				}
+				else
+				{
+					source_linkage.line.set_id(entry.target_id_couple);
+				}
+				source_schedule = source_linkage.line.is_bound() ? source_linkage.line->get_schedule() : (source_linkage.convoy.is_bound() ? source_linkage.convoy->get_schedule() : NULL);
+				if (source_schedule == NULL)
+				{
+					continue;
+				}
+				// The source linkage must be in this compartment's linkage list:
+				// it is the transport the through record is attributed to.
+				const uint16 source_transport = source_linkage.line.is_bound() ? transport_index_map[source_linkage.line.get_id()] : transport_index_map[65536u + source_linkage.convoy.get_id()];
+				if (source_transport == 0)
+				{
+					continue;
+				}
+				// Determine the source coupling entry. The explicit field wins;
+				// otherwise use a paired uncouple entry; otherwise the single
+				// visit of the stop in the source schedule.
+				if (entry.target_unique_entry_couple != 0 && entry.target_unique_entry_couple != 65535)
+				{
+					source_entry_index = source_schedule->get_entry_from_unique_id(entry.target_unique_entry_couple);
+				}
+				bool paired = false;
+				const uint16 current_unique_id = schedule->get_unique_id_from_entry(entry_index);
+				const uint16 current_line_id = current_linkage.line.is_bound() ? current_linkage.line.get_id() : 0;
+				const uint16 current_convoy_id = current_linkage.convoy.is_bound() ? current_linkage.convoy.get_id() : 0;
+				for (uint8 i = 0; i < source_schedule->get_count() && !paired; ++i)
+				{
+					const schedule_entry_t &candidate = source_schedule->entries[i];
+					if (candidate.pos != entry.pos || !candidate.is_flag_set(schedule_entry_t::uncouple))
+					{
+						continue;
+					}
+					bool target_matches = false;
+					if (!candidate.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv))
+					{
+						target_matches = current_line_id != 0 && candidate.target_id_uncouple == current_line_id;
+					}
+					else
+					{
+						convoihandle_t candidate_convoy;
+						candidate_convoy.set_id(candidate.target_id_uncouple);
+						target_matches = candidate_convoy.is_bound() &&
+							((current_convoy_id != 0 && candidate_convoy.get_id() == current_convoy_id) ||
+								(current_line_id != 0 && candidate_convoy->get_line().is_bound() && candidate_convoy->get_line().get_id() == current_line_id));
+					}
+					if (target_matches &&
+						(candidate.target_unique_entry_uncouple == 0 || candidate.target_unique_entry_uncouple == 65535 || candidate.target_unique_entry_uncouple == current_unique_id))
+					{
+						paired = true;
+						if (source_entry_index == 255)
+						{
+							source_entry_index = i;
+						}
+					}
+				}
+				if (paired)
+				{
+					// The paired uncouple entry generates the same pair; do not
+					// generate it again from the receiving side.
+					continue;
+				}
+				if (source_entry_index == 255)
+				{
+					// Fall back to a unique visit of the stop in the expanded
+					// source schedule. Count the visits in both directions.
+					uint8 visit = 255;
+					uint8 visits = 0;
+					for (uint8 pass2 = 0; pass2 < (source_schedule->is_mirrored() ? 2 : 1); ++pass2)
+					{
+						const bool rev2 = pass2 == 1;
+						for (uint8 i = 0; i < source_schedule->get_count(); ++i)
+						{
+							const uint8 index2 = rev2 ? (uint8)(source_schedule->get_count() - 1 - i) : i;
+							if (source_schedule->entries[index2].pos == entry.pos)
+							{
+								visit = index2;
+								++visits;
+							}
+						}
+					}
+					if (visits != 1)
+					{
+						continue;
+					}
+					source_entry_index = visit;
+				}
+				if (source_entry_index == 255)
+				{
+					continue;
+				}
+				player_t *const source_owner = source_linkage.line.is_bound() ? source_linkage.line->get_owner() : source_linkage.convoy->get_owner();
+				const halthandle_t source_halt = haltestelle_t::get_halt(source_schedule->entries[source_entry_index].pos, source_owner);
+				const halthandle_t destination_halt = haltestelle_t::get_halt(entry.pos, current_owner);
+				if (!source_halt.is_bound() || source_halt != destination_halt)
+				{
+					continue;
+				}
+				source_reverse = entry.is_flag_set(schedule_entry_t::couple_target_sch_is_reversed);
+				destination_linkage = current_linkage;
+				destination_schedule = schedule;
+				destination_entry_index = entry_index;
+				destination_reverse = current_reverse;
+			}
+			else
+			{
+				continue;
+			}
+
+			vector_tpl<through_stop_t> upstream(8);
+			vector_tpl<through_stop_t> downstream(8);
+			collect_upstream_stops(source_linkage, source_schedule, source_entry_index, source_reverse, upstream);
+			collect_downstream_stops(destination_linkage, destination_schedule, destination_entry_index, destination_reverse, 0, 1,
+				&destination_schedule->entries[destination_entry_index], downstream);
+			if (upstream.get_count() == 0 || downstream.get_count() == 0)
+			{
+				continue;
+			}
+
+			const schedule_entry_t &source_coupling = source_schedule->entries[source_entry_index];
+			for (uint32 u = 0; u < upstream.get_count(); ++u)
+			{
+				const through_stop_t &origin = upstream[u];
+				haltestelle_t::connexions_map *const table = connexion_list[origin.halt.get_id()].connexion_table;
+				if (table == NULL)
+				{
+					continue;
+				}
+				for (uint32 d = 0; d < downstream.get_count(); ++d)
+				{
+					const through_stop_t &destination = downstream[d];
+					if (origin.halt == destination.halt)
+					{
+						continue;
+					}
+					if (!through_predicate_allows(origin.schedule, origin.schedule->entries[origin.entry_index], source_coupling,
+						destination.schedule, *destination.coupling_entry, destination.schedule->entries[destination.entry_index]))
+					{
+						continue;
+					}
+					haltestelle_t::connexion new_connexion;
+					new_connexion.waiting_time = origin.halt->get_average_waiting_time(destination.halt, catg, g_class);
+					new_connexion.transfer_time = catg != goods_manager_t::passengers->get_catg_index() ? origin.halt->get_transshipment_time() : origin.halt->get_transfer_time();
+					new_connexion.journey_time = get_recorded_pair_time(destination.linkage, origin.halt, destination.halt);
+					if (new_connexion.journey_time == 0)
+					{
+						new_connexion.journey_time = origin.time + destination.time;
+					}
+					new_connexion.best_line = source_linkage.line;
+					new_connexion.best_convoy = source_linkage.convoy;
+					new_connexion.alternative_seats = 0;
+					haltestelle_t::connexion *existing_connexion = table->get(destination.halt);
+					if (existing_connexion == NULL)
+					{
+						table->put(destination.halt, new_connexion);
+						origin.halt->prepare_goods_list(catg);
+					}
+					else if (existing_connexion->journey_time > new_connexion.journey_time)
+					{
+						new_connexion.alternative_seats = existing_connexion->alternative_seats;
+						table->set(destination.halt, new_connexion);
+					}
+				}
+			}
+		}
+	}
+}
+
 
 void path_explorer_t::compartment_t::step()
 {
@@ -1840,6 +2415,10 @@ void path_explorer_t::compartment_t::step()
 						}
 					}
 				}
+
+				// Add cross-schedule through connexions for any coupling entries
+				// on this linkage's schedule.
+				add_through_connexions(current_linkage, current_schedule);
 
 				++phase_counter;
 

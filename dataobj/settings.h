@@ -265,6 +265,10 @@ private:
 	// maximum length for route search at signs/signals
 	sint32 max_choose_route_steps;
 
+	// Maximum number of dividing/joining movements composed into one
+	// path-explorer through connexion.
+	sint32 max_through_coupling_depth;
+
 	// max steps for good routing
 	sint32 max_hops;
 
@@ -941,6 +945,8 @@ public:
 
 	sint32 get_max_route_steps() const { return max_route_steps; }
 	sint32 get_max_choose_route_steps() const { return max_choose_route_steps; }
+	sint32 get_max_through_coupling_depth() const { return max_through_coupling_depth; }
+	void set_max_through_coupling_depth(sint32 value) { max_through_coupling_depth = value; }
 	sint32 get_max_hops() const { return max_hops; }
 	sint32 get_max_transfers() const { return max_transfers; }
 
