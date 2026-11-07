@@ -128,16 +128,15 @@ sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_dista
 	sint64 total_fare = 0;
 	uint16 per_meter_fare;
 	uint32 remaining_distance = distance_meters;
-	uint32 i = 0;
-	for(auto scaled_value : scaled_values)
+	for(uint32 i = 0; i < scaled_values.get_count(); i++)
 	{
 		per_meter_fare = scaled_values[i].price;
-		if(i < scaled_values.get_count() - 1 && starting_distance >= scaled_value.to_distance)
+		if(i < scaled_values.get_count() - 1 && starting_distance >= scaled_values[i].to_distance)
 		{
 			starting_distance -= scaled_values[i].to_distance;
 			continue;
 		}
-		if(scaled_value.to_distance >= remaining_distance || i == scaled_values.get_count() - 1)
+		if(scaled_values[i].to_distance >= remaining_distance || i == scaled_values.get_count() - 1)
 		{
 			// The last item in the list must trigger the use of the full remaining distance.
 			total_fare += (sint64)per_meter_fare * remaining_distance;
@@ -146,10 +145,9 @@ sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_dista
 		else
 		{
 			total_fare += (sint64)per_meter_fare * (scaled_values[i].to_distance - starting_distance);
-			remaining_distance -= (scaled_value.to_distance - starting_distance);
+			remaining_distance -= (scaled_values[i].to_distance - starting_distance);
 			starting_distance = 0;
 		}
-		i++;
 	}
 
 	if (!ignore_inflation)
