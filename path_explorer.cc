@@ -694,26 +694,8 @@ static inline void relax_target_cell(const uint32 target,
 	}
 }
 
-static void relax_target_row_scalar(const uint16 halt_count,
-	const uint32 *const target_times,
-	uint32 *const times,
-	uint16 *const next_transfers,
-	uint16 *const first_transports,
-	uint16 *const last_transports,
-	const uint16 *const via_last_transports,
-	const uint32 origin_via_time,
-	const uint16 next_transfer,
-	const uint16 first_transport)
-{
-	for (uint32 target = 0; target < halt_count; ++target)
-	{
-		relax_target_cell(target, target_times, times, next_transfers, first_transports,
-			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
-	}
-}
-
 #ifdef USE_SSE2
-static void relax_target_row_sse2(const uint16 halt_count,
+static void relax_target_row(const uint16 halt_count,
 	const uint32 *const target_times,
 	uint32 *const times,
 	uint16 *const next_transfers,
@@ -771,10 +753,8 @@ static void relax_target_row_sse2(const uint16 halt_count,
 			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
 	}
 }
-#endif
-
-#ifdef USE_NEON
-static void relax_target_row_neon(const uint16 halt_count,
+#elif defined(USE_NEON)
+static void relax_target_row(const uint16 halt_count,
 	const uint32 *const target_times,
 	uint32 *const times,
 	uint16 *const next_transfers,
@@ -823,11 +803,8 @@ static void relax_target_row_neon(const uint16 halt_count,
 			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
 	}
 }
-#endif
-
-// The selected backend. The build systems may define USE_SSE2 or USE_NEON;
-// otherwise the source auto-detects one, and the scalar path is the fallback.
-static inline void relax_target_row(const uint16 halt_count,
+#else
+static void relax_target_row(const uint16 halt_count,
 	const uint32 *const target_times,
 	uint32 *const times,
 	uint16 *const next_transfers,
@@ -838,17 +815,13 @@ static inline void relax_target_row(const uint16 halt_count,
 	const uint16 next_transfer,
 	const uint16 first_transport)
 {
-#ifdef USE_SSE2
-	relax_target_row_sse2(halt_count, target_times, times, next_transfers, first_transports,
-		last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
-#elif defined(USE_NEON)
-	relax_target_row_neon(halt_count, target_times, times, next_transfers, first_transports,
-		last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
-#else
-	relax_target_row_scalar(halt_count, target_times, times, next_transfers, first_transports,
-		last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
-#endif
+	for (uint32 target = 0; target < halt_count; ++target)
+	{
+		relax_target_cell(target, target_times, times, next_transfers, first_transports,
+			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
+	}
 }
+#endif
 
 path_explorer_t::compartment_t::compartment_t()
 {
