@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ a203862c1
+verified: ex-15 @ 375ebf369
 ---
 # Path explorer optimisation
 

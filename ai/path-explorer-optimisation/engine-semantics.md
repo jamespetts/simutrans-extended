@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ a203862c1
+verified: ex-15 @ 375ebf369
 ---
 # Path explorer optimisation: route semantics
 
@@ -137,5 +137,5 @@ transfer time 2.
 ## Provenance
 
 The engine and examples were re-derived from path_explorer.cc and the routing-search measurements
-on `ex-15` at `a203862c1`, 2026-11-07. [CODE;
-EXECUTION-VERIFIED where tagged]
+on `ex-15` at `a203862c1`, 2026-11-07. The runtime-table deduplication was corrected to compare
+full weights at `375ebf369`. [CODE; EXECUTION-VERIFIED where tagged]
