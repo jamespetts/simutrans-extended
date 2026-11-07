@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f803ef8ac (merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays)
+verified: ex-15 @ f803ef8ac (code; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays)
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -277,6 +277,19 @@ savegame fields and format are unchanged; only the entry iteration order differs
 [EXECUTION-VERIFIED:2026-11-07, ex-15 @ f803ef8ac, Profile (server) x64; oracle harness and
 process memory sampling.]
 
+### Matrix alignment experiment (rejected)
+
+Tested 2026-11-07 against the lever-5 build: 64-byte base alignment of the flat matrix arrays and
+an odd-cache-line padded row stride. Base alignment alone had no measurable effect; an apparent
+12% phase-5 gain on month-boundary disappeared against a control with the same helper functions
+and ordinary `malloc`. Row padding was about 1–2% on month-boundary and within run-to-run variation
+on bb-10-sep-2023 (phase 5 90.2 s control vs 89.0 s padded, with overlapping runs; excluding one
+control outlier the padded build was slightly slower). All variants produced identical matrices
+and iteration totals. Reverted: the dense kernel appears to be limited by its instruction chain
+and data dependencies rather than cache-line splits, and padding trades row alignment for column
+cache-set distribution. [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 7bf8a0f81, Profile (server) x64;
+oracle harness.]
+
 ## Lever 9 - GPU
 
 - Per transfer halt: one dense min-plus update of the working block, one GPU thread per cell. The
@@ -321,8 +334,9 @@ equivalence (month-boundary, gargantuan and mid-pass), loopback network determin
 revision-6 mid-pass restart path are verified; the TEST harness has been removed. For the
 revision-6 restart, every finished matrix hash matches the revision-7 resume; `total_iterations`
 is higher only by the repeated current inbound cluster. Lever 5 (sorted connexion arrays) is
-implemented and measured below. Remaining kernel work: the optional dense/sparse selector (held
-off), the optional server-path ETW capture, the Y/H hooks above, and the GPU lever.
+implemented and measured below; the matrix alignment/padding experiment is rejected below.
+Remaining kernel work: the optional dense/sparse selector (held off), the optional server-path ETW
+capture, the Y/H hooks above, and the GPU lever.
 
 ## Verification
 

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f803ef8ac (path-explorer sections, merged from path-explorer-optimisation @ 2988b9597; sorted connexion arrays); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ f803ef8ac (path-explorer sections; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; sorted connexion arrays); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -345,7 +345,10 @@ total, roughly break-even on the intermediates and 8% slower on the smallest; a 
 selector is optional. NEON is compile-verified by the native macOS CI. Lever 5 (sorted connexion
 arrays) reduces the connexion structure on the gargantuan fixture from ≈130 MB to ≈14 MB and peak
 working set by ≈140 MB, with phase 2 unchanged, phase 4 faster and phase 5 ≈2–5% slower in
-controlled runs; matrices are identical. The sparse fallback's cost and the topology scaling are
+controlled runs; matrices are identical. A subsequent alignment experiment (64-byte base
+alignment, then odd-cache-line row padding) found no reproducible phase-5 gain: base alignment
+alone had no effect, and padding was within run-to-run variation on the gargantuan fixture; it was
+reverted. The sparse fallback's cost and the topology scaling are
 in [path-explorer-optimisation](path-explorer-optimisation.md). GPU
 acceleration is limited in network play by the slowest peer; memory beyond ~20–25% savings needs a
 different representation. Per-packet route search at decision time is rejected. Full assessment,

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f803ef8ac (merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays); master @ 6194cd341 (shared closure code)
+verified: ex-15 @ f803ef8ac (code; docs through 7bf8a0f81; merged from path-explorer-optimisation @ 2988b9597; service-frequency cache fix; sorted connexion arrays); master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -32,7 +32,8 @@ refresh and a resumed mid-pass pass produce identical finished matrices, resolvi
 cross-class difference. The work stays on `ex-15` until 15.x itself is merged into `master`; it is
 not ported to `master` separately (user decision 2026-11-07). Remaining work: the optional
 server-path ETW capture, the Y/H hooks and the later levers. Lever 5 (sorted connexion arrays) is
-implemented and measured. The dense/sparse selector is held off (2026-11-07), not rejected.
+implemented and measured. Matrix base alignment and padded row strides were tested and rejected
+(see below). The dense/sparse selector is held off (2026-11-07), not rejected.
 Figures marked [UNVERIFIED] are derivations from code structure, not measurements. Current
 measured cost: [EXECUTION-VERIFIED:2026-11-07, `ex-15` @ f803ef8ac, Profile (server) x64; oracle
 harness].
@@ -229,6 +230,19 @@ implement a GPU backend is decided by a later cost/benefit analysis [RECOLLECTIO
 Levers 1–3 are to be designed so that such a backend can be added without redesign (requirements
 → [phase5-kernel](path-explorer-optimisation/phase5-kernel.md), Lever 9).
 
+### Matrix alignment experiment (rejected)
+
+On 2026-11-07, 64-byte base alignment of the flat matrix arrays and an odd-cache-line padded row
+stride were tested against the current lever-5 build with the oracle harness. Base alignment
+alone had no measurable effect: an apparent 12% phase-5 gain on month-boundary disappeared against
+a control build with the same helper functions but ordinary `malloc`. The padded stride was about
+1–2% on month-boundary but within run-to-run variation on the gargantuan fixture (phase 5 90.2 s
+control vs 89.0 s padded, with overlapping runs; excluding one control outlier the padded build was
+slightly slower). All variants produced identical matrices and iteration totals. The experiment
+was reverted: the indexing complexity, platform-specific allocation and the row/column cache-set
+trade-off are not justified by the measured effect. [EXECUTION-VERIFIED:2026-11-07, ex-15 @
+7bf8a0f81, Profile (server) x64; oracle harness.]
+
 ## Combined projection (passenger compartment, H ≈ 5k)
 
 Current is measured (dense SSE2 plus the phase-5 pool); later stages are [UNVERIFIED]
@@ -321,9 +335,10 @@ Cost structure, invariants and lever analysis: code inspection and derivation, 2
 sparse-loop measurements 2026-11-06; current layout and SIMD implementation and measurements
 2026-11-07; phase-5 pool implementation, oracle equivalence and A/B 2026-11-07; TEST-harness
 removal, revision-6 restart verification, service-frequency cache fix and merge into `ex-15`
-2026-11-07; sorted connexion arrays implemented and measured 2026-11-07; code current at `ex-15`
-@ f803ef8ac (merge `ad753f5c6`; branch merged from `path-explorer-optimisation` @ 2988b9597;
-service-frequency cache fix `711656d4b`; sorted connexion arrays `f803ef8ac`), and master @
+2026-11-07; sorted connexion arrays implemented and measured 2026-11-07; matrix
+alignment/padding test and rejection 2026-11-07; code current at `ex-15` @ f803ef8ac (merge
+`ad753f5c6`; branch merged from `path-explorer-optimisation` @ 2988b9597; service-frequency cache
+fix `711656d4b`; sorted connexion arrays `f803ef8ac`), docs through `7bf8a0f81`, and master @
 6194cd341 [CODE].
 The staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user
 decision [RECOLLECTION:2026-09-19]; SSE2 and NEON are implemented together
