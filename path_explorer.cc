@@ -71,6 +71,16 @@ bool path_explorer_t::must_refresh_on_loading;
 
 #ifdef MULTI_THREAD
 bool thread_local path_explorer_t::allow_path_explorer_on_this_thread = false;
+
+pthread_mutex_t path_explorer_t::compartment_t::pool_mutex;
+pthread_cond_t path_explorer_t::compartment_t::pool_start_cond;
+pthread_cond_t path_explorer_t::compartment_t::pool_done_cond;
+path_explorer_t::compartment_t::pool_batch_t path_explorer_t::compartment_t::pool_batch;
+uint32 path_explorer_t::compartment_t::pool_thread_count = 1;
+uint32 path_explorer_t::compartment_t::pool_generation = 0;
+uint32 path_explorer_t::compartment_t::pool_outstanding = 0;
+bool path_explorer_t::compartment_t::pool_terminating = false;
+bool path_explorer_t::compartment_t::pool_initialised = false;
 #endif
 
 void path_explorer_t::initialise(karte_t *welt)
@@ -820,6 +830,195 @@ static void relax_target_row(const uint16 halt_count,
 		relax_target_cell(target, target_times, times, next_transfers, first_transports,
 			last_transports, via_last_transports, origin_via_time, next_transfer, first_transport);
 	}
+}
+#endif
+
+void path_explorer_t::compartment_t::help_phase_explore_paths(const uint32 thread_index, const uint32 thread_count,
+	const vector_tpl<uint16> &origin_halt_list, const uint16 via,
+	const uint32 origin_member_begin, const uint32 origin_member_count)
+{
+	if ( thread_count == 0 || origin_member_count == 0 )
+	{
+		return;
+	}
+
+	const uint32 slice_begin = origin_member_begin + (uint32)( ( (uint64)thread_index * origin_member_count ) / thread_count );
+	const uint32 slice_end = origin_member_begin + (uint32)( ( (uint64)( thread_index + 1 ) * origin_member_count ) / thread_count );
+	const size_t via_row = static_cast<size_t>(via) * working_halt_count;
+
+	for ( uint32 member = slice_begin; member < slice_end; ++member )
+	{
+		const uint16 origin = origin_halt_list[member];
+		const size_t origin_row = static_cast<size_t>(origin) * working_halt_count;
+		const size_t origin_via_index = origin_row + via;
+		const uint32 origin_via_time = working_times[origin_via_index];
+
+		if ( origin_via_time != UINT32_MAX_VALUE )
+		{
+			const uint16 next_transfer = working_next_transfers[origin_via_index];
+			const uint16 first_transport = working_first_transports[origin_via_index];
+
+			relax_target_row(working_halt_count, target_times,
+				working_times + origin_row, working_next_transfers + origin_row,
+				working_first_transports + origin_row, working_last_transports + origin_row,
+				working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
+		}
+	}
+}
+
+void path_explorer_t::compartment_t::pool_run(compartment_t *compartment, const vector_tpl<uint16> *origin_halt_list,
+	const uint16 via, const uint32 origin_member_begin, const uint32 origin_member_count)
+{
+#ifdef MULTI_THREAD
+	if ( pool_initialised && pool_thread_count > 1 )
+	{
+		pool_batch_t batch;
+		batch.compartment = compartment;
+		batch.origin_halt_list = origin_halt_list;
+		batch.via = via;
+		batch.origin_member_begin = origin_member_begin;
+		batch.origin_member_count = origin_member_count;
+
+		pthread_mutex_lock(&pool_mutex);
+		pool_batch = batch;
+		pool_outstanding = pool_thread_count - 1;
+		++pool_generation;
+		pthread_cond_broadcast(&pool_start_cond);
+		pthread_mutex_unlock(&pool_mutex);
+
+		// The lead takes slice 0; the helpers take the rest.
+		compartment->help_phase_explore_paths(0, pool_thread_count, *origin_halt_list, via,
+			origin_member_begin, origin_member_count);
+
+		pthread_mutex_lock(&pool_mutex);
+		while ( pool_outstanding != 0 )
+		{
+			pthread_cond_wait(&pool_done_cond, &pool_mutex);
+		}
+		// A helper that starts late must not process this batch again against a
+		// later target_times row; clear the stale pointers before releasing the lock.
+		pool_batch.compartment = NULL;
+		pool_batch.origin_halt_list = NULL;
+		pthread_mutex_unlock(&pool_mutex);
+		return;
+	}
+#endif
+	compartment->help_phase_explore_paths(0, 1, *origin_halt_list, via,
+		origin_member_begin, origin_member_count);
+}
+
+#ifdef MULTI_THREAD
+void path_explorer_t::compartment_t::pool_initialise(const uint32 thread_count)
+{
+	if ( pool_initialised )
+	{
+		return;
+	}
+
+	pthread_mutex_init(&pool_mutex, NULL);
+	pthread_cond_init(&pool_start_cond, NULL);
+	pthread_cond_init(&pool_done_cond, NULL);
+
+	pool_thread_count = thread_count == 0 ? 1 : thread_count;
+	pool_generation = 0;
+	pool_outstanding = 0;
+	pool_terminating = false;
+	pool_batch.compartment = NULL;
+	pool_batch.origin_halt_list = NULL;
+	pool_batch.via = 0;
+	pool_batch.origin_member_begin = 0;
+	pool_batch.origin_member_count = 0;
+	pool_initialised = true;
+}
+
+void path_explorer_t::compartment_t::pool_shutdown()
+{
+	if ( !pool_initialised )
+	{
+		return;
+	}
+
+	pthread_mutex_lock(&pool_mutex);
+	pool_terminating = true;
+	pthread_cond_broadcast(&pool_start_cond);
+	pthread_mutex_unlock(&pool_mutex);
+}
+
+void path_explorer_t::compartment_t::pool_destroy()
+{
+	if ( !pool_initialised )
+	{
+		return;
+	}
+
+	pthread_mutex_destroy(&pool_mutex);
+	pthread_cond_destroy(&pool_start_cond);
+	pthread_cond_destroy(&pool_done_cond);
+	pool_initialised = false;
+}
+
+void path_explorer_t::compartment_t::pool_worker(const uint32 thread_index)
+{
+	uint32 helper_generation = 0;
+
+	pthread_mutex_lock(&pool_mutex);
+	while ( !pool_terminating )
+	{
+		while ( !pool_terminating && pool_generation == helper_generation )
+		{
+			pthread_cond_wait(&pool_start_cond, &pool_mutex);
+		}
+		if ( pool_terminating )
+		{
+			break;
+		}
+
+		helper_generation = pool_generation;
+		const pool_batch_t batch = pool_batch;
+		const uint32 thread_count = pool_thread_count;
+		const bool worked = batch.compartment != NULL && batch.origin_halt_list != NULL;
+		pthread_mutex_unlock(&pool_mutex);
+
+		if ( worked )
+		{
+			batch.compartment->help_phase_explore_paths(thread_index, thread_count,
+				*batch.origin_halt_list, batch.via, batch.origin_member_begin, batch.origin_member_count);
+		}
+
+		pthread_mutex_lock(&pool_mutex);
+		// A helper that starts after a batch was completed sees the cleared batch
+		// and must not consume the outstanding count of a later batch.
+		if ( worked && pool_outstanding > 0 )
+		{
+			--pool_outstanding;
+		}
+		if ( pool_outstanding == 0 )
+		{
+			pthread_cond_broadcast(&pool_done_cond);
+		}
+	}
+	pthread_mutex_unlock(&pool_mutex);
+}
+
+void path_explorer_t::initialise_thread_pool(const uint32 thread_count)
+{
+	compartment_t::pool_initialise(thread_count);
+}
+
+void path_explorer_t::shutdown_thread_pool()
+{
+	compartment_t::pool_shutdown();
+}
+
+void path_explorer_t::destroy_thread_pool()
+{
+	compartment_t::pool_destroy();
+}
+
+void path_explorer_t::worker_thread(const uint32 thread_index)
+{
+	allow_path_explorer_on_this_thread = true;
+	compartment_t::pool_worker(thread_index);
 }
 #endif
 
@@ -2286,36 +2485,45 @@ void path_explorer_t::compartment_t::step()
 
 					if ( outbound_member_count > 0 )
 					{
-						// for each origin cluster member, sweep all legal targets in one pass
-						while ( origin_member_index < origin_halt_list.get_count() )
+						// Process exactly the origins that the single-threaded loop would
+						// reach in this step. The charge per origin is the same for every
+						// origin in the group, so the count is a division, not a rehearsal
+						// of the matrix work. Round up because the loop stops after the
+						// origin that reaches the limit; process at least one origin when
+						// a group is entered with no budget left (the check is after the
+						// origin, not before it).
+						const uint32 origin_count = origin_halt_list.get_count();
+						uint32 members_to_process = origin_member_index < origin_count
+							? origin_count - origin_member_index : 0;
+						if ( use_limits )
 						{
-							const uint16 origin = origin_halt_list[origin_member_index];
-							const size_t origin_row = static_cast<size_t>(origin) * working_halt_count;
-							const size_t origin_via_index = origin_row + via;
-							const uint32 origin_via_time = working_times[origin_via_index];
-
-							if ( origin_via_time != UINT32_MAX_VALUE )
+							const uint64 remaining = iterations_processed < limit_explore_paths
+								? limit_explore_paths - iterations_processed : 0;
+							const uint64 fit = ( remaining + outbound_member_count - 1 ) / outbound_member_count;
+							if ( fit < members_to_process )
 							{
-								const uint16 next_transfer = working_next_transfers[origin_via_index];
-								const uint16 first_transport = working_first_transports[origin_via_index];
-
-								relax_target_row(working_halt_count, target_times,
-									working_times + origin_row, working_next_transfers + origin_row,
-									working_first_transports + origin_row, working_last_transports + origin_row,
-									working_last_transports + via_row, origin_via_time, next_transfer, first_transport);
+								members_to_process = (uint32)fit;
 							}
+							if ( members_to_process == 0 && origin_member_index < origin_count )
+							{
+								members_to_process = 1;
+							}
+						}
 
-							++origin_member_index;
+						if ( members_to_process > 0 )
+						{
+							pool_run(this, &origin_halt_list, via, origin_member_index, members_to_process);
+
+							origin_member_index += members_to_process;
 
 							// iteration control: the same total as the per-target-cluster order
-							iterations_processed += outbound_member_count;
-							total_iterations += outbound_member_count;
+							iterations_processed += (uint64)members_to_process * outbound_member_count;
+							total_iterations += (uint64)members_to_process * outbound_member_count;
 							if ( use_limits && iterations_processed >= limit_explore_paths )
 							{
 								goto loop_termination;
 							}
-
-						}	// loop : origin cluster member
+						}
 					}
 
 					origin_member_index = 0;
