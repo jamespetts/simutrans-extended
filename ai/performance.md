@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 186c92e72 (path-explorer sections); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: path-explorer-optimisation @ abd58261e (path-explorer sections); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -287,8 +287,15 @@ removed at load) — repeat before acting on the deltas.
    changes, but the budget controller spends only `path_explorer_time_midpoint` (default
    64 ms) per simulation step, so its CPU share in a short window does not indicate dormancy.
    A full unbudgeted pass with the current dense SIMD kernel measures 18.88 s at H ≈ 1.8k and
-   214.77 s at H ≈ 5.4k (run totals including load; phase 5 dominates). The sparse loop is faster
-   on the smallest fixture and slower on the gargantuan, and is the planned selector fallback; its
+   214.77 s at H ≈ 5.4k (run totals including load; phase 5 dominates). The phase-5 worker pool
+   (`get_parallel_operations()` threads; three at `threads = 4`, one lead plus two helpers)
+   reduced the gargantuan run total to 106.47 s (2.02x) and the month-boundary total to 15.89 s
+   (1.19x), with identical matrices and iteration totals [EXECUTION-VERIFIED:2026-11-07,
+   Profile (server) x64, oracle harness]. At `threads = 6` (5 pool threads: lead + 4 helpers) the
+   same machine measured 93.87 s and 15.60 s; the t4 pool remains the four-core recommendation.
+   Without the pool, the sparse loop is faster than the
+   dense SIMD on the smallest fixture; the pooled dense path is faster than both there (15.89 s).
+   The sparse loop is slower on the gargantuan and remains the planned selector fallback; its
    cost and the topology scaling are in [path-explorer-optimisation](path-explorer-optimisation.md).
    The `total_iterations` diagnostic is a `uint64` (save revision 7). The controller is dormant
    between periodic requests and budget-capped during a pass; at the default 8192-step interval the

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 186c92e72; master @ 6194cd341 (shared closure code)
+verified: path-explorer-optimisation @ abd58261e; master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -14,14 +14,17 @@ for the whole simulation → [simd-applicability](simd-applicability.md); profil
 measured hotspots → [performance](performance.md).
 
 Status: assessment and implementation plan. The current implementation has flat matrix arrays,
-the dense per-origin loop and SSE2/NEON kernels. SSE2 is execution-verified; NEON is
-compile-verified by the native macOS CI. The dense path is a clear win on the gargantuan fixture
-(-19% against the sparse loop), roughly neutral on the intermediates and 8% slower on the
-smallest; an optional dense/sparse selector would remove that regression. Remaining work: the
-selector, lever 4 (threads), lever 5 (memory), the Y/H hooks and the later levers. Figures marked
-[UNVERIFIED] are derivations from code structure, not measurements. Current measured cost:
-[EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ 3b18f76aa, Profile (server) x64;
-the single-function refactor re-verified at 186c92e72].
+the dense per-origin loop, SSE2/NEON kernels and the dedicated phase-5 thread pool. SSE2 is
+execution-verified; NEON is compile-verified by the native macOS CI. The dense path is a clear
+win on the gargantuan fixture (-19% against the sparse loop), roughly neutral on the
+intermediates and 8% slower on the smallest before the pool. The pool measured 2.02x on the
+gargantuan fixture and 1.19x on month-boundary, with identical matrices and iteration totals. The pool's mid-pass
+resume and loopback network behaviour are verified. Remaining work: the optional server-path ETW
+capture, lever 5 (memory), the Y/H hooks and the later levers. The dense/sparse selector is held
+off (2026-11-07), not rejected. Figures marked [UNVERIFIED] are derivations from code structure,
+not measurements. Current measured cost: [EXECUTION-VERIFIED:2026-11-07,
+`path-explorer-optimisation` @ abd58261e, Profile (server) x64; oracle
+harness].
 
 ## Priorities and sequencing
 
@@ -36,10 +39,10 @@ User decisions, 2026-11-06 [RECOLLECTION:2026-11-06]:
 Recommended internal sequencing for the single 15.x release: finish the shared foundation
 before integrating Y/H or comfort into the route tables — final cell layout (contiguous arrays,
 one combined comfort cost), comparison-loop rewrite/SSE2/NEON, and the threading/iteration model.
-The layout and the SIMD comparison loop are in place; the threading/iteration model remains. The
-runtime, data and balance parts of Y/H and comfort are independent of that foundation and can
-proceed in parallel. This is sequencing within the
-single 15.x release (no staged releases); GPU remains optional.
+The layout, the SIMD comparison loop and the phase-5 thread pool are in place; the pool's
+mid-pass and network verification remains. The runtime, data and balance parts of Y/H and
+comfort are independent of that foundation and can proceed in parallel. This is sequencing
+within the single 15.x release (no staged releases); GPU remains optional.
 
 Sub-documents (read-when):
 
@@ -194,7 +197,7 @@ different representation).
 | 1 | Split arrays: contiguous `uint32` times apart from 16-bit handles, one allocation | phase-5 read traffic halved; finished 8 → 6 B per cell, working 12 → 10 B | yes; save byte format can stay identical | through edges need first ≠ last transport |
 | 2 | Reorder phase-5 loops: per origin, all target clusters | in scalar, 2.2-3.9x slower in phase 5 than the sparse loop (visits every halt per origin); the staging form for lever 3, not a gain on its own [EXECUTION-VERIFIED:2026-11-07] | yes | compatible |
 | 3 | SSE2/NEON dense masked row kernel | measured 1.77-2.59x against the dense scalar; roughly break-even with the sparse loop on small maps and -19% on the run total at H ≈ 5.4k [EXECUTION-VERIFIED:2026-11-07] | yes | delta folded into the kernel |
-| 4 | Split origin rows per transfer halt over 2–4 threads | ~2–4× shorter passes until bandwidth saturates; **raises CPU per step**. Approved in principle: cores are underused and route staleness is real [RECOLLECTION:2026-11-06] | yes | compatible |
+| 4 | Split origin rows per transfer halt over the phase-5 thread pool | Implemented 2026-11-07: `parallel_operations` explorer threads (lead + helpers); measured 2.02x on the gargantuan fixture and 1.19x on month-boundary, identical results; **raises CPU per step**. Approved in principle: cores are underused and route staleness is real [RECOLLECTION:2026-11-06] | yes | compatible |
 | 5 | Compact connexion storage (sorted arrays per halt) | ≈ −50% connexion memory; faster `get()` and phase 4 | yes, if iteration order equals bag order | compatible |
 | 6 | Phase-2 micro-optimisations (`get_average_waiting_time` copies 32 samples by value) | small | yes | none |
 | 7 | Per-source Dijkstra rows instead of the closure | H·E instead of H³: ~5× at H = 5k, ~10× at ≥ 10k; scales with threads | **no** (→ engine-semantics) | needs per-transport state at coupling halts |
@@ -216,20 +219,19 @@ Levers 1–3 are to be designed so that such a backend can be added without rede
 
 ## Combined projection (passenger compartment, H ≈ 5k)
 
-Current is measured (dense SSE2); later stages are [UNVERIFIED] projections from the lever
-estimates.
+Current is measured (dense SSE2 plus the phase-5 pool); later stages are [UNVERIFIED]
+projections from the lever estimates.
 
 | Stage | CPU per compartment pass | Full refresh cycle at the 64 ms budget |
 |---|---|---|
-| Current (dense SSE2, measured) | ~37 s at H ≈ 5.4k (214.77 s run total) | proportionally shorter, or a lower budget |
+| Current (dense SSE2 + pool, measured) | ~18 s at H ≈ 5.4k (106.47 s run total, 2.02x the single-thread 214.77 s) | proportionally shorter, or a lower budget |
 | + optional dense/sparse selector | removes the small-map regression; no change on large maps | — |
-| + lever 4 | ~8–25 s wall (more CPU) | ~2–5 min |
 | Lever 7, threaded | ~5–8 s | ~1–2 min |
 | Lever 9 | ~0.5–1 s (sparse cluster-pair kernel) | seconds (single-player) |
 
 The current gains can be taken as fresher routes or as a lower
 `path_explorer_time_midpoint`, which returns CPU and memory bandwidth to the simulation.
-Parallelism (lever 4) shortens passes without reducing work.
+The phase-5 pool shortens passes without reducing work; it is implemented.
 
 Memory does not scale with these gains: levers 1 and 5 save about 20–25% in total; SIMD and GPU
 save nothing. Matrix memory and savegame size remain O(H²) per compartment (12 GB of finished
@@ -238,12 +240,11 @@ that limit. Storing only transfer-halt rows does not help passenger compartments
 
 ## Recommended order
 
-1. Decide the dense/sparse selector (threshold about `H / outbound_member_count = 2.6`) or proceed
-   to lever 4/5. The current dense SIMD is a clear win at H ≈ 5.4k and roughly neutral on the
-   smaller fixtures (8% slower at H ≈ 1.8k).
-2. Lever 4: extra threads shorten the rebuild cycle and are approved in principle; settle the
-   deterministic iteration/stop-point model first
-   (→ [threading](threading.md), [sync-and-determinism](sync-and-determinism.md)).
+1. The dense/sparse selector is held off for now (2026-11-07), not rejected; revisit only if
+   the small-map regression becomes a real problem.
+2. Lever 4: implemented 2026-11-07 with `get_parallel_operations()` explorer threads (lead plus
+   helpers). The mid-pass resume and loopback network behaviour are verified; the optional
+   server-path ETW capture and the main-thread frame-time measurement remain.
 3. Lever 5 for memory; it can run alongside the kernel work.
 4. Lever 7 as the compute step for maps beyond the gargantuan fixture; it needs the behaviour
    specification in [engine-semantics](path-explorer-optimisation/engine-semantics.md).
@@ -257,17 +258,30 @@ parallel. The kernel-level requirements are in
 
 ## Measurement plan
 
-Open measurements: the distribution of cluster sizes per transfer halt (it sets the selector
-threshold), bytes moved per relaxation or origin-row fetch, `find_route` decisions per step by call
-site, and waiting packets re-routed per phase 6. Report pass duration and total iterations, not
-CPU share: the controller holds CPU share near its target.
+Open measurements: the distribution of cluster sizes and the per-batch wake-up cost (they set
+the pool's efficiency and any future dense/sparse selector threshold), bytes moved per
+relaxation or origin-row fetch, `find_route` decisions per step by call site, and waiting packets
+re-routed per phase 6. Report pass duration and total iterations, not CPU share: the controller
+holds CPU share near its target.
 
 ## Open questions
 
-- Are levers 4–6 adopted, and is lever 7 the compute step for maps beyond the gargantuan fixture?
-- Dense/sparse selector: whether to add it, and at what threshold. The measured crossover is about
-  `H / outbound_member_count = 2.6`; the dense SIMD is roughly break-even on the intermediates,
-  8% slower at H ≈ 1.8k and 19% faster at H ≈ 5.4k.
+- Are levers 5–6 adopted, and is lever 7 the compute step for maps beyond the gargantuan fixture?
+- Dense/sparse selector: held off for now (2026-11-07), not rejected. The measured crossover is
+  about `H / outbound_member_count = 2.6`; the dense SIMD is roughly break-even on the
+  intermediates, 8% slower at H ≈ 1.8k and 19% faster at H ≈ 5.4k. Revisit if the small-map
+  regression matters.
+- Lever 4 pool: the month-boundary, gargantuan and mid-pass oracle checks pass, and the
+  loopback network smoke run passed with 1,049 per-step route hashes identical. The optional
+  server-path ETW capture remains. The pool size is `get_parallel_operations()` threads in total
+  (one lead plus `get_parallel_operations() - 1` helpers); at `threads = 4`, three threads. The
+  A/B measured 2.02x on the gargantuan fixture and 1.19x on month-boundary. On the 24-thread
+  test machine, `threads = 6` (5 pool threads: lead + 4 helpers) measured 93.87 s and 15.60 s
+  (1.13x and 1.02x against t4), with identical results; the t6 network smoke also passed with
+  1,049 per-step route hashes identical. A four-core server at `threads = 6` would oversubscribe,
+  so the t4 pool remains the four-core recommendation.
+  [EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ abd58261e; oracle harness
+  and network smoke.]
 - NEON execution verification: the NEON kernel compiles on the native macOS CI but no NEON
   hardware is available to run the oracle. Whether to add a CI execution run (or accept
   compile-only) is open.
@@ -286,8 +300,9 @@ CPU share: the controller holds CPU share near its target.
 
 Cost structure, invariants and lever analysis: code inspection and derivation, 2026-11-04;
 sparse-loop measurements 2026-11-06; current layout and SIMD implementation and measurements
-2026-11-07; code current at `path-explorer-optimisation` @ 186c92e72 and master @ 6194cd341
-[CODE]. The staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user
+2026-11-07; phase-5 pool implementation, oracle equivalence and A/B 2026-11-07; code current at
+`path-explorer-optimisation` @ abd58261e, and master @ 6194cd341 [CODE].
+The staged SIMD sequence (design SIMD-compatible → scalar verified → gated SIMD) is a user
 decision [RECOLLECTION:2026-09-19]; SSE2 and NEON are implemented together
 [RECOLLECTION:2026-11-07]. Measured shares come from the 2026-09-10 capture recorded
 in [performance](performance.md).

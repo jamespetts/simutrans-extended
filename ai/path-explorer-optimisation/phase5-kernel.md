@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 186c92e72
+verified: path-explorer-optimisation @ abd58261e
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -25,14 +25,25 @@ performance figures are [UNVERIFIED] derivations unless tagged.
   legal target, or `UINT32_MAX` for unreachable cells, for `via` itself, and for the
   same-transport outbound cluster (skipped when both transports are equal and non-zero; 0 is
   walking).
+- Phase 5 runs on a pool of `get_parallel_operations()` threads. The thread that runs the
+  compartment (the dedicated explorer worker in normal play; the calling thread in the oracle
+  harness) is the lead; the other `get_parallel_operations() - 1` threads are helpers parked on a
+  condition variable. The lead builds `target_times`, computes the eligible-target count, selects
+  the batch, signals the helpers, processes slice 0 and waits for them. The helpers process slices
+  1..N-1. One origin cluster is active at a time, so every thread reads the same `target_times`
+  row and writes only its own origin rows.
 - For each origin member, `relax_target_row()` sweeps every `t` in blocks of four (SSE2 or NEON)
   with a scalar tail. `combined = working_times[o][via] + target_times[t]`; on a strict
   improvement it writes the time, `next_transfer = [o][via].next_transfer`,
   `first_transport = working_first_transports[o][via]` and
   `last_transport = working_last_transports[via][t]`. The four arrays are contiguous over `t`.
 - Budget: the registration adds `working_halt_count + 2 × inbound members` iterations; each
-  origin member adds the non-skipped outbound member count. The quantum stops after an origin
-  member once the count reaches `limit_explore_paths`.
+  origin member adds the non-skipped outbound member count. Before releasing the pool for a
+  cluster, the lead computes the number of origins the single-threaded loop would process in this
+  step: `ceil(remaining / outbound_member_count)`, at least one origin when a cluster is entered
+  with no budget left, capped by the remaining members. The lead alone updates
+  `origin_member_index`, `iterations_processed` and `total_iterations` after the pool joins, so
+  the stop position and the totals are independent of the thread count.
 - Savegame: a revision-7 save carries `via_index`, `origin_cluster_index`, `origin_member_index`,
   `target_cluster_index` (always 0), both cluster structures, `process_next_transfer` and the
   controller statistics. A revision-6-or-older mid-pass save restarts the current inbound cluster
@@ -185,6 +196,59 @@ instruction].
   staleness is a real in-game problem. Settle the deterministic iteration/stop-point model first;
   it remains sync-critical.
 
+### Lever 4 decisions (2026-11-07)
+
+[RECOLLECTION:2026-11-07] The user decided:
+
+- A dedicated pool of explorer threads, separate from the existing simulation worker pools.
+  The pool follows the existing worker lifecycle: created in `init_threads`, helpers parked on
+  the pool condition variable, the lead released and awaited through the path-explorer barrier,
+  all joined in `destroy_threads`.
+- One incoming-transport group at a time; all pool threads read the same `target_times` row.
+- Phase 5 only. The code phase 4 (`phase_fill_matrix`) and phase 2 are out of scope.
+- The 64 ms target is kept. `path_explorer_time_midpoint` is already a simuconf setting
+  (code default 64 in `dataobj/settings.cc`; `simutrans/config/simuconf.tab` currently sets
+  128), is serialised in the savegame and is exposed in the settings GUI, so no new setting
+  is needed.
+- The dense/sparse selector is held off, not rejected; it is not part of lever 4.
+- The pool size follows `get_parallel_operations()`: that many explorer threads in total, of
+  which one is the lead and `get_parallel_operations() - 1` are helpers. At `threads = 4`
+  (`parallel_operations = 3`) that is three threads: the existing explorer thread plus two
+  helpers. The 2026-11-07 A/B on the gargantuan fixture: run total 106.47 s against the dense
+  SSE2 single-thread 214.77 s (2.02×); month-boundary 15.89 s against 18.88 s (1.19×). The
+  matrix hashes and iteration totals are identical on both. Month-boundary batches are 17-25
+  origins, so the wake-up cost is visible there; the gargantuan batches are larger and the pool
+  pays. [EXECUTION-VERIFIED:2026-11-07, `path-explorer-optimisation` @ abd58261e, Profile
+  (server) x64; oracle harness.] On the 24-thread test machine, `threads = 6` (5 pool threads:
+  lead + 4 helpers) measured 93.87 s on the gargantuan fixture (1.13x against t4, 2.29x against
+  single-thread) and 15.60 s on month-boundary, with identical matrices and mid-pass resume
+  totals. This is a scaling data point; a four-core server at `threads = 6` would oversubscribe,
+  so the t4 pool (3 total) remains the four-core recommendation. The earlier 4-CPU-pinned ETW
+  capture measured about 1.56 of four cores busy, with the main thread about 0.83 cores, the
+  unreserve workers about 0.45 and the explorer about 0.09 in a 120 s window that caught only
+  part of a pass; the 2026-11-06 2,400 s forced-refresh capture measured about 0.31 explorer
+  cores against a 0.36-core budget. The pool is sized so the 64 ms slice uses at most three
+  explorer threads plus the main thread on a four-core server.
+
+The implemented rule for choosing the origins for one game step:
+
+- Before releasing the pool for an origin cluster, the pool thread that runs the existing control
+  flow (the lead) computes how many origins the current single-threaded loop would process
+  within the remaining step limit. The charge per origin is the cluster's eligible outbound
+  member count; the count is rounded up because the loop stops after the origin that reaches
+  the limit. The pool processes exactly that set. The lead alone updates `origin_member_index`,
+  `iterations_processed` and `total_iterations`, so the saved position and the iteration totals
+  keep their present meaning and the save format does not change.
+- Implementation: `compartment_t` owns a mutex, a start condition, a done condition, a batch
+  record, a generation counter and an outstanding-helper counter. The lead publishes the batch
+  and signals the helpers; each helper copies the batch, processes its slice, decrements the
+  outstanding count and signals done; the lead clears the batch after the join so a late helper
+  cannot use a stale batch against a later `target_times` row. The pool is created in
+  `init_threads`, shut down and joined in `destroy_threads`. The helpers do not participate in
+  `path_explorer_barrier`; the main thread still awaits only the lead, and the lead joins the
+  helpers inside each batch. At `get_parallel_operations() == 1` the batch runs serially. The
+  save format and resume counters are unchanged (`EX_SAVE_MINOR` remains 7).
+
 ## Lever 9 — GPU
 
 - Per transfer halt: one dense min-plus update of the working block, one GPU thread per cell. The
@@ -223,17 +287,26 @@ instruction].
 
 ## Current position and remaining work
 
-The flat layout, the dense loop and the SSE2/NEON kernels are in place. Remaining kernel work: the
-optional dense/sparse selector, lever 4 (threading and deterministic stop points), the Y/H hooks
-above, and the memory/GPU levers.
+The flat layout, the dense loop, the SSE2/NEON kernels and the phase-5 worker pool are in
+place. The pool's oracle equivalence (month-boundary, gargantuan and mid-pass) and loopback
+network determinism are verified. Remaining kernel work: the optional dense/sparse selector
+(held off), the optional server-path ETW capture, the Y/H hooks above, and the memory/GPU
+levers.
 
 ## Verification
 
 - Oracle: byte-identical finished matrices and identical total iteration counts against the
   scalar cell function, on the gargantuan fixture and on synthetic maps. The scalar oracle is
   identical on every platform, which is what makes the SSE2 and NEON variants independently
-  checkable.
+  checkable. The phase-5 pool reproduces the single-threaded matrices and iteration totals on
+  month-boundary and the gargantuan fixture, and resumes a mid-pass save to the established
+  hashes.
 - SSE2: execution-verified on x64. NEON: compile-verified by the native macOS CI build; execution
   verification uses the same oracle on Apple Silicon where available.
 - Loopback server plus client with a checklist comparison every sync step and zero divergence.
-- Performance suite: pass duration and total iterations (→ [performance](../performance.md)).
+  The 2026-11-07 network smoke run passed with 1,049 per-step route hashes identical; the final
+  save bytes differ only in the documented internal list-index ordering. The threads=6 retest
+  (5 pool threads: lead + 4 helpers) also passed with 1,049 per-step hashes identical.
+- Performance: the pool measured 2.02x on the gargantuan fixture and 1.19x on month-boundary
+  against the single-threaded dense SSE2, with identical results. Pass duration and total
+  iterations are the metrics (→ [performance](../performance.md)).
