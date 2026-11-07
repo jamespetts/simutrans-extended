@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 011f9a23a; master @ 6194cd341 (shared closure code)
+verified: path-explorer-optimisation @ 63e5d2ac1; master @ 6194cd341 (shared closure code)
 ---
 # Path explorer optimisation
 
@@ -13,12 +13,15 @@ design (Y/H traversal) → [ex-15 yh-path-explorer](ex-15/yh-path-explorer.md); 
 for the whole simulation → [simd-applicability](simd-applicability.md); profiling method and
 measured hotspots → [performance](performance.md).
 
-Status: assessment and implementation plan. Lever 1 (flat arrays) is implemented on
-`path-explorer-optimisation` (2026-11-07); the other levers are not. Figures marked [UNVERIFIED]
+Status: assessment and implementation plan. Lever 1 (flat arrays) and the lever-2 scalar loop
+reorder are implemented on `path-explorer-optimisation` (2026-11-07); lever 3 (SSE2/NEON) and
+the later levers are not. The reorder is a SIMD staging form: in scalar it is 2.2-3.9x slower in
+phase 5 than the sparse loop and must be justified by the SIMD stage. Figures marked [UNVERIFIED]
 are derivations from code structure, not measurements. Measured cost figures:
 [EXECUTION-VERIFIED:2026-11-06, ex-15 @ ad1815c, Profile (server), month-boundary.sve
 and bb-10-sep-2023.sve]; lever-1 result: [EXECUTION-VERIFIED:2026-11-07,
-`path-explorer-optimisation` @ e5fdd5f37].
+`path-explorer-optimisation` @ e5fdd5f37]; lever-2 scalar result: [EXECUTION-VERIFIED:2026-11-07,
+`path-explorer-optimisation` @ 63e5d2ac1].
 
 ## Priorities and sequencing
 
@@ -184,7 +187,7 @@ with contiguous arrays, but not for save size.
 | # | Lever | Gain [UNVERIFIED] | Results unchanged? | Y/H |
 |---|---|---|---|---|
 | 1 | Split arrays: contiguous `uint32` times apart from 16-bit handles, one allocation | phase-5 read traffic halved; finished 8 → 6 B per cell, working 12 → 10 B | yes; save byte format can stay identical | through edges need first ≠ last transport |
-| 2 | Reorder phase-5 loops: per origin, all target clusters | removes the repeated origin-row fetch only; measured one row fetch per 544–1,389 target visits (<0.1% of visits), so small direct gain; treat as a locality refinement [UNVERIFIED] | yes | compatible |
+| 2 | Reorder phase-5 loops: per origin, all target clusters | in scalar, 2.2-3.9x slower in phase 5 than the sparse loop (visits every halt per origin); the staging form for lever 3, not a gain on its own [EXECUTION-VERIFIED:2026-11-07] | yes | compatible |
 | 3 | SSE2/NEON dense masked row kernel | ~2–4× on the true target-member loop (44 B visits per class at H ≈ 5.4k); contiguous target lists make SIMD the primary CPU lever [UNVERIFIED] | yes | delta folded into the kernel |
 | 4 | Split origin rows per transfer halt over 2–4 threads | ~2–4× shorter passes until bandwidth saturates; **raises CPU per step**. Approved in principle: cores are underused and route staleness is real [RECOLLECTION:2026-11-06] | yes | compatible |
 | 5 | Compact connexion storage (sorted arrays per halt) | ≈ −50% connexion memory; faster `get()` and phase 4 | yes, if iteration order equals bag order | compatible |
@@ -237,7 +240,9 @@ that limit. Storing only transfer-halt rows does not help passenger compartments
 2. Levers 1 and 3 (contiguous layout, then SSE2 and NEON over the target lists), with lever 2 as a
    locality refinement and lever 6 folded in: results unchanged, no network penalty, and
    every peer gains, which raises the shared limit. Lever 1 is implemented (2026-11-07) and
-   reduced phase-5 time by 40-56% on the four fixtures; the SIMD stage remains.
+   reduced phase-5 time by 40-56% on the four fixtures. Lever 2's scalar reorder is implemented
+   as the SIMD staging form and is 2.2-3.9x slower in phase 5 than the sparse loop; lever 3 must
+   recover more than that, otherwise the reorder is reverted and only lever 1 remains.
 3. Lever 4 after the layout/SIMD kernel: extra threads shorten the rebuild cycle and are
    approved in principle; settle the deterministic iteration/stop-point model first
    (→ [threading](threading.md), [sync-and-determinism](sync-and-determinism.md)).

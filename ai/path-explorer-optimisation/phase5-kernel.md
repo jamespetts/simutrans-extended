@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: path-explorer-optimisation @ 011f9a23a
+verified: path-explorer-optimisation @ 63e5d2ac1
 ---
 # Path explorer optimisation: the phase-5 kernel
 
@@ -123,6 +123,21 @@ e5fdd5f37, Profile (server) x64].
   target-cluster counters to 0 and keep the cluster and transfer). That is idempotent by the
   invariant above and is not a full refresh. A network join triggers a save/reload on every peer
   (`nwc_sync_t`), so exact resume avoids discarding path-explorer progress at every join.
+
+**Implemented 2026-11-07** in commit `63e5d2ac1` as the scalar dense staging form, with the
+revision-7 gate. Full unbudgeted refreshes on the four fixtures produce identical matrices and
+`total_iterations`; the interrupted compartment of a mid-pass save resumes to the same matrix.
+The dense sweep is 2.2-3.9x slower in phase 5 than the sparse loop (1.8-2.1x on the run total
+including load), as expected: it visits every halt per origin rather than only target-cluster
+members. The SIMD stage must recover more than that to pay; otherwise revert this reorder and keep
+lever 1, which is a 40-56% gain on its own [EXECUTION-VERIFIED:2026-11-07,
+`path-explorer-optimisation` @ 63e5d2ac1, Profile (server) x64].
+
+**Open question (2026-11-07)**: a mid-pass save whose earlier compartment is complete, then loaded
+and finished, gives different matrices for the later classes than a full refresh of the same save.
+A control run refreshing only classes 1-4 (skipping class 0) reproduces the resumed result exactly,
+so the difference comes from class 0's recomputation versus its loaded state, not from the loop
+order. Cause not identified; relevant to save/load determinism, not to this kernel.
 
 ## Lever 3 — SSE2 and NEON dense masked row kernel
 
