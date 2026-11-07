@@ -17,6 +17,7 @@
 #include "gui/gui_theme.h"
 #include "gui/messagebox.h"
 #include "simhalt.h"
+#include "path_explorer.h"
 #include "display/simimg.h"
 #include "simcolor.h"
 #include "simskin.h"
@@ -1739,6 +1740,18 @@ int simu_main(int argc, char** argv)
 		intr_set_view(view);
 		win_set_world(welt);
 		tool_t::toolbar_tool[0]->init(welt->get_active_player());
+	}
+
+	// TEST: path explorer matrix oracle for the optimisation work; remove before completion.
+	if(  const char *const pe_oracle = getenv("SIMUTRANS_PE_ORACLE")  ) {
+		const char *const pe_refresh = getenv("SIMUTRANS_PE_ORACLE_REFRESH");
+		if(  pe_refresh == NULL  ||  atoi(pe_refresh) != 0  ) {
+			path_explorer_t::full_instant_refresh();
+			if(  const char *const pe_save = getenv("SIMUTRANS_PE_ORACLE_SAVE")  ) {
+				welt->save(pe_save, false, SAVEGAME_VER_NR, EXTENDED_VER_NR, EXTENDED_REVISION_NR, true);
+			}
+		}
+		path_explorer_t::test_dump_matrices(pe_oracle);
 	}
 
 	welt->set_fast_forward(false);

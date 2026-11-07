@@ -5,6 +5,8 @@
 
 #include "path_explorer.h"
 
+#include <string.h>
+
 #include "tpl/slist_tpl.h"
 #include "dataobj/translator.h"
 #include "bauer/goods_manager.h"
@@ -315,6 +317,62 @@ void path_explorer_t::next_compartment()
 }
 
 
+// TEST: matrix oracle for the path explorer optimisation work; remove before completion.
+static uint64 test_fnv1a(uint64 hash, const void *data, const size_t size)
+{
+	const unsigned char *bytes = static_cast<const unsigned char *>(data);
+	for (size_t i = 0; i < size; ++i)
+	{
+		hash ^= static_cast<uint64>(bytes[i]);
+		hash *= 1099511628211ull;
+	}
+	return hash;
+}
+
+// TEST: dump a hash of every compartment's finished matrix and its iteration total; remove before completion.
+void path_explorer_t::test_dump_matrices(const char *filename)
+{
+	FILE *file = fopen(filename, "w");
+	if (file == NULL)
+	{
+		dbg->error("path_explorer_t::test_dump_matrices", "Cannot open %s", filename);
+		return;
+	}
+
+	for (uint8 ca = 0; ca < max_categories; ++ca)
+	{
+		const uint8 classes = goods_manager_t::get_classes_catg_index(ca);
+		for (uint8 cl = 0; cl < classes; ++cl)
+		{
+			const compartment_t &compartment = goods_compartment[ca][cl];
+			uint64 hash = 1469598103934665603ull;
+			uint32 cells = 0;
+			if (ca != category_empty && compartment.finished_times != NULL)
+			{
+				for (uint16 i = 0; i < compartment.finished_halt_count; ++i)
+				{
+					for (uint16 j = 0; j < compartment.finished_halt_count; ++j)
+					{
+						const size_t matrix_index = static_cast<size_t>(i) * compartment.finished_halt_count + j;
+						hash = test_fnv1a(hash, &compartment.finished_times[matrix_index], sizeof(uint32));
+						const uint16 next = compartment.finished_next_transfers[matrix_index];
+						hash = test_fnv1a(hash, &next, sizeof(uint16));
+						++cells;
+					}
+				}
+			}
+			fprintf(file, "catg=%u class=%u empty=%u H=%u cells=%u iter=%llu hash=%016llx\n",
+				ca, cl, (ca == category_empty) ? 1u : 0u,
+				compartment.finished_halt_count, cells,
+				static_cast<unsigned long long>(compartment.total_iterations),
+				static_cast<unsigned long long>(hash));
+		}
+	}
+
+	fclose(file);
+}
+
+
 void path_explorer_t::full_instant_refresh()
 {
 #ifdef MULTI_THREAD
@@ -475,17 +533,42 @@ bool path_explorer_t::compartment_t::local_limits_changed = false;
 uint16 path_explorer_t::compartment_t::representative_halt_count = 0;
 uint8 path_explorer_t::compartment_t::representative_category = 0;
 
+// The path matrices are stored as one flat block per field. A cell is addressed
+// as row * count + column; the product is computed in size_t so that it cannot
+// overflow a 32-bit int on large maps.
+static inline size_t path_matrix_index(const uint16 row, const uint16 column, const uint16 count)
+{
+	return static_cast<size_t>(row) * static_cast<size_t>(count) + column;
+}
+
+static uint32 *new_time_matrix(const uint16 count)
+{
+	const size_t cells = static_cast<size_t>(count) * static_cast<size_t>(count);
+	uint32 *times = new uint32[cells];
+	memset(times, 0xFF, cells * sizeof(uint32));
+	return times;
+}
+
+static uint16 *new_short_matrix(const uint16 count)
+{
+	const size_t cells = static_cast<size_t>(count) * static_cast<size_t>(count);
+	return new uint16[cells]();
+}
+
 path_explorer_t::compartment_t::compartment_t()
 {
 	refresh_start_time = 0;
 
-	finished_matrix = NULL;
+	finished_times = NULL;
+	finished_next_transfers = NULL;
 	finished_halt_index_map = NULL;
 	finished_halt_count = 0;
 
-	working_matrix = NULL;
+	working_times = NULL;
+	working_next_transfers = NULL;
+	working_first_transports = NULL;
+	working_last_transports = NULL;
 	transport_index_map = NULL;
-	transport_matrix = NULL;
 	working_halt_index_map = NULL;
 	working_halt_list = NULL;
 	working_halt_count = 0;
@@ -530,39 +613,21 @@ path_explorer_t::compartment_t::compartment_t()
 
 path_explorer_t::compartment_t::~compartment_t()
 {
-	if (finished_matrix)
-	{
-		for (uint16 i = 0; i < finished_halt_count; ++i)
-		{
-			delete[] finished_matrix[i];
-		}
-		delete[] finished_matrix;
-	}
+	delete[] finished_times;
+	delete[] finished_next_transfers;
 	if (finished_halt_index_map)
 	{
 		delete[] finished_halt_index_map;
 	}
 
 
-	if (working_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] working_matrix[i];
-		}
-		delete[] working_matrix;
-	}
+	delete[] working_times;
+	delete[] working_next_transfers;
+	delete[] working_first_transports;
+	delete[] working_last_transports;
 	if (transport_index_map)
 	{
 		delete[] transport_index_map;
-	}
-	if (transport_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] transport_matrix[i];
-		}
-		delete[] transport_matrix;
 	}
 	if (working_halt_index_map)
 	{
@@ -612,15 +677,10 @@ void path_explorer_t::compartment_t::reset(const bool reset_finished_set)
 
 	if (reset_finished_set)
 	{
-		if (finished_matrix)
-		{
-			for (uint16 i = 0; i < finished_halt_count; ++i)
-			{
-				delete[] finished_matrix[i];
-			}
-			delete[] finished_matrix;
-			finished_matrix = NULL;
-		}
+		delete[] finished_times;
+		finished_times = NULL;
+		delete[] finished_next_transfers;
+		finished_next_transfers = NULL;
 		if (finished_halt_index_map)
 		{
 			delete[] finished_halt_index_map;
@@ -630,28 +690,18 @@ void path_explorer_t::compartment_t::reset(const bool reset_finished_set)
 	}
 
 
-	if (working_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] working_matrix[i];
-		}
-		delete[] working_matrix;
-		working_matrix = NULL;
-	}
+	delete[] working_times;
+	working_times = NULL;
+	delete[] working_next_transfers;
+	working_next_transfers = NULL;
+	delete[] working_first_transports;
+	working_first_transports = NULL;
+	delete[] working_last_transports;
+	working_last_transports = NULL;
 	if (transport_index_map)
 	{
 		delete[] transport_index_map;
 		transport_index_map = NULL;
-	}
-	if (transport_matrix)
-	{
-		for (uint16 i = 0; i < working_halt_count; ++i)
-		{
-			delete[] transport_matrix[i];
-		}
-		delete[] transport_matrix;
-		transport_matrix = NULL;
 	}
 	if (working_halt_index_map)
 	{
@@ -1687,19 +1737,11 @@ void path_explorer_t::compartment_t::step()
 			{
 				if (working_halt_count > 0)
 				{
-					// build working matrix
-					working_matrix = new path_element_t*[working_halt_count];
-					for (uint16 i = 0; i < working_halt_count; ++i)
-					{
-						working_matrix[i] = new path_element_t[working_halt_count];
-					}
-
-					// build transport matrix
-					transport_matrix = new transport_element_t*[working_halt_count];
-					for (uint16 i = 0; i < working_halt_count; ++i)
-					{
-						transport_matrix[i] = new transport_element_t[working_halt_count];
-					}
+					// build the working matrices as one flat block per field
+					working_times = new_time_matrix(working_halt_count);
+					working_next_transfers = new_short_matrix(working_halt_count);
+					working_first_transports = new_short_matrix(working_halt_count);
+					working_last_transports = new_short_matrix(working_halt_count);
 
 					// build transfer list
 					transfer_list = new uint16[working_halt_count];
@@ -1777,18 +1819,16 @@ void path_explorer_t::compartment_t::step()
 					}
 
 					// update corresponding matrix element
-					working_matrix[phase_counter][reachable_halt_index].next_transfer = reachable_halt;
-					working_matrix[phase_counter][reachable_halt_index].aggregate_time = current_connexion->waiting_time + current_connexion->journey_time + current_connexion->transfer_time;
-					transport_matrix[phase_counter][reachable_halt_index].first_transport
-						= transport_matrix[phase_counter][reachable_halt_index].last_transport
+					const size_t matrix_index = path_matrix_index(phase_counter, static_cast<uint16>(reachable_halt_index), working_halt_count);
+					working_next_transfers[matrix_index] = reachable_halt.get_id();
+					working_times[matrix_index] = current_connexion->waiting_time + current_connexion->journey_time + current_connexion->transfer_time;
+					working_first_transports[matrix_index]
+						= working_last_transports[matrix_index]
 						= transport_idx;
-
-					// Debug journey times
-					// printf("\n%s -> %s : %lu \n",current_halt->get_name(), reachable_halt->get_name(), working_matrix[phase_counter][reachable_halt_index].journey_time);
 				}
 
 				// Special case
-				working_matrix[phase_counter][phase_counter].aggregate_time = 0;
+				working_times[path_matrix_index(phase_counter, phase_counter, working_halt_count)] = 0;
 
 				++phase_counter;
 
@@ -1902,6 +1942,7 @@ void path_explorer_t::compartment_t::step()
 			while ( via_index < transfer_count )
 			{
 				const uint16 via = transfer_list[via_index];
+				const size_t via_row = static_cast<size_t>(via) * working_halt_count;
 
 				if ( process_next_transfer )
 				{
@@ -1918,13 +1959,13 @@ void path_explorer_t::compartment_t::step()
 						// Register origins by the direction used by the relaxation below (idx to via)
 						// and targets by the opposite direction (via to idx). The two cells can differ
 						// when a connexion exists in one direction only.
-						if ( working_matrix[idx][via].aggregate_time != UINT32_MAX_VALUE )
+						if ( working_times[path_matrix_index(idx, via, working_halt_count)] != UINT32_MAX_VALUE )
 						{
-							inbound_connections->register_connection( transport_matrix[idx][via].last_transport, idx );
+							inbound_connections->register_connection( working_last_transports[path_matrix_index(idx, via, working_halt_count)], idx );
 						}
-						if ( working_matrix[via][idx].aggregate_time != UINT32_MAX_VALUE )
+						if ( working_times[path_matrix_index(via, idx, working_halt_count)] != UINT32_MAX_VALUE )
 						{
-							outbound_connections->register_connection( transport_matrix[via][idx].first_transport, idx );
+							outbound_connections->register_connection( working_first_transports[path_matrix_index(via, idx, working_halt_count)], idx );
 						}
 					}
 
@@ -1956,21 +1997,25 @@ void path_explorer_t::compartment_t::step()
 						while ( origin_member_index < origin_halt_list.get_count() )
 						{
 							const uint16 origin = origin_halt_list[origin_member_index];
+							const size_t origin_row = static_cast<size_t>(origin) * working_halt_count;
+							const size_t origin_via_index = origin_row + via;
+							const uint32 origin_via_time = working_times[origin_via_index];
 
 							// for each target cluster member
 							for ( target_member_index = 0; target_member_index < target_halt_list.get_count(); ++target_member_index )
 							{
 								const uint16 target = target_halt_list[target_member_index];
+								const size_t origin_target_index = origin_row + target;
 
-								if ( working_matrix[origin][via].aggregate_time != UINT32_MAX_VALUE
-									&& ( combined_time = working_matrix[origin][via].aggregate_time
-													 + working_matrix[via][target].aggregate_time )
-											< working_matrix[origin][target].aggregate_time			   )
+								if ( origin_via_time != UINT32_MAX_VALUE
+									&& ( combined_time = origin_via_time
+												 + working_times[via_row + target] )
+											< working_times[origin_target_index]			   )
 								{
-									working_matrix[origin][target].aggregate_time = combined_time;
-									working_matrix[origin][target].next_transfer = working_matrix[origin][via].next_transfer;
-									transport_matrix[origin][target].first_transport = transport_matrix[origin][via].first_transport;
-									transport_matrix[origin][target].last_transport = transport_matrix[via][target].last_transport;
+									working_times[origin_target_index] = combined_time;
+									working_next_transfers[origin_target_index] = working_next_transfers[origin_via_index];
+									working_first_transports[origin_target_index] = working_first_transports[origin_via_index];
+									working_last_transports[origin_target_index] = working_last_transports[via_row + target];
 								}
 							}	// loop : target cluster member
 
@@ -2058,15 +2103,10 @@ void path_explorer_t::compartment_t::step()
 
 
 				// path search completed -> delete old path info
-				if (finished_matrix)
-				{
-					for (uint16 i = 0; i < finished_halt_count; ++i)
-					{
-						delete[] finished_matrix[i];
-					}
-					delete[] finished_matrix;
-					finished_matrix = NULL;
-				}
+				delete[] finished_times;
+				finished_times = NULL;
+				delete[] finished_next_transfers;
+				finished_next_transfers = NULL;
 				if (finished_halt_index_map)
 				{
 					delete[] finished_halt_index_map;
@@ -2074,23 +2114,20 @@ void path_explorer_t::compartment_t::step()
 				}
 
 				// transfer working to finished
-				finished_matrix = working_matrix;
-				working_matrix = NULL;
+				finished_times = working_times;
+				working_times = NULL;
+				finished_next_transfers = working_next_transfers;
+				working_next_transfers = NULL;
 				finished_halt_index_map = working_halt_index_map;
 				working_halt_index_map = NULL;
 				finished_halt_count = working_halt_count;
-				// working_halt_count is reset below after deleting transport matrix
+				// working_halt_count is reset below after deleting the transport arrays
 
 				// path search completed -> delete auxilliary data structures
-				if (transport_matrix)
-				{
-					for (uint16 i = 0; i < working_halt_count; ++i)
-					{
-						delete[] transport_matrix[i];
-					}
-					delete[] transport_matrix;
-					transport_matrix = NULL;
-				}
+				delete[] working_first_transports;
+				working_first_transports = NULL;
+				delete[] working_last_transports;
+				working_last_transports = NULL;
 				working_halt_count = 0;
 				if (transfer_list)
 				{
@@ -2110,9 +2147,6 @@ void path_explorer_t::compartment_t::step()
 					outbound_connections = NULL;
 				}
 				process_next_transfer = true;
-
-				// Debug paths : to execute, working_halt_list should not be deleted in the previous phase
-				// enumerate_all_paths(finished_matrix, working_halt_list, finished_halt_index_map, finished_halt_count);
 
 				current_phase = phase_reroute_goods;	// proceed to the next phase
 
@@ -2252,53 +2286,6 @@ void path_explorer_t::compartment_t::step()
 }
 
 
-void path_explorer_t::compartment_t::enumerate_all_paths(const path_element_t *const *const matrix, const halthandle_t *const halt_list,
-														 const uint16 *const halt_map, const uint16 halt_count)
-{
-	// Debugging code : Enumerate all paths for validation
-	halthandle_t transfer_halt;
-
-	for (uint16 x = 0; x < halt_count; ++x)
-	{
-		for (uint16 y = 0; y < halt_count; ++y)
-		{
-			if (x != y)
-			{
-				// print origin
-				printf("\n\nOrigin :  %s\n", halt_list[x]->get_name());
-
-				transfer_halt = matrix[x][y].next_transfer;
-
-				if (matrix[x][y].aggregate_time == UINT32_MAX_VALUE)
-				{
-					printf("\t\t\t\t******** No Route ********\n");
-				}
-				else
-				{
-					while (transfer_halt != halt_list[y])
-					{
-						printf("\t\t\t\t%s\n", transfer_halt->get_name());
-
-						if ( halt_map[transfer_halt.get_id()] != 65535)
-						{
-							transfer_halt = matrix[ halt_map[transfer_halt.get_id()] ][y].next_transfer;
-						}
-						else
-						{
-							printf("\t\t\t\tError!!!");
-							break;
-						}
-					}
-				}
-
-				// print destination
-				printf("Target :  %s\n\n", halt_list[y]->get_name());
-			}
-		}
-	}
-}
-
-
 bool path_explorer_t::compartment_t::get_path_between(const halthandle_t origin_halt, const halthandle_t target_halt,
 													  uint32 &aggregate_time, halthandle_t &next_transfer)
 {
@@ -2307,12 +2294,17 @@ bool path_explorer_t::compartment_t::get_path_between(const halthandle_t origin_
 	// check if origin and target halts are both present in matrix; if yes, check the validity of the next transfer
 	if ( paths_available /*&& origin_halt.is_bound() && target_halt.is_bound()*/
 			&& ( origin_index = finished_halt_index_map[ origin_halt.get_id() ] ) != 65535
-			&& ( target_index = finished_halt_index_map[ target_halt.get_id() ] ) != 65535
-			&& finished_matrix[origin_index][target_index].next_transfer.is_bound() )
+			&& ( target_index = finished_halt_index_map[ target_halt.get_id() ] ) != 65535 )
 	{
-		aggregate_time = finished_matrix[origin_index][target_index].aggregate_time;
-		next_transfer = finished_matrix[origin_index][target_index].next_transfer;
-		return true;
+		const size_t matrix_index = path_matrix_index(origin_index, target_index, finished_halt_count);
+		halthandle_t stored_next_transfer;
+		stored_next_transfer.set_id(finished_next_transfers[matrix_index]);
+		if (stored_next_transfer.is_bound())
+		{
+			aggregate_time = finished_times[matrix_index];
+			next_transfer = stored_next_transfer;
+			return true;
+		}
 	}
 
 	// requested path not found
@@ -2420,7 +2412,7 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 		}
 	}
 
-	bool finished_matrix_live = finished_matrix != NULL;
+	bool finished_matrix_live = finished_times != NULL;
 	file->rdwr_bool(finished_matrix_live);
 
 	if (finished_matrix_live)
@@ -2430,11 +2422,11 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			uint16 tmp_idx;
 			for (uint16 i = 0; i < finished_halt_count; i++)
 			{
-				//  This is a 2 dimensional array
-				for (uint32 j = 0; j < finished_halt_count; j++)
+				for (uint16 j = 0; j < finished_halt_count; j++)
 				{
-					file->rdwr_long(finished_matrix[i][j].aggregate_time);
-					tmp_idx = finished_matrix[i][j].next_transfer.get_id();
+					const size_t matrix_index = path_matrix_index(i, j, finished_halt_count);
+					file->rdwr_long(finished_times[matrix_index]);
+					tmp_idx = finished_next_transfers[matrix_index];
 					file->rdwr_short(tmp_idx);
 				}
 			}
@@ -2446,20 +2438,18 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			{
 				// Build the (empty) finished matrix
 				uint16 tmp_idx;
-				finished_matrix = new path_element_t*[finished_halt_count];
-				for (uint16 i = 0; i < finished_halt_count; ++i)
-				{
-					finished_matrix[i] = new path_element_t[finished_halt_count];
-				}
+				finished_times = new_time_matrix(finished_halt_count);
+				finished_next_transfers = new_short_matrix(finished_halt_count);
 
-				// Now load them. These are 2 dimensional arrays.
+				// Now load them.
 				for (uint16 i = 0; i < finished_halt_count; i++)
 				{
-					for (uint32 j = 0; j < finished_halt_count; j++)
+					for (uint16 j = 0; j < finished_halt_count; j++)
 					{
-						file->rdwr_long(finished_matrix[i][j].aggregate_time);
+						const size_t matrix_index = path_matrix_index(i, j, finished_halt_count);
+						file->rdwr_long(finished_times[matrix_index]);
 						file->rdwr_short(tmp_idx);
-						finished_matrix[i][j].next_transfer.set_id(tmp_idx);
+						finished_next_transfers[matrix_index] = tmp_idx;
 					}
 				}
 			}
@@ -2469,7 +2459,7 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 	file->rdwr_short(working_halt_count);
 
 	// Working matrix
-	bool working_matrix_live = working_matrix != NULL;
+	bool working_matrix_live = working_times != NULL;
 	file->rdwr_bool(working_matrix_live);
 
 	if (working_matrix_live)
@@ -2479,14 +2469,15 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			uint16 tmp_idx;
 			for (uint16 i = 0; i < working_halt_count; i++)
 			{
-				for (uint32 j = 0; j < working_halt_count; j++)
+				for (uint16 j = 0; j < working_halt_count; j++)
 				{
-					file->rdwr_long(working_matrix[i][j].aggregate_time);
-					tmp_idx = working_matrix[i][j].next_transfer.get_id();
+					const size_t matrix_index = path_matrix_index(i, j, working_halt_count);
+					file->rdwr_long(working_times[matrix_index]);
+					tmp_idx = working_next_transfers[matrix_index];
 					file->rdwr_short(tmp_idx);
 
-					file->rdwr_short(transport_matrix[i][j].first_transport);
-					file->rdwr_short(transport_matrix[i][j].last_transport);
+					file->rdwr_short(working_first_transports[matrix_index]);
+					file->rdwr_short(working_last_transports[matrix_index]);
 				}
 			}
 		}
@@ -2496,33 +2487,24 @@ void path_explorer_t::compartment_t::rdwr(loadsave_t* file)
 			// Create the matrices
 			if (working_halt_count > 0)
 			{
-				// build working matrix
 				uint16 tmp_idx;
-				working_matrix = new path_element_t*[working_halt_count];
-				for (uint16 i = 0; i < working_halt_count; ++i)
-				{
-					working_matrix[i] = new path_element_t[working_halt_count];
+				working_times = new_time_matrix(working_halt_count);
+				working_next_transfers = new_short_matrix(working_halt_count);
+				working_first_transports = new_short_matrix(working_halt_count);
+				working_last_transports = new_short_matrix(working_halt_count);
 
-				}
-
-				// build transport matrix
-				transport_matrix = new transport_element_t*[working_halt_count];
-				for (uint16 i = 0; i < working_halt_count; ++i)
-				{
-					transport_matrix[i] = new transport_element_t[working_halt_count];
-				}
-
-				// Now load them. These are 2 dimensional arrays.
+				// Now load them.
 				for (uint16 i = 0; i < working_halt_count; i++)
 				{
-					for (uint32 j = 0; j < working_halt_count; j++)
+					for (uint16 j = 0; j < working_halt_count; j++)
 					{
-						file->rdwr_long(working_matrix[i][j].aggregate_time);
+						const size_t matrix_index = path_matrix_index(i, j, working_halt_count);
+						file->rdwr_long(working_times[matrix_index]);
 						file->rdwr_short(tmp_idx);
-						working_matrix[i][j].next_transfer.set_id(tmp_idx);
+						working_next_transfers[matrix_index] = tmp_idx;
 
-						file->rdwr_short(transport_matrix[i][j].first_transport);
-						file->rdwr_short(transport_matrix[i][j].last_transport);
+						file->rdwr_short(working_first_transports[matrix_index]);
+						file->rdwr_short(working_last_transports[matrix_index]);
 					}
 				}
 			}

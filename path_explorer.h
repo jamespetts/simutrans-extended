@@ -125,29 +125,6 @@ private:
 
 	private:
 
-		// element used during path search and for storing calculated paths
-		struct path_element_t
-		{
-			uint32 aggregate_time;
-			halthandle_t next_transfer;
-
-			path_element_t() :
-				aggregate_time(UINT32_MAX_VALUE)
-			{}
-		};
-
-		// element used during path search only for storing best lines/convoys
-		struct transport_element_t
-		{
-			uint16 first_transport;
-			uint16 last_transport;
-
-			transport_element_t() :
-				first_transport(0),
-				last_transport(0)
-			{}
-		};
-
 		// structure used for storing indices of halts connected to a transfer, grouped by transport
 		class connection_t
 		{
@@ -272,14 +249,17 @@ private:
 		sint64 refresh_start_time;
 
 		// set of variables for finished path data
-		path_element_t **finished_matrix;
+		uint32 *finished_times;
+		uint16 *finished_next_transfers;
 		uint16 *finished_halt_index_map;
 		uint16 finished_halt_count;
 
 		// set of variables for working path data
-		path_element_t **working_matrix;
+		uint32 *working_times;
+		uint16 *working_next_transfers;
+		uint16 *working_first_transports;
+		uint16 *working_last_transports;
 		uint16 *transport_index_map;
-		transport_element_t **transport_matrix;
 		uint16 *working_halt_index_map;
 		halthandle_t *working_halt_list;
 		uint16 working_halt_count;
@@ -393,9 +373,6 @@ private:
 		static const uint32 percent_deviation = 5;
 		static const uint32 percent_lower_limit = 100 - percent_deviation;
 		static const uint32 percent_upper_limit = 100 + percent_deviation;
-
-		void enumerate_all_paths(const path_element_t *const *const matrix, const halthandle_t *const halt_list,
-								 const uint16 *const halt_map, const uint16 halt_count);
 
 		enum schedule_flags
 		{
@@ -526,6 +503,8 @@ public:
 	static void next_compartment();
 
 	static void full_instant_refresh();
+	// TEST: matrix oracle for the path explorer optimisation work; remove before completion.
+	static void test_dump_matrices(const char *filename);
 	static void refresh_all_categories(const bool reset_working_set);
 	static void refresh_category(const uint8 category);
 	static void refresh_class_category(const uint8 category, const uint8 g_class);
