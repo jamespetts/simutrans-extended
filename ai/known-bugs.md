@@ -107,7 +107,7 @@ Rank on discovery; re-rank on triage.
   `#ifndef MULTI_THREAD` path and are unaffected). Re-rank to 1 if threads=1 on MT builds is
   considered a supported configuration.
 
-### Halt connexions skipped on load when goods categories change — priority 2
+### Halt connexions skipped on load when goods categories change — priority 2 (fixed on ex-15, open on master)
 
 - `haltestelle_t::rdwr` (simhalt.cc) sets `path_explorer_t::set_must_refresh_on_loading()`
   when the saved `iteration_limit` differs from the current pakset (simhalt.cc:4689-4694).
@@ -119,6 +119,10 @@ Rank on discovery; re-rank on triage.
   categories or classes changed since saving. Symmetric across peers with identical
   file and pakset, so not a network join vector; single-player load corruption.
   Recorded per user instruction 2026-09-30 for a separate fix session.
+- Fixed on ex-15 at `22e14c237`: the load block always reads each saved count-plus-entry
+  block, driven by the saved `iteration_limit`, and discards the values when the refresh
+  flag is set; the `non_identical_schedules` assignment is bounded by the current vector
+  size. No savegame format change (`EX_SAVE_MINOR` remains 9) [CODE ex-15 @ 22e14c237].
 
 ### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
 

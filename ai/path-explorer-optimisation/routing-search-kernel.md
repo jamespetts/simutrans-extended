@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 375ebf369
+verified: ex-15 @ 6447a1d2e
 ---
 # Path explorer optimisation: the routing-search engine
 
@@ -36,8 +36,11 @@ On `bb-10-sep-2023.sve`, passenger class 0, the full list has 177,672 candidates
 
 The graph build creates, once per compartment:
 
-- a per-origin edge list (`out_offset`/`out_edge` over `full_edges`), with
-  `full_edges[i] = { target halt, transport, weight, target state }`;
+- a per-origin outgoing edge stream (`out_offset` over `out_edges`), with
+  `out_edges[i] = { target halt, transport, weight, target state }`. The build
+  first fills `full_edges`/`out_edge` (edge indices grouped by origin), resolves
+  every edge's target state, then copies the resolved edges into `out_edges` and
+  releases the build arrays, so the search reads one contiguous stream per halt;
 - the distinct incoming transport keys per halt, sorted and deduplicated;
 - one state per `(halt, arriving transport)` plus one origin state per halt (arriving
   transport = NONE). `state_key` is a `uint32`; NONE is `0xFFFFFFFF`;
@@ -70,18 +73,23 @@ For each origin `o`:
 The tie-break is `(distance, state index)`, deterministic for the synced graph. Each
 origin's result is independent of the thread count and the origin split.
 
-The Dijkstra uses a `binary_heap_tpl<heap_item_t*>` with a per-thread item pool sized to the
-edge count and per-thread `dist`/`first_hop` arrays. The heap is reset per origin.
+The Dijkstra uses a `binary_heap_tpl<heap_item_t>` with one value heap and per-thread
+`dist`/`first_hop` arrays per pool thread. The heap is reset per origin. The value heap
+removes the pointer indirection and the separate item pool; it also removes the old
+`full_edge_count` push cap, which could silently drop an improvement.
 
 ## Pool
 
 The routing-search pool has `get_parallel_operations()` threads in total: one lead and the rest
 helpers, parked on `pool_start_cond` and released per batch. The batch is a contiguous range
-of origins. Each thread runs the per-origin Dijkstra for its slice and writes only its own
-rows. The lead alone advances `origin_index`, `iterations_processed` and
-`total_iterations`, then joins the helpers before the next batch. At one thread the batch
-runs serially. The scratch arrays are allocated for the pool thread count and reallocated if
-the pool is initialised after a save load.
+of origins. The lead and the helpers claim the next origin from a shared counter under
+`pool_work_mutex` until the batch is exhausted; each thread runs the per-origin Dijkstra and
+writes only that origin's row. Claim order changes only which thread writes a row, not the
+row's contents, so results are independent of the claim order and the thread count. The lead
+alone advances `origin_index`, `iterations_processed` and `total_iterations`, then joins the
+helpers before the next batch. At one thread the batch runs serially. The scratch arrays are
+allocated for the pool thread count and reallocated if the pool is initialised after a save
+load.
 
 ## Budget and network
 
@@ -110,6 +118,11 @@ full candidate list, the working matrix and `origin_index`.
 - **Reachability:** the engine resolves 27,989,638 finite pairs; the remaining 895,612 pairs
   are unreachable on the full candidate graph.
 - **Network:** loopback server smoke passed with 1,049 per-step route hashes identical.
+- **Join and revision 9:** a loopback server loaded `bb6-apr-2010.sve` (14.66), ran with
+  `reroute_check_interval_steps = 1` and a 16 ms explorer budget so the join save was
+  mid-refresh, wrote a revision-9 join save, and a client loaded it. Server and client both
+  reloaded revision 9; 287 common per-step route hashes were identical over 120 s with no
+  desync markers. [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 6447a1d2e, Profile (server) x64]
 - **Old saves:** the 14.x fixture loads; a mid-refresh save restarts the compartment and
   keeps the finished matrix.
 
@@ -125,7 +138,22 @@ refresh:
 - Single-threaded routing search: 18.0 s per class; the pool gives 1.55-1.71x.
 - Graph build: 37-43 ms per class.
 
-[EXECUTION-VERIFIED:2026-11-07, working tree]
+2026-11-07 follow-up (same fixture, Profile (server) x64, `threads = 4`, TEST phase timers and
+`-debug 2`, full refresh after load):
+
+- Before the follow-up (indexed edges, pointer heap, contiguous slices): full run 98.3 s;
+  single-thread full run 129.3 s. Large passenger classes: 41.6-47.4 s total thread time,
+  14.9-16.6 s wall; single-thread 20.8-22.3 s.
+- After the grouped edge stream, value heap and dynamic origin claim: full run 80.2 s;
+  single-thread full run 105.2 s. Large passenger classes: 37.4-38.5 s total thread time,
+  ~12.5 s wall; single-thread 16.4-17.7 s. Per-thread times differ by under 0.02 s. Edge
+  scans and pushes are identical to the baseline (2.86-2.94 B edges and 120.9-130.3 M pushes
+  per large class), confirming that the relaxations are unchanged. The follow-up's parallel
+  wall against its single-thread figures is 1.31-1.42x; the pool is bandwidth-limited.
+- The instrumented figures include the TEST counters and `-debug 2`; compare them with each
+  other, not with the uninstrumented figures above.
+
+[EXECUTION-VERIFIED:2026-11-07, ex-15 @ 6447a1d2e]
 
 ## Through journeys and comfort
 
@@ -142,9 +170,10 @@ compartment, and the current state/edge representation keeps one cost field per 
 
 - Exact mid-pass resume (full candidate list + working matrix + origin index) if the join
   rate justifies the extra ≈175 MB per mid-pass compartment.
-- Client join and revision-9 save/load roundtrip test.
-- Pool efficiency: the per-origin Dijkstra is memory-latency bound; current scaling
-  1.55-1.71x on three threads.
+- Pool efficiency: the origin claim is now dynamic and the heap stores values; the 2026-11-07
+  follow-up reduced the large-class wall time by about 16% and the full instrumented run by
+  about 18%. The remaining limit is memory latency on the edge scan; further gains need an
+  algorithmic change (hub labels) or a GPU backend.
 - Re-assess GPU against the current graph-search shape.
 - Compact distance oracle (hub labels) if the O(H²) memory limit becomes binding.
 
@@ -153,5 +182,6 @@ compartment, and the current state/edge representation keeps one cost field per 
 The expanded-state engine, candidate list, state graph, pool and revision-9 savegame were
 implemented and measured on `ex-15` at `a203862c1`, Profile
 (server) x64. The runtime-table deduplication was corrected to compare full weights at
-`375ebf369`. The verification used a standalone expanded-state Dijkstra over the same
-candidate list. [CODE; EXECUTION-VERIFIED where tagged]
+`375ebf369`. The 2026-11-07 follow-up (grouped edge stream, value heap, dynamic origin claim)
+was measured at `6447a1d2e`. The verification used a standalone expanded-state Dijkstra
+over the same candidate list. [CODE; EXECUTION-VERIFIED where tagged]

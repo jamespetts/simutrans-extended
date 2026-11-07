@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ a203862c1 (path-explorer sections; 2026-11-07); ex-15-industry-growth-test @ 7c379b4 (rest)
+verified: ex-15 @ 6447a1d2e (path-explorer sections; 2026-11-07); ex-15-industry-growth-test @ 7c379b4 (rest)
 ---
 # Performance & profiling
 
@@ -292,7 +292,9 @@ removed at load) — repeat before acting on the deltas.
    the controller is dormant between requests and budget-capped during a pass. Measured full
    unbudgeted refresh on the gargantuan fixture (load excluded): **≈68 s**; peak working set
    3,880 MB; peak private bytes 3,911 MB (two runs, median). The routing search is 10.5-11.7 s per large
-   passenger class with the three-thread pool (1.55-1.71x over single-thread). The engine's
+   passenger class with the three-thread pool (1.55-1.71x over single-thread). A 2026-11-07 follow-up (dynamic origin claim, value heap, grouped edge
+    stream) reduced an instrumented full run from 98.3 s to 80.2 s and the large-class wall
+    from 14.9-16.6 s to about 12.5 s, with identical edge scans and heap pushes. The engine's
    times matched a standalone Dijkstra over the same candidate list on all 27,989,638 finite
    pairs (zero differences; 0.13% tie-order next-transfer differences). Through candidates
    across couplings are direct connexion-rebuild edges; they measured within run-to-run noise (0/10/50
@@ -339,8 +341,10 @@ built from the full connexion-rebuild candidate list. Finished and working matri
 memory limit remains. Measured on the gargantuan fixture: full unbudgeted refresh ≈68 s; the routing search
 10.5-11.7 s per large passenger class with three pool threads; peak working set 3,880 MB and peak
 private bytes 3,911 MB. The engine's times matched a standalone Dijkstra over the same candidate
-list on all 27,989,638 finite pairs (0.13% tie-order next-transfer differences). A GPU backend for
-the graph search is unassessed. Per-packet route search at decision time remains rejected. Full
+list on all 27,989,638 finite pairs (0.13% tie-order next-transfer differences). A 2026-11-07
+follow-up added a grouped edge stream, a value heap and dynamic origin claiming, reducing an
+instrumented full run from 98.3 s to 80.2 s and the large-class wall from 14.9-16.6 s to
+about 12.5 s. A GPU backend for the graph search is unassessed. Per-packet route search at decision time remains rejected. Full
 assessment: [path-explorer-optimisation](path-explorer-optimisation.md).
 
 ## Open questions
@@ -353,8 +357,10 @@ assessment: [path-explorer-optimisation](path-explorer-optimisation.md).
 - Path-explorer measurement questions: the current full refresh, routing-search per-class time, pool
   scaling, RAM and accuracy are measured (≈68 s gargantuan refresh; 10.5-11.7 s per large
   passenger class; 3,880 MB peak working set / 3,911 MB private; exact times against a
-  standalone expanded-state Dijkstra). Open: exact mid-pass resume versus restart-on-load; the
-  client join and revision-9 save roundtrip; the pool's 1.55-1.71x scaling; the O(H²) memory
+  standalone expanded-state Dijkstra). The 2026-11-07 follow-up measured the dynamic claim,
+  value heap and grouped edge stream (instrumented full run 98.3 → 80.2 s; large-class wall
+  14.9-16.6 → ≈12.5 s), and the client join/revision-9 roundtrip now passes (285 common route
+  hashes over 120 s). Open: exact mid-pass resume versus restart-on-load; the O(H²) memory
   limit → [path-explorer-optimisation](path-explorer-optimisation.md).
 - The A\* heuristic failures on this map (heur ~10× cost, diagnostics fire continuously at
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a

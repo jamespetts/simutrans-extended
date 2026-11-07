@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 375ebf369
+verified: ex-15 @ 6447a1d2e
 ---
 # Path explorer optimisation
 
@@ -35,8 +35,9 @@ expanded state graph**:
   count on the gargantuan fixture is 17,987, 3.35 per halt.
 - The routing search runs one Dijkstra per origin over the states. At a state, an outgoing edge is
   skipped when its transport equals the arriving transport and is not walking. The search
-  fills one matrix row (`time`, `next_transfer`). Rows are independent, so origins are split
-  over the thread pool.
+  fills one matrix row (`time`, `next_transfer`). Rows are independent; the lead and the helpers
+  claim the next origin from a shared counter, so the row contents do not depend on the claim
+  order or the thread count.
 - The waiting-packet reroute marks halts; `haltestelle_t::step` re-routes waiting packets on
   the main thread.
 
@@ -52,7 +53,7 @@ deduplication policy only; the routing search is unchanged (→
 `bb-10-sep-2023.sve`, passenger class 0: H = 5,375 working halts, 4,665 transfer halts,
 177,672 full connexion-rebuild candidates against 108,542 deduplicated connexions, 28,885,250 pairs.
 Profile (server) x64, `threads = 4` (three pool threads), full instant refresh. [EXECUTION-
-VERIFIED:2026-11-07, working tree]
+VERIFIED:2026-11-07, ex-15 @ 375ebf369]
 
 - Full run including load, two runs: 80.6 s and 85.1 s (median 82.9 s); load alone ≈14.9 s,
   so the refresh is ≈68 s.
@@ -69,6 +70,14 @@ VERIFIED:2026-11-07, working tree]
 The five large passenger classes dominate the refresh. Load and the other refresh steps
 bound the full-run gain; the routing search dominates the compute. The per-origin search is
 memory-latency bound, which limits the pool scaling.
+
+2026-11-07 follow-up (same fixture, TEST phase timers and `-debug 2`, full refresh after load):
+dynamic origin claiming, a value heap and a grouped edge stream reduced the full run from
+98.3 s to 80.2 s, the large-class wall time from 14.9-16.6 s to about 12.5 s, and the
+single-thread full run from 129.3 s to 105.2 s. Edge scans and heap pushes are unchanged
+(2.86-2.94 B edges and 120.9-130.3 M pushes per large class). The instrumented figures include
+the timers and debug logging; compare them with each other, not with the canonical figures
+above. [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 6447a1d2e]
 
 ## Constraints
 
@@ -100,16 +109,20 @@ Old saves carry the old routing-search working state, which the load discards; a
 mid-refresh save restarts. Saves written for a target savegame revision below 9 carry the
 finished matrix and a restart request when no finished matrix exists.
 
+The loopback join test (2026-11-07) exercised a mid-refresh revision-9 join: server and
+client both reloaded the save and 287 common per-step route hashes matched over 120 s, with
+no desync markers (→ [routing-search-kernel](path-explorer-optimisation/routing-search-kernel.md)).
+
 ## Future work
 
 - Exact mid-pass resume: save the full candidate list, the working matrix and
   `origin_index`, and rebuild the graph on load. Cost: roughly 175 MB per mid-pass
   compartment in the savegame and join transfer. Currently the restart is preferred at the
   observed join rate.
-- Client join and revision-9 save/load roundtrip test. The loopback server smoke passes; the
-  join transfer and the new save format are not yet tested end to end.
-- Pool efficiency: the per-origin Dijkstra reaches 1.55-1.71x on three threads. Evaluate a
-  different work split or a value-type heap.
+- Pool efficiency: the origin claim is now dynamic and the heap stores values; the 2026-11-07
+  follow-up reduced the large-class wall time by about 16% and the full instrumented run by
+  about 18%. The remaining limit is memory latency on the edge scan; further gains need an
+  algorithmic change (hub labels) or a GPU backend.
 - Memory: the matrices remain O(H²). A compact distance oracle (hub labels) is the planned
   research direction if maps beyond H ≈ 10-15k become a requirement.
 - GPU: a many-source graph search over the expanded states is unassessed; assess if a GPU use
