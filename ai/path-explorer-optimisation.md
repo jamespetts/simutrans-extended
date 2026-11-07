@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6447a1d2e
+verified: ex-15 @ 5eda2829e
 ---
 # Path explorer optimisation
 
@@ -11,8 +11,9 @@ expanded `(halt, arriving transport)` state graph, the per-origin Dijkstra, the
 routing-search worker pool, matrix storage, the revision-9 savegame, and the consumers
 `haltestelle_t::find_route` / `compartment_t::get_path_between`. Route semantics →
 [engine-semantics](path-explorer-optimisation/engine-semantics.md); kernel, state graph and
-verification → [routing-search-kernel](path-explorer-optimisation/routing-search-kernel.md); SIMD
-constraints for the simulation → [simd-applicability](simd-applicability.md); profiling
+verification → [routing-search-kernel](path-explorer-optimisation/routing-search-kernel.md);
+the assessed and rejected hub-label oracle → [hub-labels](path-explorer-optimisation/hub-labels.md);
+SIMD constraints for the simulation → [simd-applicability](simd-applicability.md); profiling
 method and measured hotspots → [performance](performance.md).
 
 ## Current engine
@@ -122,9 +123,12 @@ no desync markers (→ [routing-search-kernel](path-explorer-optimisation/routin
 - Pool efficiency: the origin claim is now dynamic and the heap stores values; the 2026-11-07
   follow-up reduced the large-class wall time by about 16% and the full instrumented run by
   about 18%. The remaining limit is memory latency on the edge scan; further gains need an
-  algorithmic change (hub labels) or a GPU backend.
-- Memory: the matrices remain O(H²). A compact distance oracle (hub labels) is the planned
-  research direction if maps beyond H ≈ 10-15k become a requirement.
+  algorithmic change or a GPU backend.
+- Memory: the matrices remain O(H²). Hub labels were assessed and rejected as a compact
+  distance oracle: the label set exceeds the matrix well before full coverage and the build
+  is far slower than the current search (→
+  [hub-labels](path-explorer-optimisation/hub-labels.md)). The 32-bit time field is retained
+  deliberately for future overseas destinations [RECOLLECTION:2026-11-07].
 - GPU: a many-source graph search over the expanded states is unassessed; assess if a GPU use
   case exists.
 - Comfort routing and through-journey integration: connexion-rebuild weights, the boarding rule, and
@@ -135,7 +139,8 @@ no desync markers (→ [routing-search-kernel](path-explorer-optimisation/routin
 - Is exact mid-pass resume worth the save/transfer cost, given the observed join rate?
 - Does every threaded subsystem tolerate mixed local thread counts? `debug_sums[4]` is zeroed;
   the path-explorer per-origin rows are verified independent of the thread count.
-- Hub labels: how large do they become on dense town walking networks?
+- Is there a compact routing oracle whose build cost is close to the current per-origin
+  search? Hub labels do not qualify (→ [hub-labels](path-explorer-optimisation/hub-labels.md)).
 - Comfort routing: which weight model and boarding rule (→
   [comfort-routing](path-explorer-optimisation/comfort-routing.md))?
 - GPU: is there a use case?
