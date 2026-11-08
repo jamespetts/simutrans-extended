@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f35b6fac7 working tree (settings-tab convention; 2026-11-08)
+verified: ex-15 @ 8109f6dab (settings-tab convention; 2026-11-08)
 ---
 # GUI
 

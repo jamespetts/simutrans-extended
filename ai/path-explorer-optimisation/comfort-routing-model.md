@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f35b6fac7 working tree (core implementation, target-specific reboarding, effective fare class fallback, zero comfort-point handling and no fixed boarding cost; 2026-11-08)
+verified: ex-15 @ 8109f6dab (core implementation, target-specific reboarding, effective fare class fallback, zero comfort-point handling and no fixed boarding cost; 2026-11-08)
 ---
 # Comfort influenced routing: time-based model
 
