@@ -220,16 +220,16 @@ are additions, qualifications and conflicts only; same tags and severity scale a
   discharge, reroute, board the same nominal through connection, discharge again — so the fallback
   must strictly improve the packet's situation (cf. A2's invariant). Related to R5 (a waiting
   portion can occupy the very platform the fallback needs).
-- **A7 [M] — journey history must survive recombination.** Beyond the R4 lookup defect: comfort,
-  catering and journey time are taken from the delivering convoy at unload (`calc_revenue` →
+- **A7 [M] — journey history must survive recombination.** Beyond the R4 lookup defect: catering
+  and journey time are taken from the delivering convoy at unload (`calc_revenue` →
   `goods_desc_t::get_total_fare`) [CODE ex-15 @ bf447619a — independently verified:
-  `calc_revenue` reads `get_comfort(g_class)` and `get_catering_level(...)` of the delivering
-  convoy for the whole leg from `last_transfer` (simconvoi.cc:6213-6219); freight ignores
-  comfort/catering (:6243)], so a short final leg in a premium portion can price a long
-  uncomfortable one, and late-attached catering can monetise earlier travel. Principle: changing
-  convoy identity must not erase or retroactively alter economically relevant journey history;
-  earlier operators and infrastructure owners must be paid correctly after the original convoy is
-  gone. R4's mileage-apportionment alternative answers this directly.
+  `calc_revenue` reads `get_catering_level(...)` of the delivering convoy for the whole leg from
+  `last_transfer` (simconvoi.cc:6213-6219); comfort no longer affects fares, and freight ignores
+  catering (:6243)], so a short final leg with a high catering level can monetise a long journey
+  in a different portion, and late-attached catering can monetise earlier travel. Principle:
+  changing convoy identity must not erase or retroactively alter economically relevant journey
+  history; earlier operators and infrastructure owners must be paid correctly after the original
+  convoy is gone. R4's mileage-apportionment alternative answers this directly.
 - **A8 [M] — retrospective loading credit can be gamed by late-arriving cargo.** The 2018 model
   (A3 favours it) credits time stood: a trailer standing ten hours, with cargo arriving one minute
   before its tractor collects it, could receive ten hours' credit. The credit must be the

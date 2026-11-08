@@ -763,8 +763,21 @@ public:
 	// @author: jamespetts
 	uint16 get_overcrowding(uint8 g_class) const;
 
-	// @author: jamespetts
-	uint8 get_comfort(uint8 catering_level = 0, uint8 g_class = 0) const;
+	// The highest fare class not above g_class for which this vehicle provides
+	// accommodation. Passengers may use accommodation of the same or a lower
+	// class, so a fare class with no dedicated accommodation uses the highest
+	// lower class that is available. Returns 255 if there is none.
+	uint8 get_effective_fare_class(uint8 g_class) const;
+
+	// Time-based comfort in tenths of minutes, for the given class. The
+	// comfortable value includes the standing adjustment; the tolerable value
+	// is not changed by overcrowding. A class that the vehicle does not carry
+	// uses the comfort of its effective fare class.
+	uint16 get_maximum_comfortable_journey(uint8 g_class = 0, uint8 catering_level = 0) const;
+	uint16 get_maximum_tolerable_journey(uint8 g_class = 0, uint8 catering_level = 0) const;
+	// Capacity-weighted means over all passenger classes, for display.
+	uint16 get_mean_maximum_comfortable_journey(uint8 catering_level = 0) const;
+	uint16 get_mean_maximum_tolerable_journey(uint8 catering_level = 0) const;
 
 	uint16 get_accommodation_capacity(uint8 a_class, bool include_lower_classes = false) const;
 	uint16 get_fare_capacity(uint8 fare_class, bool include_lower_classes = false) const;

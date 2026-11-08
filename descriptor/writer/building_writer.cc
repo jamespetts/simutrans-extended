@@ -20,6 +20,32 @@
 
 using std::string;
 
+static uint16 read_building_time(tabfileobj_t &obj, const char *base_name)
+{
+	char key[128];
+
+	sprintf(key, "%s_minutes", base_name);
+	const char *minutes = obj.get(key);
+	sprintf(key, "%s_tenths", base_name);
+	const char *tenths = obj.get(key);
+
+	const bool has_minutes = minutes != NULL && *minutes != 0;
+	const bool has_tenths = tenths != NULL && *tenths != 0;
+	if (has_minutes && has_tenths)
+	{
+		dbg->fatal(obj_writer_t::last_name, "%s: specify only one of the _minutes and _tenths forms", base_name);
+	}
+	if (has_tenths)
+	{
+		return (uint16)atoi(tenths);
+	}
+	if (has_minutes)
+	{
+		return (uint16)(atoi(minutes) * 10);
+	}
+	return 0;
+}
+
 void tile_writer_t::write_obj(FILE* fp, obj_node_t& parent, int index, int seasons,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& backkeys,
 	slist_tpl<slist_tpl<slist_tpl<string> > >& frontkeys
@@ -304,7 +330,11 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 
 	uint16 max_vehicles_under_maintenance = obj.get_int("max_vehicles_under_maintenance", 4);
 
-	total_len = 53;
+	uint16 maximum_comfortable_wait = read_building_time(obj, "maximum_comfortable_wait");
+	uint16 maximum_tolerable_wait = read_building_time(obj, "maximum_tolerable_wait");
+	uint16 comfort_capacity = obj.get_int("comfort_capacity", 0);
+
+	total_len = 59;
 
 	uint16 current_class_proportion;
 	vector_tpl<uint16> class_proportions(2);
@@ -478,7 +508,8 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 	// 0x500: Class proportions
 	// 0x600: Pier System
 	// 0x700: 15x - depot maintenance capacity and extension layover capability
-	version += 0x800;
+	// 0x800: 15x - time-based stop comfort and comfort capacity
+	version += 0x900;
 
 	int pos = 0;
 
@@ -592,6 +623,15 @@ void building_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& ob
 
 	node.write_uint16(fp, max_vehicles_under_maintenance, pos);
 	pos += sizeof(max_vehicles_under_maintenance);
+
+	node.write_uint16(fp, maximum_comfortable_wait, pos);
+	pos += sizeof(maximum_comfortable_wait);
+
+	node.write_uint16(fp, maximum_tolerable_wait, pos);
+	pos += sizeof(maximum_tolerable_wait);
+
+	node.write_uint16(fp, comfort_capacity, pos);
+	pos += sizeof(comfort_capacity);
 
 	// probably add some icons, if defined
 	slist_tpl<string> cursorkeys;

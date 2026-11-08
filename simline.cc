@@ -42,7 +42,8 @@ line_cost_t convoi_to_line_catgory_[convoi_t::MAX_CONVOI_COST] =
 	LINE_REFUNDS,
 	LINE_WAYTOLL,
 	LINE_MAIL_DISTANCE,
-	LINE_PAYLOAD_DISTANCE
+	LINE_PAYLOAD_DISTANCE,
+	LINE_COMFORT // CONVOI_MAXIMUM_TOLERABLE_JOURNEY is convoy-only; it never reaches a line.
 };
 
 line_cost_t simline_t::convoi_to_line_catgory(convoi_t::convoi_cost_t cnv_cost)
@@ -474,6 +475,23 @@ void simline_t::rdwr(loadsave_t *file)
 		}
 	}
 
+	// Before 15.10 the line comfort history held comfort points rather than
+	// the maximum comfortable journey time in seconds.
+	if(  file->is_loading() && file->is_version_ex_less(15,10)  )
+	{
+		for (int k = MAX_MONTHS - 1; k >= 0; k--)
+		{
+			sint64 comfort_points = financial_history[k][LINE_COMFORT];
+			if(  comfort_points < 0  ) {
+				comfort_points = 0;
+			}
+			else if(  comfort_points > 255  ) {
+				comfort_points = 255;
+			}
+			financial_history[k][LINE_COMFORT] = (sint64)welt->get_settings().max_tolerable_journey((uint8)comfort_points);
+		}
+	}
+
 	if(  file->is_version_atleast(102, 2)  ) {
 		file->rdwr_bool(withdraw);
 		DBG_MESSAGE("simline_t::rdwr","withdraw=%i",withdraw);
@@ -505,6 +523,18 @@ void simline_t::rdwr(loadsave_t *file)
 			file->rdwr_short(rolling_average_count[LINE_WAYTOLL]);
 			DBG_MESSAGE("simline_t::rdwr","rolling_average_count[LINE_WAYTOLL=%i]=%i",LINE_WAYTOLL,rolling_average_count[LINE_WAYTOLL]);
 		}
+	}
+
+	// Rolling averages held comfort points before 15.10. Convert the mean
+	// so that the next sample stays on the same scale.
+	if(  file->is_loading() && file->is_version_ex_less(15,10) && rolling_average_count[LINE_COMFORT] > 0  ) {
+		uint32 comfort_points = rolling_average[LINE_COMFORT] / rolling_average_count[LINE_COMFORT];
+		if(  comfort_points > 255  ) {
+			comfort_points = 255;
+		}
+		const uint64 seconds = welt->get_settings().max_tolerable_journey((uint8)comfort_points);
+		const uint64 total = seconds * (uint64)rolling_average_count[LINE_COMFORT];
+		rolling_average[LINE_COMFORT] = total > 0xFFFFFFFFull ? 0xFFFFFFFFu : (uint32)total;
 	}
 
 	if(  file->is_version_atleast(110, 6) && file->get_extended_version() >= 9  ) {

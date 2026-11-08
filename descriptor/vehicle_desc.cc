@@ -326,6 +326,42 @@ uint16 vehicle_desc_t::get_obsolete_year_month() const
 	}
 }
 
+uint16 vehicle_desc_t::get_maximum_comfortable_journey(uint32 g_class) const
+{
+	if (classes == 0 || maximum_comfortable_journey == NULL)
+	{
+		return 1800;
+	}
+	const uint16 explicit_value = g_class >= classes ? maximum_comfortable_journey[0] : maximum_comfortable_journey[g_class];
+	if (explicit_value != 0)
+	{
+		return explicit_value;
+	}
+	if (comfort != NULL && world() != NULL)
+	{
+		const uint8 comfort_points = comfort[g_class >= classes ? 0 : g_class];
+		if (comfort_points != 0)
+		{
+			const uint32 seconds = (uint32)world()->get_settings().max_tolerable_journey(comfort_points);
+			return (uint16)min(65535u, (seconds + 3u) / 6u);
+		}
+	}
+	return 1800;
+}
+
+uint16 vehicle_desc_t::get_maximum_tolerable_journey(uint32 g_class) const
+{
+	if (classes != 0 && maximum_tolerable_journey != NULL)
+	{
+		const uint16 explicit_value = g_class >= classes ? maximum_tolerable_journey[0] : maximum_tolerable_journey[g_class];
+		if (explicit_value != 0)
+		{
+			return explicit_value;
+		}
+	}
+	return (uint16)min(65535u, (uint32)get_maximum_comfortable_journey(g_class) * 3u);
+}
+
 void vehicle_desc_t::fix_number_of_classes()
 {
 	fix_basic_constraint();
@@ -349,28 +385,48 @@ void vehicle_desc_t::fix_number_of_classes()
 	{
 		uint8 *comfort_copy = new uint8[classes];
 		uint16 *capacity_copy = new uint16[classes];
+		uint16 *maximum_comfortable_journey_copy = maximum_comfortable_journey != NULL ? new uint16[classes] : NULL;
+		uint16 *maximum_tolerable_journey_copy = maximum_tolerable_journey != NULL ? new uint16[classes] : NULL;
 		for (uint8 i = 0; i < classes; i++)
 		{
 			comfort_copy[i] = comfort[i];
 			capacity_copy[i] = capacity[i];
+			if (maximum_comfortable_journey_copy != NULL)
+			{
+				maximum_comfortable_journey_copy[i] = maximum_comfortable_journey[i];
+			}
+			if (maximum_tolerable_journey_copy != NULL)
+			{
+				maximum_tolerable_journey_copy[i] = maximum_tolerable_journey[i];
+			}
 		}
 		delete[] comfort;
 		delete[] capacity;
+		delete[] maximum_comfortable_journey;
+		delete[] maximum_tolerable_journey;
 		comfort = new uint8[actual_number_of_classes];
 		capacity = new uint16[actual_number_of_classes];
+		maximum_comfortable_journey = new uint16[actual_number_of_classes];
+		maximum_tolerable_journey = new uint16[actual_number_of_classes];
 		for (uint8 i = 0; i < classes; i++)
 		{
 			comfort[i] = comfort_copy[i];
 			capacity[i] = capacity_copy[i];
+			maximum_comfortable_journey[i] = maximum_comfortable_journey_copy != NULL ? maximum_comfortable_journey_copy[i] : 0;
+			maximum_tolerable_journey[i] = maximum_tolerable_journey_copy != NULL ? maximum_tolerable_journey_copy[i] : 0;
 		}
 		for (uint8 i = classes; i < actual_number_of_classes; i++)
 		{
 			comfort[i] = 0;
 			capacity[i] = 0;
+			maximum_comfortable_journey[i] = 0;
+			maximum_tolerable_journey[i] = 0;
 		}
 		classes = actual_number_of_classes;
 		delete[] comfort_copy;
 		delete[] capacity_copy;
+		delete[] maximum_comfortable_journey_copy;
+		delete[] maximum_tolerable_journey_copy;
 	}
 	if (accommodation_classes) {
 		accommodation_classes = 0;
@@ -519,6 +575,14 @@ void vehicle_desc_t::calc_checksum(checksum_t *chk) const
 	for (uint32 i = 0; i < classes; i++)
 	{
 		chk->input(comfort[i]);
+	}
+	for (uint32 i = 0; i < classes; i++)
+	{
+		chk->input(maximum_comfortable_journey != NULL ? maximum_comfortable_journey[i] : 0);
+	}
+	for (uint32 i = 0; i < classes; i++)
+	{
+		chk->input(maximum_tolerable_journey != NULL ? maximum_tolerable_journey[i] : 0);
 	}
 	chk->input(max_loading_time_seconds);
 	chk->input(min_loading_time_seconds);

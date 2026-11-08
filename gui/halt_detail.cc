@@ -39,6 +39,22 @@
 #define BARCOL_TRANSFER_IN color_idx_to_rgb(10)
 #define MAX_CATEGORY_COLS 16
 
+// Sets a tooltip when the mouse is over a custom-drawn text region. The route
+// tab draws its values directly rather than with GUI components, so the text
+// rectangles have to be tested explicitly.
+static void set_text_tooltip(const scr_coord_val x, const scr_coord_val y, const scr_coord_val w, const char *text)
+{
+	if (text == NULL || w <= 0)
+	{
+		return;
+	}
+	const scr_coord mouse = get_mouse_pos();
+	if (mouse.x >= x && mouse.x < x + w && mouse.y >= y && mouse.y < y + LINESPACE)
+	{
+		win_set_tooltip(mouse + TOOLTIP_MOUSE_OFFSET, text);
+	}
+}
+
 sint16 halt_detail_t::tabstate = -1;
 
 
@@ -1671,7 +1687,11 @@ void gui_halt_route_info_t::draw_list_by_dest(scr_coord offset)
 					buf.printf(translator::translate(is_walking ? "%s mins. walking" : "%s mins. travelling"), travelling_time_as_clock);
 					buf.append(", ");
 				}
-				catg_xoff += display_proportional_clip_rgb(offset.x + xoff + catg_xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				const scr_coord_val travel_x = offset.x + xoff + catg_xoff;
+				const scr_coord_val travel_w = display_proportional_clip_rgb(travel_x, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				catg_xoff += travel_w;
+				set_text_tooltip(travel_x, offset.y + yoff, travel_w,
+					translator::translate(is_walking ? "Time spent walking" : "Time spent in transit"));
 
 				// [average speed]
 				buf.clear();
@@ -1704,12 +1724,49 @@ void gui_halt_route_info_t::draw_list_by_dest(scr_coord offset)
 							buf.append(translator::translate("waiting time unknown"));
 						}
 					}
-					catg_xoff += display_proportional_clip_rgb(offset.x + xoff + catg_xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+					const scr_coord_val wait_x = offset.x + xoff + catg_xoff;
+					const scr_coord_val wait_w = display_proportional_clip_rgb(wait_x, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+					catg_xoff += wait_w;
+					set_text_tooltip(wait_x, offset.y + yoff, wait_w,
+						translator::translate(waiting_time > 0 ? "Average time spent waiting for this route" : "No waiting time data for this route"));
 
 					// [average schedule speed]
 					buf.clear();
 					buf.printf(" (%2ukm/h) ", journey_time+waiting_time ? kmh_from_meters_and_tenths((int)(km_to_halt * 1000), journey_time + waiting_time) : 0);
 					catg_xoff += display_proportional_clip_rgb(offset.x + xoff + catg_xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT_WEAK, true);
+
+					const uint32 actual_total = cnx->journey_time + cnx->waiting_time + cnx->transfer_time;
+					char actual_time_as_clock[32];
+					welt->sprintf_time_tenths(actual_time_as_clock, sizeof(actual_time_as_clock), actual_total);
+
+					catg_xoff += D_H_SPACE;
+					buf.clear();
+					buf.printf("%s", actual_time_as_clock);
+					const scr_coord_val actual_total_x = offset.x + xoff + catg_xoff;
+					const scr_coord_val actual_total_w = display_proportional_clip_rgb(actual_total_x, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+					catg_xoff += actual_total_w;
+
+					set_text_tooltip(actual_total_x, offset.y + yoff, actual_total_w,
+						translator::translate("Total journey time: travel + waiting + transfer"));
+
+					if (welt->get_settings().comfort_routing && cnx->comfort_cost > 0)
+					{
+						const uint32 adjusted_total = actual_total + cnx->comfort_cost;
+						char adjusted_time_as_clock[32];
+						welt->sprintf_time_tenths(adjusted_time_as_clock, sizeof(adjusted_time_as_clock), adjusted_total);
+
+						buf.clear();
+						buf.printf(" (");
+						catg_xoff += display_proportional_clip_rgb(offset.x + xoff + catg_xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+						if (skinverwaltung_t::comfort)
+						{
+							display_color_img_with_tooltip(skinverwaltung_t::comfort->get_image_id(0), offset.x + xoff + catg_xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("Comfort-adjusted time"));
+							catg_xoff += GOODS_SYMBOL_CELL_WIDTH;
+						}
+						buf.clear();
+						buf.printf("%s)", adjusted_time_as_clock);
+						catg_xoff += display_proportional_clip_rgb(offset.x + xoff + catg_xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(COL_DARK_BLUE), true);
+					}
 					max_x = max(max_x, catg_xoff);
 				}
 #ifdef DEBUG
@@ -1817,7 +1874,11 @@ void gui_halt_route_info_t::draw_list_by_catg(scr_coord offset)
 				buf.append(", ");
 			}
 		}
-		xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+		const scr_coord_val travel_x = offset.x + xoff;
+		const scr_coord_val travel_w = display_proportional_clip_rgb(travel_x, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+		xoff += travel_w;
+		set_text_tooltip(travel_x, offset.y + yoff, travel_w,
+			translator::translate(is_walking ? "Time spent walking" : "Time spent in transit"));
 #ifdef DEBUG
 		// [avarage speed]
 		buf.clear();
@@ -1852,7 +1913,11 @@ void gui_halt_route_info_t::draw_list_by_catg(scr_coord offset)
 					buf.append(translator::translate("waiting time unknown"));
 				}
 			}
-			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+			const scr_coord_val wait_x = offset.x + xoff;
+			const scr_coord_val wait_w = display_proportional_clip_rgb(wait_x, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+			xoff += wait_w;
+			set_text_tooltip(wait_x, offset.y + yoff, wait_w,
+				translator::translate(cnx->waiting_time > 0 ? "Average time spent waiting for this route" : "No waiting time data for this route"));
 #ifdef DEBUG
 			// [avarage schedule speed]
 			buf.clear();
@@ -1860,6 +1925,39 @@ void gui_halt_route_info_t::draw_list_by_catg(scr_coord offset)
 			buf.printf(" (%2ukm/h) ", schedule_speed);
 			xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT_WEAK, true);
 #endif
+
+			const uint32 actual_total = cnx->journey_time + cnx->waiting_time + cnx->transfer_time;
+			char actual_time_as_clock[32];
+			welt->sprintf_time_tenths(actual_time_as_clock, sizeof(actual_time_as_clock), actual_total);
+
+			xoff += D_H_SPACE;
+			buf.clear();
+			buf.printf("%s", actual_time_as_clock);
+			const scr_coord_val actual_total_x = offset.x + xoff;
+			const scr_coord_val actual_total_w = display_proportional_clip_rgb(actual_total_x, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+			xoff += actual_total_w;
+
+			set_text_tooltip(actual_total_x, offset.y + yoff, actual_total_w,
+				translator::translate("Total journey time: travel + waiting + transfer"));
+
+			if (welt->get_settings().comfort_routing && cnx->comfort_cost > 0)
+			{
+				const uint32 adjusted_total = actual_total + cnx->comfort_cost;
+				char adjusted_time_as_clock[32];
+				welt->sprintf_time_tenths(adjusted_time_as_clock, sizeof(adjusted_time_as_clock), adjusted_total);
+
+				buf.clear();
+				buf.printf(" (");
+				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, SYSCOL_TEXT, true);
+				if (skinverwaltung_t::comfort)
+				{
+					display_color_img_with_tooltip(skinverwaltung_t::comfort->get_image_id(0), offset.x + xoff, offset.y + yoff + FIXED_SYMBOL_YOFF, 0, false, false, translator::translate("Comfort-adjusted time"));
+					xoff += GOODS_SYMBOL_CELL_WIDTH;
+				}
+				buf.clear();
+				buf.printf("%s)", adjusted_time_as_clock);
+				xoff += display_proportional_clip_rgb(offset.x + xoff, offset.y + yoff, buf, ALIGN_LEFT, color_idx_to_rgb(COL_DARK_BLUE), true);
+			}
 
 #ifdef DEBUG
 			// Who offers the best service?

@@ -1371,13 +1371,27 @@ void haltestelle_t::step()
 				// Checks to see whether the freight has been waiting too long.
 				// If so, discard it.
 
-				if(tmp.get_desc()->get_speed_bonus() > 0u) // TODO: Consider what to do about this now that speed boni are deprecated. Should the base data for speed boni be retained just for this?
+				const bool use_comfort_wait_limit = tmp.is_passenger()
+					&& welt->get_settings().comfort_routing
+					&& welt->get_settings().waiting_comfort_weighting;
+
+				if(use_comfort_wait_limit || tmp.get_desc()->get_speed_bonus() > 0u)
 				{
-					// Only consider for discarding if the goods (ever) care about their timings.
-					// Use 32-bit math; it's very easy to overflow 16 bits.
-					const uint32 max_wait = welt->get_settings().get_passenger_max_wait();
-					const uint32 max_wait_minutes = max_wait / tmp.get_desc()->get_speed_bonus();
-					uint32 max_wait_tenths = max_wait_minutes * 10u;
+					// Passengers with comfort routing use the stop's maximum
+					// tolerable waiting time. Other goods keep the old
+					// speed-bonus rule. Use 32-bit math; it is very easy to
+					// overflow 16 bits.
+					uint32 max_wait_tenths;
+					if (use_comfort_wait_limit)
+					{
+						max_wait_tenths = get_maximum_tolerable_wait(tmp.get_class());
+					}
+					else
+					{
+						const uint32 max_wait = welt->get_settings().get_passenger_max_wait();
+						const uint32 max_wait_minutes = max_wait / tmp.get_desc()->get_speed_bonus();
+						max_wait_tenths = max_wait_minutes * 10u;
+					}
 
 					// Passengers' maximum waiting times were formerly limited to thrice their estimated
 					// journey time, but this is no longer so from version 11.14 onwards.
@@ -2785,10 +2799,14 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 								// Find the ideal class, assuming space available in all classes
 								if (current_class == g_class || cnv->get_classes_carried(goods_manager_t::INDEX_PAS)->is_contained(current_class))
 								{
-									const uint8 comfort_this_class = cnv->get_comfort(current_class);
-									const uint32 max_tolerable_journey_this_comfort = welt->get_settings().max_tolerable_journey(comfort_this_class);
+									// Time-based class choice: the vehicle's maximum
+									// comfortable journey time, converted from tenths of
+									// minutes to seconds. This is the time value derived
+									// from the old comfort points, so it preserves the old
+									// class-choice effect.
+									const uint32 max_comfortable_journey_this_class = (uint32)cnv->get_maximum_comfortable_journey(current_class) * 6u;
 
-									if (max_tolerable_journey_this_comfort >= ideal_comfort_time)
+									if (max_comfortable_journey_this_class >= ideal_comfort_time)
 									{
 										best_class = current_class;
 									}
@@ -3922,6 +3940,156 @@ void haltestelle_t::add_to_station_type( grund_t *gr )
 	}
 }
 
+void haltestelle_t::get_wait_comfort(uint8 g_class, uint16 &maximum_comfortable_wait, uint16 &maximum_tolerable_wait) const
+{
+	struct comfort_building_t
+	{
+		uint16 maximum_comfortable_wait;
+		uint16 maximum_tolerable_wait;
+		uint16 comfort_capacity;
+	};
+
+	vector_tpl<comfort_building_t> buildings;
+	slist_tpl<gebaeude_t *> seen;
+	uint16 best_tolerable_wait = 0;
+	bool has_limited_capacity = false;
+
+	for (tile_t const &tile : tiles)
+	{
+		gebaeude_t *building = tile.grund->get_building();
+		if (building == NULL)
+		{
+			continue;
+		}
+		bool duplicate = false;
+		for (gebaeude_t *other : seen)
+		{
+			if (other->is_same_building(building))
+			{
+				duplicate = true;
+				break;
+			}
+		}
+		if (duplicate)
+		{
+			continue;
+		}
+		seen.append(building);
+
+		const building_desc_t *desc = building->get_tile()->get_desc();
+		if (desc == NULL || (desc->get_enabled() & PAX) == 0)
+		{
+			continue;
+		}
+
+		comfort_building_t entry;
+		entry.maximum_comfortable_wait = desc->get_maximum_comfortable_wait();
+		entry.maximum_tolerable_wait = desc->get_maximum_tolerable_wait();
+		if (entry.maximum_comfortable_wait == 0)
+		{
+			entry.maximum_comfortable_wait = 1800;
+		}
+		if (entry.maximum_tolerable_wait == 0)
+		{
+			entry.maximum_tolerable_wait = (uint16)min(65535u, (uint32)entry.maximum_comfortable_wait * 3u);
+		}
+		entry.comfort_capacity = desc->get_comfort_capacity();
+		if (entry.comfort_capacity != 0)
+		{
+			has_limited_capacity = true;
+		}
+		if (entry.maximum_tolerable_wait > best_tolerable_wait)
+		{
+			best_tolerable_wait = entry.maximum_tolerable_wait;
+		}
+		buildings.append(entry);
+	}
+
+	if (buildings.empty())
+	{
+		maximum_comfortable_wait = 1800;
+		maximum_tolerable_wait = 5400;
+		return;
+	}
+
+	// Best comfort first. The number of buildings is small, so a simple
+	// selection sort is adequate.
+	for (uint32 i = 0; i < buildings.get_count(); i++)
+	{
+		for (uint32 j = i + 1; j < buildings.get_count(); j++)
+		{
+			if (buildings[j].maximum_comfortable_wait > buildings[i].maximum_comfortable_wait)
+			{
+				const comfort_building_t temp = buildings[i];
+				buildings[i] = buildings[j];
+				buildings[j] = temp;
+			}
+		}
+	}
+
+	// With unlimited comfort capacity the waiting count cannot change the
+	// result, so avoid reading the cargo list at all.
+	if (!has_limited_capacity)
+	{
+		maximum_comfortable_wait = buildings[0].maximum_comfortable_wait;
+		maximum_tolerable_wait = best_tolerable_wait;
+		return;
+	}
+
+	// The waiting count is read without the passenger-generation mutex: the
+	// path explorer and the UI can both reach this code while that mutex is
+	// already held, and a recursive lock would deadlock. The count is only used
+	// to choose the stop's effective comfort for the next route refresh.
+	const uint32 waiting = get_ware_summe(goods_manager_t::passengers, g_class);
+	if (waiting == 0)
+	{
+		maximum_comfortable_wait = buildings[0].maximum_comfortable_wait;
+		maximum_tolerable_wait = best_tolerable_wait;
+		return;
+	}
+
+	uint32 remaining = waiting;
+	uint64 sum_comfortable = 0;
+	uint64 sum_tolerable = 0;
+
+	for (uint32 i = 0; i < buildings.get_count() && remaining > 0; i++)
+	{
+		const uint32 allocated = buildings[i].comfort_capacity == 0
+			? remaining
+			: min(remaining, (uint32)buildings[i].comfort_capacity);
+		sum_comfortable += (uint64)allocated * buildings[i].maximum_comfortable_wait;
+		sum_tolerable += (uint64)allocated * buildings[i].maximum_tolerable_wait;
+		remaining -= allocated;
+	}
+
+	if (remaining > 0)
+	{
+		const uint16 overcrowded_comfortable = welt->get_settings().max_comfortable_wait_overcrowded;
+		sum_comfortable += (uint64)remaining * overcrowded_comfortable;
+		// Overcrowding does not change the maximum tolerable waiting time.
+		sum_tolerable += (uint64)remaining * best_tolerable_wait;
+	}
+
+	maximum_comfortable_wait = (uint16)(sum_comfortable / waiting);
+	maximum_tolerable_wait = (uint16)(sum_tolerable / waiting);
+}
+
+uint16 haltestelle_t::get_maximum_comfortable_wait(uint8 g_class) const
+{
+	uint16 maximum_comfortable_wait;
+	uint16 maximum_tolerable_wait;
+	get_wait_comfort(g_class, maximum_comfortable_wait, maximum_tolerable_wait);
+	return maximum_comfortable_wait;
+}
+
+uint16 haltestelle_t::get_maximum_tolerable_wait(uint8 g_class) const
+{
+	uint16 maximum_comfortable_wait;
+	uint16 maximum_tolerable_wait;
+	get_wait_comfort(g_class, maximum_comfortable_wait, maximum_tolerable_wait);
+	return maximum_tolerable_wait;
+}
+
 /*
  * recalculated the station type(s)
  * since it iterates over all ground, this is better not done too often, because line management and station list
@@ -4766,10 +4934,10 @@ void haltestelle_t::rdwr(loadsave_t *file)
 		uint32 tmp_journey_time;
 		uint32 tmp_waiting_time;
 		uint32 tmp_transfer_time;
+		uint32 tmp_comfort_cost = 0;
 		uint16 tmp_best_line_idx;
 		uint16 tmp_best_convoy_idx;
 		uint16 tmp_alternative_seats;
-		// TODO: Consider whether to add comfort
 
 		halthandle_t tmp_halt;
 
@@ -4793,6 +4961,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 						tmp_journey_time = cnx.journey_time;
 						tmp_waiting_time = cnx.waiting_time;
 						tmp_transfer_time = cnx.transfer_time;
+						tmp_comfort_cost = cnx.comfort_cost;
 						tmp_best_line_idx = cnx.best_line.get_id();
 						tmp_best_convoy_idx = cnx.best_convoy.get_id();
 						tmp_alternative_seats = cnx.alternative_seats;
@@ -4801,6 +4970,10 @@ void haltestelle_t::rdwr(loadsave_t *file)
 						file->rdwr_long(tmp_journey_time);
 						file->rdwr_long(tmp_waiting_time);
 						file->rdwr_long(tmp_transfer_time);
+						if (file->is_version_ex_atleast(15, 10))
+						{
+							file->rdwr_long(tmp_comfort_cost);
+						}
 						file->rdwr_short(tmp_best_convoy_idx);
 						file->rdwr_short(tmp_best_line_idx);
 						file->rdwr_short(tmp_alternative_seats);
@@ -4817,6 +4990,10 @@ void haltestelle_t::rdwr(loadsave_t *file)
 					file->rdwr_long(tmp_journey_time);
 					file->rdwr_long(tmp_waiting_time);
 					file->rdwr_long(tmp_transfer_time);
+					if (file->is_version_ex_atleast(15, 10))
+					{
+						file->rdwr_long(tmp_comfort_cost);
+					}
 					file->rdwr_short(tmp_best_convoy_idx);
 					file->rdwr_short(tmp_best_line_idx);
 					file->rdwr_short(tmp_alternative_seats);
@@ -4829,6 +5006,7 @@ void haltestelle_t::rdwr(loadsave_t *file)
 						tmp_cnx.journey_time = tmp_journey_time;
 						tmp_cnx.waiting_time = tmp_waiting_time;
 						tmp_cnx.transfer_time = tmp_transfer_time;
+						tmp_cnx.comfort_cost = tmp_comfort_cost;
 						tmp_cnx.best_line.set_id(tmp_best_line_idx);
 						tmp_cnx.best_convoy.set_id(tmp_best_convoy_idx);
 						tmp_cnx.alternative_seats = tmp_alternative_seats;

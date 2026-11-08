@@ -27,11 +27,10 @@
 
 karte_ptr_t goods_stats_t::welt;
 
-void goods_stats_t::update_goodslist(vector_tpl<const goods_desc_t*>goods, uint32 b, uint32 d, uint8 c, uint8 ct, uint8 gc, uint8 display_mode)
+void goods_stats_t::update_goodslist(vector_tpl<const goods_desc_t*>goods, uint32 b, uint32 d, uint8 ct, uint8 gc, uint8 display_mode)
 {
 	vehicle_speed = b;
 	distance_meters = d;
-	comfort = c;
 	catering_level = ct;
 	g_class = gc;
 
@@ -61,7 +60,7 @@ void goods_stats_t::update_goodslist(vector_tpl<const goods_desc_t*>goods, uint3
 
 			const sint64 journey_tenths = tenths_from_meters_and_kmh(distance_meters, vehicle_speed);
 
-			sint64 revenue = wtyp->get_total_fare(distance_meters, 0u, comfort, catering_level, min(g_class, wtyp->get_number_of_classes() - 1), journey_tenths);
+			sint64 revenue = wtyp->get_total_fare(distance_meters, 0u, 0u, catering_level, min(g_class, wtyp->get_number_of_classes() - 1), journey_tenths);
 
 			// Convert to simucents.  Should be very fast.
 			sint64 price = (revenue + 2048) / 4096;

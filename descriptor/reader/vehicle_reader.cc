@@ -212,6 +212,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				desc->bidirectional = decode_uint8(p);
 				desc->can_lead_from_rear = decode_uint8(p);
 				desc->comfort = new uint8[1];
+				desc->allocate_comfort_time_arrays();
 				desc->comfort[0] = decode_uint8(p);
 				desc->overcrowded_capacity = decode_uint16(p);
 				desc->min_loading_time = desc->max_loading_time = decode_uint16(p);
@@ -329,6 +330,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				desc->bidirectional = decode_uint8(p);
 				desc->can_lead_from_rear = decode_uint8(p);
 				desc->comfort = new uint8[1];
+				desc->allocate_comfort_time_arrays();
 				desc->comfort[0] = decode_uint8(p);
 				desc->overcrowded_capacity = decode_uint16(p);
 				desc->min_loading_time = desc->max_loading_time = decode_uint16(p);
@@ -429,6 +431,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		// Initialise the arrays
 		desc->capacity = new uint16[desc->classes];
 		desc->comfort = new uint8[desc->classes];
+		desc->allocate_comfort_time_arrays();
 
 		for (uint32 i = 0; i < desc->classes; i++)
 		{
@@ -477,7 +480,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->freight_image_type = decode_uint8(p);
 		if(extended)
 		{
-			if(extended_version < 11)
+			if(extended_version <= 11)
 			{
 				// NOTE: Extended version reset to 1 with incrementing of
 				// Standard version to 10.
@@ -643,6 +646,17 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 					// fuel_cell_round_trip_efficiency in vehicle_desc.h.
 					desc->fuel_cell_round_trip_efficiency = decode_uint8(p);
 				}
+				if (extended && extended_version >= 11)
+				{
+					for (uint8 i = 0; i < desc->classes; i++)
+					{
+						desc->maximum_comfortable_journey[i] = decode_uint16(p);
+					}
+					for (uint8 i = 0; i < desc->classes; i++)
+					{
+						desc->maximum_tolerable_journey[i] = decode_uint16(p);
+					}
+				}
 				// We do not need the "else", as all of the new values are header initialised.
 			}
 			else
@@ -730,6 +744,7 @@ obj_desc_t *vehicle_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		desc->bidirectional = false;
 		desc->can_lead_from_rear = false;
 		desc->comfort = new uint8[1];
+		desc->allocate_comfort_time_arrays();
 		desc->comfort[0] = 100;
 		desc->overcrowded_capacity = 0;
 		desc->tractive_effort = 0;

@@ -109,11 +109,11 @@ A good enhancement would be to allow stop and stop extension buildings to specif
 
 Further, stop extension buildings (e.g.  hotels, tea rooms, etc.) ought to be able to earn revenue for every passenger that waits in excess of a certain time. This should not be cumulative: i.e., only one wait based unit of revenue ought to be able to be earned per passenger per stop. This should be based on the tile that gives the highest revenue for which the wait time in question is eligible. This should be based on the actual wait time on departure, not the average waiting time for departures for that convoy or line.
 
-Stop comfort as part of comfort-aware routing (waiting-time multiplier and hard limits): → [comfort-routing](path-explorer-optimisation/comfort-routing.md).
+Stop comfort as part of comfort influenced routing (time-based comfortable and tolerable waiting times, with hard limits): → [comfort-routing](path-explorer-optimisation/comfort-routing.md).
 
-## Comfort-aware routing and fares without comfort or speed weighting
+## Comfort influenced routing and fares without comfort or speed weighting <15>
 
-Vehicle, stop and walking comfort should affect both passengers' route choice and their journey time tolerance; fares should be per unit of distance (with class multipliers), with the speed bonus and the comfort weighting of revenue removed; and the private car alternative should have a comfort rating from the car type chosen for the journey [RECOLLECTION:2026-11-05]. Design, decisions and open questions: [comfort-routing](path-explorer-optimisation/comfort-routing.md).
+Vehicle, stop and walking comfort should affect both passengers' route choice and their journey time tolerance; fares should be per unit of distance (with class multipliers), with the speed bonus and the comfort weighting of revenue removed; and the private car alternative should have a comfort rating from the car type chosen for the journey [RECOLLECTION:2026-11-05]. Design, decisions, implementation status and open questions: [comfort-routing](path-explorer-optimisation/comfort-routing.md).
 
 ## Public player finances and taxation [*S]
 

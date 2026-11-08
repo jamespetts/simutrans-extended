@@ -57,8 +57,8 @@ struct accommodation_info_t
 	uint16 capacity;
 	uint16 count; // total compartments
 	uint8 assingned_class;
-	uint8 min_comfort;
-	uint8 max_comfort;
+	uint16 min_comfortable_journey;
+	uint16 max_comfortable_journey;
 
 	static int compare(const accommodation_info_t & l, const accommodation_info_t &r) {
 		int comp = l.accommodation.catg_index - r.accommodation.catg_index;

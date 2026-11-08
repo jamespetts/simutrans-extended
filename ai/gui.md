@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 5dde53e83
+verified: ex-15 @ f35b6fac7 working tree (settings-tab convention; 2026-11-08)
 ---
 # GUI
 
@@ -52,6 +52,17 @@ rendered-pixel screenshot feedback loop see [gui-visual-feedback](gui/visual-fee
   id; `rdwr_all_win` persists savable windows.
 - components/ holds the widget library: buttons, labels, checkboxes, combo boxes, scroll
   panes, tab panels, charts, list rows, the convoy assembler, and so on.
+
+## Settings dialogue tabs
+
+`settings_frame_t` (gui/settings_frame.cc, gui/settings_stats.*) has the base tabs
+General, Display, Economy, Routing, Extended, Costs and Climate Control. The Extended
+tab has sub-tabs General Ex. and Passengers. Extended-specific settings belong in the
+Extended tab, not in the base tabs: General Ex. for world, physics and maintenance
+settings, and Passengers for passenger generation, comfort, catering and related
+revenue settings. The `INIT_*` and `READ_*` sequences are paired by type (numbers and
+buttons have separate iterators), so adding a control requires the matching reader in
+the same relative order.
 
 ## Actions
 

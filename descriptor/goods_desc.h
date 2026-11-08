@@ -180,9 +180,10 @@ public:
 	uint16 get_speed_bonus() const { return speed_bonus; }
 
 	/*
-	* This gets the total fare taking into account fare stages, comfort and catering, as well as the class
+	* This gets the total fare taking into account fare stages and catering, as well as the class
 	* in which this unit travelled (if relevant for mail and passengers).
-	* The old speed bonus is no longer used here.
+	* The old speed bonus and comfort points are no longer used here; the comfort parameter is
+	* retained only for caller compatibility.
 	*
 	* NOTE: The g_class variable is *not* the class of these passengers/mail, but rather the class of
 	* accommodation in which it/they travelled on its/their journey.

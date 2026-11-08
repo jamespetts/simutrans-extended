@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6447a1d2e
+verified: ex-15 @ f35b6fac7 working tree (target-specific reboarding; 2026-11-08)
 ---
 # Path explorer optimisation: the routing-search engine
 
@@ -19,11 +19,15 @@ join or split) to `compartment_t::full_connexions` before the round's cross-link
 deduplication:
 
 ```
-full_connexion_t { origin_halt_id, target_halt_id, transport_idx, weight }
+full_connexion_t { origin_halt_id, target_halt_id, transport_idx, comfort, weight, journey_time }
 ```
 
 - `transport_idx` is the compact line/convoy index from `transport_index_map`; walking is 0.
-- `weight` is `waiting_time + journey_time + transfer_time`, clamped to `uint32`.
+- `comfort` is the line/convoy's maximum comfortable journey time for the class, or 0
+  when comfort routing is off or the candidate is walking.
+- `weight` is `waiting_time + journey_time + transfer_time + comfort_cost`, clamped to
+  `uint32`.
+- `journey_time` is the actual ride time, used by the reboarding rule.
 - The connexion rebuild deduplicates each halt's `connexions_map` (one best full weight per
   halt pair); that table drives runtime boarding. The full list is the input to the
   routing-search graph.
@@ -37,10 +41,11 @@ On `bb-10-sep-2023.sve`, passenger class 0, the full list has 177,672 candidates
 The graph build creates, once per compartment:
 
 - a per-origin outgoing edge stream (`out_offset` over `out_edges`), with
-  `out_edges[i] = { target halt, transport, weight, target state }`. The build
-  first fills `full_edges`/`out_edge` (edge indices grouped by origin), resolves
-  every edge's target state, then copies the resolved edges into `out_edges` and
-  releases the build arrays, so the search reads one contiguous stream per halt;
+  `out_edges[i] = { target halt, transport, comfort, weight, journey time, target
+  state }`. The build first fills `full_edges`/`out_edge` (edge indices grouped by
+  origin), resolves every edge's target state, then copies the resolved edges into
+  `out_edges`, sorts each halt's slice by transport and then target, and releases
+  the build arrays, so the search reads one contiguous stream per halt;
 - the distinct incoming transport keys per halt, sorted and deduplicated;
 - one state per `(halt, arriving transport)` plus one origin state per halt (arriving
   transport = NONE). `state_key` is a `uint32`; NONE is `0xFFFFFFFF`;
@@ -63,6 +68,10 @@ For each origin `o`:
 3. Pop the lowest `(distance, state)`; skip stale entries. For every outgoing edge of the
    state's halt:
    - skip when `edge.transport == arriving transport` and the transport is not walking;
+   - when comfort routing and vehicle comfort weighting are on, skip an equal- or
+     lower-comfort change when the arriving transport serves the edge's target and the
+     candidate's full weight is not less than the arriving transport's actual remaining
+     ride time to that target (the reboarding rule; → [comfort-routing-model](comfort-routing-model.md));
    - skip when the edge has no valid target state;
    - relax on strict improvement and push the target state.
    The first hop is the edge's target halt when the source is the origin state; otherwise it
@@ -127,6 +136,9 @@ full candidate list, the working matrix and `origin_index`.
   keeps the finished matrix.
 
 ## Measurements
+
+These figures predate the target-specific reboarding sort and comparison; re-measure before
+using them for budget tuning.
 
 `bb-10-sep-2023.sve`, Profile (server) x64, `threads = 4` (three pool threads), full instant
 refresh:

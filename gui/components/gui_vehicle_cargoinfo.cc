@@ -221,28 +221,23 @@ void gui_vehicle_cargo_info_t::update()
 				new_component<gui_empty_t>();
 			}
 
-			// [comfort(pax) / mixload prohibition(freight)]
+			// [comfort times(pax) / mixload prohibition(freight)]
 			if (is_pass_veh) {
-				add_table(3,1);
+				add_table(2,1);
 				{
-					if (is_pass_veh && skinverwaltung_t::comfort) {
-						new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true);
+					if (skinverwaltung_t::comfort) {
+						new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Maximum comfortable and tolerable journey time"));
 					}
+					const uint8 fare_class = veh->get_reassigned_class(ac);
+					const uint8 catering_level = veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS);
+					char comfortable_time[32];
+					char tolerable_time[32];
+					world()->sprintf_time_tenths(comfortable_time, sizeof(comfortable_time), veh->get_maximum_comfortable_journey(fare_class, catering_level));
+					world()->sprintf_time_tenths(tolerable_time, sizeof(tolerable_time), veh->get_maximum_tolerable_journey(fare_class, catering_level));
 					lb = new_component<gui_label_buf_t>();
-					lb->buf().printf("%s %3i", translator::translate("Comfort:"), veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)));
+					lb->buf().printf("%s / %s", comfortable_time, tolerable_time);
+					lb->set_tooltip(translator::translate("Maximum comfortable and tolerable journey time"));
 					lb->update();
-					// Check for reduced comfort
-					const sint64 comfort_diff = veh->get_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS), veh->get_reassigned_class(ac)) - veh->get_desc()->get_adjusted_comfort(veh->get_convoi()->get_catering_level(goods_manager_t::INDEX_PAS),ac);
-					if (comfort_diff!=0) {
-						add_table(2,1)->set_spacing(scr_size(1,0));
-						{
-							new_component<gui_fluctuation_triangle_t>(comfort_diff);
-							lb = new_component<gui_label_buf_t>(comfort_diff>0 ? SYSCOL_UP_TRIANGLE : SYSCOL_DOWN_TRIANGLE, gui_label_t::left);
-							lb->buf().printf("%i", comfort_diff);
-							lb->update();
-						}
-						end_table();
-					}
 				}
 				end_table();
 			}
@@ -251,6 +246,9 @@ void gui_vehicle_cargo_info_t::update()
 				lb->buf().append( translator::translate("(mixed_load_prohibition)") );
 				lb->set_color(color_idx_to_rgb(COL_BRONZE)); // FIXME: color optimization for dark theme
 				lb->update();
+			}
+			else {
+				new_component<gui_empty_t>();
 			}
 
 			new_component<gui_fill_t>();

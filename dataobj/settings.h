@@ -803,6 +803,29 @@ public:
 
 	uint16 max_comfort_preference_percentage;
 
+	// Comfort influenced routing. The individual comfortable and tolerable times
+	// live in the vehicle, building and city-car descriptors. These settings
+	// control how those times are used.
+	bool comfort_routing;
+	bool vehicle_comfort_weighting;
+	bool waiting_comfort_weighting;
+	uint16 max_comfortable_journey_overcrowded; // tenths of minutes
+	uint16 max_comfortable_wait_overcrowded;    // tenths of minutes
+	uint16 comfort_penalty_at_25_percent;
+	uint16 comfort_penalty_at_50_percent;
+	uint16 comfort_penalty_at_75_percent;
+	uint16 comfort_penalty_at_100_percent;
+	// Legacy serialised value from the removed fixed boarding-cost mechanic.
+	// Kept only to preserve the 15.10 settings layout; it is never used.
+	uint16 legacy_comfort_boarding_minutes;
+	piecewise_linear_tpl<uint8, uint16, uint32> comfort_penalty_curve;
+	void cache_comfort_penalty_curve();
+
+	// Returns the extra perceived time in tenths of minutes for a journey that
+	// exceeds the comfortable time, or UINT32_MAX_VALUE if it exceeds the
+	// tolerable time. The actual time is not included in the result.
+	uint32 get_comfort_time_cost(uint32 actual_time, uint16 maximum_comfortable, uint16 maximum_tolerable) const;
+
 	bool rural_industries_no_staff_shortage;
 	uint32 auto_connect_industries_and_attractions_by_road;
 

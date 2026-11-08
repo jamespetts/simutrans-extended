@@ -122,10 +122,10 @@ public:
 	private_car_t(loadsave_t *file);
 
 	/**
-	 * Creates citycar at position given by @p gr.
+	 * Creates citycar at position given by @p gr with the given descriptor.
 	 * Does not add car to the tile!
 	 */
-	private_car_t(grund_t* gr, koord target);
+	private_car_t(grund_t* gr, koord target, const citycar_desc_t *desc);
 
 	virtual ~private_car_t();
 
@@ -166,6 +166,7 @@ public:
 	 */
 	static void build_timeline_list(karte_t *welt);
 	static bool list_empty();
+	static const citycar_desc_t *pick_citycar_desc();
 
 	static bool register_desc(const citycar_desc_t *desc);
 	static bool successfully_loaded();

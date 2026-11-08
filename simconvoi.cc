@@ -2876,43 +2876,98 @@ uint16 convoi_t::get_overcrowded_capacity(uint8 fare_class) const
 	return standing_capacity;
 }
 
-uint8 convoi_t::get_comfort(uint8 g_class, bool check_reassigned) const
+uint16 convoi_t::get_maximum_comfortable_journey(uint8 g_class) const
 {
-	uint32 comfort = 0;
-	uint8 passenger_vehicles = 0;
-	uint16 passenger_seating = 0;
-
-	uint16 capacity;
+	uint32 comfort_sum = 0;
+	uint32 passenger_seating = 0;
 	const uint8 catering_level = get_catering_level(goods_manager_t::INDEX_PAS);
 
-	for(uint8 i = 0; i < vehicle_count; i ++)
+	for (uint8 i = 0; i < vehicle_count; i++)
 	{
-		if (vehicle[i]->get_cargo_type()->get_catg_index() == 0)
+		if (vehicle[i]->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS)
 		{
-			passenger_vehicles++;
-
-			capacity = vehicle[i]->get_accommodation_capacity(g_class);
-			if (check_reassigned)
+			const uint8 effective_class = vehicle[i]->get_effective_fare_class(g_class);
+			if (effective_class == 255)
 			{
-				comfort += vehicle[i]->get_comfort(catering_level, vehicle[i]->get_reassigned_class(g_class)) * capacity;
+				continue;
 			}
-			else
-			{
-				comfort += vehicle[i]->get_comfort(catering_level, g_class) * capacity;
-			}
+			const uint16 capacity = vehicle[i]->get_fare_capacity(effective_class);
+			comfort_sum += (uint32)vehicle[i]->get_maximum_comfortable_journey(g_class, catering_level) * capacity;
 			passenger_seating += capacity;
 		}
 	}
-	if(passenger_vehicles < 1 || passenger_seating < 1)
+
+	return passenger_seating == 0 ? 0 : (uint16)(comfort_sum / passenger_seating);
+}
+
+uint16 convoi_t::get_maximum_tolerable_journey(uint8 g_class) const
+{
+	uint32 comfort_sum = 0;
+	uint32 passenger_seating = 0;
+	const uint8 catering_level = get_catering_level(goods_manager_t::INDEX_PAS);
+
+	for (uint8 i = 0; i < vehicle_count; i++)
 	{
-		// Avoid division if possible
-		return 0;
+		if (vehicle[i]->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS)
+		{
+			const uint8 effective_class = vehicle[i]->get_effective_fare_class(g_class);
+			if (effective_class == 255)
+			{
+				continue;
+			}
+			const uint16 capacity = vehicle[i]->get_fare_capacity(effective_class);
+			comfort_sum += (uint32)vehicle[i]->get_maximum_tolerable_journey(g_class, catering_level) * capacity;
+			passenger_seating += capacity;
+		}
 	}
 
-	// There must be some passenger vehicles if we are here.
-	comfort /= passenger_seating;
+	return passenger_seating == 0 ? 0 : (uint16)(comfort_sum / passenger_seating);
+}
 
-	return comfort;
+uint16 convoi_t::get_mean_maximum_comfortable_journey() const
+{
+	uint32 comfort_sum = 0;
+	uint32 passenger_seating = 0;
+	const uint8 number_of_classes = goods_manager_t::passengers->get_number_of_classes();
+
+	for (uint8 i = 0; i < number_of_classes; i++)
+	{
+		uint32 class_capacity = 0;
+		for (uint8 j = 0; j < vehicle_count; j++)
+		{
+			if (vehicle[j]->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS)
+			{
+				class_capacity += vehicle[j]->get_fare_capacity(i);
+			}
+		}
+		comfort_sum += (uint32)get_maximum_comfortable_journey(i) * class_capacity;
+		passenger_seating += class_capacity;
+	}
+
+	return passenger_seating == 0 ? 0 : (uint16)(comfort_sum / passenger_seating);
+}
+
+uint16 convoi_t::get_mean_maximum_tolerable_journey() const
+{
+	uint32 comfort_sum = 0;
+	uint32 passenger_seating = 0;
+	const uint8 number_of_classes = goods_manager_t::passengers->get_number_of_classes();
+
+	for (uint8 i = 0; i < number_of_classes; i++)
+	{
+		uint32 class_capacity = 0;
+		for (uint8 j = 0; j < vehicle_count; j++)
+		{
+			if (vehicle[j]->get_cargo_type()->get_catg_index() == goods_manager_t::INDEX_PAS)
+			{
+				class_capacity += vehicle[j]->get_fare_capacity(i);
+			}
+		}
+		comfort_sum += (uint32)get_maximum_tolerable_journey(i) * class_capacity;
+		passenger_seating += class_capacity;
+	}
+
+	return passenger_seating == 0 ? 0 : (uint16)(comfort_sum / passenger_seating);
 }
 
 void convoi_t::new_month()
@@ -4871,6 +4926,19 @@ void convoi_t::rdwr(loadsave_t *file)
 					continue;
 				}
 				break;
+			case CONVOI_MAXIMUM_TOLERABLE_JOURNEY:
+				if (!file->is_version_ex_atleast(15, 10))
+				{
+					if (file->is_loading())
+					{
+						for (int k = MAX_MONTHS - 1; k >= 0; k--)
+						{
+							financial_history[k][j] = 0;
+						}
+					}
+					continue;
+				}
+				break;
 			}
 
 			for (int k = MAX_MONTHS-1; k >= 0; k--)
@@ -4905,6 +4973,27 @@ void convoi_t::rdwr(loadsave_t *file)
 					financial_history[k][CONVOI_CAPACITY] += financial_history[k][CONVOI_PAX_DISTANCE];
 				}
 			}
+		}
+	}
+
+	// Before 15.10 the comfort history held comfort points rather than
+	// the maximum comfortable journey time in seconds. Convert the old
+	// values with the current settings, and backfill the new tolerable
+	// history with the convoy's present value.
+	if(  file->is_loading() && file->is_version_ex_less(15,10)  ) {
+		for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+			sint64 comfort_points = financial_history[k][CONVOI_COMFORT];
+			if(  comfort_points < 0  ) {
+				comfort_points = 0;
+			}
+			else if(  comfort_points > 255  ) {
+				comfort_points = 255;
+			}
+			financial_history[k][CONVOI_COMFORT] = (sint64)welt->get_settings().max_tolerable_journey((uint8)comfort_points);
+		}
+		const sint64 tolerable_seconds = (sint64)get_mean_maximum_tolerable_journey() * 6;
+		for (int k = MAX_MONTHS - 1; k >= 0; k--) {
+			financial_history[k][CONVOI_MAXIMUM_TOLERABLE_JOURNEY] = tolerable_seconds;
 		}
 	}
 
@@ -5365,6 +5454,17 @@ void convoi_t::rdwr(loadsave_t *file)
 		{
 			file->rdwr_long(rolling_average[i]);
 			file->rdwr_short(rolling_average_count[i]);
+		}
+		// Rolling averages held comfort points before 15.10. Convert the mean
+		// so that the next sample stays on the same scale.
+		if(  file->is_loading() && file->is_version_ex_less(15,10) && rolling_average_count[CONVOI_COMFORT] > 0  ) {
+			uint32 comfort_points = rolling_average[CONVOI_COMFORT] / rolling_average_count[CONVOI_COMFORT];
+			if(  comfort_points > 255  ) {
+				comfort_points = 255;
+			}
+			const uint64 seconds = welt->get_settings().max_tolerable_journey((uint8)comfort_points);
+			const uint64 total = seconds * (uint64)rolling_average_count[CONVOI_COMFORT];
+			rolling_average[CONVOI_COMFORT] = total > 0xFFFFFFFFull ? 0xFFFFFFFFu : (uint32)total;
 		}
 	}
 	else if(file->is_loading())
@@ -5993,31 +6093,17 @@ void convoi_t::laden() //"load" (Babelfish)
 
 		// TODO: Consider whether to have separate graphs for different classes of comfort.
 
-		const uint8 number_of_classes = goods_manager_t::passengers->get_number_of_classes();
-		sint64 comfort_capacity = 0;
-		uint16 class_capacity;
-		sint64 total_capacity = 0;
+		// The chart stores seconds, so convert the tenths of minutes.
+		const sint64 comfortable_seconds = (sint64)get_mean_maximum_comfortable_journey() * 6;
+		const sint64 tolerable_seconds = (sint64)get_mean_maximum_tolerable_journey() * 6;
 
-		for (uint8 i = 0; i < number_of_classes; i++)
+		if (comfortable_seconds != 0)
 		{
-			class_capacity = 0;
-			for (uint8 j = 0; j < vehicle_count; j++)
-			{
-				if (vehicle[j]->get_cargo_type()->get_catg_index() == 0)
-				{
-					class_capacity += vehicle[j]->get_accommodation_capacity(i);
-				}
-			}
-			total_capacity += class_capacity;
-			const uint8 comfort = get_comfort(i, true);
-			comfort_capacity += (comfort * class_capacity);
+			book(comfortable_seconds, CONVOI_COMFORT);
 		}
-
-		const sint64 comfort = total_capacity > 0 ? comfort_capacity / total_capacity : 0;
-
-		if (comfort)
+		if (tolerable_seconds != 0)
 		{
-			book(comfort, CONVOI_COMFORT);
+			book(tolerable_seconds, CONVOI_MAXIMUM_TOLERABLE_JOURNEY);
 		}
 
 		for(auto iter : departures)
@@ -6208,15 +6294,9 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
 	sint64 fare;
 	if (ware.is_passenger())
 	{
-		// First get our comfort.
-		// Note: This takes into account overcrowding.
-		const uint8 comfort = get_comfort(g_class);
-
-		// Now, get our catering level.
+		// Comfort no longer affects fares; the comfort parameter is legacy.
 		const uint8 catering_level = get_catering_level(goods->get_catg_index());
-
-		// Finally, get the fare.
-		fare = goods->get_total_fare(revenue_distance_meters, starting_distance_meters, comfort, catering_level, g_class, journey_tenths);
+		fare = goods->get_total_fare(revenue_distance_meters, starting_distance_meters, 0u, catering_level, g_class, journey_tenths);
 
 		// add transportation measurement to statistics
 		// passenger-km(x10 for precision)
@@ -6832,7 +6912,7 @@ void convoi_t::book(sint64 amount, convoi_cost_t cost_type)
 {
 	assert(  cost_type<MAX_CONVOI_COST);
 
-	if(cost_type != CONVOI_AVERAGE_SPEED && cost_type != CONVOI_COMFORT)
+	if(cost_type != CONVOI_AVERAGE_SPEED && cost_type != CONVOI_COMFORT && cost_type != CONVOI_MAXIMUM_TOLERABLE_JOURNEY)
 	{
 		// Summative types
 		financial_history[0][cost_type] += amount;
@@ -6850,7 +6930,7 @@ void convoi_t::book(sint64 amount, convoi_cost_t cost_type)
 		const sint64 tmp = (sint64)rolling_average[cost_type] / (sint64)rolling_average_count[cost_type];
 		financial_history[0][cost_type] = tmp;
 	}
-	if (line.is_bound())
+	if (line.is_bound() && cost_type != CONVOI_MAXIMUM_TOLERABLE_JOURNEY)
 	{
 		line->book(amount, simline_t::convoi_to_line_catgory(cost_type) );
 	}

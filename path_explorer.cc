@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
 
 #include "tpl/slist_tpl.h"
 #include "dataobj/translator.h"
@@ -19,6 +20,7 @@
 #include "dataobj/environment.h"
 #include "dataobj/schedule.h"
 #include "simconvoi.h"
+#include "simline.h"
 #include "simloadingscreen.h"
 
 
@@ -43,6 +45,94 @@ uint32 path_explorer_t::compartment_t::time_lower_limit;
 uint32 path_explorer_t::compartment_t::time_upper_limit;
 uint32 path_explorer_t::compartment_t::time_threshold;
 bool path_explorer_t::must_refresh_on_loading;
+
+
+static uint16 get_linkage_maximum_comfortable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class)
+{
+	if (line.is_bound())
+	{
+		uint32 sum = 0;
+		uint32 count = 0;
+		for (convoihandle_t const &line_convoy : line->get_convoys())
+		{
+			if (line_convoy.is_bound())
+			{
+				const uint16 value = line_convoy->get_maximum_comfortable_journey(g_class);
+				if (value > 0)
+				{
+					sum += value;
+					count++;
+				}
+			}
+		}
+		return count == 0 ? 0 : (uint16)(sum / count);
+	}
+	if (convoy.is_bound())
+	{
+		return convoy->get_maximum_comfortable_journey(g_class);
+	}
+	return 0;
+}
+
+static uint16 get_linkage_maximum_tolerable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class)
+{
+	if (line.is_bound())
+	{
+		uint32 sum = 0;
+		uint32 count = 0;
+		for (convoihandle_t const &line_convoy : line->get_convoys())
+		{
+			if (line_convoy.is_bound())
+			{
+				const uint16 value = line_convoy->get_maximum_tolerable_journey(g_class);
+				if (value > 0)
+				{
+					sum += value;
+					count++;
+				}
+			}
+		}
+		return count == 0 ? 0 : (uint16)(sum / count);
+	}
+	if (convoy.is_bound())
+	{
+		return convoy->get_maximum_tolerable_journey(g_class);
+	}
+	return 0;
+}
+
+// Fills comfort_cost and returns false if an edge is removed by a hard limit.
+static bool get_connexion_comfort_cost(uint32 waiting_time, uint32 journey_time,
+	uint16 maximum_comfortable_wait, uint16 maximum_tolerable_wait,
+	uint16 maximum_comfortable_journey, uint16 maximum_tolerable_journey,
+	uint8 catg, uint32 &comfort_cost)
+{
+	comfort_cost = 0;
+	const settings_t &settings = path_explorer_t::get_world()->get_settings();
+	if (!settings.comfort_routing || catg != goods_manager_t::passengers->get_catg_index())
+	{
+		return true;
+	}
+	if (settings.waiting_comfort_weighting)
+	{
+		const uint32 waiting_cost = settings.get_comfort_time_cost(waiting_time, maximum_comfortable_wait, maximum_tolerable_wait);
+		if (waiting_cost == UINT32_MAX_VALUE)
+		{
+			return false;
+		}
+		comfort_cost += waiting_cost;
+	}
+	if (settings.vehicle_comfort_weighting)
+	{
+		const uint32 journey_cost = settings.get_comfort_time_cost(journey_time, maximum_comfortable_journey, maximum_tolerable_journey);
+		if (journey_cost == UINT32_MAX_VALUE)
+		{
+			return false;
+		}
+		comfort_cost += journey_cost;
+	}
+	return true;
+}
 
 #ifdef MULTI_THREAD
 bool thread_local path_explorer_t::allow_path_explorer_on_this_thread = false;
@@ -207,13 +297,10 @@ void path_explorer_t::rdwr(loadsave_t* file)
 			uint32 tmp_journey_time;
 			uint32 tmp_waiting_time;
 			uint32 tmp_transfer_time;
+			uint32 tmp_comfort_cost = 0;
 			uint16 tmp_best_line_idx;
 			uint16 tmp_best_convoy_idx;
 			uint16 tmp_alternative_seats;
-			// TODO: Consider whether to add comfort.
-			// Probably the best thing to do with comfort is have it modify the journey, waiting and transfer times:
-			// these would then be weights instead of times and be a composite value if comfort influenced routing
-			// were enabled.
 
 			uint32 connexion_table_count = compartment_t::connexion_list[i].connexion_table->get_count();
 			file->rdwr_long(connexion_table_count);
@@ -226,6 +313,7 @@ void path_explorer_t::rdwr(loadsave_t* file)
 				tmp_journey_time = cnx.journey_time;
 				tmp_waiting_time = cnx.waiting_time;
 				tmp_transfer_time = cnx.transfer_time;
+				tmp_comfort_cost = cnx.comfort_cost;
 				tmp_best_line_idx = cnx.best_line.get_id();
 				tmp_best_convoy_idx = cnx.best_convoy.get_id();
 				tmp_alternative_seats = cnx.alternative_seats;
@@ -233,6 +321,10 @@ void path_explorer_t::rdwr(loadsave_t* file)
 				file->rdwr_long(tmp_journey_time);
 				file->rdwr_long(tmp_waiting_time);
 				file->rdwr_long(tmp_transfer_time);
+				if (file->is_version_ex_atleast(15, 10))
+				{
+					file->rdwr_long(tmp_comfort_cost);
+				}
 				file->rdwr_short(tmp_best_line_idx);
 				file->rdwr_short(tmp_best_convoy_idx);
 				file->rdwr_short(tmp_alternative_seats);
@@ -257,14 +349,18 @@ void path_explorer_t::rdwr(loadsave_t* file)
 				uint32 tmp_journey_time;
 				uint32 tmp_waiting_time;
 				uint32 tmp_transfer_time;
+				uint32 tmp_comfort_cost = 0;
 				uint16 tmp_best_line_idx;
 				uint16 tmp_best_convoy_idx;
 				uint16 tmp_alternative_seats;
-				// TODO: Consider whether to add comfort
 
 				file->rdwr_long(tmp_journey_time);
 				file->rdwr_long(tmp_waiting_time);
 				file->rdwr_long(tmp_transfer_time);
+				if (file->is_version_ex_atleast(15, 10))
+				{
+					file->rdwr_long(tmp_comfort_cost);
+				}
 				file->rdwr_short(tmp_best_line_idx);
 				file->rdwr_short(tmp_best_convoy_idx);
 				file->rdwr_short(tmp_alternative_seats);
@@ -272,6 +368,7 @@ void path_explorer_t::rdwr(loadsave_t* file)
 				tmp_cnx.journey_time = tmp_journey_time;
 				tmp_cnx.waiting_time = tmp_waiting_time;
 				tmp_cnx.transfer_time = tmp_transfer_time;
+				tmp_cnx.comfort_cost = tmp_comfort_cost;
 				tmp_cnx.best_line.set_id(tmp_best_line_idx);
 				tmp_cnx.best_convoy.set_id(tmp_best_convoy_idx);
 				tmp_cnx.alternative_seats = tmp_alternative_seats;
@@ -729,6 +826,8 @@ path_explorer_t::compartment_t::compartment_t()
 	state_offset = NULL;
 	state_halt = NULL;
 	state_key = NULL;
+	transport_comfort = NULL;
+	state_arriving_continues = NULL;
 	state_count = 0;
 	thread_dist = NULL;
 	thread_first_hop = NULL;
@@ -1439,6 +1538,9 @@ void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &cur
 				continue;
 			}
 
+			const uint16 through_maximum_comfortable_journey = get_linkage_maximum_comfortable_journey(source_linkage.line, source_linkage.convoy, g_class);
+			const uint16 through_maximum_tolerable_journey = get_linkage_maximum_tolerable_journey(source_linkage.line, source_linkage.convoy, g_class);
+
 			vector_tpl<through_stop_t> upstream(8);
 			vector_tpl<through_stop_t> downstream(8);
 			collect_upstream_stops(source_linkage, source_schedule, source_entry_index, source_reverse, upstream);
@@ -1481,6 +1583,13 @@ void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &cur
 					new_connexion.best_line = source_linkage.line;
 					new_connexion.best_convoy = source_linkage.convoy;
 					new_connexion.alternative_seats = 0;
+					if (!get_connexion_comfort_cost(new_connexion.waiting_time, new_connexion.journey_time,
+						origin.halt->get_maximum_comfortable_wait(g_class), origin.halt->get_maximum_tolerable_wait(g_class),
+						through_maximum_comfortable_journey, through_maximum_tolerable_journey,
+						catg, new_connexion.comfort_cost))
+					{
+						continue;
+					}
 					add_full_connexion(origin.halt, destination.halt, new_connexion);
 					haltestelle_t::connexion *existing_connexion = table->get(destination.halt);
 					if (existing_connexion == NULL)
@@ -1503,7 +1612,8 @@ void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &cur
 uint32 path_explorer_t::compartment_t::get_connexion_weight(const haltestelle_t::connexion &cnx)
 {
 	const uint64 weight = static_cast<uint64>(cnx.waiting_time)
-		+ static_cast<uint64>(cnx.journey_time) + static_cast<uint64>(cnx.transfer_time);
+		+ static_cast<uint64>(cnx.journey_time) + static_cast<uint64>(cnx.transfer_time)
+		+ static_cast<uint64>(cnx.comfort_cost);
 	return weight > static_cast<uint64>(UINT32_MAX_VALUE) ? UINT32_MAX_VALUE : static_cast<uint32>(weight);
 }
 
@@ -1534,7 +1644,17 @@ void path_explorer_t::compartment_t::add_full_connexion(const halthandle_t origi
 		fc.transport_idx = 0;
 	}
 
+	fc.comfort = 0;
+	if (get_world()->get_settings().comfort_routing
+		&& get_world()->get_settings().vehicle_comfort_weighting
+		&& catg == goods_manager_t::passengers->get_catg_index()
+		&& (cnx.best_line.is_bound() || cnx.best_convoy.is_bound()))
+	{
+		fc.comfort = get_linkage_maximum_comfortable_journey(cnx.best_line, cnx.best_convoy, g_class);
+	}
+
 	fc.weight = get_connexion_weight(cnx);
+	fc.journey_time = cnx.journey_time;
 	full_connexions.append(fc);
 }
 
@@ -1555,6 +1675,10 @@ void path_explorer_t::compartment_t::clear_search_graph()
 	state_halt = NULL;
 	delete[] state_key;
 	state_key = NULL;
+	delete[] transport_comfort;
+	transport_comfort = NULL;
+	delete[] state_arriving_continues;
+	state_arriving_continues = NULL;
 	full_edge_count = 0;
 	state_count = 0;
 }
@@ -1652,7 +1776,9 @@ void path_explorer_t::compartment_t::build_search_graph()
 		}
 		full_edges[e].target = target;
 		full_edges[e].transport = fc.transport_idx;
+		full_edges[e].comfort = fc.comfort;
 		full_edges[e].weight = fc.weight;
+		full_edges[e].journey_time = fc.journey_time;
 		full_edges[e].target_state = 0xFFFFFFFFu;
 		out_edge[ cursor[origin]++ ] = e;
 		++e;
@@ -1721,6 +1847,25 @@ void path_explorer_t::compartment_t::build_search_graph()
 	}
 	state_halt = new uint16[ state_count > 0 ? state_count : 1 ];
 	state_key = new uint32[ state_count > 0 ? state_count : 1 ];
+
+	uint32 max_transport_idx = 0;
+	for ( uint32 i = 0; i < fc_count; ++i )
+	{
+		if ( full_connexions[i].transport_idx > max_transport_idx )
+		{
+			max_transport_idx = full_connexions[i].transport_idx;
+		}
+	}
+	transport_comfort = new uint16[ max_transport_idx + 1 ]();
+	for ( uint32 i = 0; i < fc_count; ++i )
+	{
+		const full_connexion_t &fc = full_connexions[i];
+		if ( fc.transport_idx != 0 && fc.comfort > transport_comfort[ fc.transport_idx ] )
+		{
+			transport_comfort[ fc.transport_idx ] = fc.comfort;
+		}
+	}
+
 	for ( uint32 h = 0; h < H; ++h )
 	{
 		uint32 s = state_offset[h];
@@ -1770,6 +1915,55 @@ void path_explorer_t::compartment_t::build_search_graph()
 	delete[] out_edge;
 	out_edge = NULL;
 
+	// Sort each halt's outgoing edges by transport and then target. The
+	// reboarding rule needs the arriving transport's edge to a given target
+	// without scanning the whole out-edge list.
+	for ( uint32 h = 0; h < H; ++h )
+	{
+		std::sort(out_edges + out_offset[h], out_edges + out_offset[ h + 1 ],
+			[](const full_edge_t &a, const full_edge_t &b)
+			{
+				if ( a.transport != b.transport )
+				{
+					return a.transport < b.transport;
+				}
+				if ( a.target != b.target )
+				{
+					return a.target < b.target;
+				}
+				// Total order for determinism across standard libraries. The
+				// shortest remaining ride is first, so the reboarding lookup
+				// uses the most conservative stay option.
+				if ( a.journey_time != b.journey_time )
+				{
+					return a.journey_time < b.journey_time;
+				}
+				return a.weight < b.weight;
+			});
+	}
+
+	// Quick check for the comfort reboarding rule: whether the arriving
+	// transport has any outgoing edge at this halt. The target-specific
+	// comparison is in reboarding_blocked().
+	state_arriving_continues = new uint8[ state_count > 0 ? state_count : 1 ]();
+	for ( uint32 s = 0; s < state_count; ++s )
+	{
+		const uint32 arriving = state_key[s];
+		if ( arriving == 0xFFFFFFFFu )
+		{
+			continue;
+		}
+		const uint32 h = state_halt[s];
+		for ( uint32 i = out_offset[h]; i < out_offset[ h + 1 ]; ++i )
+		{
+			if ( out_edges[i].transport == arriving )
+			{
+				state_arriving_continues[s] = 1;
+				break;
+			}
+		}
+	}
+
 	// Transfer list, retained for the diagnostic counters and the checklist.
 	if ( transfer_list == NULL )
 	{
@@ -1800,6 +1994,43 @@ void path_explorer_t::compartment_t::build_search_graph()
 }
 
 
+bool path_explorer_t::compartment_t::reboarding_blocked(const uint32 halt, const uint32 arriving, const uint32 target, const uint32 candidate_weight) const
+{
+	// out_edges is sorted by transport and then target.
+	uint32 low = out_offset[halt];
+	uint32 high = out_offset[ halt + 1 ];
+	while ( low < high )
+	{
+		const uint32 mid = (low + high) / 2;
+		if ( out_edges[mid].transport < arriving )
+		{
+			low = mid + 1;
+		}
+		else
+		{
+			high = mid;
+		}
+	}
+	const uint32 end = out_offset[ halt + 1 ];
+	for ( uint32 i = low; i < end && out_edges[i].transport == arriving; ++i )
+	{
+		if ( out_edges[i].target == target )
+		{
+			// Compare the candidate's full perceived cost (waiting, transfer
+			// and comfort-adjusted ride) with the arriving transport's
+			// actual remaining ride time. The latter has no comfort surcharge,
+			// so this is conservative: if the candidate is not cheaper even on
+			// that basis, the only reason to change would be to reset the
+			// comfort clock.
+			return candidate_weight >= out_edges[i].journey_time;
+		}
+	}
+	// The arriving transport does not serve this target, so the change is
+	// necessary rather than a comfort-clock reset.
+	return false;
+}
+
+
 // One per-origin Dijkstra over the expanded state graph, writing one matrix
 // row.
 void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint32 thread_index)
@@ -1810,6 +2041,7 @@ void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint3
 	}
 
 	const uint32 S = state_count;
+	const bool apply_comfort_reboarding = get_world()->get_settings().comfort_routing && get_world()->get_settings().vehicle_comfort_weighting;
 	uint32 *const dist = thread_dist + static_cast<size_t>(thread_index) * S;
 	uint16 *const first_hop = thread_first_hop + static_cast<size_t>(thread_index) * S;
 	binary_heap_tpl<heap_item_t> &heap = heaps[thread_index];
@@ -1844,6 +2076,18 @@ void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint3
 			const full_edge_t &edge = out_edges[i];
 			if ( edge.transport == arriving && edge.transport != 0 )
 			{
+				continue;
+			}
+			if ( apply_comfort_reboarding
+				&& arriving != 0 && arriving != 0xFFFFFFFFu
+				&& edge.transport != 0
+				&& state_arriving_continues[s]
+				&& edge.comfort <= transport_comfort[arriving]
+				&& reboarding_blocked(h, arriving, edge.target, edge.weight) )
+			{
+				// The arriving transport serves this target and the candidate is
+				// not cheaper on an actual-time basis, so changing would only
+				// reset the comfort clock.
 				continue;
 			}
 			if ( edge.target_state == 0xFFFFFFFFu || d > UINT32_MAX_VALUE - edge.weight )
@@ -2040,6 +2284,7 @@ void path_explorer_t::compartment_t::step()
 					new_connexion.best_convoy = convoihandle_t();
 					new_connexion.best_line = linehandle_t();
 					new_connexion.journey_time = journey_time;
+					new_connexion.comfort_cost = 0;
 					new_connexion.alternative_seats = 0;
 					add_full_connexion(all_halts_list[i], walking_distance_halt, new_connexion);
 
@@ -2501,6 +2746,9 @@ void path_explorer_t::compartment_t::step()
 					}
 				}
 
+				const uint16 linkage_maximum_comfortable_journey = get_linkage_maximum_comfortable_journey(current_linkage.line, current_linkage.convoy, g_class);
+				const uint16 linkage_maximum_tolerable_journey = get_linkage_maximum_tolerable_journey(current_linkage.line, current_linkage.convoy, g_class);
+
 				for (uint8 h = 0; h < entry_count; ++h)
 				{
 					if (this_compartment_affected_by_consist_orders)
@@ -2536,6 +2784,9 @@ void path_explorer_t::compartment_t::step()
 					catg_connexions = connexion_list[ halt_list[h].get_id() ].connexion_table;
 					// any serving line/lineless convoy increments serving transport count
 					++connexion_list[ halt_list[h].get_id() ].serving_transport;
+
+					const uint16 origin_maximum_comfortable_wait = halt_list[h]->get_maximum_comfortable_wait(g_class);
+					const uint16 origin_maximum_tolerable_wait = halt_list[h]->get_maximum_tolerable_wait(g_class);
 
 					uint8 last_consist_order_stop_point_t = last_consist_order_stop_point_h;
 					uint8 last_consist_order_start_point_t = last_consist_order_start_point_h;
@@ -2631,6 +2882,13 @@ void path_explorer_t::compartment_t::step()
 							new_connexion.best_convoy = current_linkage.convoy;
 							new_connexion.best_line = current_linkage.line;
 							new_connexion.alternative_seats = 0;
+							if (!get_connexion_comfort_cost(new_connexion.waiting_time, new_connexion.journey_time,
+								origin_maximum_comfortable_wait, origin_maximum_tolerable_wait,
+								linkage_maximum_comfortable_journey, linkage_maximum_tolerable_journey,
+								catg, new_connexion.comfort_cost))
+							{
+								continue;
+							}
 							add_full_connexion(halt_list[h], halt_list[t], new_connexion);
 
 							// Check whether this is the best connexion so far, and, if so, add it.

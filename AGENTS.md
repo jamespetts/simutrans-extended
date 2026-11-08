@@ -83,6 +83,13 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
 13. All autonomously started game/binary test runs must pass the `-nomidi` flag,
     unless the task specifically concerns music or sound. Background music from
     unattended runs disturbs the user's work.
+14. Do not add a mechanic that affects game state or economics in a way that does not
+    correspond to a real quantity or process. Do not introduce an arbitrary tuning value
+    that is presented as, or used like, a real quantity. If a mechanic is needed but cannot
+    be grounded in a real quantity or process, do not implement it silently: present it to
+    the user as a proposed exception, state explicitly that it does not model a real
+    quantity and that implementing it would breach the realism principle in
+    `ai/high-level-design-goals.md`, and obtain a user decision before writing it.
 
 
 ## Commit messages

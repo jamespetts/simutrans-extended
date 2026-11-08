@@ -57,6 +57,15 @@ not a style choice. Short-form reminders: [project-notes](project-notes.md).
    the established pattern. Per-thread-class mutation inventory → [threading](threading.md)
    [CODE master @ 78a4bb3b9; RECOLLECTION:2026-09-07].
 
+9. **No arbitrary mechanics.** A mechanic that affects game state or economics must model a
+   real quantity or process. Do not introduce an arbitrary tuning value as though it were a
+   real quantity, and do not use such a value to shape behaviour silently. If no real quantity
+   exists, propose the mechanic to the user as an explicit exception, state that it is not a
+   real cost or quantity and that implementing it would breach the realism principle, and
+   obtain a decision before implementing it. This is the code-level form of the realism
+   principle in [high-level-design-goals](high-level-design-goals.md): players should be able
+   to reason from the real situation, not from game mechanics. [RECOLLECTION:2026-11-08]
+
 ## Candidate constraints (verify before promoting)
 
 (None.)
@@ -68,7 +77,8 @@ constraints 5–7 verified on master @ 78a4bb3b9 — the underlying files (utils
 dataobj/translator.*, tpl/quickstone_tpl.h, utils/float32e8_t.h) are identical on both
 branches [CODE]. Constraint 8 rests on the 2026-09-07 code inventory of non-main-thread
 mutations recorded in [threading](threading.md) (threading model identical on both branches —
-provenance there). Remaining content is user-sourced.
+provenance there). Constraint 9 is a user instruction of 2026-11-08. Remaining content is
+user-sourced.
 
 ## Open questions
 

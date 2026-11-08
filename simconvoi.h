@@ -86,7 +86,8 @@ public:
 		CONVOI_WAYTOLL,             //  9 | 7 |
 		CONVOI_MAIL_DISTANCE,       // 10 |   | the distance (km) travelled by mail
 		CONVOI_PAYLOAD_DISTANCE,    // 11 |   | moving 1 ton of cargo a distance of 1 km
-		MAX_CONVOI_COST             // 12 | 8 |
+		CONVOI_MAXIMUM_TOLERABLE_JOURNEY, // 12 | | the maximum tolerable journey time in seconds
+		MAX_CONVOI_COST             // 13 | 8 |
 	};
 
 	/** Constants */
@@ -1536,10 +1537,12 @@ public:
 	// Returns only the overcrowded capacity for the specified fare class
 	uint16 get_overcrowded_capacity(uint8 fare_class) const;
 
-	// @author: jamespetts
-	// Returns the average comfort of this convoy,
-	// taking into account any catering.
-	uint8 get_comfort(uint8 g_class, bool check_reassigned = false) const;
+	// Time-based comfort in tenths of minutes for the given class.
+	uint16 get_maximum_comfortable_journey(uint8 g_class) const;
+	uint16 get_maximum_tolerable_journey(uint8 g_class) const;
+	// Capacity-weighted means over all passenger classes, for display.
+	uint16 get_mean_maximum_comfortable_journey() const;
+	uint16 get_mean_maximum_tolerable_journey() const;
 
 	/** This method calculates the revenue of each
 	 * ware packet as it is unloaded.

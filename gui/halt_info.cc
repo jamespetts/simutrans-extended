@@ -11,6 +11,8 @@
 
 #include "../simworld.h"
 #include "../simware.h"
+#include "../obj/gebaeude.h"
+#include "../descriptor/building_desc.h"
 #include "../simcolor.h"
 #include "../simconvoi.h"
 #include "../simintr.h"
@@ -621,6 +623,41 @@ void halt_info_t::init(halthandle_t halt)
 
 			// capacities
 			add_component(&waiting_bar);
+			new_component<gui_margin_t>(0, LINESPACE/4);
+
+			// time-based passenger comfort and any non-zero facility capacity
+			if (halt->is_enabled(goods_manager_t::INDEX_PAS))
+			{
+				const uint8 g_class = goods_manager_t::get_classes_catg_index(goods_manager_t::INDEX_PAS) - 1;
+				char comfortable_wait[32];
+				char tolerable_wait[32];
+				welt->sprintf_time_tenths(comfortable_wait, sizeof(comfortable_wait), halt->get_maximum_comfortable_wait(g_class));
+				welt->sprintf_time_tenths(tolerable_wait, sizeof(tolerable_wait), halt->get_maximum_tolerable_wait(g_class));
+
+				uint16 comfort_capacity = 0;
+				for (haltestelle_t::tile_t const &tile : halt->get_tiles())
+				{
+					const gebaeude_t *building = tile.grund->get_building();
+					if (building == NULL)
+					{
+						continue;
+					}
+					const building_desc_t *desc = building->get_tile()->get_desc();
+					if (desc != NULL && (desc->get_enabled() & haltestelle_t::PAX) != 0 && desc->get_comfort_capacity() > comfort_capacity)
+					{
+						comfort_capacity = desc->get_comfort_capacity();
+					}
+				}
+
+				lb_comfort.buf().printf(translator::translate("Comfort: %s comfortable, %s tolerable"), comfortable_wait, tolerable_wait);
+				if (comfort_capacity > 0)
+				{
+					lb_comfort.buf().printf(translator::translate(", capacity %u"), comfort_capacity);
+				}
+				lb_comfort.update();
+				add_component(&lb_comfort);
+			}
+
 			new_component<gui_margin_t>(0, LINESPACE/4);
 
 			// evaluations

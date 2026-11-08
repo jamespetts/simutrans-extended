@@ -146,6 +146,7 @@ private:
 	gui_image_t img_enable[2];
 	gui_image_t img_loose_vehicles;
 	gui_label_buf_t lb_loose_vehicles;
+	gui_label_buf_t lb_comfort;
 	gui_halt_type_images_t *img_types;
 	gui_combobox_t db_mode_selector;
 

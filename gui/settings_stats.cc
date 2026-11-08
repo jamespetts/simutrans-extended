@@ -506,6 +506,7 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 
 	add_table(2, 0);
 	SEPERATOR;
+	INIT_BOOL("comfort_routing", sets->comfort_routing);
 	INIT_NUM("max_comfort_preference_percentage", sets->get_max_comfort_preference_percentage(), 100, 65535, gui_numberinput_t::AUTOLINEAR, false);
 	end_table();
 
@@ -519,7 +520,7 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 void settings_extended_revenue_stats_t::read(settings_t *sets)
 {
 	READ_INIT
-	(void)booliter;
+	const bool old_comfort_routing = sets->comfort_routing;
 
 	READ_NUM_VALUE( sets->passenger_trips_per_month_hundredths );
 	READ_NUM_VALUE( sets->mail_packets_per_month_hundredths );
@@ -573,12 +574,20 @@ void settings_extended_revenue_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE( sets->catering_level5_minutes );
 	READ_NUM_VALUE( sets->catering_level5_max_revenue );
 
+	READ_BOOL_VALUE(sets->comfort_routing);
 	READ_NUM_VALUE(sets->max_comfort_preference_percentage);
 	READ_BOOL_VALUE(sets->simplified_maintenance);
 
 	// And convert to the form used in-game...
 	sets->cache_catering_revenues();
 	sets->cache_comfort_tables();
+
+	if (old_comfort_routing != sets->comfort_routing)
+	{
+		// Comfort routing changes every edge weight, so the route tables must
+		// be rebuilt.
+		path_explorer_t::refresh_all_categories(false);
+	}
 }
 
 bool settings_general_stats_t::action_triggered(gui_action_creator_t *comp, value_t v)

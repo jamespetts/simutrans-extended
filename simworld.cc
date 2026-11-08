@@ -6337,6 +6337,19 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 	// QUERY: Should people be taken to be able to deliver mail packets in their own cars?
 	bool has_private_car = private_car_percent > 0 ? simrand(100, "karte_t::generate_passengers_and_mail() (has private car?)") <= (uint16)private_car_percent : false;
 
+	// Pick the car type once for the whole packet, and only when the packet
+	// actually has access to a private car. The draw happens before the mode
+	// choice and must not depend on its outcome, so every peer consumes the
+	// same random values.
+	const citycar_desc_t *packet_car_type = NULL;
+	if (has_private_car)
+	{
+		packet_car_type = private_car_t::pick_citycar_desc();
+		// TODO: Make the private car type choice class-based (by passenger wealth)
+		// rather than one type for the whole packet. This needs separate car-type
+		// pools per class in the pakset before it is viable.
+	}
+
 	// Record the most useful set of information about why passengers cannot reach their chosen destination:
 	// Too slow > overcrowded > no route. Tiebreaker: higher destination preference.
 	koord best_bad_destination;
@@ -6609,6 +6622,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 		}
 
 		uint32 car_minutes = UINT32_MAX_VALUE;
+		uint32 car_perceived_minutes = UINT32_MAX_VALUE;
 
 		best_bad_destination = first_destination.location;
 		best_bad_start_halt = 0;
@@ -7085,9 +7099,28 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				}
 			}
 
+			// The private car journey uses the same comfort curve as public
+			// transport. Above the car type's tolerable time, the car is
+			// unavailable.
+			car_perceived_minutes = car_minutes;
+			if(car_minutes < UINT32_MAX_VALUE && settings.comfort_routing && settings.vehicle_comfort_weighting)
+			{
+				const uint16 maximum_comfortable_journey = packet_car_type != NULL ? packet_car_type->get_maximum_comfortable_journey() : 1800;
+				const uint16 maximum_tolerable_journey = packet_car_type != NULL ? packet_car_type->get_maximum_tolerable_journey() : 5400;
+				const uint32 extra_cost = settings.get_comfort_time_cost(car_minutes, maximum_comfortable_journey, maximum_tolerable_journey);
+				if(extra_cost == UINT32_MAX_VALUE)
+				{
+					car_perceived_minutes = UINT32_MAX_VALUE;
+				}
+				else
+				{
+					car_perceived_minutes = extra_cost > UINT32_MAX_VALUE - car_minutes ? UINT32_MAX_VALUE - 1 : car_minutes + extra_cost;
+				}
+			}
+
 			// Cannot be <=, as mail has a tolerance of UINT32_MAX_VALUE, which is used as the car_minutes when
 			// a private car journey is not possible.
-			if(car_minutes < tolerance)
+			if(car_perceived_minutes < tolerance)
 			{
 				const uint32 private_car_chance = simrand(100, "void stadt_t::generate_passengers_and_mail() (private car distribution_weight?)");
 
@@ -7096,7 +7129,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					// The passengers can get to their destination by car but not by public transport.
 					// Therefore, they will always use their car unless it is faster to walk and they
 					// are not people who always prefer to use the car.
-					if(car_minutes > walking_time && can_walk && walking_time <= walking_time_preference_threshold && private_car_chance > settings.get_always_prefer_car_percent())
+					if(car_perceived_minutes > walking_time && can_walk && walking_time <= walking_time_preference_threshold && private_car_chance > settings.get_always_prefer_car_percent())
 					{
 						// If walking is faster than taking the car, and the walking time is below passengers'
 						// walking time preference threshold, passengers will walk.
@@ -7107,12 +7140,12 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 						route_status = private_car;
 					}
 				}
-				else if(private_car_chance <= settings.get_always_prefer_car_percent() || car_minutes <= best_journey_time)
+				else if(private_car_chance <= settings.get_always_prefer_car_percent() || car_perceived_minutes <= best_journey_time)
 				{
 					route_status = private_car;
 				}
 			}
-			else if(car_minutes != UINT32_MAX_VALUE)
+			else if(car_minutes != UINT32_MAX_VALUE && route_status != public_transport && route_status != on_foot)
 			{
 				route_status = too_slow;
 
@@ -7216,8 +7249,8 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 
 			if(tolerance < UINT32_MAX_VALUE)
 			{
-				tolerance -= car_minutes;
-				walking_tolerance -= car_minutes;
+				tolerance -= car_perceived_minutes;
+				walking_tolerance -= car_perceived_minutes;
 			}
 
 			destination_town = current_destination.type == town ? current_destination.building->get_stadt() : NULL;
@@ -7225,7 +7258,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 			{
 				// Make sure to normalise the destination for attractions
 				const koord adjusted_destination_pos = current_destination.building->get_first_tile()->get_pos().get_2d();
-				city->generate_private_cars(origin_pos.get_2d(), car_minutes, adjusted_destination_pos, units_this_step);
+				city->generate_private_cars(origin_pos.get_2d(), car_minutes, adjusted_destination_pos, units_this_step, packet_car_type);
 				if(wtyp == goods_manager_t::passengers)
 				{
 					city->set_private_car_trip(units_this_step, destination_town);
@@ -7723,7 +7756,7 @@ no_route:
 						}
 					}
 
-					city->generate_private_cars(current_destination.location, car_minutes, adjusted_return_pos, units_this_step);
+					city->generate_private_cars(current_destination.location, car_minutes, adjusted_return_pos, units_this_step, packet_car_type);
 					if(current_destination.type == factory && trip == mail_trip)
 					{
 						current_destination.building->get_fabrik()->book_stat(units_this_step, FAB_MAIL_DEPARTED);

@@ -2401,80 +2401,144 @@ uint8 vehicle_t::get_min_class() const
 	}
 }
 
-uint8 vehicle_t::get_comfort(uint8 catering_level, uint8 g_class) const
+uint8 vehicle_t::get_effective_fare_class(uint8 g_class) const
 {
-	// If we have more than one class of accommodation that has been reassigned
-	// to carry the same class of passengers, take an average of the various types
-	// weighted by capacity.
+	uint8 effective_class = 255;
+	for (uint8 i = 0; i < number_of_classes; i++)
+	{
+		if (class_reassignments[i] <= g_class
+			&& get_accommodation_capacity(i) > 0
+			&& (effective_class == 255 || class_reassignments[i] > effective_class))
+		{
+			effective_class = class_reassignments[i];
+		}
+	}
+	return effective_class;
+}
+
+
+uint16 vehicle_t::get_maximum_comfortable_journey(uint8 g_class, uint8 catering_level) const
+{
+	const uint8 effective_class = get_effective_fare_class(g_class);
+	if (effective_class == 255)
+	{
+		return 0;
+	}
+
 	uint32 comfort_sum = 0;
 	uint32 capacity_this_class = 0;
 
 	if (desc->get_self_contained_catering())
 	{
-		// Bespoke comfort adjustment for this vehicle
 		catering_level = max(catering_level, desc->get_catering_level());
 	}
 
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
-		if (class_reassignments[i] == g_class)
+		if (class_reassignments[i] == effective_class)
 		{
-			comfort_sum += desc->get_adjusted_comfort(catering_level, i) * get_accommodation_capacity(i);
+			comfort_sum += (uint32)desc->get_adjusted_maximum_comfortable_journey(catering_level, i) * get_accommodation_capacity(i);
 			capacity_this_class += get_accommodation_capacity(i);
 		}
 	}
 
-	uint8 base_comfort;
-
-	if (comfort_sum == 0)
+	if (comfort_sum == 0 || capacity_this_class == 0)
 	{
 		return 0;
 	}
 
+	const uint16 base_comfort = (uint16)(comfort_sum / capacity_this_class);
 
-	base_comfort = (uint8)(comfort_sum / capacity_this_class);
-
-	if(base_comfort == 0)
+	if (total_freight <= capacity_this_class)
 	{
-		return 0;
-	}
-	else if(total_freight <= capacity_this_class)
-	{
-		// Not overcrowded - return base level
 		return base_comfort;
 	}
 
-	// Else
-	// Overcrowded - adjust comfort. Standing passengers
-	// are very uncomfortable (no more than 10).
-	const uint8 standing_comfort = (base_comfort < 20) ? (base_comfort / 2) : 10;
 	uint16 passenger_count = 0;
 	for (uint8 i = 0; i < number_of_classes; i++)
 	{
-		if (class_reassignments[i] == g_class)
+		if (class_reassignments[i] == effective_class)
 		{
-			for(ware_t const& ware : fracht[i]) {
-				if(ware.is_passenger())
+			for (ware_t const &ware : fracht[i])
+			{
+				if (ware.is_passenger())
 				{
 					passenger_count += ware.menge;
 				}
 			}
 		}
 	}
-	//assert(passenger_count <= total_freight); // FIXME: This assert is often triggered after commit 6500dcc. It is not clear why.
 
-	const uint16 total_seated_passengers = passenger_count < capacity_this_class ? passenger_count : capacity_this_class;
+	const uint16 total_seated_passengers = min(passenger_count, (uint16)capacity_this_class);
 	const uint16 total_standing_passengers = passenger_count > total_seated_passengers ? passenger_count - total_seated_passengers : 0;
-	// Avoid division if we can
-	if(total_standing_passengers == 0)
+	if (total_standing_passengers == 0)
 	{
 		return base_comfort;
 	}
-	// Else
-	// Average comfort of seated and standing
-	return ((total_seated_passengers * base_comfort) + (total_standing_passengers * standing_comfort)) / passenger_count;
+
+	const uint16 standing_comfort = welt->get_settings().max_comfortable_journey_overcrowded;
+	return (uint16)(((uint32)total_seated_passengers * base_comfort + (uint32)total_standing_passengers * standing_comfort) / passenger_count);
 }
 
+uint16 vehicle_t::get_maximum_tolerable_journey(uint8 g_class, uint8 catering_level) const
+{
+	const uint8 effective_class = get_effective_fare_class(g_class);
+	if (effective_class == 255)
+	{
+		return 0;
+	}
+
+	uint32 comfort_sum = 0;
+	uint32 capacity_this_class = 0;
+
+	if (desc->get_self_contained_catering())
+	{
+		catering_level = max(catering_level, desc->get_catering_level());
+	}
+
+	for (uint8 i = 0; i < number_of_classes; i++)
+	{
+		if (class_reassignments[i] == effective_class)
+		{
+			comfort_sum += (uint32)desc->get_adjusted_maximum_tolerable_journey(catering_level, i) * get_accommodation_capacity(i);
+			capacity_this_class += get_accommodation_capacity(i);
+		}
+	}
+
+	return capacity_this_class == 0 ? 0 : (uint16)(comfort_sum / capacity_this_class);
+}
+
+uint16 vehicle_t::get_mean_maximum_comfortable_journey(uint8 catering_level) const
+{
+	uint32 comfort_sum = 0;
+	uint32 passenger_seating = 0;
+	const uint8 number_of_passenger_classes = get_cargo_type()->get_number_of_classes();
+
+	for (uint8 i = 0; i < number_of_passenger_classes; i++)
+	{
+		const uint16 capacity = get_fare_capacity(i);
+		comfort_sum += (uint32)get_maximum_comfortable_journey(i, catering_level) * capacity;
+		passenger_seating += capacity;
+	}
+
+	return passenger_seating == 0 ? 0 : (uint16)(comfort_sum / passenger_seating);
+}
+
+uint16 vehicle_t::get_mean_maximum_tolerable_journey(uint8 catering_level) const
+{
+	uint32 comfort_sum = 0;
+	uint32 passenger_seating = 0;
+	const uint8 number_of_passenger_classes = get_cargo_type()->get_number_of_classes();
+
+	for (uint8 i = 0; i < number_of_passenger_classes; i++)
+	{
+		const uint16 capacity = get_fare_capacity(i);
+		comfort_sum += (uint32)get_maximum_tolerable_journey(i, catering_level) * capacity;
+		passenger_seating += capacity;
+	}
+
+	return passenger_seating == 0 ? 0 : (uint16)(comfort_sum / passenger_seating);
+}
 
 void vehicle_t::rdwr(loadsave_t *file)
 {

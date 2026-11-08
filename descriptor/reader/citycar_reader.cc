@@ -53,25 +53,26 @@ obj_desc_t * citycar_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 	const uint16 v = decode_uint16(p);
 	const int version = v & 0x8000 ? v & 0x7FFF : 0;
 
-	if(version == 2) {
-		// Versioned node, version 1
-
+	if(version >= 1) {
+		// Fields present since version 1.
 		desc->distribution_weight = decode_uint16(p);
 		desc->topspeed = kmh_to_speed(decode_uint16(p)/16);
 		desc->intro_date = decode_uint16(p);
 		desc->retire_date = decode_uint16(p);
-	}
-	else if(version == 1) {
-		// Versioned node, version 1
 
-		desc->distribution_weight = decode_uint16(p);
-		desc->topspeed = kmh_to_speed(decode_uint16(p)/16);
-		uint16 intro_date = decode_uint16(p);
-		desc->intro_date = (intro_date/16)*12  + (intro_date%12);
-		uint16 retire_date = decode_uint16(p);
-		desc->retire_date= (retire_date/16)*12  + (retire_date%12);
+		if(version == 1) {
+			// Version 1 used the old date encoding.
+			desc->intro_date = (desc->intro_date/16)*12 + (desc->intro_date%12);
+			desc->retire_date = (desc->retire_date/16)*12 + (desc->retire_date%12);
+		}
+		if(version >= 3) {
+			// Version 3 appended time-based comfort.
+			desc->maximum_comfortable_journey = decode_uint16(p);
+			desc->maximum_tolerable_journey = decode_uint16(p);
+		}
 	}
 	else {
+		// Unversioned node: the first value is the distribution weight.
 		desc->distribution_weight = v;
 		desc->topspeed = kmh_to_speed(80);
 		desc->intro_date = DEFAULT_INTRO_DATE*12;

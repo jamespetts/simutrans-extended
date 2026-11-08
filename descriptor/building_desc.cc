@@ -184,6 +184,9 @@ void building_desc_t::calc_checksum(checksum_t *chk) const
 	chk->input(maintenance);
 	chk->input(price);
 	chk->input(capacity);
+	chk->input(maximum_comfortable_wait);
+	chk->input(maximum_tolerable_wait);
+	chk->input(comfort_capacity);
 	chk->input(allow_underground);
 	// now check the layout
 	for(uint8 i=0; i<layouts; i++) {

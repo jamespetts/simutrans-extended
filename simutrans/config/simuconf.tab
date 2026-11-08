@@ -332,6 +332,36 @@ min_alternative_destinations_per_job_millionths = 2500
 
 max_comfort_preference_percentage = 500
 
+# Comfort influenced routing.
+# Old saves start with comfort_routing off; the advanced settings dialogue can
+# turn it on. New games start with it on. Turning it on runs the normal full
+# route refresh.
+comfort_routing = 1
+
+# Vehicle ride comfort and waiting comfort can be weighted independently.
+# Set either to 0 to leave that component out of route costs.
+vehicle_comfort_weighting = 1
+waiting_comfort_weighting = 1
+
+# Extra perceived time at 25%, 50%, 75% and 100% of the range from the
+# maximum comfortable time to the maximum tolerable time, as a percentage of
+# the leg's actual time.
+comfort_penalty_at_25_percent = 15
+comfort_penalty_at_50_percent = 50
+comfort_penalty_at_75_percent = 85
+comfort_penalty_at_100_percent = 100
+
+# Comfortable journey time assigned to a standing passenger, in minutes. When
+# a vehicle or class carries more passengers than its seated capacity, its
+# comfortable time becomes the capacity-weighted mean of the seated passengers'
+# normal comfortable time and this value. Only the comfortable time is lowered;
+# the tolerable journey time is unchanged.
+max_comfortable_journey_overcrowded = 5
+
+# Comfortable waiting time when the comfortable facility capacity is full, in
+# minutes. Overcrowding never changes the maximum tolerable waiting time.
+max_comfortable_wait_overcrowded = 15
+
 ################################## Industry settings #################################
 
 # when a city reaches 2^n times of this number

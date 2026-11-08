@@ -407,6 +407,12 @@ bool private_car_t::list_empty()
 }
 
 
+const citycar_desc_t *private_car_t::pick_citycar_desc()
+{
+	return liste_timeline.empty() ? NULL : pick_any_weighted(liste_timeline);
+}
+
+
 
 private_car_t::~private_car_t()
 {
@@ -447,13 +453,13 @@ private_car_t::private_car_t(loadsave_t *file) :
 }
 
 
-private_car_t::private_car_t(grund_t* gr, koord const target) :
+private_car_t::private_car_t(grund_t* gr, koord const target, const citycar_desc_t *desc) :
 #ifdef INLINE_OBJ_TYPE
 	road_user_t(obj_t::road_user, gr, simrand(65535, "private_car_t::private_car_t (weg_next)")),
 #else
 	road_user_t(gr, simrand(65535, "private_car_t::private_car_t (weg_next)")),
 #endif
-	desc(liste_timeline.empty() ? 0 : pick_any_weighted(liste_timeline))
+	desc(desc)
 {
 	pos_next_next = koord3d::invalid;
 	time_to_life = welt->get_settings().get_stadtauto_duration() << welt->ticks_per_world_month_shift;
@@ -1424,6 +1430,13 @@ void private_car_t::info(cbuffer_t & buf) const
 	const char* destination_city_name = destination_city ? destination_city->get_name() : translator::translate("keine");
 	buf.printf(translator::translate("%s\nspeed %i\nmax_speed %i\ndx:%i dy:%i"), translator::translate(desc->get_name()), speed_to_kmh(current_speed), speed_to_kmh(desc->get_topspeed()), dx, dy);
 	buf.printf(translator::translate("\nOrigin: %s\nDestination: %s (%s)"), origin_city_name, destination_name, destination_city_name);
+
+	char comfortable_time[32];
+	char tolerable_time[32];
+	welt->sprintf_time_tenths(comfortable_time, sizeof(comfortable_time), desc->get_maximum_comfortable_journey());
+	welt->sprintf_time_tenths(tolerable_time, sizeof(tolerable_time), desc->get_maximum_tolerable_journey());
+	buf.append("\n");
+	buf.printf(translator::translate("Comfort: %s comfortable, %s tolerable"), comfortable_time, tolerable_time);
 
 	if (char const* const maker = desc->get_copyright()) {
 		buf.append("\n");

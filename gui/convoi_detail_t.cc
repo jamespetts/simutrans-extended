@@ -129,8 +129,6 @@ static char const* const spec_table_first_col_text[gui_convoy_spec_table_t::MAX_
 	"Axle load:",
 	"Length(debug):",
 	"Max. brake force:",
-	//"Payload",
-	//"Comfort",
 	"car_age_in_month",
 	"can_upgrade",
 	"Running costs per km", // "Operation" Vehicle running costs per km
@@ -150,7 +148,9 @@ static char const* const payload_table_first_col_text[gui_convoy_spec_table_t::M
 	"Catering level",
 	"travelling post office",
 	"min_loading_time",
-	"max_loading_time"
+	"max_loading_time",
+	"Max. comfortable journey",
+	"Max. tolerable journey"
 };
 
 static scr_coord_val spec_table_first_col_width = LINEASCENT*7;
@@ -323,9 +323,13 @@ gui_convoy_spec_table_t::gui_convoy_spec_table_t(convoihandle_t c)
 	set_margin(scr_size(D_H_SPACE,0), scr_size(D_H_SPACE,0));
 	set_spacing(scr_size(D_H_SPACE, D_V_SPACE/2));
 
-	// First, calculate the width of the first column
+	// First, calculate the width of the first column. Include the payload
+	// table labels: they are wider than the specification labels.
 	for (uint8 i=SPEC_FREIGHT_TYPE; i<MAX_SPECS; i++) {
 		spec_table_first_col_width = max(spec_table_first_col_width, proportional_string_width(spec_table_first_col_text[i]));
+	}
+	for (uint8 i=0; i<MAX_PAYLOAD_ROW; i++) {
+		spec_table_first_col_width = max(spec_table_first_col_width, proportional_string_width(translator::translate(payload_table_first_col_text[i])));
 	}
 
 	if( cnv.is_bound() ) {
@@ -703,7 +707,9 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 					if (class_diff) {
 						new_component<gui_fluctuation_triangle_t>(class_diff);
 					}
-					else if( freight_type_idx==goods_manager_t::INDEX_PAS  &&  skinverwaltung_t::comfort ) {
+					else {
+						// Reserve the class-difference column so the capacity
+						// values align across rows.
 						new_component<gui_margin_t>((LINESPACE*3)>>2);
 					}
 					gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
@@ -714,18 +720,6 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 						if (veh->get_accommodation_capacity(g_class)) {
 							lb->buf().append(veh->get_accommodation_capacity(g_class), 0);
 							lb->update();
-							if( freight_type_idx==goods_manager_t::INDEX_PAS  &&  skinverwaltung_t::comfort ) {
-								// comfort display
-								add_table(2,1);
-								{
-									new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Comfort"));
-									lb = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::centered);
-									lb->buf().append(veh->get_desc()->get_comfort(g_class), 0);
-									lb->update();
-									lb->set_fixed_width(lb->get_min_size().w);
-								}
-								end_table();
-							}
 						}
 						else {
 							lb->buf().append("-");
@@ -733,9 +727,31 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 							lb->update();
 						}
 					}
+
+					// Comfortable and tolerable journey times for this class.
+					if (freight_type_idx == goods_manager_t::INDEX_PAS && !is_overcrowded_capacity && veh->get_accommodation_capacity(g_class)) {
+						add_table(2,1);
+						{
+							if (skinverwaltung_t::comfort) {
+								new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Maximum comfortable and tolerable journey time"));
+							}
+							char comfortable_time[32];
+							char tolerable_time[32];
+							world()->sprintf_time_tenths(comfortable_time, sizeof(comfortable_time), veh->get_maximum_comfortable_journey(g_class, convoy_catering_level));
+							world()->sprintf_time_tenths(tolerable_time, sizeof(tolerable_time), veh->get_maximum_tolerable_journey(g_class, convoy_catering_level));
+							lb = new_component<gui_label_buf_t>();
+							lb->buf().printf("%s / %s", comfortable_time, tolerable_time);
+							lb->set_tooltip(translator::translate("Maximum comfortable and tolerable journey time"));
+							lb->update();
+						}
+						end_table();
+					}
+					else {
+						new_component<gui_empty_t>();
+					}
 				}
 				else {
-					new_component<gui_empty_t>();
+					new_component_span<gui_empty_t>(3);
 				}
 			}
 			end_table();
@@ -749,6 +765,10 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 		}
 		if( i==SPEC_TPO  &&  (!cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_MAIL) && !has_tpo) ) {
 			continue;  // skip travering offce row
+		}
+
+		if( (i==SPEC_MAXIMUM_COMFORTABLE_JOURNEY || i==SPEC_MAXIMUM_TOLERABLE_JOURNEY)  &&  !cnv->get_goods_catg_index().is_contained(goods_manager_t::INDEX_PAS) ) {
+			continue;  // skip the comfort time rows for convoys without passenger accommodation
 		}
 
 		new_component<gui_table_header_t>(payload_table_first_col_text[i], SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left)->set_fixed_width(spec_table_first_col_width);
@@ -797,6 +817,27 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 					break;
 				}
 
+				case SPEC_MAXIMUM_COMFORTABLE_JOURNEY:
+				case SPEC_MAXIMUM_TOLERABLE_JOURNEY:
+				{
+					if (veh_type->get_freight_type()->get_catg_index() == goods_manager_t::INDEX_PAS)
+					{
+						char time_as_clock[32];
+						const vehicle_t *vehicle = cnv->get_vehicle(j);
+						world()->sprintf_time_tenths(time_as_clock, sizeof(time_as_clock),
+							i == SPEC_MAXIMUM_COMFORTABLE_JOURNEY
+								? vehicle->get_mean_maximum_comfortable_journey(convoy_catering_level)
+								: vehicle->get_mean_maximum_tolerable_journey(convoy_catering_level));
+						lb->buf().append(time_as_clock);
+					}
+					else
+					{
+						lb->buf().append("-");
+						lb->set_color(SYSCOL_TEXT_INACTIVE);
+					}
+					break;
+				}
+
 				default:
 					break;
 			}
@@ -829,6 +870,18 @@ void gui_convoy_spec_table_t::insert_payload_rows()
 				{
 					char time_as_clock[32];
 					world()->sprintf_ticks(time_as_clock, sizeof(time_as_clock), i==SPEC_MIN_LOADING_TIME ? cnv->calc_longest_min_loading_time() : cnv->calc_longest_max_loading_time());
+					td->buf().append(time_as_clock);
+					break;
+				}
+
+				case SPEC_MAXIMUM_COMFORTABLE_JOURNEY:
+				case SPEC_MAXIMUM_TOLERABLE_JOURNEY:
+				{
+					char time_as_clock[32];
+					world()->sprintf_time_tenths(time_as_clock, sizeof(time_as_clock),
+						i == SPEC_MAXIMUM_COMFORTABLE_JOURNEY
+							? cnv->get_mean_maximum_comfortable_journey()
+							: cnv->get_mean_maximum_tolerable_journey());
 					td->buf().append(time_as_clock);
 					break;
 				}

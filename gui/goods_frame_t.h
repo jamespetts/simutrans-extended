@@ -52,7 +52,6 @@ private:
 	static uint16 distance;
 
 	static uint32 vehicle_speed;
-	static uint8 comfort;
 	static uint8 catering_level;
 	static uint8 selected_goods;
 	static uint8 g_class;
@@ -65,7 +64,6 @@ private:
 
 	char speed[6];
 	char distance_txt[6];
-	char comfort_txt[6];
 	char catering_txt[6];
 	char class_txt[6];
 	cbuffer_t descriptive_text;
@@ -76,7 +74,7 @@ private:
 	button_t mode_switcher[3];
 
 	// replace button list with numberinput components for faster navigation
-	gui_numberinput_t distance_input, comfort_input, catering_input, speed_input, class_input;
+	gui_numberinput_t distance_input, catering_input, speed_input, class_input;
 
 	gui_tab_panel_t tabs, tabs_chart;
 	gui_aligned_container_t cont_goods_list, cont_fare_chart, cont_fare_short, cont_fare_long;

@@ -321,12 +321,12 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			break;
 		case sb_min_comfort:
 		{
-			uint16 a_comfort = 65535;
-			uint16 b_comfort = 65535;
+			uint16 a_comfortable_journey = 65535;
+			uint16 b_comfortable_journey = 65535;
 			if (a->get_freight_type() == goods_manager_t::passengers) {
 				for (uint8 i = 0; i < a->get_number_of_classes(); i++) {
 					if (a->get_capacity(i)>0) {
-						a_comfort = a->get_comfort(i);
+						a_comfortable_journey = a->get_maximum_comfortable_journey(i);
 						break;
 					}
 				}
@@ -334,12 +334,12 @@ bool vehicle_builder_t::compare_vehicles(const vehicle_desc_t* a, const vehicle_
 			if (b->get_freight_type() == goods_manager_t::passengers) {
 				for (uint8 i = 0; i < b->get_number_of_classes(); i++) {
 					if (b->get_capacity(i) > 0) {
-						b_comfort = b->get_comfort(i);
+						b_comfortable_journey = b->get_maximum_comfortable_journey(i);
 						break;
 					}
 				}
 			}
-			cmp = (int)a_comfort - (int)b_comfort;
+			cmp = (int)a_comfortable_journey - (int)b_comfortable_journey;
 			if( cmp == 0) {
 				cmp = (int)a->get_catering_level() - (int)b->get_catering_level();
 			}

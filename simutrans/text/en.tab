@@ -5388,6 +5388,40 @@ capacity: %s %s
 Capacity: %s %s
 comfort: %i
 Comfort: %i
+Comfort: %s comfortable, %s tolerable
+Comfort: %s comfortable, %s tolerable
+, capacity %u
+, capacity %u
+Comfort-adjusted time
+Comfort-adjusted time
+Time spent in transit
+Time spent in transit
+Time spent walking
+Time spent walking
+Average time spent waiting for this route
+Average time spent waiting for this route
+No waiting time data for this route
+No waiting time data for this route
+Total journey time: travel + waiting + transfer
+Total journey time: travel + waiting + transfer
+Maximum comfortable and tolerable journey time
+Maximum comfortable and tolerable journey time
+(Max. comfortable / tolerable journey time: %s / %s)
+(Max. comfortable / tolerable journey time: %s / %s)
+Max. comfortable / tolerable journey time
+Max. comfortable / tolerable journey time
+Max. comfortable journey time
+Max. comfortable journey time
+Max. tolerable journey time
+Max. tolerable journey time
+Comfort time
+Comfort time
+Max. comfortable journey
+Max. comfortable journey
+Max. tolerable journey
+Max. tolerable journey
+comfort_routing
+Comfort influenced routing
 income_pr_km_(when_full):
 Income per km (when full):
 tpo_income_pr_km_(full_convoy):

@@ -302,18 +302,21 @@ public:
 		uint32 journey_time;
 		uint32 waiting_time;
 		uint32 transfer_time;
+		// Extra perceived time caused by comfort weighting, in tenths of
+		// minutes. Zero when comfort routing is off or for non-passenger
+		// categories.
+		uint32 comfort_cost;
 
 		// Convoy only used if line not used
 		// (i.e., if the best route involves using a convoy without a line)
 		linehandle_t best_line;
 		convoihandle_t best_convoy;
 
-		// TODO: Consider whether to add comfort
-
 		uint16 alternative_seats; // used in overcrowd calculations in fetch_goods, updated by update_alternative_seats
 
 		// Destination halt ID; the key of the sorted connexions_map array.
-		// Fits in the padding after alternative_seats, so the struct stays 20 bytes.
+		// This and alternative_seats fill the final four bytes of the 24-byte
+		// record.
 		uint16 halt_id;
 	};
 	bool do_alternative_seats_calculation; //for optimisations purpose
@@ -548,6 +551,10 @@ private:
 
 	// private helper function for recalc_station_type()
 	void add_to_station_type( grund_t *gr );
+
+	// Compute the effective comfortable and tolerable waiting times for a
+	// passenger class from the halt's buildings and waiting count.
+	void get_wait_comfort(uint8 g_class, uint16 &maximum_comfortable_wait, uint16 &maximum_tolerable_wait) const;
 
 	/**
 	 * Reconnect and reroute if counter different from welt->get_schedule_counter()
@@ -843,6 +850,12 @@ public:
 	bool rem_grund(grund_t *gb);
 
 	uint32 get_capacity(uint8 typ) const { return capacity[typ]; }
+
+	// Effective time-based passenger comfort at this halt for a class, in
+	// tenths of minutes. The values are derived from the stop and extension
+	// buildings and from the current number of waiting passengers.
+	uint16 get_maximum_comfortable_wait(uint8 g_class) const;
+	uint16 get_maximum_tolerable_wait(uint8 g_class) const;
 
 	bool existiert_in_welt() const;
 

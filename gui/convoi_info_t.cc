@@ -46,7 +46,8 @@ static const char cost_type[BUTTON_COUNT][64] =
 	"Freight-km", // ton-km
 	"Distance",
 	"Average speed",
-	"Comfort",
+	"Max. comfortable journey",
+	"Max. tolerable journey",
 	"Revenue",
 	"Operation",
 	"Refunds",
@@ -63,6 +64,7 @@ static const uint8 cost_type_color[BUTTON_COUNT] =
 	COL_DISTANCE,
 	COL_AVERAGE_SPEED,
 	COL_COMFORT,
+	COL_TURQUOISE,
 	COL_REVENUE,
 	COL_OPERATION,
 	COL_CAR_OWNERSHIP,
@@ -78,7 +80,8 @@ static const uint8 cost_type_money[BUTTON_COUNT] =
 	gui_chart_t::TON_KM,
 	gui_chart_t::DISTANCE,
 	gui_chart_t::STANDARD,
-	gui_chart_t::STANDARD,
+	gui_chart_t::TIME,
+	gui_chart_t::TIME,
 	gui_chart_t::MONEY,
 	gui_chart_t::MONEY,
 	gui_chart_t::MONEY,
@@ -88,8 +91,8 @@ static const uint8 cost_type_money[BUTTON_COUNT] =
 
 static uint8 statistic[convoi_t::MAX_CONVOI_COST] = {
 	convoi_t::CONVOI_CAPACITY, convoi_t::CONVOI_PAX_DISTANCE, convoi_t::CONVOI_MAIL_DISTANCE, convoi_t::CONVOI_PAYLOAD_DISTANCE,
-	convoi_t::CONVOI_DISTANCE, convoi_t::CONVOI_AVERAGE_SPEED, convoi_t::CONVOI_COMFORT, convoi_t::CONVOI_REVENUE,
-	convoi_t::CONVOI_OPERATIONS, convoi_t::CONVOI_REFUNDS, convoi_t::CONVOI_WAYTOLL, convoi_t::CONVOI_PROFIT
+	convoi_t::CONVOI_DISTANCE, convoi_t::CONVOI_AVERAGE_SPEED, convoi_t::CONVOI_COMFORT, convoi_t::CONVOI_MAXIMUM_TOLERABLE_JOURNEY,
+	convoi_t::CONVOI_REVENUE, convoi_t::CONVOI_OPERATIONS, convoi_t::CONVOI_REFUNDS, convoi_t::CONVOI_WAYTOLL, convoi_t::CONVOI_PROFIT
 };
 
 //bool convoi_info_t::route_search_in_progress=false;

@@ -25,9 +25,10 @@
 #include "../descriptor/goods_desc.h"
 
 /**
- * This variable defines the current speed for the purposes of calculating
- * journey time, which in turn affects comfort. Adaopted from the old speed
- * bonus code, which was put into its present form by Neroden circa 2013.
+ * This variable defines the current speed for the purposes of estimating
+ * journey time in the fare calculator. Comfort no longer affects fares.
+ * Adapted from the old speed bonus code, which was put into its present form
+ * by Neroden circa 2013.
  */
 uint32 goods_frame_t::vehicle_speed = 50;
 
@@ -48,7 +49,6 @@ bool goods_frame_t::sortreverse = false;
 
 uint32 goods_frame_t::distance_meters = 1000;
 uint16 goods_frame_t::distance = 1;
-uint8 goods_frame_t::comfort = 50;
 uint8 goods_frame_t::catering_level = 0;
 uint8 goods_frame_t::selected_goods = goods_manager_t::INDEX_PAS;
 uint8 goods_frame_t::g_class = 0;
@@ -88,11 +88,10 @@ goods_frame_t::goods_frame_t() :
 
 		speed[0] = 0;
 
-		input_container.set_table_layout(2,5);
+		input_container.set_table_layout(2,4);
 		input_container.new_component<gui_label_t>("distance");
 
 		distance_txt[0] = 0;
-		comfort_txt[0] = 0;
 		catering_txt[0] = 0;
 		class_txt[0] = 0;
 		distance_meters = (sint32)1000 * distance;
@@ -102,18 +101,6 @@ goods_frame_t::goods_frame_t() :
 		distance_input.wrap_mode( false );
 		distance_input.add_listener( this );
 		input_container.add_component(&distance_input);
-
-		input_container.add_table(2,1);
-		{
-			input_container.new_component<gui_image_t>(skinverwaltung_t::comfort ? skinverwaltung_t::comfort->get_image_id(0) : IMG_EMPTY, 0, ALIGN_NONE, true);
-			input_container.new_component<gui_label_t>("Comfort");
-		}
-		input_container.end_table();
-		comfort_input.set_limits( 1, 255 );
-		comfort_input.set_value( comfort );
-		comfort_input.wrap_mode( false );
-		comfort_input.add_listener( this );
-		input_container.add_component(&comfort_input);
 
 		input_container.new_component<gui_label_t>("Catering level");
 		catering_input.set_limits( 0, 5 );
@@ -302,8 +289,8 @@ bool goods_frame_t::compare_goods(goods_desc_t const* const w1, goods_desc_t con
 			{
 				sint64 price[2];
 				const uint16 journey_tenths = (uint16)tenths_from_meters_and_kmh(distance_meters, vehicle_speed);
-				price[0] = w1->get_total_fare(distance_meters, 0, comfort, catering_level, min(g_class, w1->get_number_of_classes() - 1), journey_tenths);
-				price[1] = w2->get_total_fare(distance_meters, 0, comfort, catering_level, min(g_class, w2->get_number_of_classes() - 1), journey_tenths);
+				price[0] = w1->get_total_fare(distance_meters, 0, 0u, catering_level, min(g_class, w1->get_number_of_classes() - 1), journey_tenths);
+				price[1] = w2->get_total_fare(distance_meters, 0, 0u, catering_level, min(g_class, w2->get_number_of_classes() - 1), journey_tenths);
 
 				order = price[0] - price[1];
 			}
@@ -341,7 +328,7 @@ void goods_frame_t::sort_list()
 		}
 	}
 
-	goods_stats.update_goodslist(good_list, vehicle_speed, goods_frame_t::distance_meters, goods_frame_t::comfort, goods_frame_t::catering_level, g_class, goods_frame_t::display_mode);
+	goods_stats.update_goodslist(good_list, vehicle_speed, goods_frame_t::distance_meters, goods_frame_t::catering_level, g_class, goods_frame_t::display_mode);
 }
 
 
@@ -375,8 +362,8 @@ void goods_frame_t::update_fare_charts()
 		const sint64 journey_tenths_s = tenths_from_meters_and_kmh(dist_s, temp_speed);
 		const sint64 journey_tenths_l = tenths_from_meters_and_kmh(dist_s * 10, temp_speed);
 
-		sint64 revenue_s = wtyp->get_total_fare(dist_s, 0u, comfort, catering_level, min(g_class, wtyp->get_number_of_classes() - 1), journey_tenths_s);
-		sint64 revenue_l = wtyp->get_total_fare(dist_s * 10, 0u, comfort, catering_level, min(g_class, wtyp->get_number_of_classes() - 1), journey_tenths_l);
+		sint64 revenue_s = wtyp->get_total_fare(dist_s, 0u, 0u, catering_level, min(g_class, wtyp->get_number_of_classes() - 1), journey_tenths_s);
+		sint64 revenue_l = wtyp->get_total_fare(dist_s * 10, 0u, 0u, catering_level, min(g_class, wtyp->get_number_of_classes() - 1), journey_tenths_l);
 
 		// Convert to simucents.  Should be very fast.
 		fare_curve_s[i] = (revenue_s + 2048) / 4096;
@@ -430,13 +417,6 @@ bool goods_frame_t::action_triggered( gui_action_creator_t *comp,value_t v)
 		distance = v.i;
 		distance_meters = (sint32)1000 * distance;
 		sort_list();
-	}
-	else if (comp == &comfort_input) {
-		comfort = v.i;
-		sort_list();
-		if (selected_goods == goods_manager_t::INDEX_PAS) {
-			update_fare_charts();
-		}
 	}
 	else if (comp == &catering_input) {
 		catering_level = v.i;
@@ -492,7 +472,10 @@ uint32 goods_frame_t::get_rdwr_id()
 void goods_frame_t::rdwr(loadsave_t *file)
 {
 	file->rdwr_short(distance);
-	file->rdwr_byte(comfort);
+	// Legacy UI state byte: fares no longer use comfort. Keep the byte so old
+	// saves keep the following fields aligned.
+	uint8 legacy_comfort = 0;
+	file->rdwr_byte(legacy_comfort);
 	file->rdwr_byte(catering_level);
 	file->rdwr_long(vehicle_speed);
 	file->rdwr_byte(g_class);
@@ -509,7 +492,6 @@ void goods_frame_t::rdwr(loadsave_t *file)
 		sortreverse = sort_order.pressed;
 		sort_list();
 		distance_input.set_value(distance);
-		comfort_input.set_value(comfort);
 		catering_input.set_value(catering_level);
 		speed_input.set_value(vehicle_speed);
 		class_input.set_value(g_class);

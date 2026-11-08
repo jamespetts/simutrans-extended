@@ -287,9 +287,14 @@ void gui_chart_t::draw(scr_coord offset)
 					// for the first element print the current value (optionally)
 					// only print value if not too narrow to min/max/zero
 					if(  c.show_value  ) {
-						number_to_string_fit(cmin, display_tmp, c.precision, maximum_axis_len - (c.suffix != NULL) );
-						if (c.suffix) {
-							strcat(cmin, c.suffix);
+						if (c.type == TIME) {
+							world()->sprintf_time_secs(cmin, sizeof(cmin), (uint32)display_tmp);
+						}
+						else {
+							number_to_string_fit(cmin, display_tmp, c.precision, maximum_axis_len - (c.suffix != NULL) );
+							if (c.suffix) {
+								strcat(cmin, c.suffix);
+							}
 						}
 
 						if(  left_to_right_graph  ) {

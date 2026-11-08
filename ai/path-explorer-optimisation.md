@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 5eda2829e
+verified: ex-15 @ f35b6fac7 working tree (target-specific reboarding; 2026-11-08)
 ---
 # Path explorer optimisation
 
@@ -46,8 +46,9 @@ The finished matrix is 6 B per cell (`uint32` time + `uint16` next transfer). Th
 matrix is also 6 B per cell. `get_path_between` is unchanged.
 
 Extending the engine to comfort routing changes the connexion-rebuild edge weight and
-deduplication policy only; the routing search is unchanged (→
-[comfort-routing](path-explorer-optimisation/comfort-routing.md)).
+deduplication policy; the time-based model leaves the search kernel unchanged, but the
+proposed comfort-improvement rule (Decision 3) adds an edge filter and would change search
+semantics (→ [comfort-routing](path-explorer-optimisation/comfort-routing.md)).
 
 ### Measurements
 
@@ -141,8 +142,10 @@ no desync markers (→ [routing-search-kernel](path-explorer-optimisation/routin
   the path-explorer per-origin rows are verified independent of the thread count.
 - Is there a compact routing oracle whose build cost is close to the current per-origin
   search? Hub labels do not qualify (→ [hub-labels](path-explorer-optimisation/hub-labels.md)).
-- Comfort routing: which weight model and boarding rule (→
-  [comfort-routing](path-explorer-optimisation/comfort-routing.md))?
+- Comfort routing: the time-based weight model, the target-specific reboarding rule and the
+  boarding rule are decided (→ [comfort-routing](path-explorer-optimisation/comfort-routing.md));
+  the conservative reboarding threshold, calibration and the remaining companion changes
+  remain open.
 - GPU: is there a use case?
 
 ## Provenance

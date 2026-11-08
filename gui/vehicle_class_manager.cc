@@ -41,8 +41,8 @@ void accommodation_summary_t::add_vehicle(vehicle_t *veh)
 					info.capacity += veh->get_accommodation_capacity(ac);
 					info.count++;
 					if (catg_index == goods_manager_t::INDEX_PAS) {
-						info.min_comfort = min(info.min_comfort, veh->get_desc()->get_comfort(ac));
-						info.max_comfort = max(info.max_comfort, veh->get_desc()->get_comfort(ac));
+						info.min_comfortable_journey = min(info.min_comfortable_journey, veh->get_desc()->get_maximum_comfortable_journey(ac));
+						info.max_comfortable_journey = max(info.max_comfortable_journey, veh->get_desc()->get_maximum_comfortable_journey(ac));
 					}
 					found = true;
 					break;
@@ -56,8 +56,8 @@ void accommodation_summary_t::add_vehicle(vehicle_t *veh)
 				temp.accommodation = accommo;
 				temp.capacity = veh->get_accommodation_capacity(ac);
 				if (catg_index == goods_manager_t::INDEX_PAS) {
-					temp.min_comfort = veh->get_desc()->get_comfort(ac);
-					temp.max_comfort = veh->get_desc()->get_comfort(ac);
+					temp.min_comfortable_journey = veh->get_desc()->get_maximum_comfortable_journey(ac);
+					temp.max_comfortable_journey = veh->get_desc()->get_maximum_comfortable_journey(ac);
 				}
 
 				accommo_list.append(temp);
@@ -87,8 +87,8 @@ void accommodation_summary_t::add_vehicle_desc(const vehicle_desc_t *veh_type)
 					info.capacity += veh_type->get_capacity(ac);
 					info.count++;
 					if (catg_index == goods_manager_t::INDEX_PAS) {
-						info.min_comfort = min(info.min_comfort, veh_type->get_comfort(ac));
-						info.max_comfort = max(info.max_comfort, veh_type->get_comfort(ac));
+						info.min_comfortable_journey = min(info.min_comfortable_journey, veh_type->get_maximum_comfortable_journey(ac));
+						info.max_comfortable_journey = max(info.max_comfortable_journey, veh_type->get_maximum_comfortable_journey(ac));
 					}
 					found = true;
 					break;
@@ -101,8 +101,8 @@ void accommodation_summary_t::add_vehicle_desc(const vehicle_desc_t *veh_type)
 				temp.assingned_class = ac;
 				temp.capacity = veh_type->get_capacity(ac);
 				if (catg_index == goods_manager_t::INDEX_PAS) {
-					temp.min_comfort = veh_type->get_comfort(ac);
-					temp.max_comfort = veh_type->get_comfort(ac);
+					temp.min_comfortable_journey = veh_type->get_maximum_comfortable_journey(ac);
+					temp.max_comfortable_journey = veh_type->get_maximum_comfortable_journey(ac);
 				}
 
 				accommo_list.append(temp);
@@ -173,7 +173,7 @@ void gui_accommodation_fare_manager_t::update()
 	new_component_span<gui_label_t>("Accommodation", 2);
 	new_component<gui_label_t>("Compartments");
 	new_component<gui_label_t>("Capacity");
-	new_component<gui_label_t>("Comfort");
+	new_component<gui_label_t>("Max. comfortable journey");
 	new_component<gui_label_t>("Class");
 
 	// border
@@ -212,17 +212,21 @@ void gui_accommodation_fare_manager_t::update()
 		lb->buf().append(acm.capacity, 0);
 		lb->update();
 
-		// min/max comfort of this accommodation
+		// min/max comfortable journey time of this accommodation
 		if( acm.accommodation.catg_index==goods_manager_t::INDEX_PAS ) {
 			add_table(2,1);
 			{
 				new_component<gui_image_t>(skinverwaltung_t::comfort ? skinverwaltung_t::comfort->get_image_id(0) : IMG_EMPTY, 0, ALIGN_NONE, true);
+				char min_time[32];
+				char max_time[32];
+				world()->sprintf_time_tenths(min_time, sizeof(min_time), acm.min_comfortable_journey);
+				world()->sprintf_time_tenths(max_time, sizeof(max_time), acm.max_comfortable_journey);
 				lb = new_component<gui_label_buf_t>();
-				lb->buf().append(acm.min_comfort, 0);
-				if (acm.max_comfort>acm.min_comfort) {
-					lb->buf().printf(" - %u", acm.max_comfort);
+				lb->buf().append(min_time);
+				if (acm.max_comfortable_journey > acm.min_comfortable_journey) {
+					lb->buf().printf(" - %s", max_time);
 				}
-				lb->set_tooltip(translator::translate("Comfort"));
+				lb->set_tooltip(translator::translate("Maximum comfortable journey time"));
 				lb->update();
 			}
 			end_table();
@@ -567,14 +571,16 @@ void vehicle_class_manager_t::update_list()
 				// col5 - accomodation name
 				cont_by_vehicle.new_component<gui_label_t>(translator::translate(veh->get_desc()->get_accommodation_name(ac)));
 
-				// col6 : comfort
+				// col6 : comfortable journey time
 				if (veh->get_desc()->get_freight_type() == goods_manager_t::passengers) {
 					cont_by_vehicle.add_table(2,1);
 					{
 						cont_by_vehicle.new_component<gui_image_t>(skinverwaltung_t::comfort ? skinverwaltung_t::comfort->get_image_id(0) : IMG_EMPTY, 0, ALIGN_NONE, true);
+						char comfortable_time[32];
+						world()->sprintf_time_tenths(comfortable_time, sizeof(comfortable_time), veh->get_desc()->get_maximum_comfortable_journey(ac));
 						lb = cont_by_vehicle.new_component<gui_label_buf_t>();
-						lb->buf().append(veh->get_desc()->get_comfort(ac), 0);
-						lb->set_tooltip(translator::translate("Comfort"));
+						lb->buf().append(comfortable_time);
+						lb->set_tooltip(translator::translate("Maximum comfortable journey time"));
 						lb->update();
 					}
 					cont_by_vehicle.end_table();
@@ -591,7 +597,7 @@ void vehicle_class_manager_t::update_list()
 				// col8 income
 				lb = cont_by_vehicle.new_component<gui_label_buf_t>();
 
-				const sint64 revenue = (veh->get_cargo_type()->get_total_fare(1000, 0u, veh->get_desc()->get_comfort(ac), cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), min(veh->get_reassigned_class(ac), number_of_classes - 1), 0)) * veh->get_accommodation_capacity(ac);
+				const sint64 revenue = (veh->get_cargo_type()->get_total_fare(1000, 0u, 0u, cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), min(veh->get_reassigned_class(ac), number_of_classes - 1), 0)) * veh->get_accommodation_capacity(ac);
 				const sint64 price = (revenue + 2048) / 4096;
 				lb->buf().append_money(price / 100.0);
 				lb->update();
@@ -610,9 +616,7 @@ void vehicle_class_manager_t::update_list()
 				// col9 income
 				if (lowest_class == 255) lowest_class = 0;
 				lb = cont_by_vehicle.new_component<gui_label_buf_t>();
-				const uint8 base_comfort = veh->get_comfort(cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()));
-				const uint8 standing_comfort = (base_comfort < 20) ? (base_comfort / 2) : 10;
-				const sint64 revenue = (veh->get_cargo_type()->get_total_fare(1000, 0u, standing_comfort, cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), lowest_class, 0)) * veh->get_desc()->get_overcrowded_capacity();
+				const sint64 revenue = (veh->get_cargo_type()->get_total_fare(1000, 0u, 0u, cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), lowest_class, 0)) * veh->get_desc()->get_overcrowded_capacity();
 				const sint64 price = (revenue + 2048) / 4096;
 				lb->buf().append_money(price / 100.0);
 				lb->update();
@@ -656,14 +660,12 @@ void vehicle_class_manager_t::recalc_income()
 				if (!veh->get_accommodation_capacity(ac)) continue;
 				const uint8 current_fare_class = veh->get_reassigned_class(ac);
 				lowest_class = min(lowest_class, current_fare_class);
-				revenue += (veh->get_cargo_type()->get_total_fare(1000, 0u, veh->get_desc()->get_comfort(ac), cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), min(current_fare_class, number_of_classes-1), 0)) * veh->get_accommodation_capacity(ac);
+				revenue += (veh->get_cargo_type()->get_total_fare(1000, 0u, 0u, cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), min(current_fare_class, number_of_classes-1), 0)) * veh->get_accommodation_capacity(ac);
 			}
 
 			if (veh->get_desc()->get_overcrowded_capacity()) {
 				if (lowest_class == 255) lowest_class = 0;
-				const uint8 base_comfort = veh->get_comfort(cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()));
-				const uint8 standing_comfort = (base_comfort < 20) ? (base_comfort / 2) : 10;
-				revenue += (veh->get_cargo_type()->get_total_fare(1000, 0u, standing_comfort, cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), lowest_class, 0)) * veh->get_desc()->get_overcrowded_capacity();
+				revenue += (veh->get_cargo_type()->get_total_fare(1000, 0u, 0u, cnv->get_catering_level(veh->get_cargo_type()->get_catg_index()), lowest_class, 0)) * veh->get_desc()->get_overcrowded_capacity();
 			}
 		}
 	}

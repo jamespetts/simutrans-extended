@@ -177,7 +177,7 @@ sint64 goods_desc_t::get_total_fare(uint32 distance_meters, uint32 starting_dist
 {
 	sint64 fare = get_base_fare(distance_meters, starting_distance, true); // We compute inflation at the end here so that we do not need to compute inflation separately for catering revenues, etc..
 
-	// Apply the modifiers for passengers/mail: class, comfort and catering
+	// Apply the modifiers for passengers/mail: class and catering
 	if (get_index() == goods_manager_t::INDEX_PAS || get_index() == goods_manager_t::INDEX_MAIL)
 	{
 		if (fare <= 0)
@@ -190,30 +190,12 @@ sint64 goods_desc_t::get_total_fare(uint32 distance_meters, uint32 starting_dist
 		fare *= (sint64)class_revenue_percentages[g_class];
 		fare /= 100ll;
 
-		// Now, the comfort modifiers
+		// Comfort no longer affects fares: it is a routing and class-choice
+		// matter. Keep the parameter for caller compatibility.
+		(void)comfort;
+
 		if (get_index() == goods_manager_t::INDEX_PAS)
 		{
-			/*
-			* Passengers: apply luxury bonus or discomfort penalty
-			*/
-
-			// Grab the tolerable comfort from the settings table
-			const sint16 tolerable_comfort = world()->get_settings().tolerable_comfort(journey_tenths);
-			// See how far off we are
-			const sint16 comfort_diff = (sint16)comfort - tolerable_comfort;
-			// This gets the "full" percentage bonus or penalty -- it may be negative!
-			const sint64 multiplier = world()->get_settings().base_comfort_revenue(comfort_diff);
-
-			// Comfort has less of an effect for shorter trips.  This gets the derating factor
-			// as a percentage (2 digits)
-			const sint64 comfort_modifier = world()->get_settings().comfort_derating(journey_tenths);
-
-			// Combine the derating factor with the full percentage to get...
-			const sint64 comfort_fare = (fare * multiplier * comfort_modifier) / 10000ll;
-
-			// Apply the comfort penalty/bonus to the fare
-			fare += comfort_fare;
-
 			if (catering_level > 0)
 			{
 				/*

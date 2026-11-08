@@ -252,6 +252,14 @@ class building_desc_t : public obj_desc_timelined_t {
 
 	uint16 max_vehicles_under_maintenance = 4; // The maximum number of vehicles that can simultaneously be maintained in this building (for depots only)
 
+	// Time-based passenger comfort at a stop, in tenths of minutes. Zero means
+	// "not specified" and the halt applies the default.
+	uint16 maximum_comfortable_wait = 0;
+	uint16 maximum_tolerable_wait = 0;
+	// Number of waiting passengers to whom this building's comfort applies.
+	// Zero means unlimited.
+	uint16 comfort_capacity = 0;
+
 	inline bool is_type(building_desc_t::btype b) const {
 		return type == b;
 	}
@@ -460,6 +468,10 @@ public:
 	bool get_pier_needed() const { return pier_sub_needed; }
 
 	uint16 get_max_vehicles_under_maintenance() const { return max_vehicles_under_maintenance; }
+
+	uint16 get_maximum_comfortable_wait() const { return maximum_comfortable_wait; }
+	uint16 get_maximum_tolerable_wait() const { return maximum_tolerable_wait; }
+	uint16 get_comfort_capacity() const { return comfort_capacity; }
 };
 
 

@@ -650,7 +650,7 @@ public:
 	uint32 check_road_connexion_to(const fabrik_t* industry) const;
 	uint32 check_road_connexion_to(const gebaeude_t* attraction) const;
 
-	void generate_private_cars(koord pos, uint32 journey_tenths_of_minutes, koord target, uint8 number_of_passengers);
+	void generate_private_cars(koord pos, uint32 journey_tenths_of_minutes, koord target, uint8 number_of_passengers, const citycar_desc_t *car_type);
 
 private:
 	/**

@@ -257,7 +257,15 @@ private:
 	uint8 basic_constraint_prev = can_be_head;
 	uint8 basic_constraint_next = can_be_tail;
 
-	uint8 *comfort;								// How comfortable that a vehicle is for passengers. (Pointer to an array of comfort levels per class)
+	// Legacy comfort points per class. Used only to derive the time-based
+	// comfortable journey when no explicit value is given.
+	uint8 *comfort;
+
+	// Time-based comfort, in tenths of minutes, per class. A zero value means
+	// "not specified in the pakset" and is filled from the old comfort points
+	// or the default when the world settings are available.
+	uint16 *maximum_comfortable_journey = NULL;
+	uint16 *maximum_tolerable_journey = NULL;
 
 	uint8 classes;								// The number of different classes that this vehicle accommodates
 	uint8 accommodation_classes = 1;			// total accommodations that this vehicle has
@@ -406,6 +414,8 @@ public:
 		range = 0;
 		comfort = NULL;
 		capacity = NULL;
+		maximum_comfortable_journey = NULL;
+		maximum_tolerable_journey = NULL;
 	}
 
 	virtual ~vehicle_desc_t()
@@ -414,6 +424,8 @@ public:
 		delete[] geared_force;
 		delete[] comfort;
 		delete[] capacity;
+		delete[] maximum_comfortable_journey;
+		delete[] maximum_tolerable_journey;
 	}
 
 	goods_desc_t const* get_freight_type() const { return get_child<goods_desc_t>(2); }
@@ -779,7 +791,27 @@ public:
 	uint32 get_adjusted_monthly_fixed_cost() const; // includes increase for obsolescence and adjustment for monthly figures
 	sint16 get_sound() const { return sound; }
 	bool is_bidirectional() const { return bidirectional; }
-	uint8 get_comfort(uint32 g_class = 0) const { return  classes == 0 ? 0: g_class >= classes ? comfort[0] : comfort[g_class]; }
+	// Time-based comfort in tenths of minutes. An explicit pakset value wins;
+	// otherwise the value is derived from the old comfort points using the
+	// current world settings, or the 180-minute default when neither is
+	// available. The derivation is deliberately not cached, so loading a save
+	// with a different comfort curve cannot leave stale times.
+	uint16 get_maximum_comfortable_journey(uint32 g_class = 0) const;
+
+	uint16 get_maximum_tolerable_journey(uint32 g_class = 0) const;
+
+	void allocate_comfort_time_arrays()
+	{
+		delete[] maximum_comfortable_journey;
+		delete[] maximum_tolerable_journey;
+		maximum_comfortable_journey = classes > 0 ? new uint16[classes] : NULL;
+		maximum_tolerable_journey = classes > 0 ? new uint16[classes] : NULL;
+		for (uint8 i = 0; i < classes; i++)
+		{
+			maximum_comfortable_journey[i] = 0;
+			maximum_tolerable_journey[i] = 0;
+		}
+	}
 	uint16 get_overcrowded_capacity() const { return overcrowded_capacity; }
 	uint32 get_min_loading_time() const { return get_total_capacity() > 0 ? min_loading_time : 0; }
 	uint32 get_max_loading_time() const { return get_total_capacity() > 0 ? max_loading_time : 0; }
@@ -834,41 +866,41 @@ public:
 	uint32 get_staff_hundredths(uint8 index) const;
 	uint32 get_drivers(uint8 index) const;
 
-	uint8 get_adjusted_comfort(uint8 catering_level, uint8 g_class = 0) const
+	// Time-based equivalents of the catering comfort bonus. The old code added
+	// 5, 10, 16, 20 or 25 comfort points; the time-based values use the same
+	// figures as percentage increases.
+	uint16 get_adjusted_maximum_comfortable_journey(uint8 catering_level, uint8 g_class = 0) const
 	{
-		if (g_class >= classes)
+		const uint32 base = get_maximum_comfortable_journey(g_class);
+		uint32 percent = 100;
+		switch (catering_level)
 		{
-			g_class = 0;
-		}
-		uint32 modified_comfort = (uint32)comfort[g_class];
-		switch(catering_level)
-		{
-		case 0:
-			modified_comfort = modified_comfort > 0 ? modified_comfort : 1;
-			break;
-
-		case 1:
-			modified_comfort += 5;
-			break;
-
-		case 2:
-			modified_comfort += 10;
-			break;
-
-		case 3:
-			modified_comfort += 16;
-			break;
-
-		case 4:
-			modified_comfort += 20;
-			break;
-
+		case 0: break;
+		case 1: percent = 105; break;
+		case 2: percent = 110; break;
+		case 3: percent = 116; break;
+		case 4: percent = 120; break;
 		case 5:
-		default:
-			modified_comfort += 25;
-			break;
-		};
-		return min(255, modified_comfort);
+		default: percent = 125; break;
+		}
+		return (uint16)min(65535u, (base * percent + 50u) / 100u);
+	}
+
+	uint16 get_adjusted_maximum_tolerable_journey(uint8 catering_level, uint8 g_class = 0) const
+	{
+		const uint32 base = get_maximum_tolerable_journey(g_class);
+		uint32 percent = 100;
+		switch (catering_level)
+		{
+		case 0: break;
+		case 1: percent = 105; break;
+		case 2: percent = 110; break;
+		case 3: percent = 116; break;
+		case 4: percent = 120; break;
+		case 5:
+		default: percent = 125; break;
+		}
+		return (uint16)min(65535u, (base * percent + 50u) / 100u);
 	}
 
 	// BG, 15.06.2009: the formula for obsolescence formerly implemented twice in get_running_cost() and get_fixed_cost()

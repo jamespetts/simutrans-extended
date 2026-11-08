@@ -65,17 +65,19 @@ void gui_vehicle_capacity_t::init_table(const vehicle_desc_t *veh_type)
 						if( catg_index==goods_manager_t::INDEX_PAS ) {
 							add_table(2,1);
 							{
-								char time_str[32];
-								world()->sprintf_time_secs(time_str, 32, world()->get_settings().max_tolerable_journey(veh_type->get_comfort(ac)));
+								char comfortable_time_str[32];
+								char tolerable_time_str[32];
+								world()->sprintf_time_tenths(comfortable_time_str, 32, veh_type->get_maximum_comfortable_journey(ac));
+								world()->sprintf_time_tenths(tolerable_time_str, 32, veh_type->get_maximum_tolerable_journey(ac));
 								if( skinverwaltung_t::comfort ) {
-									new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true);
+									new_component<gui_image_t>(skinverwaltung_t::comfort->get_image_id(0), 0, ALIGN_NONE, true)->set_tooltip(translator::translate("Maximum comfortable and tolerable journey time"));
 									lb = new_component<gui_label_buf_t>();
-									lb->buf().append(time_str);
+									lb->buf().printf("%s / %s", comfortable_time_str, tolerable_time_str);
 									lb->update();
 								}
 								else {
 									lb = new_component<gui_label_buf_t>();
-									lb->buf().printf("%s %s", translator::translate("(Max. comfortable journey time: "), time_str);
+									lb->buf().printf(translator::translate("(Max. comfortable / tolerable journey time: %s / %s)"), comfortable_time_str, tolerable_time_str);
 									lb->update();
 								}
 							}

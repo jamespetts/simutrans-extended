@@ -23,6 +23,44 @@
 using std::string;
 
 
+static uint16 read_comfort_time(tabfileobj_t &obj, const char *base_name, uint8 class_index)
+{
+	char key[128];
+
+	sprintf(key, "%s_minutes[%u]", base_name, class_index);
+	const char *minutes = obj.get(key);
+	if (class_index == 0 && (*minutes == 0))
+	{
+		sprintf(key, "%s_minutes", base_name);
+		minutes = obj.get(key);
+	}
+
+	sprintf(key, "%s_tenths[%u]", base_name, class_index);
+	const char *tenths = obj.get(key);
+	if (class_index == 0 && (*tenths == 0))
+	{
+		sprintf(key, "%s_tenths", base_name);
+		tenths = obj.get(key);
+	}
+
+	const bool has_minutes = minutes != NULL && *minutes != 0;
+	const bool has_tenths = tenths != NULL && *tenths != 0;
+	if (has_minutes && has_tenths)
+	{
+		dbg->fatal(obj_writer_t::last_name, "%s: specify only one of the _minutes and _tenths forms", base_name);
+	}
+	if (has_tenths)
+	{
+		return (uint16)atoi(tenths);
+	}
+	if (has_minutes)
+	{
+		return (uint16)(atoi(minutes) * 10);
+	}
+	return 0;
+}
+
+
 /**
  * Writes vehicle node data to file
  *
@@ -113,6 +151,10 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 		}
 	} while (j++ < 255);
 
+	// Two time values per class: maximum comfortable and maximum tolerable
+	// journey time, in tenths of minutes.
+	total_len += 4 * class_capacities.get_count();
+
 	// This must also be done here, as it will affect the length of the header.
 	typedef inthashtable_tpl<uint8, uint32, N_BAGS_SMALL> staff_map;
 	uint32 current_staff_number;
@@ -199,7 +241,8 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	// Standard 11, 0x900 - multiple working type, staff specification, self-contained catering, fuel, overhauls, maintenance
 	// Standard 11, 0xA00 - battery round trip efficiency
 	// Standard 11, 0xB00 - fuel cell round trip efficiency
-	version += 0xB00;
+	// Standard 11, 0xC00 - maximum comfortable/tolerable journey times
+	version += 0xC00;
 
 	node.write_uint16(fp, version, pos);
 
@@ -1260,6 +1303,22 @@ void vehicle_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	uint8 fuel_cell_round_trip_efficiency = obj.get_int("fuel_cell_round_trip_efficiency", 0);
 	node.write_uint8(fp, fuel_cell_round_trip_efficiency, pos);
 	pos += sizeof(fuel_cell_round_trip_efficiency);
+
+	// Time-based comfort, in tenths of minutes, per class. Zero means that
+	// the value is not specified in the pakset and must be derived from the
+	// old comfort points or the default.
+	for (uint8 i = 0; i < number_of_classes; i++)
+	{
+		const uint16 maximum_comfortable_journey = read_comfort_time(obj, "maximum_comfortable_journey", i);
+		node.write_uint16(fp, maximum_comfortable_journey, pos);
+		pos += sizeof(uint16);
+	}
+	for (uint8 i = 0; i < number_of_classes; i++)
+	{
+		const uint16 maximum_tolerable_journey = read_comfort_time(obj, "maximum_tolerable_journey", i);
+		node.write_uint16(fp, maximum_tolerable_journey, pos);
+		pos += sizeof(uint16);
+	}
 
 
 	sint8 sound_str_len = sound_str.size();
