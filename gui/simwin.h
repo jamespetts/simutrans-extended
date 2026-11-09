@@ -141,6 +141,7 @@ enum magic_numbers {
 	magic_uncouple_entry_picker,
 	magic_consist_rule_editor, // created on demand; saved/loaded under this id
 	//magic_info_pointer, //unused
+	magic_halt_route_detail, // not saved; base for the halt/destination pair
 	magic_max
 };
 

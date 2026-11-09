@@ -605,6 +605,11 @@ public:
 		return goods_compartment[category][g_class].get_path_between(origin_halt, target_halt, aggregate_time, next_transfer);
 	}
 
+	// Mean comfort times over a line's convoys, as used by the route table for
+	// this class. A convoy without a line uses its own values.
+	static uint16 get_linkage_maximum_comfortable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class);
+	static uint16 get_linkage_maximum_tolerable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class);
+
 	static karte_t *get_world() { return world; }
 	static bool are_local_limits_changed() { return compartment_t::are_local_limits_changed(); }
 	static void reset_local_limits_state() { compartment_t::reset_local_limits_state(); }

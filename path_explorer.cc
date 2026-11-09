@@ -47,7 +47,7 @@ uint32 path_explorer_t::compartment_t::time_threshold;
 bool path_explorer_t::must_refresh_on_loading;
 
 
-static uint16 get_linkage_maximum_comfortable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class)
+uint16 path_explorer_t::get_linkage_maximum_comfortable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class)
 {
 	if (line.is_bound())
 	{
@@ -74,7 +74,7 @@ static uint16 get_linkage_maximum_comfortable_journey(const linehandle_t &line, 
 	return 0;
 }
 
-static uint16 get_linkage_maximum_tolerable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class)
+uint16 path_explorer_t::get_linkage_maximum_tolerable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class)
 {
 	if (line.is_bound())
 	{

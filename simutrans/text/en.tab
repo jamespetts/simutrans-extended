@@ -5420,6 +5420,38 @@ Max. comfortable journey
 Max. comfortable journey
 Max. tolerable journey
 Max. tolerable journey
+Show full route
+Show full route
+Route details
+Route details
+Route from %s to %s
+Route from %s to %s
+Passengers, class: %s
+Passengers, class: %s
+Leg %u: %s to %s
+Leg %u: %s to %s
+Service: %s
+Service: %s
+Walking
+Walking
+Waiting %s, travel %s, transfer %s
+Waiting %s, travel %s, transfer %s
+Actual total: %s
+Actual total: %s
+Comfort-adjusted total: %s
+Comfort-adjusted total: %s
+Vehicle comfort: max. comfortable %s, max. tolerable %s
+Vehicle comfort: max. comfortable %s, max. tolerable %s
+Stop comfort: max. comfortable wait %s, max. tolerable wait %s
+Stop comfort: max. comfortable wait %s, max. tolerable wait %s
+Total: actual %s, comfort-adjusted %s
+Total: actual %s, comfort-adjusted %s
+Total actual time: %s
+Total actual time: %s
+No route data available.
+No route data available.
+The stored route ends before the destination.
+The stored route ends before the destination.
 comfort_routing
 Comfort influenced routing
 income_pr_km_(when_full):
