@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8109f6dab (core implementation, private-car mode choice, target-specific reboarding, effective fare class fallback, zero comfort-point handling and no fixed boarding cost; 2026-11-08)
+verified: ex-15 @ 7b5e20584 (runtime boarding comparison and full route view; 2026-11-09)
 ---
 # Comfort influenced routing (design)
 
@@ -127,7 +127,7 @@ This section records the baseline that comfort influenced routing replaced.
 
 ## Implementation status
 
-Implemented in the working tree:
+Implemented:
 
 - time fields on vehicle, building and city-car descriptors, with readers,
   writers, pak versions and checksums;
@@ -148,6 +148,18 @@ Implemented in the working tree:
 - the stop-based give-up rule and removal of comfort from fares;
 - the route-tab actual/adjusted display in dark blue, the stop info comfort and
   capacity display, and the vehicle max comfortable/tolerable times;
+- a full route window opened from the route tab's by-category listing follows the
+  stored next-stop chain and presents it as a table with a summary header and a
+  totals row: each leg's waiting, travel and transfer times, actual total,
+  comfort-adjusted total, vehicle comfort and stop comfort; the route data is
+  copied when the window opens, and the direct service is shown if the chain is
+  unavailable;
+- the runtime boarding comparison in `fetch_goods` adds the ride comfort
+  surcharge of each candidate convoy to its arrival time (and does not wait for
+  a convoy whose ride would exceed its tolerable journey), so a later but more
+  comfortable convoy can be worth waiting for and a faster but less comfortable
+  one may not be; the existing waiting-tolerance check compares the extra wait
+  with the resulting perceived time saved;
 - catering comfort carried into the time values as the same percentage bonuses as
   the old comfort-point increases;
 - private-car info windows show the car type's comfortable and tolerable journey
@@ -172,11 +184,6 @@ Remaining:
 
 - the exact world mouseover toolstrip placement (the current display is in the
   stop info header);
-- the full multi-leg route view; the direct route rows already show actual and
-  adjusted times;
-- the runtime wait-for-faster-convoy comparison in `fetch_goods`; the route-table
-  deduplication and the class choice are comfort influenced, but that boarding check
-  still compares arrival times only;
 - a threading/performance review of the stop waiting-count read used for the
   comfort-capacity mean;
 - a route-cost model marker so saved path-explorer tables built with different

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8109f6dab (core implementation, private-car mode choice, target-specific reboarding, effective fare class fallback, no fixed boarding cost, route-tab time tooltips and settings-tab placement; 2026-11-08)
+verified: ex-15 @ 7b5e20584 (runtime boarding comparison and full route view; 2026-11-09)
 ---
 # Comfort influenced routing: integration
 
@@ -63,9 +63,14 @@ found efficiently. The filter is a static predicate on the state and edge, so th
 Dijkstra remains exact over the filtered graph; the oracle check is for the
 filtered graph's semantics, not for search optimality.
 
-Boarding at runtime must compare convoys by comfort-adjusted cost to the next
-stop, not only by earliest arrival, and the passenger must stay aboard when the
-current convoy continues. This is Decision 7.
+The `fetch_goods` boarding comparison adds each candidate convoy's ride comfort
+surcharge (from the convoy's maximum comfortable and tolerable journey times for
+the class) to its arrival time at the next transfer; a candidate whose ride
+would exceed its tolerable journey is not waited for. The existing
+waiting-tolerance check then compares the extra wait for the faster convoy with
+the resulting perceived time saved. The passenger stays aboard when the current
+convoy continues. This is Decision 7. The comparison uses the ride surcharge
+only; waiting comfort remains in the route-table cost and the stop give-up rule.
 
 Class choice is time-based. The current points algorithm compares
 `max_tolerable_journey(comfort)` with the passenger's ideal comfort time; the
@@ -217,8 +222,12 @@ fares. Settings that change route weights must force a full refresh.
   waiting time and total time; the total tooltip states that the total is
   travel + waiting + transfer, and the comfort-adjusted value has its own
   tooltip.
-- A full route view follows the next-stop chain and lists each leg with actual
-  time, adjusted time, vehicle comfort and stop comfort.
+- A full route window, opened by the open-window button in each by-category
+  route row, follows the stored next-stop chain and presents it as a table with
+  a compact route/category header, per-stop and per-leg rows and a totals row:
+  waiting, travel and transfer times, actual and comfort-adjusted totals,
+  vehicle comfort and stop comfort. It copies the route data when it opens, and
+  shows the direct service if the chain is unavailable.
 - The stop detail and the stop mouseover toolstrip show the stop's comfort values.
   Where a contributing building has a non-zero `comfort_capacity`, show that
   capacity alongside the comfort it provides in the mouseover toolstrip.

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 375ebf369
+verified: ex-15 @ 7b5e20584 (comfort-adjusted boarding comparison; 2026-11-09)
 ---
 # Path explorer optimisation: route semantics
 
@@ -35,7 +35,9 @@ the examples are constructed illustrations.
 5. **Packet behaviour:** `find_route` sets the destination halt (`ziel`) and the next
    transfer (`zwischenziel`), which is a halt, not a linkage. `fetch_goods` boards a packet
    onto a convoy that reaches the next transfer (or the destination), subject to the
-   wait-for-a-faster-convoy check. `unload_cargo` unloads at the next transfer;
+   wait-for-a-faster-convoy check; for passengers with comfort routing on, that check
+   compares comfort-adjusted arrival times (see [comfort-routing](comfort-routing.md)).
+   `unload_cargo` unloads at the next transfer;
    `liefere_an` re-routes there, and the packet can board again only after that halt's
    transfer time (`calc_ready_time`). At generation the route's journey time decides the
    tolerance test.

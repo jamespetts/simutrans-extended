@@ -237,6 +237,14 @@ Because this would involve a considerable amount of pakset work to implement, an
 
 Car comfort ratings and per-packet car-type selection, which wealth-specific pools would extend: → [comfort-routing](path-explorer-optimisation/comfort-routing.md).
 
+## Route explorer UI
+
+The full route window introduced for comfort influenced routing shows the stored route between the stop whose detail is open and one destination, for one category and (for passengers and mail) one fare class. It could be generalised into a read-only "route explorer": the player selects an origin stop and a destination stop, and the window shows the stored route for every passenger class, for mail, and for each goods category between those stops, using the same per-leg table (waiting, travel, transfer, actual and comfort-adjusted totals, and the vehicle and stop comfort values where applicable) [RECOLLECTION:2026-11-09].
+
+The path explorer already stores one route per stop pair and compartment, so the underlying data exists. The work is a two-stop selection tool and a window that iterates the available compartments and reuses the existing route table. The view should remain a snapshot taken when it is built, for the same reason as the current route details window: it reads the path matrix and direct connexion tables while the path explorer thread may rebuild them.
+
+This is a player information feature, not a routing change; it should not alter route choice, fares or the simulation.
+
 ## Fractional power and tractive effort values[*S]
 
 Currently, it is only possible to specify power and tractive effort in units of kilowatts or kilonewtons. This is problematic for very low powered vehicles (e.g., bicycles, horses), as it is not possible to set realistic values for power. Internally, the physics engine can cope with fractional values of power and tractive effort, and it is possible to work around this to some extent for power by using "gear", but this is not effective for tractive effort.
