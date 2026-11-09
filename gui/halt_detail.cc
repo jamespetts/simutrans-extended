@@ -1827,9 +1827,9 @@ bool gui_halt_route_info_t::infowin_event(const event_t * ev)
 			return false;
 		}
 
-		halthandle_t halt = halt_list[line];
-		const koord3d halt_pos = halt->get_basis_pos3d();
-		if (!halt.is_bound()) {
+		halthandle_t destination = halt_list[line];
+		const koord3d halt_pos = destination->get_basis_pos3d();
+		if (!destination.is_bound()) {
 			welt->get_viewport()->change_world_position(halt_pos);
 			return false;
 		}
@@ -1837,20 +1837,20 @@ bool gui_halt_route_info_t::infowin_event(const event_t * ev)
 		if (IS_LEFTRELEASE(ev)) {
 			const scr_coord_val route_button_x = get_route_button_x();
 			if (ev->click_pos.x >= route_button_x && ev->click_pos.x < route_button_x + GOODS_SYMBOL_CELL_WIDTH) {
-				if (halt_list[line].is_bound()
-					&& halt->get_connexions(selected_route_catg_index, selected_class)->get(halt_list[line]) != NULL) {
-					create_win({ -1, -1 }, new gui_halt_route_detail_t(halt, halt_list[line], selected_route_catg_index, selected_class), w_info,
-						magic_halt_route_detail + (((ptrdiff_t)halt.get_id() << 16) | halt_list[line].get_id()));
+				if (destination.is_bound()
+					&& halt->get_connexions(selected_route_catg_index, selected_class)->get(destination) != NULL) {
+					create_win({ -1, -1 }, new gui_halt_route_detail_t(halt, destination, selected_route_catg_index, selected_class), w_info,
+						magic_halt_route_detail + (((ptrdiff_t)halt.get_id() << 16) | destination.get_id()));
 				}
 			}
 			else if (ev->click_pos.x > 0 && ev->click_pos.x < 15) {
 				welt->get_viewport()->change_world_position(halt_pos);
 			}
 			else if (IS_SHIFT_PRESSED(ev)) {
-				halt->show_detail();
+				destination->show_detail();
 			}
 			else {
-				halt->show_info();
+				destination->show_info();
 			}
 		}
 		else if (IS_RIGHTRELEASE(ev)) {
