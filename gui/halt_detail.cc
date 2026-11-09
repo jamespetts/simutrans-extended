@@ -136,43 +136,30 @@ private:
 	}
 
 	// A right-aligned fixed-width time cell in the open legs table.
-	static gui_label_buf_t *add_time_cell(gui_aligned_container_t *tbl, uint32 tenths, PIXVAL color = SYSCOL_TEXT)
+	static gui_label_buf_t *add_time_cell(gui_aligned_container_t *tbl, uint32 tenths, PIXVAL color = SYSCOL_TEXT, scr_coord_val width = D_TIME_6_DIGITS_WIDTH)
 	{
 		char time_as_clock[32];
 		format_time(time_as_clock, sizeof(time_as_clock), tenths);
 		gui_label_buf_t *lb = tbl->new_component<gui_label_buf_t>(tenths > 0 ? color : SYSCOL_TEXT_INACTIVE, gui_label_t::right);
 		lb->buf().append(time_as_clock);
-		lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
+		lb->set_padding(scr_size(3, 2));
+		lb->set_fixed_width(width);
 		lb->update();
 		return lb;
 	}
 
 	// A right-aligned fixed-width time cell with the totals row background.
-	static gui_table_cell_buf_t *add_total_time_cell(gui_aligned_container_t *tbl, uint32 tenths, PIXVAL color = SYSCOL_TEXT)
+	static gui_table_cell_buf_t *add_total_time_cell(gui_aligned_container_t *tbl, uint32 tenths, PIXVAL color = SYSCOL_TEXT, scr_coord_val width = D_TIME_6_DIGITS_WIDTH)
 	{
 		char time_as_clock[32];
 		format_time(time_as_clock, sizeof(time_as_clock), tenths);
 		gui_table_cell_buf_t *td = tbl->new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM, gui_label_t::right);
 		td->set_flexible(false, false);
-		td->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
+		td->set_fixed_width(width);
 		td->buf().append(time_as_clock);
 		td->set_color(tenths > 0 ? color : SYSCOL_TEXT_INACTIVE);
 		td->update();
 		return td;
-	}
-
-	// A right-aligned cell showing "max. comfortable / max. tolerable" times.
-	static gui_label_buf_t *add_comfort_cell(gui_aligned_container_t *tbl, uint16 comfortable, uint16 tolerable)
-	{
-		char comfortable_as_clock[32];
-		char tolerable_as_clock[32];
-		format_time(comfortable_as_clock, sizeof(comfortable_as_clock), comfortable);
-		format_time(tolerable_as_clock, sizeof(tolerable_as_clock), tolerable);
-		gui_label_buf_t *lb = tbl->new_component<gui_label_buf_t>(SYSCOL_TEXT_WEAK, gui_label_t::right);
-		lb->buf().printf("%s / %s", comfortable_as_clock, tolerable_as_clock);
-		lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH * 2 + proportional_string_width(" / "));
-		lb->update();
-		return lb;
 	}
 
 	// The colour of a leg's route bar: the line colour, the owning player's
@@ -231,7 +218,7 @@ gui_halt_route_detail_t::gui_halt_route_detail_t(halthandle_t origin, halthandle
 			// The vertical scrollbar takes from the content width.
 			ideal_w += D_SCROLLBAR_WIDTH;
 		}
-		open_size.w = max(open_size.w, min(ideal_w, (display_get_width() * 3) / 4));
+		open_size.w = max(open_size.w, min(ideal_w, display_get_width() - D_MARGINS_X));
 	}
 	set_windowsize(open_size);
 	set_resizemode(diagonal_resize);
@@ -332,9 +319,11 @@ void gui_halt_route_detail_t::build_route(halthandle_t origin, halthandle_t dest
 void gui_halt_route_detail_t::build_gui(halthandle_t origin, halthandle_t destination, uint8 catg_index, uint8 g_class)
 {
 	set_table_layout(1, 0);
+	set_margin(scr_size(D_MARGIN_LEFT, D_MARGIN_TOP), scr_size(D_MARGIN_RIGHT, D_MARGIN_BOTTOM));
+	set_spacing(scr_size(0, D_V_SPACE));
 
 	// Header: which route, for which category and class
-	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT_STRONG);
+	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT);
 	lb->buf().printf(translator::translate("Route from %s to %s"), origin->get_name(), destination->get_name());
 	lb->update();
 
@@ -349,7 +338,7 @@ void gui_halt_route_detail_t::build_gui(halthandle_t origin, halthandle_t destin
 		{
 			new_component<gui_empty_t>();
 		}
-		lb = new_component<gui_label_buf_t>(SYSCOL_TEXT_WEAK);
+		lb = new_component<gui_label_buf_t>(SYSCOL_TEXT);
 		if (is_passenger)
 		{
 			lb->buf().printf(translator::translate("Passengers, class: %s"), goods_manager_t::get_translated_fare_class_name(catg_index, g_class));
@@ -369,51 +358,77 @@ void gui_halt_route_detail_t::build_gui(halthandle_t origin, halthandle_t destin
 	}
 
 	add_component(&scrolly);
-	scrolly.set_maximize(true);
 
 	cont.set_table_layout(1, 0);
 	cont.set_margin(scr_size(0, 0), scr_size(0, 0));
 	cont.set_spacing(scr_size(0, 0));
 
+	// Column widths shared by the header and data cells so the values line up
+	// under their headings.
+	const scr_coord_val time_col_width = D_TIME_6_DIGITS_WIDTH;
+	const scr_coord_val adjusted_col_width = comfort_routing
+		? max(time_col_width, proportional_string_width(translator::translate("Total (comfort adjusted)")))
+		: 0;
+	const scr_coord_val comfort_col_width = comfort_routing
+		? max(time_col_width,
+			max(proportional_string_width(translator::translate("Max. comfortable journey")),
+				max(proportional_string_width(translator::translate("Max. tolerable journey")),
+					max(proportional_string_width(translator::translate("Max. comfortable wait")),
+						proportional_string_width(translator::translate("Max. tolerable wait"))))))
+		: 0;
+
 	// One row per stop and per leg, plus a header and a totals row.
-	const uint8 cols = comfort_routing ? 10 : 7;
+	const uint8 cols = comfort_routing ? 12 : 7;
 	gui_aligned_container_t *tbl = cont.add_table(cols, 0);
 	tbl->set_table_frame(true, true);
 	tbl->set_spacing(scr_size(0, 0));
 	{
 		// header row
 		gui_table_header_t *th = cont.new_component<gui_table_header_t>("", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
-		th->set_flexible(true, false);
-		th->set_padding(scr_size(0, 2));
+		th->set_flexible(false, false);
 		th->set_fixed_width(D_ENTRY_NO_WIDTH);
 		th = cont.new_component<gui_table_header_t>("", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
-		th->set_flexible(true, false);
-		th->set_padding(scr_size(0, 2));
+		th->set_flexible(false, false);
 		th->set_fixed_width(D_ENTRY_NO_WIDTH);
 		th = cont.new_component<gui_table_header_t>("stations", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
 		th->set_flexible(true, false);
 		th = cont.new_component<gui_table_header_t>("Waiting", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
-		th->set_flexible(true, false);
+		th->set_flexible(false, false);
+		th->set_fixed_width(time_col_width);
 		th->set_tooltip(translator::translate("Average time spent waiting for this route"));
 		th = cont.new_component<gui_table_header_t>("Travel", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
-		th->set_flexible(true, false);
+		th->set_flexible(false, false);
+		th->set_fixed_width(time_col_width);
 		th->set_tooltip(translator::translate("Time spent in transit"));
 		th = cont.new_component<gui_table_header_t>("Transfer", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
-		th->set_flexible(true, false);
+		th->set_flexible(false, false);
+		th->set_fixed_width(time_col_width);
 		th->set_tooltip(translator::translate("Transfer time at the boarding stop"));
 		th = cont.new_component<gui_table_header_t>("Total", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
-		th->set_flexible(true, false);
+		th->set_flexible(false, false);
+		th->set_fixed_width(time_col_width);
 		th->set_tooltip(translator::translate("Total journey time: travel + waiting + transfer"));
 		if (comfort_routing)
 		{
-			th = cont.new_component<gui_table_header_t>("Comfort-adjusted", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
-			th->set_flexible(true, false);
+			th = cont.new_component<gui_table_header_t>("Total (comfort adjusted)", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(false, false);
+			th->set_fixed_width(adjusted_col_width);
 			th->set_tooltip(translator::translate("Comfort-adjusted time"));
-			th = cont.new_component<gui_table_header_t>("Vehicle comfort", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
-			th->set_flexible(true, false);
+			th = cont.new_component<gui_table_header_t>("Max. comfortable journey", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(false, false);
+			th->set_fixed_width(comfort_col_width);
 			th->set_tooltip(translator::translate("Max. comfortable / tolerable journey time"));
-			th = cont.new_component<gui_table_header_t>("Stop comfort", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
-			th->set_flexible(true, false);
+			th = cont.new_component<gui_table_header_t>("Max. tolerable journey", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(false, false);
+			th->set_fixed_width(comfort_col_width);
+			th->set_tooltip(translator::translate("Max. comfortable / tolerable journey time"));
+			th = cont.new_component<gui_table_header_t>("Max. comfortable wait", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(false, false);
+			th->set_fixed_width(comfort_col_width);
+			th->set_tooltip(translator::translate("Max. comfortable / tolerable waiting time"));
+			th = cont.new_component<gui_table_header_t>("Max. tolerable wait", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(false, false);
+			th->set_fixed_width(comfort_col_width);
 			th->set_tooltip(translator::translate("Max. comfortable / tolerable waiting time"));
 		}
 
@@ -469,20 +484,26 @@ void gui_halt_route_detail_t::build_gui(halthandle_t origin, halthandle_t destin
 			add_time_cell(tbl, leg.waiting_time);
 			add_time_cell(tbl, leg.journey_time);
 			add_time_cell(tbl, leg.transfer_time);
-			add_time_cell(tbl, leg.waiting_time + leg.journey_time + leg.transfer_time, SYSCOL_TEXT_STRONG);
+			add_time_cell(tbl, leg.waiting_time + leg.journey_time + leg.transfer_time);
 			if (comfort_routing)
 			{
-				add_time_cell(tbl, leg.waiting_time + leg.journey_time + leg.transfer_time + leg.comfort_cost, color_idx_to_rgb(COL_DARK_BLUE))
+				add_time_cell(tbl, leg.waiting_time + leg.journey_time + leg.transfer_time + leg.comfort_cost, color_idx_to_rgb(COL_DARK_BLUE), adjusted_col_width)
 					->set_tooltip(translator::translate("Comfort-adjusted time"));
 				if (!walking)
 				{
-					add_comfort_cell(tbl, leg.maximum_comfortable_journey, leg.maximum_tolerable_journey)
+					add_time_cell(tbl, leg.maximum_comfortable_journey, SYSCOL_TEXT_WEAK, comfort_col_width)
 						->set_tooltip(translator::translate("Max. comfortable / tolerable journey time"));
-					add_comfort_cell(tbl, leg.maximum_comfortable_wait, leg.maximum_tolerable_wait)
+					add_time_cell(tbl, leg.maximum_tolerable_journey, SYSCOL_TEXT_WEAK, comfort_col_width)
+						->set_tooltip(translator::translate("Max. comfortable / tolerable journey time"));
+					add_time_cell(tbl, leg.maximum_comfortable_wait, SYSCOL_TEXT_WEAK, comfort_col_width)
+						->set_tooltip(translator::translate("Max. comfortable / tolerable waiting time"));
+					add_time_cell(tbl, leg.maximum_tolerable_wait, SYSCOL_TEXT_WEAK, comfort_col_width)
 						->set_tooltip(translator::translate("Max. comfortable / tolerable waiting time"));
 				}
 				else
 				{
+					cont.new_component<gui_empty_t>();
+					cont.new_component<gui_empty_t>();
 					cont.new_component<gui_empty_t>();
 					cont.new_component<gui_empty_t>();
 				}
@@ -505,17 +526,19 @@ void gui_halt_route_detail_t::build_gui(halthandle_t origin, halthandle_t destin
 		// totals row
 		gui_table_cell_buf_t *td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
 		td->set_flexible(false, false);
+		td->set_fixed_width(D_ENTRY_NO_WIDTH);
 		td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
 		td->set_flexible(false, false);
+		td->set_fixed_width(D_ENTRY_NO_WIDTH);
 		td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM, gui_label_t::right);
 		td->set_flexible(true, false);
 		td->buf().append(translator::translate("Total"));
-		td->set_color(SYSCOL_TEXT_STRONG);
+		td->set_color(SYSCOL_TEXT);
 		td->update();
 		add_total_time_cell(tbl, total_waiting_time);
 		add_total_time_cell(tbl, total_journey_time);
 		add_total_time_cell(tbl, total_transfer_time);
-		add_total_time_cell(tbl, total_actual_time, SYSCOL_TEXT_STRONG);
+		add_total_time_cell(tbl, total_actual_time);
 		if (comfort_routing)
 		{
 			uint32 total_adjusted_time = total_actual_time + total_comfort_cost;
@@ -526,12 +549,14 @@ void gui_halt_route_detail_t::build_gui(halthandle_t origin, halthandle_t destin
 				// direct connexion table has been rebuilt since the path search.
 				total_adjusted_time = stored_route_time;
 			}
-			add_total_time_cell(tbl, total_adjusted_time, color_idx_to_rgb(COL_DARK_BLUE))
+			add_total_time_cell(tbl, total_adjusted_time, color_idx_to_rgb(COL_DARK_BLUE), adjusted_col_width)
 				->set_tooltip(translator::translate("Comfort-adjusted time"));
-			td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
-			td->set_flexible(false, false);
-			td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
-			td->set_flexible(false, false);
+			for (uint8 i = 0; i < 4; i++)
+			{
+				td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
+				td->set_flexible(false, false);
+				td->set_fixed_width(comfort_col_width);
+			}
 		}
 	}
 	cont.end_table();
