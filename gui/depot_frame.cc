@@ -86,12 +86,10 @@ bool depot_frame_t::compare_line(linehandle_t const& a, linehandle_t const& b)
 		bint = atoi(btxt + 1);
 	}
 	if (aint != bint) {
-		return (aint - bint) < 0;
+		return aint < bint;
 	}
 	// otherwise: sort by name
 	return strcmp(atxt, btxt) < 0;
-
-	return false;
 }
 
 depot_frame_t::depot_frame_t(depot_t* depot) :
@@ -125,7 +123,6 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 	new_convoy_text      = translator::translate("new convoi");
 	promote_to_line_text = translator::translate("<promote to line>");
 
-	scr_size size(0,0);
 	line_type_flags = 0;
 
 	convoy_assembler.init(depot->get_wegtyp(), depot->get_owner_nr(), check_way_electrified(true));

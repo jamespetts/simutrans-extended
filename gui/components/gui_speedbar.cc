@@ -80,7 +80,7 @@ void gui_tile_occupancybar_t::set_assembling_incomplete(bool incomplete)
 	this->incomplete = incomplete;
 }
 
-void gui_tile_occupancybar_t::set_new_veh_length(sint8 new_veh_length, bool insert, uint8 new_last_veh_length)
+void gui_tile_occupancybar_t::set_new_veh_length(sint32 new_veh_length, bool insert, uint8 new_last_veh_length)
 {
 	this->new_veh_length = new_veh_length;
 	this->insert_mode = insert;
@@ -113,20 +113,23 @@ void gui_tile_occupancybar_t::draw(scr_coord offset)
 
 	// calculate internal convoy length (include margin)
 	const uint32 current_length = adjust_convoy_length(convoy_length, last_veh_length);
-	const uint8	extra_margin = current_length - convoy_length;
-	uint32 new_length = 0;
+	const sint32 proposed_length_signed = (sint32)convoy_length + new_veh_length;
+	const uint32 proposed_length = proposed_length_signed > 0 ? (uint32)proposed_length_signed : 0;
+	uint32 new_length = current_length;
 
-	if (insert_mode && new_veh_length != 0) {
-		new_length = adjust_convoy_length(convoy_length + new_veh_length, last_veh_length);
-	}
-	else if (new_veh_length <= 0) {
-		new_length = adjust_convoy_length(convoy_length + new_veh_length, switched_last_veh_length);
-	}
-	else if(new_veh_length != 0) {
-		new_length = adjust_convoy_length(convoy_length + new_veh_length, new_veh_length);
+	if (new_veh_length != 0) {
+		if (insert_mode) {
+			new_length = adjust_convoy_length(proposed_length, last_veh_length);
+		}
+		else if (new_veh_length < 0) {
+			new_length = adjust_convoy_length(proposed_length, switched_last_veh_length);
+		}
+		else {
+			new_length = adjust_convoy_length(proposed_length, (uint8)min((sint32)0xFF, new_veh_length));
+		}
 	}
 
-	const sint8 len_diff = new_length - current_length;
+	const sint32 len_diff = (sint32)new_length - (sint32)current_length;
 	PIXVAL col = len_diff < 0 ? SYSCOL_DOWN_TRIANGLE : SYSCOL_UP_TRIANGLE;
 	uint8 last_tile_occupancy = max(current_length, new_length) % CARUNITS_PER_TILE ? max(current_length, new_length) % CARUNITS_PER_TILE : CARUNITS_PER_TILE;
 	const uint8 tiles = (max(current_length, new_length) + CARUNITS_PER_TILE - 1) / CARUNITS_PER_TILE;
@@ -146,8 +149,8 @@ void gui_tile_occupancybar_t::draw(scr_coord offset)
 			// insert mode, paint the front tile
 			fill_with_color(offset, i, 0, len_diff - CARUNITS_PER_TILE*(i+1) < 0 ? len_diff % CARUNITS_PER_TILE : CARUNITS_PER_TILE, col, length_to_pixel);
 		}
-		else if (!insert_mode && len_diff != 0 && i >= min(current_length + extra_margin, new_length + extra_margin)/ CARUNITS_PER_TILE){
-			fill_with_color(offset, i, min(current_length + extra_margin, new_length + extra_margin)/ CARUNITS_PER_TILE == i ? min(current_length + extra_margin, new_length + extra_margin) % CARUNITS_PER_TILE : 0,
+		else if (!insert_mode && len_diff != 0 && i >= min(current_length, new_length) / CARUNITS_PER_TILE) {
+			fill_with_color(offset, i, min(current_length, new_length) / CARUNITS_PER_TILE == i ? min(current_length, new_length) % CARUNITS_PER_TILE : 0,
 				max(current_length, new_length) / CARUNITS_PER_TILE == i ? max(current_length, new_length) % CARUNITS_PER_TILE : CARUNITS_PER_TILE, col, length_to_pixel);
 		}
 	}
