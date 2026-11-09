@@ -236,6 +236,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Depot auto-continuous-removal preview may use the wrong last-vehicle length (not a forum report: code inspection 2026-11-09) | — | gui/components/gui_convoy_assembler.cc, update_vehicle_info_text(): when the auto-removed block reaches the end of the consist, `new_last_veh_length` is taken from `count-2` (or `count-1`) rather than from the vehicle before the block, so the automatic end margin in the preview is wrong; the code carries a TODO for this case. Display-only. The replacement-window removal path was corrected by the depot preview fix. [CODE master @ 48b0fbf4a] |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |
 | [Minimum loading percentage display in schedule UI](https://forum.simutrans.com/index.php/topic,22781.0.html) | 2024 | |
