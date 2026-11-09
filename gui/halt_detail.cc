@@ -26,13 +26,15 @@
 
 #include "halt_detail.h"
 #include "map_frame.h"
-#include "base_info.h"
 #include "linelist_stats_t.h"
 #include "components/gui_label.h"
 #include "components/gui_halthandled_lines.h"
 #include "components/gui_convoi_button.h"
 #include "components/gui_waytype_image_box.h"
 #include "components/gui_convoy_payloadinfo.h"
+#include "components/gui_image.h"
+#include "components/gui_schedule_item.h"
+#include "components/gui_table.h"
 
 
 #define GOODS_WAITING_CELL_WIDTH 64
@@ -69,9 +71,9 @@ sint16 halt_detail_t::tabstate = -1;
 
 // A window that follows the stored next-stop chain for one destination and
 // lists each leg with its actual time, comfort-adjusted time, vehicle comfort
-// and stop comfort. Route data is copied when the window opens, so the view
-// does not change underneath a running path-explorer refresh.
-class gui_halt_route_detail_t : public base_infowin_t
+// and stop comfort in a table. Route data is copied when the window opens, so
+// the view does not change underneath a running path-explorer refresh.
+class gui_halt_route_detail_t : public gui_frame_t
 {
 private:
 	struct leg_t
@@ -103,13 +105,104 @@ private:
 
 	vector_tpl<leg_t> legs;
 	uint32 total_actual_time;
+	uint32 total_waiting_time;
+	uint32 total_journey_time;
+	uint32 total_transfer_time;
 	uint32 total_comfort_cost;
 	uint32 stored_route_time;
 	bool stored_route_available;
 	bool route_complete;
+	bool is_passenger;
+	bool comfort_routing;
+
+	gui_aligned_container_t cont;
+	gui_scrollpane_t scrolly;
 
 	void build_route(halthandle_t origin, halthandle_t destination, uint8 catg_index, uint8 g_class);
 	void append_leg(halthandle_t from, halthandle_t to, const haltestelle_t::connexion *cnx, bool is_passenger, uint8 g_class);
+	void build_gui(halthandle_t origin, halthandle_t destination, uint8 catg_index, uint8 g_class);
+
+	// Formats a time in tenths of minutes, or "--:--" when there is no data.
+	static void format_time(char *out, size_t out_size, uint32 tenths)
+	{
+		if (tenths > 0)
+		{
+			welt->sprintf_time_tenths(out, out_size, tenths);
+		}
+		else
+		{
+			tstrncpy(out, "--:--", out_size);
+		}
+	}
+
+	// A right-aligned fixed-width time cell in the open legs table.
+	static gui_label_buf_t *add_time_cell(gui_aligned_container_t *tbl, uint32 tenths, PIXVAL color = SYSCOL_TEXT)
+	{
+		char time_as_clock[32];
+		format_time(time_as_clock, sizeof(time_as_clock), tenths);
+		gui_label_buf_t *lb = tbl->new_component<gui_label_buf_t>(tenths > 0 ? color : SYSCOL_TEXT_INACTIVE, gui_label_t::right);
+		lb->buf().append(time_as_clock);
+		lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
+		lb->update();
+		return lb;
+	}
+
+	// A right-aligned fixed-width time cell with the totals row background.
+	static gui_table_cell_buf_t *add_total_time_cell(gui_aligned_container_t *tbl, uint32 tenths, PIXVAL color = SYSCOL_TEXT)
+	{
+		char time_as_clock[32];
+		format_time(time_as_clock, sizeof(time_as_clock), tenths);
+		gui_table_cell_buf_t *td = tbl->new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM, gui_label_t::right);
+		td->set_flexible(false, false);
+		td->set_fixed_width(D_TIME_6_DIGITS_WIDTH);
+		td->buf().append(time_as_clock);
+		td->set_color(tenths > 0 ? color : SYSCOL_TEXT_INACTIVE);
+		td->update();
+		return td;
+	}
+
+	// A right-aligned cell showing "max. comfortable / max. tolerable" times.
+	static gui_label_buf_t *add_comfort_cell(gui_aligned_container_t *tbl, uint16 comfortable, uint16 tolerable)
+	{
+		char comfortable_as_clock[32];
+		char tolerable_as_clock[32];
+		format_time(comfortable_as_clock, sizeof(comfortable_as_clock), comfortable);
+		format_time(tolerable_as_clock, sizeof(tolerable_as_clock), tolerable);
+		gui_label_buf_t *lb = tbl->new_component<gui_label_buf_t>(SYSCOL_TEXT_WEAK, gui_label_t::right);
+		lb->buf().printf("%s / %s", comfortable_as_clock, tolerable_as_clock);
+		lb->set_fixed_width(D_TIME_6_DIGITS_WIDTH * 2 + proportional_string_width(" / "));
+		lb->update();
+		return lb;
+	}
+
+	// The colour of a leg's route bar: the line colour, the owning player's
+	// colour for lineless convoys, grey for walking legs.
+	static PIXVAL get_service_color(const leg_t &leg)
+	{
+		player_t *owner = leg.line.is_bound() ? leg.line->get_owner() : leg.convoy.is_bound() ? leg.convoy->get_owner() : NULL;
+		if (owner == NULL)
+		{
+			return color_idx_to_rgb(MN_GREY3);
+		}
+		PIXVAL base_color;
+		switch (leg.line.is_bound() ? leg.line->get_line_color_index() : 255)
+		{
+			case 254:
+				base_color = color_idx_to_rgb(owner->get_player_color1() + 4);
+				break;
+			case 255:
+				base_color = color_idx_to_rgb(owner->get_player_color1() + 2);
+				break;
+			default:
+				base_color = line_color_idx_to_rgb(leg.line->get_line_color_index());
+				break;
+		}
+		if (!is_dark_color(base_color))
+		{
+			base_color = display_blend_colors(base_color, color_idx_to_rgb(COL_BLACK), 15);
+		}
+		return base_color;
+	}
 
 public:
 	gui_halt_route_detail_t(halthandle_t origin, halthandle_t destination, uint8 catg_index, uint8 g_class);
@@ -117,14 +210,35 @@ public:
 
 
 gui_halt_route_detail_t::gui_halt_route_detail_t(halthandle_t origin, halthandle_t destination, uint8 catg_index, uint8 g_class) :
-	base_infowin_t(translator::translate("Route details"))
+	gui_frame_t(translator::translate("Route details")),
+	scrolly(&cont, true, true)
 {
 	build_route(origin, destination, catg_index, g_class);
-	recalc_size();
+	build_gui(origin, destination, catg_index, g_class);
+
+	reset_min_windowsize();
+	scr_size open_size = get_min_windowsize();
+	if (legs.get_count() > 0)
+	{
+		// Open large enough to show the whole table, bounded by the screen;
+		// the scroll pane takes over when the route is longer.
+		const scr_size content_min = cont.get_min_size();
+		const scr_coord_val ideal_h = D_TITLEBAR_HEIGHT + scrolly.get_pos().y + content_min.h + D_MARGIN_BOTTOM;
+		open_size.h = max(open_size.h, min(ideal_h, (display_get_height() * 3) / 4));
+		scr_coord_val ideal_w = D_MARGINS_X + content_min.w;
+		if (open_size.h < ideal_h)
+		{
+			// The vertical scrollbar takes from the content width.
+			ideal_w += D_SCROLLBAR_WIDTH;
+		}
+		open_size.w = max(open_size.w, min(ideal_w, (display_get_width() * 3) / 4));
+	}
+	set_windowsize(open_size);
+	set_resizemode(diagonal_resize);
 }
 
 
-void gui_halt_route_detail_t::append_leg(halthandle_t from, halthandle_t to, const haltestelle_t::connexion *cnx, bool is_passenger, uint8 g_class)
+void gui_halt_route_detail_t::append_leg(halthandle_t from, halthandle_t to, const haltestelle_t::connexion *cnx, bool is_passenger_, uint8 g_class)
 {
 	leg_t leg;
 	leg.from = from;
@@ -135,7 +249,7 @@ void gui_halt_route_detail_t::append_leg(halthandle_t from, halthandle_t to, con
 	leg.comfort_cost = cnx->comfort_cost;
 	leg.line = cnx->best_line;
 	leg.convoy = cnx->best_convoy;
-	if (is_passenger)
+	if (is_passenger_)
 	{
 		leg.maximum_comfortable_journey = path_explorer_t::get_linkage_maximum_comfortable_journey(leg.line, leg.convoy, g_class);
 		leg.maximum_tolerable_journey = path_explorer_t::get_linkage_maximum_tolerable_journey(leg.line, leg.convoy, g_class);
@@ -150,26 +264,16 @@ void gui_halt_route_detail_t::build_route(halthandle_t origin, halthandle_t dest
 {
 	legs.clear();
 	total_actual_time = 0;
+	total_waiting_time = 0;
+	total_journey_time = 0;
+	total_transfer_time = 0;
 	total_comfort_cost = 0;
 	stored_route_time = 0;
 	stored_route_available = false;
 	route_complete = false;
 
-	const bool is_passenger = catg_index == goods_manager_t::passengers->get_catg_index();
-	const bool comfort_routing = is_passenger && welt->get_settings().comfort_routing;
-
-	buf.clear();
-	buf.printf(translator::translate("Route from %s to %s"), origin->get_name(), destination->get_name());
-	buf.append("\n");
-	if (is_passenger)
-	{
-		buf.printf(translator::translate("Passengers, class: %s"), goods_manager_t::get_translated_fare_class_name(catg_index, g_class));
-	}
-	else
-	{
-		buf.printf("%s", translator::translate(goods_manager_t::get_info_catg_index(catg_index)->get_catg_name()));
-	}
-	buf.append("\n\n");
+	is_passenger = catg_index == goods_manager_t::passengers->get_catg_index();
+	comfort_routing = is_passenger && welt->get_settings().comfort_routing;
 
 	halthandle_t first_next;
 	stored_route_available = path_explorer_t::get_catg_path_between(catg_index, origin, destination, stored_route_time, first_next, g_class);
@@ -213,101 +317,233 @@ void gui_halt_route_detail_t::build_route(halthandle_t origin, halthandle_t dest
 		route_complete = current == destination;
 	}
 
-	if (legs.get_count() == 0)
-	{
-		buf.append(translator::translate("No route data available."));
-		buf.append("\n");
-		return;
-	}
-
 	for (uint32 i = 0; i < legs.get_count(); i++)
 	{
 		const leg_t &leg = legs[i];
-		buf.printf(translator::translate("Leg %u: %s to %s"), i + 1, leg.from->get_name(), leg.to->get_name());
-		buf.append("\n");
+		total_waiting_time += leg.waiting_time;
+		total_journey_time += leg.journey_time;
+		total_transfer_time += leg.transfer_time;
+		total_comfort_cost += leg.comfort_cost;
+	}
+	total_actual_time = total_waiting_time + total_journey_time + total_transfer_time;
+}
 
-		if (leg.line.is_bound() || leg.convoy.is_bound())
+
+void gui_halt_route_detail_t::build_gui(halthandle_t origin, halthandle_t destination, uint8 catg_index, uint8 g_class)
+{
+	set_table_layout(1, 0);
+
+	// Header: which route, for which category and class
+	gui_label_buf_t *lb = new_component<gui_label_buf_t>(SYSCOL_TEXT_STRONG);
+	lb->buf().printf(translator::translate("Route from %s to %s"), origin->get_name(), destination->get_name());
+	lb->update();
+
+	add_table(2, 1)->set_spacing(scr_size(D_H_SPACE, 0));
+	{
+		const goods_desc_t *catg = goods_manager_t::get_info_catg_index(catg_index);
+		if (catg->get_catg_symbol() != IMG_EMPTY)
 		{
-			buf.printf(translator::translate("Service: %s"), leg.line.is_bound() ? leg.line->get_name() : leg.convoy->get_name());
+			new_component<gui_image_t>(catg->get_catg_symbol(), 0, ALIGN_CENTER_V, true);
 		}
 		else
 		{
-			buf.append(translator::translate("Walking"));
+			new_component<gui_empty_t>();
 		}
-		buf.append("\n");
+		lb = new_component<gui_label_buf_t>(SYSCOL_TEXT_WEAK);
+		if (is_passenger)
+		{
+			lb->buf().printf(translator::translate("Passengers, class: %s"), goods_manager_t::get_translated_fare_class_name(catg_index, g_class));
+		}
+		else
+		{
+			lb->buf().append(translator::translate(catg->get_catg_name()));
+		}
+		lb->update();
+	}
+	end_table();
 
-		char waiting_time_as_clock[32];
-		char journey_time_as_clock[32];
-		char transfer_time_as_clock[32];
-		welt->sprintf_time_tenths(waiting_time_as_clock, sizeof(waiting_time_as_clock), leg.waiting_time);
-		welt->sprintf_time_tenths(journey_time_as_clock, sizeof(journey_time_as_clock), leg.journey_time);
-		welt->sprintf_time_tenths(transfer_time_as_clock, sizeof(transfer_time_as_clock), leg.transfer_time);
-		buf.printf(translator::translate("Waiting %s, travel %s, transfer %s"), waiting_time_as_clock, journey_time_as_clock, transfer_time_as_clock);
-		buf.append("\n");
+	if (legs.get_count() == 0)
+	{
+		new_component<gui_label_t>("No route data available.", SYSCOL_TEXT_INACTIVE);
+		return;
+	}
 
-		const uint32 actual_total = leg.waiting_time + leg.journey_time + leg.transfer_time;
-		char actual_time_as_clock[32];
-		welt->sprintf_time_tenths(actual_time_as_clock, sizeof(actual_time_as_clock), actual_total);
-		buf.printf(translator::translate("Actual total: %s"), actual_time_as_clock);
-		buf.append("\n");
+	add_component(&scrolly);
+	scrolly.set_maximize(true);
 
+	cont.set_table_layout(1, 0);
+	cont.set_margin(scr_size(0, 0), scr_size(0, 0));
+	cont.set_spacing(scr_size(0, 0));
+
+	// One row per stop and per leg, plus a header and a totals row.
+	const uint8 cols = comfort_routing ? 10 : 7;
+	gui_aligned_container_t *tbl = cont.add_table(cols, 0);
+	tbl->set_table_frame(true, true);
+	tbl->set_spacing(scr_size(0, 0));
+	{
+		// header row
+		gui_table_header_t *th = cont.new_component<gui_table_header_t>("", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
+		th->set_flexible(true, false);
+		th->set_padding(scr_size(0, 2));
+		th->set_fixed_width(D_ENTRY_NO_WIDTH);
+		th = cont.new_component<gui_table_header_t>("", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
+		th->set_flexible(true, false);
+		th->set_padding(scr_size(0, 2));
+		th->set_fixed_width(D_ENTRY_NO_WIDTH);
+		th = cont.new_component<gui_table_header_t>("stations", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left);
+		th->set_flexible(true, false);
+		th = cont.new_component<gui_table_header_t>("Waiting", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+		th->set_flexible(true, false);
+		th->set_tooltip(translator::translate("Average time spent waiting for this route"));
+		th = cont.new_component<gui_table_header_t>("Travel", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+		th->set_flexible(true, false);
+		th->set_tooltip(translator::translate("Time spent in transit"));
+		th = cont.new_component<gui_table_header_t>("Transfer", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+		th->set_flexible(true, false);
+		th->set_tooltip(translator::translate("Transfer time at the boarding stop"));
+		th = cont.new_component<gui_table_header_t>("Total", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+		th->set_flexible(true, false);
+		th->set_tooltip(translator::translate("Total journey time: travel + waiting + transfer"));
 		if (comfort_routing)
 		{
-			char adjusted_time_as_clock[32];
-			welt->sprintf_time_tenths(adjusted_time_as_clock, sizeof(adjusted_time_as_clock), actual_total + leg.comfort_cost);
-			buf.printf(translator::translate("Comfort-adjusted total: %s"), adjusted_time_as_clock);
-			buf.append("\n");
+			th = cont.new_component<gui_table_header_t>("Comfort-adjusted", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(true, false);
+			th->set_tooltip(translator::translate("Comfort-adjusted time"));
+			th = cont.new_component<gui_table_header_t>("Vehicle comfort", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(true, false);
+			th->set_tooltip(translator::translate("Max. comfortable / tolerable journey time"));
+			th = cont.new_component<gui_table_header_t>("Stop comfort", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right);
+			th->set_flexible(true, false);
+			th->set_tooltip(translator::translate("Max. comfortable / tolerable waiting time"));
+		}
 
-			if (leg.line.is_bound() || leg.convoy.is_bound())
+		for (uint32 i = 0; i < legs.get_count(); i++)
+		{
+			const leg_t &leg = legs[i];
+			const bool walking = !leg.line.is_bound() && !leg.convoy.is_bound();
+
+			// stop row: number box and name of the boarding stop
+			// (the box takes a uint8 number; a route never approaches 254 legs)
+			const bool is_interchange = (leg.from->registered_lines.get_count() + leg.from->registered_convoys.get_count()) > 1;
+			cont.new_component<gui_schedule_entry_number_t>((uint8)min(i, (uint32)254), leg.from->get_owner()->get_player_color1(),
+				is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
+				scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)), leg.from->get_basis_pos3d());
+			cont.new_component<gui_empty_t>();
+			lb = cont.new_component<gui_label_buf_t>(color_idx_to_rgb(leg.from->get_owner()->get_player_color1() + env_t::gui_player_color_dark), gui_label_t::left);
+			lb->buf().append(leg.from->get_name());
+			lb->set_padding(scr_size(D_BUTTON_PADDINGS_X, 0));
+			lb->update();
+			cont.new_component_span<gui_empty_t>(cols - 3);
+
+			// leg row: route bar in the service colour, then the times
+			cont.new_component<gui_empty_t>();
+			cont.new_component<gui_colored_route_bar_t>(get_service_color(leg),
+				walking ? gui_colored_route_bar_t::line_style::dashed : gui_colored_route_bar_t::line_style::solid);
+
+			cont.add_table(2, 1)->set_spacing(scr_size(D_H_SPACE, 0));
 			{
-				char comfortable_journey[32];
-				char tolerable_journey[32];
-				welt->sprintf_time_tenths(comfortable_journey, sizeof(comfortable_journey), leg.maximum_comfortable_journey);
-				welt->sprintf_time_tenths(tolerable_journey, sizeof(tolerable_journey), leg.maximum_tolerable_journey);
-				buf.printf(translator::translate("Vehicle comfort: max. comfortable %s, max. tolerable %s"), comfortable_journey, tolerable_journey);
-				buf.append("\n");
+				if (walking)
+				{
+					if (skinverwaltung_t::on_foot)
+					{
+						cont.new_component<gui_image_t>(skinverwaltung_t::on_foot->get_image_id(0), 0, ALIGN_CENTER_V, true);
+					}
+					else
+					{
+						cont.new_component<gui_empty_t>();
+					}
+					lb = cont.new_component<gui_label_buf_t>(SYSCOL_TEXT_WEAK, gui_label_t::left);
+					lb->buf().append(translator::translate("Walking"));
+				}
+				else
+				{
+					cont.new_component<gui_waytype_image_box_t>(leg.line.is_bound() ? simline_t::linetype_to_waytype(leg.line->get_linetype()) : leg.convoy->get_schedule()->get_waytype());
+					lb = cont.new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::left);
+					lb->buf().append(leg.line.is_bound() ? leg.line->get_name() : leg.convoy->get_name());
+				}
+				lb->set_padding(scr_size(D_BUTTON_PADDINGS_X, 0));
+				lb->update();
+			}
+			cont.end_table();
 
-				char comfortable_wait[32];
-				char tolerable_wait[32];
-				welt->sprintf_time_tenths(comfortable_wait, sizeof(comfortable_wait), leg.maximum_comfortable_wait);
-				welt->sprintf_time_tenths(tolerable_wait, sizeof(tolerable_wait), leg.maximum_tolerable_wait);
-				buf.printf(translator::translate("Stop comfort: max. comfortable wait %s, max. tolerable wait %s"), comfortable_wait, tolerable_wait);
-				buf.append("\n");
+			add_time_cell(tbl, leg.waiting_time);
+			add_time_cell(tbl, leg.journey_time);
+			add_time_cell(tbl, leg.transfer_time);
+			add_time_cell(tbl, leg.waiting_time + leg.journey_time + leg.transfer_time, SYSCOL_TEXT_STRONG);
+			if (comfort_routing)
+			{
+				add_time_cell(tbl, leg.waiting_time + leg.journey_time + leg.transfer_time + leg.comfort_cost, color_idx_to_rgb(COL_DARK_BLUE))
+					->set_tooltip(translator::translate("Comfort-adjusted time"));
+				if (!walking)
+				{
+					add_comfort_cell(tbl, leg.maximum_comfortable_journey, leg.maximum_tolerable_journey)
+						->set_tooltip(translator::translate("Max. comfortable / tolerable journey time"));
+					add_comfort_cell(tbl, leg.maximum_comfortable_wait, leg.maximum_tolerable_wait)
+						->set_tooltip(translator::translate("Max. comfortable / tolerable waiting time"));
+				}
+				else
+				{
+					cont.new_component<gui_empty_t>();
+					cont.new_component<gui_empty_t>();
+				}
 			}
 		}
 
-		total_actual_time += actual_total;
-		total_comfort_cost += leg.comfort_cost;
-		buf.append("\n");
-	}
+		// destination stop row
+		const halthandle_t last_stop = legs[legs.get_count() - 1].to;
+		const bool is_interchange = (last_stop->registered_lines.get_count() + last_stop->registered_convoys.get_count()) > 1;
+		cont.new_component<gui_schedule_entry_number_t>((uint8)min(legs.get_count(), (uint32)254), last_stop->get_owner()->get_player_color1(),
+			is_interchange ? gui_schedule_entry_number_t::number_style::interchange : gui_schedule_entry_number_t::number_style::halt,
+			scr_size(D_ENTRY_NO_WIDTH, max(D_POS_BUTTON_HEIGHT, D_ENTRY_NO_HEIGHT)), last_stop->get_basis_pos3d());
+		cont.new_component<gui_empty_t>();
+		lb = cont.new_component<gui_label_buf_t>(color_idx_to_rgb(last_stop->get_owner()->get_player_color1() + env_t::gui_player_color_dark), gui_label_t::left);
+		lb->buf().append(last_stop->get_name());
+		lb->set_padding(scr_size(D_BUTTON_PADDINGS_X, 0));
+		lb->update();
+		cont.new_component_span<gui_empty_t>(cols - 3);
 
-	char total_actual_as_clock[32];
-	welt->sprintf_time_tenths(total_actual_as_clock, sizeof(total_actual_as_clock), total_actual_time);
-	if (comfort_routing)
-	{
-		uint32 total_adjusted_time = total_actual_time + total_comfort_cost;
-		if (route_complete && stored_route_available && stored_route_time >= total_actual_time)
+		// totals row
+		gui_table_cell_buf_t *td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
+		td->set_flexible(false, false);
+		td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
+		td->set_flexible(false, false);
+		td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM, gui_label_t::right);
+		td->set_flexible(true, false);
+		td->buf().append(translator::translate("Total"));
+		td->set_color(SYSCOL_TEXT_STRONG);
+		td->update();
+		add_total_time_cell(tbl, total_waiting_time);
+		add_total_time_cell(tbl, total_journey_time);
+		add_total_time_cell(tbl, total_transfer_time);
+		add_total_time_cell(tbl, total_actual_time, SYSCOL_TEXT_STRONG);
+		if (comfort_routing)
 		{
-			// The matrix cell is the authoritative comfort-adjusted cost of the
-			// stored chain; the per-leg sum can differ slightly when the direct
-			// connexion table has been rebuilt since the path search.
-			total_adjusted_time = stored_route_time;
+			uint32 total_adjusted_time = total_actual_time + total_comfort_cost;
+			if (route_complete && stored_route_available && stored_route_time >= total_actual_time)
+			{
+				// The matrix cell is the authoritative comfort-adjusted cost of
+				// the stored chain; the per-leg sum can differ slightly when the
+				// direct connexion table has been rebuilt since the path search.
+				total_adjusted_time = stored_route_time;
+			}
+			add_total_time_cell(tbl, total_adjusted_time, color_idx_to_rgb(COL_DARK_BLUE))
+				->set_tooltip(translator::translate("Comfort-adjusted time"));
+			td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
+			td->set_flexible(false, false);
+			td = cont.new_component<gui_table_cell_buf_t>("", SYSCOL_TD_BACKGROUND_SUM);
+			td->set_flexible(false, false);
 		}
-		char total_adjusted_as_clock[32];
-		welt->sprintf_time_tenths(total_adjusted_as_clock, sizeof(total_adjusted_as_clock), total_adjusted_time);
-		buf.printf(translator::translate("Total: actual %s, comfort-adjusted %s"), total_actual_as_clock, total_adjusted_as_clock);
 	}
-	else
-	{
-		buf.printf(translator::translate("Total actual time: %s"), total_actual_as_clock);
-	}
-	buf.append("\n");
+	cont.end_table();
 
 	if (!route_complete)
 	{
-		buf.append(translator::translate("The stored route ends before the destination."));
-		buf.append("\n");
+		cont.new_component<gui_margin_t>(0, D_V_SPACE);
+		cont.new_component<gui_label_t>("The stored route ends before the destination.", COL_WARNING);
 	}
+
+	// Absorbs extra space when the window is taller than the table.
+	cont.new_component<gui_fill_t>(false, true);
 }
 
 

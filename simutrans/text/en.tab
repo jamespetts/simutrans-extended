@@ -5428,26 +5428,24 @@ Route from %s to %s
 Route from %s to %s
 Passengers, class: %s
 Passengers, class: %s
-Leg %u: %s to %s
-Leg %u: %s to %s
-Service: %s
-Service: %s
 Walking
 Walking
-Waiting %s, travel %s, transfer %s
-Waiting %s, travel %s, transfer %s
-Actual total: %s
-Actual total: %s
-Comfort-adjusted total: %s
-Comfort-adjusted total: %s
-Vehicle comfort: max. comfortable %s, max. tolerable %s
-Vehicle comfort: max. comfortable %s, max. tolerable %s
-Stop comfort: max. comfortable wait %s, max. tolerable wait %s
-Stop comfort: max. comfortable wait %s, max. tolerable wait %s
-Total: actual %s, comfort-adjusted %s
-Total: actual %s, comfort-adjusted %s
-Total actual time: %s
-Total actual time: %s
+Waiting
+Waiting
+Travel
+Travel
+Transfer
+Transfer
+Comfort-adjusted
+Comfort-adjusted
+Vehicle comfort
+Vehicle comfort
+Stop comfort
+Stop comfort
+Transfer time at the boarding stop
+Transfer time at the boarding stop
+Max. comfortable / tolerable waiting time
+Max. comfortable / tolerable waiting time
 No route data available.
 No route data available.
 The stored route ends before the destination.
