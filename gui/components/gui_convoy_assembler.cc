@@ -1164,7 +1164,7 @@ bool gui_convoy_assembler_t::action_triggered( gui_action_creator_t *comp,value_
 		else if (comp == &livery_selector)
 		{
 			sint32 livery_selection = p.i;
-			if (livery_selection < 0)
+			if (livery_selection < 0 || (uint32)livery_selection >= livery_scheme_indices.get_count())
 			{
 				livery_selector.set_selection(0);
 				livery_selection = 0;
@@ -1221,7 +1221,8 @@ int gui_convoy_assembler_t::remove_vehicle_at(uint8 nr, bool execute)
 	const vehicle_desc_t *removed_veh = vehicles[nr];
 	const vehicle_desc_t *last_veh = nr == 0 ? NULL : vehicles[nr-1];
 	uint8 chk_nr = nr;
-	uint8 removed_len= 0;
+	uint32 removed_len = 0;
+	uint32 removed_end = nr + 1;
 
 	do {
 		removed_veh = vehicles[chk_nr];
@@ -1230,35 +1231,41 @@ int gui_convoy_assembler_t::remove_vehicle_at(uint8 nr, bool execute)
 		}
 		else {
 			chk_nr++;
-			removed_count++;
-			removed_len += removed_veh->get_length();
 		}
+		removed_count++;
+		removed_len += removed_veh->get_length();
 	}
 	while (chk_nr < vehicles.get_count()
 		&& removed_veh->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique
 		&& !vehicles[chk_nr]->can_follow(last_veh)
 	);
 
+	if (!execute) {
+		removed_end = chk_nr;
+	}
+
 	// Check frontward connections
 	if (nr > 0) {
 		chk_nr = nr;
 		while (chk_nr > 0 && vehicles[chk_nr - 1]->get_basic_constraint_next()&vehicle_desc_t::intermediate_unique) {
+			const vehicle_desc_t *front_veh = vehicles[chk_nr - 1];
 			chk_nr--;
 			if (execute) {
 				vehicles.remove_at(chk_nr);
 			}
 			removed_count++;
-			removed_len += removed_veh->get_length();
+			removed_len += front_veh->get_length();
 		}
 	}
 
 	if (!execute) {
 		// update tile occupancy bar
 		const uint32 total_vehicles = vehicles.get_count();
-		const uint8 new_last_veh_length = (nr == total_vehicles - 1 && total_vehicles > 1) ?
-			vehicles[total_vehicles-2]->get_length() :
-			vehicles[total_vehicles-1]->get_length();
-		tile_occupancy.set_new_veh_length(0 - removed_len, false, new_last_veh_length);
+		uint8 new_last_veh_length = vehicles[total_vehicles - 1]->get_length();
+		if (removed_end == total_vehicles) {
+			new_last_veh_length = chk_nr > 0 ? vehicles[chk_nr - 1]->get_length() : 0;
+		}
+		tile_occupancy.set_new_veh_length(-(sint32)removed_len, false, new_last_veh_length);
 	}
 
 	return removed_count;
@@ -2110,6 +2117,7 @@ void gui_convoy_assembler_t::image_from_storage_list(gui_image_list_t::image_dat
 							{
 								vehicles.insert_at(n, info);
 								vehicles.remove_at(n+1);
+								update_convoi();
 								return;
 							}
 						}
@@ -2522,7 +2530,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 						if (way_type != water_wt && way_type != air_wt) {
 							if (cnv->get_vehicle_count() == 1) {
 								// "Extra margin" needs to be removed
-								tile_occupancy.set_new_veh_length(0 - cnv->get_length(), false, 0);
+								tile_occupancy.set_new_veh_length(-(sint32)cnv->get_length(), false, 0);
 								vehicle_fluctuation = -1;
 							}
 							else {
@@ -2535,7 +2543,7 @@ void gui_convoy_assembler_t::update_vehicle_info_text(scr_coord pos)
 								vehicle_fluctuation = 0 - cnv->get_auto_removal_vehicle_count(sel_index);
 								// TODO: Auto continuous removal may have incorrect last vehicle length
 
-								tile_occupancy.set_new_veh_length(0 - removal_len, false, new_last_veh_length);
+								tile_occupancy.set_new_veh_length(-(sint32)removal_len, false, new_last_veh_length);
 							}
 							tile_occupancy.set_assembling_incomplete(false);
 						}

@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 4974e5b03
+verified: master @ 48b0fbf4a
 ---
 # External forks
 
@@ -29,22 +29,20 @@ git rather than trusting listed branch names. What a comparison against our bran
   divergence from Extended master; its declared feature list describes work that is already
   upstream.
 
-## Unmerged fixes: await pull requests where prudent
+## Fix branches and pull requests
 
-Fixes on the fork for code that exists identically on both our branches are not backported
-proactively: the fork's author prepares pull requests (the schedule fix below exists as a
-squash-prepared `...-pr` branch), and pre-emptive cherry-picks would conflict with PRs that do
-arrive. But a PR may never come, so this is a case-by-case judgement rather than a rule: review
-and adopt PRs as they arrive; if a fix is needed, or it becomes clear that no PR is forthcoming,
-cherry-pick from the fork branch. Known such fixes:
+Fixes that apply identically to both our branches are reviewed as pull requests or prepared
+branches before adoption; cherry-picking a branch that is still under review can conflict with
+later amendments. The fork opens pull requests against its own dated snapshot branches rather
+than against our repository, so inspect them with
+`gh pr list -R Ranran-the-JuicyPork/simutrans-extended-plus` and compare the reviewed tip with
+our branches as in Method. If a fix is needed and no pull request is forthcoming, take the
+branch directly. `git cherry` shows whether a branch's patches are already in our tree; do not
+re-apply those that are.
 
-- `refactor/depot-window-review` — depot GUI correctness: convoy colour bars read the wrong
-  vehicle list; removal preview accounting counted the wrong vehicle's length and disagreed
-  between preview and execute; `uint8`/`sint8` length accumulators overflow on long convoys;
-  line-comparator subtraction overflow; livery selector upper-bound guard.
-- `fix/schedule-create-line-assignment-pr` — the line created from the schedule window was not
-  selected afterwards, because `init_line_selector()` revalidated the selection against the
-  convoy's schedule.
+The depot convoy assembler preview fixes and the schedule line-selection fix are in our tree.
+Other fix branches listed in the Summary remain review candidates; assess each against the
+current tree rather than assuming it is unapplied or applicable.
 
 ## The private car crash guards
 
@@ -73,7 +71,9 @@ tile that `hop_check()` has verified has a road; the neighbour loop obtains its 
 - It **mirrors upstream**: its branches contain our commits, and work flows in both directions, so
   much of its content is already in `master`/`ex-15` — see the contributor-branch lineage in
   [ex-15](ex-15.md).
-- It is a **work area, not a distribution channel**: no CI, no wiki content, no release artefacts.
+- It is a **work area, not a distribution channel**: no wiki content or release artefacts. It runs
+  the repository's GitHub Actions workflows on its own pushes and pull requests; those runs build
+  the fork's tree and are not a substitute for our own build and test of the merged result.
 - Branch names follow the author's own conventions (dated snapshots, feature names, `fix/…`
   prefixes) and are not a version scheme.
 - It also carries tooling of its own that touches no game code: a staged identifier-rename script
@@ -82,9 +82,10 @@ tile that `hop_check()` has verified has a road; the neighbour loop obtains its 
 
 ## Method
 
-Compare with git against our branches: list the fork's branches, take the merge-base with
-`master`/`ex-15` per branch, and diff that base against the branch tip. Because the fork's
-content has usually been upstreamed in a later form, a plain diff overstates what is new —
+Compare with git against our branches: list the fork's branches and open pull requests, take the
+merge-base with `master`/`ex-15` per branch, and diff that base against the branch tip. Pull
+requests target the fork's `jamespetts-YYMMDD` snapshot branches, not our repository. Because the
+fork's content has usually been upstreamed in a later form, a plain diff overstates what is new —
 patch-id comparison (`git cherry`) is needed to separate genuinely new work from work already
 merged.
 
