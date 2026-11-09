@@ -136,7 +136,7 @@ sint64 goods_desc_t::get_base_fare(uint32 distance_meters, uint32 starting_dista
 			starting_distance -= scaled_values[i].to_distance;
 			continue;
 		}
-		if(scaled_values[i].to_distance >= remaining_distance || i == scaled_values.get_count() - 1)
+		if(i == scaled_values.get_count() - 1 || scaled_values[i].to_distance - starting_distance >= remaining_distance)
 		{
 			// The last item in the list must trigger the use of the full remaining distance.
 			total_fare += (sint64)per_meter_fare * remaining_distance;
