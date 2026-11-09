@@ -2505,6 +2505,37 @@ bool haltestelle_t::recall_ware( ware_t& w, uint32 menge )
 }
 
 
+// Returns the comfort surcharge, in ticks, for a ride on this convoy. Returns
+// false if the ride exceeds the convoy's maximum tolerable journey for the
+// class, in which case the convoy cannot be used for that ride.
+static bool get_ride_comfort_surcharge(karte_t *welt, const convoi_t *cnv,
+	sint64 departure_time, sint64 arrival_time, uint8 g_class, sint64 &comfort_surcharge)
+{
+	comfort_surcharge = 0;
+	const settings_t &settings = welt->get_settings();
+	if (!settings.comfort_routing || !settings.vehicle_comfort_weighting)
+	{
+		return true;
+	}
+	const uint16 maximum_comfortable_journey = cnv->get_maximum_comfortable_journey(g_class);
+	const uint16 maximum_tolerable_journey = cnv->get_maximum_tolerable_journey(g_class);
+	if (maximum_tolerable_journey == 0)
+	{
+		return false;
+	}
+	const sint64 effective_departure = max(departure_time, welt->get_ticks());
+	const sint64 ride_ticks = arrival_time > effective_departure ? arrival_time - effective_departure : 0;
+	const uint32 ride_tenths = (uint32)welt->ticks_to_tenths_of_minutes(ride_ticks);
+	const uint32 surcharge_tenths = settings.get_comfort_time_cost(ride_tenths, maximum_comfortable_journey, maximum_tolerable_journey);
+	if (surcharge_tenths == UINT32_MAX_VALUE)
+	{
+		return false;
+	}
+	comfort_surcharge = welt->get_seconds_to_ticks(surcharge_tenths * 6);
+	return true;
+}
+
+
 bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowded, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction)
 {
 	bool skipped = false;
@@ -2641,7 +2672,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 						// but add a margin of error and, if the difference is small, board this convoy
 						// anyway on the bird in hand principle.
 
-						const sint64 difference_in_arrival_times = this_arrival_time - best_arrival_time;
+						sint64 difference_in_arrival_times = this_arrival_time - best_arrival_time;
 						sint64 fast_here_departure_time = get_estimated_convoy_departure_times().get(fast_convoy.get_id());
 						const bool fast_is_here = loading_here.is_contained(fast_convoy);
 						sint64 fast_here_arrival_time = get_estimated_convoy_arrival_times().get(fast_convoy.get_id());
@@ -2650,6 +2681,41 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 							// The faster convoy is late.
 							// Estimate its arrival time based on the degree of delay so far (somewhat pessimistically).
 							fast_here_departure_time += (((welt->get_ticks() - fast_here_arrival_time) + 1) * waiting_multiplication_factor);
+						}
+
+						if(fast_convoy.is_bound()
+							&& next_to_load->is_passenger()
+							&& welt->get_settings().comfort_routing
+							&& welt->get_settings().vehicle_comfort_weighting)
+						{
+							// Compare the two convoys by comfort-adjusted arrival time, not by
+							// arrival time alone. The surcharge is the perceived extra time of
+							// the ride itself; the extra wait for the faster convoy is still
+							// compared with the time saved by the existing waiting-tolerance
+							// check below.
+							const sint64 this_departure_time = get_estimated_convoy_departure_times().get(cnv->self.get_id());
+							sint64 this_comfort_surcharge = 0;
+							sint64 fast_comfort_surcharge = 0;
+							const bool this_ride_possible = get_ride_comfort_surcharge(welt, cnv, this_departure_time,
+								this_arrival_time, g_class, this_comfort_surcharge);
+							const bool fast_ride_possible = get_ride_comfort_surcharge(welt, fast_convoy.get_rep(), fast_here_departure_time,
+								best_arrival_time, g_class, fast_comfort_surcharge);
+
+							if (!fast_ride_possible)
+							{
+								// The faster convoy cannot convey this class for the whole ride.
+								wait_for_faster_convoy = false;
+							}
+							else if (this_ride_possible)
+							{
+								difference_in_arrival_times = (this_arrival_time + this_comfort_surcharge)
+									- (best_arrival_time + fast_comfort_surcharge);
+								if (difference_in_arrival_times <= 0)
+								{
+									// The faster convoy is not better once comfort is included.
+									wait_for_faster_convoy = false;
+								}
+							}
 						}
 
 						sint64 waiting_time_for_faster_convoy = fast_here_departure_time - welt->get_ticks();
