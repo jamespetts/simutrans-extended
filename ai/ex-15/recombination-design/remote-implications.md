@@ -224,7 +224,7 @@ are additions, qualifications and conflicts only; same tags and severity scale a
   and journey time are taken from the delivering convoy at unload (`calc_revenue` →
   `goods_desc_t::get_total_fare`) [CODE ex-15 @ bf447619a — independently verified:
   `calc_revenue` reads `get_catering_level(...)` of the delivering convoy for the whole leg from
-  `last_transfer` (simconvoi.cc:6213-6219); comfort no longer affects fares, and freight ignores
+  `last_transfer` (simconvoi.cc:6213-6219); comfort does not affect fares, and freight ignores
   catering (:6243)], so a short final leg with a high catering level can monetise a long journey
   in a different portion, and late-attached catering can monetise earlier travel. Principle:
   changing convoy identity must not erase or retroactively alter economically relevant journey
@@ -254,15 +254,15 @@ are additions, qualifications and conflicts only; same tags and severity scale a
   mixedness is an upper bound at best and cannot settle whether grouping is needed or what the
   capacity-pressure policy should be (cf. the cargo-continuity measurement note).
 
-### Decision-list additions
+### Additional open questions
 
-4. boarding promise/guarantee policy: planned through service with provisioned capacity vs mere
-   chance of continuing vs explicitly planned transfer (grounded in the project goal that players
-   should make realistic decisions, not mechanics decisions);
-5. the automatic-loader competence boundary (C5): what arrangement the loader guarantees, and what
-   remains a genuine player trade-off;
-6. persistence for service commitments and stock circulation (C7) — a decision, not an assumption
-   of none.
+- boarding promise/guarantee policy: planned through service with provisioned capacity vs mere
+  chance of continuing vs explicitly planned transfer (grounded in the project goal that players
+  should make realistic decisions, not mechanics decisions);
+- the automatic-loader competence boundary (C5): what arrangement the loader guarantees, and what
+  remains a genuine player trade-off;
+- persistence for service commitments and stock circulation (C7) — an open question, not an
+  assumption of none.
 
 ### Conflicts between the two reviews — SETTLED by the user, 2026-11-03
 
@@ -276,11 +276,12 @@ session agent's adjudication; the outcome is appended to each item, and
    schedule-level static … needs no instance prediction and no persistence" — Review B R7
    (allocation is instance-dependent even for self-contained splits where slots have alternatives
    or capacity ranges) and C7 (multi-service merge claims and empty-stock circulation may need
-   persistent commitments). Recommend marking the claim [UNVERIFIED] until decision 6 is settled.
+   persistent commitments). Recommend marking the claim [UNVERIFIED] until the persistence
+   question is settled.
    → **SETTLED 2026-11-03 (user, adjudication accepted):** compatibility keys remain static;
    capacity is instance-dependent wherever slots have alternatives/ranges (fixed single-vehicle
-   slots excepted); persistence for commitments/stock circulation stays an open decision
-   (addition 6), not an assumed no.
+   slots excepted); persistence for commitments/stock circulation stays an open question, not an
+   assumed no.
 2. **[CONFLICT — Review B vs recorded analysis, marked in cargo-continuity]** "A schedule with no
    divide is completely unaffected" and "marshal-before-loading is the realistic player answer" —
    Review B R9 (upstream joins and nested divides propagate the constraint; marshalling cannot
@@ -303,8 +304,8 @@ session agent's adjudication; the outcome is appended to each item, and
    withdrawn. User rule recorded in cargo-continuity.md: where the consist is scheduled through, a
    journey using the through movement is always priced as a through fare — alight-and-reboard
    pricing is decisively wrong. The booking-model choice (fix the cross-schedule lookup vs
-   compute-and-apportion per leg, mileage-apportionment style) remains an open decision
-   (addition 1), with A7's journey-history principle attached.
+   compute-and-apportion per leg, mileage-apportionment style) remains an open question, with
+   A7's journey-history principle attached.
 5. **[CONFLICT — Review B vs Review A, marked in A5 above]** A5 "freight portion capacity equals
    slot count" — Review B R7: wrong where alternatives/rules give capacity ranges [CODE]; "gate
    conservatively" then over-refuses feasible traffic. A5's origin-gating conclusion survives as the

@@ -240,8 +240,7 @@ void gui_halt_route_detail_t::append_leg(halthandle_t from, halthandle_t to, con
 	{
 		leg.maximum_comfortable_journey = path_explorer_t::get_linkage_maximum_comfortable_journey(leg.line, leg.convoy, g_class);
 		leg.maximum_tolerable_journey = path_explorer_t::get_linkage_maximum_tolerable_journey(leg.line, leg.convoy, g_class);
-		leg.maximum_comfortable_wait = from->get_maximum_comfortable_wait(g_class);
-		leg.maximum_tolerable_wait = from->get_maximum_tolerable_wait(g_class);
+		from->get_wait_comfort(g_class, leg.maximum_comfortable_wait, leg.maximum_tolerable_wait);
 	}
 	legs.append(leg);
 }

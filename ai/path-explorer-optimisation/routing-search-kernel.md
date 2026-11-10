@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8109f6dab (target-specific reboarding; 2026-11-08)
+verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-09)
 ---
 # Path explorer optimisation: the routing-search engine
 
@@ -27,7 +27,9 @@ full_connexion_t { origin_halt_id, target_halt_id, transport_idx, comfort, weigh
   when comfort routing is off or the candidate is walking.
 - `weight` is `waiting_time + journey_time + transfer_time + comfort_cost`, clamped to
   `uint32`.
-- `journey_time` is the actual ride time, used by the reboarding rule.
+- `journey_time` is the actual ride time, used by the rule that prevents
+  changing transport only to reset the comfortable-time allowance (the reboarding
+  rule).
 - The connexion rebuild deduplicates each halt's `connexions_map` (one best full weight per
   halt pair); that table drives runtime boarding. The full list is the input to the
   routing-search graph.
@@ -38,7 +40,9 @@ On `bb-10-sep-2023.sve`, passenger class 0, the full list has 177,672 candidates
 
 ## Compact graph and state space
 
-The graph build creates, once per compartment:
+A compartment is one goods category and fare class pair; the path explorer
+processes one compartment at a time. The graph build creates, once per
+compartment:
 
 - a per-origin outgoing edge stream (`out_offset` over `out_edges`), with
   `out_edges[i] = { target halt, transport, comfort, weight, journey time, target
@@ -49,10 +53,17 @@ The graph build creates, once per compartment:
 - the distinct incoming transport keys per halt, sorted and deduplicated;
 - one state per `(halt, arriving transport)` plus one origin state per halt (arriving
   transport = NONE). `state_key` is a `uint32`; NONE is `0xFFFFFFFF`;
-- `state_halt`, `state_offset` and each edge's `target_state`.
+- `state_halt`, `state_offset` and each edge's `target_state`;
+- per state, the contiguous range of `out_edges` that belongs to the arriving
+  transport (`state_arriving_edge_begin`/`state_arriving_edge_end`) and a small hash
+  table with linear probing that maps each destination that transport serves to its
+  actual remaining ride time (`arriving_targets`, with
+  `state_arriving_table_offset`/`state_arriving_table_mask`), for the reboarding rule.
 
-The state count is `H + sum over halts of distinct incoming transport keys`. On the
-gargantuan fixture: 17,987 states, 3.35 per working halt.
+The state count is the number of working stops plus, for each working stop, the
+number of distinct transports that arrive there. A working stop is a stop that
+passes the current compartment's category filter. On the gargantuan fixture:
+17,987 states, 3.35 per working stop.
 
 The working matrix is allocated here as `uint32` times and `uint16` next transfers, both
 6 B per cell. The diagonal is 0.
@@ -71,7 +82,9 @@ For each origin `o`:
    - when comfort routing and vehicle comfort weighting are on, skip an equal- or
      lower-comfort change when the arriving transport serves the edge's target and the
      candidate's full weight is not less than the arriving transport's actual remaining
-     ride time to that target (the reboarding rule; → [comfort-routing-model](comfort-routing-model.md));
+     ride time to that target (the reboarding rule; the destination lookup is the per-state
+     table above, so it takes constant time on average; see
+     [comfort-routing-model](comfort-routing-model.md));
    - skip when the edge has no valid target state;
    - relax on strict improvement and push the target state.
    The first hop is the edge's target halt when the source is the origin state; otherwise it
@@ -137,11 +150,8 @@ full candidate list, the working matrix and `origin_index`.
 
 ## Measurements
 
-These figures predate the target-specific reboarding sort and comparison; re-measure before
-using them for budget tuning.
-
-`bb-10-sep-2023.sve`, Profile (server) x64, `threads = 4` (three pool threads), full instant
-refresh:
+`bb-10-sep-2023.sve`, Profile (server) x64, `threads = 4` (three pool threads), a complete
+rebuild with no per-step time budget:
 
 - Full run including load, two runs: 80.6 s and 85.1 s (median 82.9 s); load ≈14.9 s, so the
   refresh is ≈68 s.
@@ -150,22 +160,28 @@ refresh:
 - Single-threaded routing search: 18.0 s per class; the pool gives 1.55-1.71x.
 - Graph build: 37-43 ms per class.
 
-2026-11-07 follow-up (same fixture, Profile (server) x64, `threads = 4`, TEST phase timers and
-`-debug 2`, full refresh after load):
+The current search uses a grouped edge stream, a value heap and dynamic origin claiming. With
+the same fixture and an instrumented build (TEST phase timers and `-debug 2`, complete rebuild
+after load):
 
-- Before the follow-up (indexed edges, pointer heap, contiguous slices): full run 98.3 s;
-  single-thread full run 129.3 s. Large passenger classes: 41.6-47.4 s total thread time,
-  14.9-16.6 s wall; single-thread 20.8-22.3 s.
-- After the grouped edge stream, value heap and dynamic origin claim: full run 80.2 s;
-  single-thread full run 105.2 s. Large passenger classes: 37.4-38.5 s total thread time,
-  ~12.5 s wall; single-thread 16.4-17.7 s. Per-thread times differ by under 0.02 s. Edge
-  scans and pushes are identical to the baseline (2.86-2.94 B edges and 120.9-130.3 M pushes
-  per large class), confirming that the relaxations are unchanged. The follow-up's parallel
-  wall against its single-thread figures is 1.31-1.42x; the pool is bandwidth-limited.
+- Full run 80.2 s; single-thread full run 105.2 s. Large passenger classes: 37.4-38.5 s total
+  thread time, ~12.5 s wall; single-thread 16.4-17.7 s. Per-thread times differ by under 0.02 s.
+  Edge scans and pushes are 2.86-2.94 B and 120.9-130.3 M per large class. The parallel wall
+  against the single-thread figures is 1.31-1.42x; the pool is bandwidth-limited.
 - The instrumented figures include the TEST counters and `-debug 2`; compare them with each
   other, not with the uninstrumented figures above.
 
 [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 6447a1d2e]
+
+Comfort routing (same fixture, Profile (server) x64, `threads = 4`, a complete rebuild run
+immediately after load with no per-step time budget, using the cached destination lookup
+described above):
+
+- Comfort routing off: 59.2 s and 55.0 s (median 57.1 s).
+- Comfort routing on: 69.8 s and 67.3 s (median 68.6 s); +11.4 s (+20%).
+- Whole run including load: 69.3-73.6 s off and 81.8-84.3 s on.
+
+[EXECUTION-VERIFIED:2026-11-09, ex-15 @ c1e914343 plus working-tree comfort changes]
 
 ## Through journeys and comfort
 
@@ -173,19 +189,20 @@ Through connexions across couplings are direct connexion-rebuild candidates in t
 The state graph records the boarding transport; the through edge is a normal search edge with
 one transport field.
 
-Comfort routing changes the connexion-rebuild edge weight and deduplication policy; the
-routing-search kernel is unchanged. The weight is one non-negative integer per edge per
-compartment, and the current state/edge representation keeps one cost field per cell (→
+Comfort routing changes the connection cost and the rule that decides which duplicate
+connection to keep; the routing-search kernel is unchanged. The cost is one non-negative
+integer per edge per compartment, and the current state and edge representation keeps one cost
+field per cell. The destination lookup used by the reboarding rule is cached per state (see
 [comfort-routing](comfort-routing.md)).
 
 ## Future work
 
 - Exact mid-pass resume (full candidate list + working matrix + origin index) if the join
   rate justifies the extra ≈175 MB per mid-pass compartment.
-- Pool efficiency: the origin claim is now dynamic and the heap stores values; the 2026-11-07
-  follow-up reduced the large-class wall time by about 16% and the full instrumented run by
-  about 18%. The remaining limit is memory latency on the edge scan; further gains need an
-  algorithmic change (hub labels) or a GPU backend.
+- Pool efficiency: the origin claim is dynamic and the heap stores values. The current
+  large-class wall time is about 12.5 s and the instrumented full run 80.2 s. The remaining
+  limit is memory latency on the edge scan; further gains need an algorithmic change (hub
+  labels) or a GPU backend.
 - Re-assess GPU against the current graph-search shape.
 - Compact distance oracle (hub labels) if the O(H²) memory limit becomes binding.
 
@@ -193,7 +210,7 @@ compartment, and the current state/edge representation keeps one cost field per 
 
 The expanded-state engine, candidate list, state graph, pool and revision-9 savegame were
 implemented and measured on `ex-15` at `a203862c1`, Profile
-(server) x64. The runtime-table deduplication was corrected to compare full weights at
-`375ebf369`. The 2026-11-07 follow-up (grouped edge stream, value heap, dynamic origin claim)
-was measured at `6447a1d2e`. The verification used a standalone expanded-state Dijkstra
-over the same candidate list. [CODE; EXECUTION-VERIFIED where tagged]
+(server) x64. The runtime-table deduplication compares full weights. The grouped edge stream,
+value heap and dynamic origin claim were measured at `6447a1d2e`. The verification used a
+standalone expanded-state Dijkstra over the same candidate list.
+[CODE; EXECUTION-VERIFIED where tagged]

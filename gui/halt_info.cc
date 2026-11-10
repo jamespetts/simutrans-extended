@@ -631,8 +631,11 @@ void halt_info_t::init(halthandle_t halt)
 				const uint8 g_class = goods_manager_t::get_classes_catg_index(goods_manager_t::INDEX_PAS) - 1;
 				char comfortable_wait[32];
 				char tolerable_wait[32];
-				welt->sprintf_time_tenths(comfortable_wait, sizeof(comfortable_wait), halt->get_maximum_comfortable_wait(g_class));
-				welt->sprintf_time_tenths(tolerable_wait, sizeof(tolerable_wait), halt->get_maximum_tolerable_wait(g_class));
+				uint16 maximum_comfortable_wait;
+				uint16 maximum_tolerable_wait;
+				halt->get_wait_comfort(g_class, maximum_comfortable_wait, maximum_tolerable_wait);
+				welt->sprintf_time_tenths(comfortable_wait, sizeof(comfortable_wait), maximum_comfortable_wait);
+				welt->sprintf_time_tenths(tolerable_wait, sizeof(tolerable_wait), maximum_tolerable_wait);
 
 				uint16 comfort_capacity = 0;
 				for (haltestelle_t::tile_t const &tile : halt->get_tiles())

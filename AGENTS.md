@@ -90,6 +90,27 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
     the user as a proposed exception, state explicitly that it does not model a real
     quantity and that implementing it would breach the realism principle in
     `ai/high-level-design-goals.md`, and obtain a user decision before writing it.
+15. Every change to any documentation - knowledge-base documents in `ai/`, help files,
+    READMEs, code comments and any other prose - requires a full theory of mind audit
+    before the change is presented. This means reading the changed text, together with the
+    surrounding document or comment block, as a maintainer who does not have the session's
+    context, both a human contributor and a future AI agent, and checking that:
+    (a) every sentence can be understood from the text itself and the documents or code it
+        refers to;
+    (b) every abbreviation, specialised term and piece of project shorthand is defined at
+        first use, or replaced with plain language;
+    (c) every pronoun and definite reference has an explicit antecedent;
+    (d) code entities are named exactly as they are in the checked-out code, and code
+        claims are verifiable from those entities;
+    (e) links resolve and the text contains no display or encoding artefacts.
+    The audit covers the whole changed passage, not only the newly added lines, because an
+    edit can make existing text misleading. If any ambiguity remains, write an open
+    question rather than a claim. State in the change summary that the audit was performed
+    and what it found.
+16. Describe how the code works directly. Do not refer to design decisions by number or
+    letter in documentation, and do not describe past code: documentation covers current
+    behaviour and planned future behaviour, while Git records past code. If planned behaviour
+    differs from current behaviour, describe the planned behaviour separately.
 
 
 ## Commit messages

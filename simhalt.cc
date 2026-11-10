@@ -4102,10 +4102,14 @@ void haltestelle_t::get_wait_comfort(uint8 g_class, uint16 &maximum_comfortable_
 		return;
 	}
 
-	// The waiting count is read without the passenger-generation mutex: the
-	// path explorer and the UI can both reach this code while that mutex is
-	// already held, and a recursive lock would deadlock. The count is only used
-	// to choose the stop's effective comfort for the next route refresh.
+	// The waiting count is read without a mutex. Every main-thread change to
+	// the waiting lists (check_transferring_cargoes, haltestelle_t::step and
+	// the factory step's recall_ware call) runs inside karte_t::step, which
+	// awaits the path explorer at the start of the step; the explorer is
+	// started only at the end of the step, after those changes, and sync_step
+	// does not change the waiting lists. The count is therefore a consistent
+	// snapshot of the last completed step, used only to choose the stop's
+	// effective comfort for the next route refresh.
 	const uint32 waiting = get_ware_summe(goods_manager_t::passengers, g_class);
 	if (waiting == 0)
 	{

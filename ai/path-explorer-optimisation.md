@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8109f6dab (target-specific reboarding; 2026-11-08)
+verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-09)
 ---
 # Path explorer optimisation
 
@@ -45,10 +45,14 @@ expanded state graph**:
 The finished matrix is 6 B per cell (`uint32` time + `uint16` next transfer). The working
 matrix is also 6 B per cell. `get_path_between` is unchanged.
 
-Extending the engine to comfort routing changes the connexion-rebuild edge weight and
-deduplication policy; the time-based model leaves the search kernel unchanged, but the
-proposed comfort-improvement rule (Decision 3) adds an edge filter and would change search
-semantics (→ [comfort-routing](path-explorer-optimisation/comfort-routing.md)).
+Comfort routing changes the cost stored on each stop-to-stop connection and the rule that
+decides which duplicate connection to keep. The time-based comfort model leaves the search
+kernel unchanged, but the comfort-improvement rule, which prevents changing transport only to
+get a fresh comfortable-time allowance for the next leg, adds a check on each candidate edge
+and changes which routes the search accepts. The arriving transport's ride
+time to each possible destination is cached per search state, so the check does not re-scan the
+connection list; on the gargantuan fixture the rule adds about 20% to a complete rebuild of the
+route tables (see [comfort-routing](path-explorer-optimisation/comfort-routing.md)).
 
 ### Measurements
 
@@ -73,13 +77,13 @@ The five large passenger classes dominate the refresh. Load and the other refres
 bound the full-run gain; the routing search dominates the compute. The per-origin search is
 memory-latency bound, which limits the pool scaling.
 
-2026-11-07 follow-up (same fixture, TEST phase timers and `-debug 2`, full refresh after load):
-dynamic origin claiming, a value heap and a grouped edge stream reduced the full run from
-98.3 s to 80.2 s, the large-class wall time from 14.9-16.6 s to about 12.5 s, and the
-single-thread full run from 129.3 s to 105.2 s. Edge scans and heap pushes are unchanged
-(2.86-2.94 B edges and 120.9-130.3 M pushes per large class). The instrumented figures include
-the timers and debug logging; compare them with each other, not with the canonical figures
-above. [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 6447a1d2e]
+The current search uses dynamic origin claiming, a value heap and a grouped edge stream.
+With the same fixture and an instrumented build (TEST phase timers and `-debug 2`, full
+refresh after load), the full run measures 80.2 s, the large-class wall time about 12.5 s,
+and the single-thread full run 105.2 s. Edge scans and heap pushes are 2.86-2.94 B and
+120.9-130.3 M per large class. The instrumented figures include the timers and debug logging;
+compare them with each other, not with the canonical figures above.
+[EXECUTION-VERIFIED:2026-11-07, ex-15 @ 6447a1d2e]
 
 ## Constraints
 
@@ -121,10 +125,10 @@ no desync markers (→ [routing-search-kernel](path-explorer-optimisation/routin
   `origin_index`, and rebuild the graph on load. Cost: roughly 175 MB per mid-pass
   compartment in the savegame and join transfer. Currently the restart is preferred at the
   observed join rate.
-- Pool efficiency: the origin claim is now dynamic and the heap stores values; the 2026-11-07
-  follow-up reduced the large-class wall time by about 16% and the full instrumented run by
-  about 18%. The remaining limit is memory latency on the edge scan; further gains need an
-  algorithmic change or a GPU backend.
+- Pool efficiency: the origin claim is dynamic and the heap stores values. The current
+  large-class wall time is about 12.5 s and the instrumented full run 80.2 s. The remaining
+  limit is memory latency on the edge scan; further gains need an algorithmic change or a GPU
+  backend.
 - Memory: the matrices remain O(H²). Hub labels were assessed and rejected as a compact
   distance oracle: the label set exceeds the matrix well before full coverage and the build
   is far slower than the current search (→
@@ -132,8 +136,14 @@ no desync markers (→ [routing-search-kernel](path-explorer-optimisation/routin
   deliberately for future overseas destinations [RECOLLECTION:2026-11-07].
 - GPU: a many-source graph search over the expanded states is unassessed; assess if a GPU use
   case exists.
-- Comfort routing and through-journey integration: connexion-rebuild weights, the boarding rule, and
-  the through candidates are supported by the current state representation.
+- Comfort-based route choice and through journeys are implemented: the connection costs, the
+  rule that prevents changing transport only to get a fresh comfortable-time allowance for the
+  next leg, and the through-journey candidates are part of the search. The ride-time lookup used
+  by that rule is cached per search state; on the gargantuan fixture the rule adds about 20% to
+  a complete rebuild. The remaining comfort-routing tasks (the saved marker recording which
+  comfort weights built the route tables, Squirrel scripting tests, pakset calibration, the save
+  guard for the older 15.10 format and translations) are listed in
+  [comfort-routing](path-explorer-optimisation/comfort-routing.md).
 
 ## Open questions
 
@@ -142,10 +152,11 @@ no desync markers (→ [routing-search-kernel](path-explorer-optimisation/routin
   the path-explorer per-origin rows are verified independent of the thread count.
 - Is there a compact routing oracle whose build cost is close to the current per-origin
   search? Hub labels do not qualify (→ [hub-labels](path-explorer-optimisation/hub-labels.md)).
-- Comfort routing: the time-based weight model, the target-specific reboarding rule and the
-  boarding rule are decided (→ [comfort-routing](path-explorer-optimisation/comfort-routing.md));
-  the conservative reboarding threshold, calibration and the remaining companion changes
-  remain open.
+- Comfort routing: the time-based cost model, the rule that prevents changing transport only
+  to get a fresh comfortable-time allowance for the next leg, and the boarding comparison are
+  implemented (see [comfort-routing](path-explorer-optimisation/comfort-routing.md)). The exact
+  comparison used by that rule, the remaining ~20% rebuild cost, pakset calibration and the
+  companion changes remain open.
 - GPU: is there a use case?
 
 ## Provenance

@@ -44,6 +44,14 @@ preserve all necessary data.
 
 ## Mechanics
 
+- Every documentation change also requires the theory of mind audit in
+  [AGENTS.md](../AGENTS.md) rule 15: read the changed text as a maintainer who does
+  not have the session's context, define specialised terms at first use, make every
+  reference explicit, verify code names and links, and remove encoding artefacts.
+- Describe how the code works directly. Do not refer to design decisions by number
+  or letter, and do not describe past code; document current and planned future
+  behaviour only. If planned behaviour differs, state it separately. Git records past
+  code.
 - Relative markdown links only (Obsidian + GitHub compatible). AGENTS.md uses plain paths.
 - Target ≤ 300 lines per doc; when exceeded, split into multiple linked documents.
 - For complex topics, documents should be nested (e.g. Index > topic > subtopic 1 | subtopic 2 | subtopic 3 > sub-subtopic 1A | sub-subtopic 1B, etc.).

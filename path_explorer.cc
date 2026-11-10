@@ -828,6 +828,11 @@ path_explorer_t::compartment_t::compartment_t()
 	state_key = NULL;
 	transport_comfort = NULL;
 	state_arriving_continues = NULL;
+	state_arriving_edge_begin = NULL;
+	state_arriving_edge_end = NULL;
+	arriving_targets = NULL;
+	state_arriving_table_offset = NULL;
+	state_arriving_table_mask = NULL;
 	state_count = 0;
 	thread_dist = NULL;
 	thread_first_hop = NULL;
@@ -1560,6 +1565,9 @@ void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &cur
 				{
 					continue;
 				}
+				uint16 origin_maximum_comfortable_wait;
+				uint16 origin_maximum_tolerable_wait;
+				origin.halt->get_wait_comfort(g_class, origin_maximum_comfortable_wait, origin_maximum_tolerable_wait);
 				for (uint32 d = 0; d < downstream.get_count(); ++d)
 				{
 					const through_stop_t &destination = downstream[d];
@@ -1584,7 +1592,7 @@ void path_explorer_t::compartment_t::add_through_connexions(const linkage_t &cur
 					new_connexion.best_convoy = source_linkage.convoy;
 					new_connexion.alternative_seats = 0;
 					if (!get_connexion_comfort_cost(new_connexion.waiting_time, new_connexion.journey_time,
-						origin.halt->get_maximum_comfortable_wait(g_class), origin.halt->get_maximum_tolerable_wait(g_class),
+						origin_maximum_comfortable_wait, origin_maximum_tolerable_wait,
 						through_maximum_comfortable_journey, through_maximum_tolerable_journey,
 						catg, new_connexion.comfort_cost))
 					{
@@ -1679,6 +1687,16 @@ void path_explorer_t::compartment_t::clear_search_graph()
 	transport_comfort = NULL;
 	delete[] state_arriving_continues;
 	state_arriving_continues = NULL;
+	delete[] state_arriving_edge_begin;
+	state_arriving_edge_begin = NULL;
+	delete[] state_arriving_edge_end;
+	state_arriving_edge_end = NULL;
+	delete[] arriving_targets;
+	arriving_targets = NULL;
+	delete[] state_arriving_table_offset;
+	state_arriving_table_offset = NULL;
+	delete[] state_arriving_table_mask;
+	state_arriving_table_mask = NULL;
 	full_edge_count = 0;
 	state_count = 0;
 }
@@ -1915,9 +1933,10 @@ void path_explorer_t::compartment_t::build_search_graph()
 	delete[] out_edge;
 	out_edge = NULL;
 
-	// Sort each halt's outgoing edges by transport and then target. The
-	// reboarding rule needs the arriving transport's edge to a given target
-	// without scanning the whole out-edge list.
+	// Sort each halt's outgoing edges by transport and then target. The rule
+	// that prevents changing transport only to get a fresh comfortable-time
+	// allowance needs the arriving transport's edge to a given destination (the
+	// edge's target) without scanning the whole outgoing-edge list.
 	for ( uint32 h = 0; h < H; ++h )
 	{
 		std::sort(out_edges + out_offset[h], out_edges + out_offset[ h + 1 ],
@@ -1932,8 +1951,9 @@ void path_explorer_t::compartment_t::build_search_graph()
 					return a.target < b.target;
 				}
 				// Total order for determinism across standard libraries. The
-				// shortest remaining ride is first, so the reboarding lookup
-				// uses the most conservative stay option.
+				// shortest remaining ride is first, so the lookup uses the
+				// smallest stay time; if even that blocks the change, the rule
+				// blocks it.
 				if ( a.journey_time != b.journey_time )
 				{
 					return a.journey_time < b.journey_time;
@@ -1942,24 +1962,95 @@ void path_explorer_t::compartment_t::build_search_graph()
 			});
 	}
 
-	// Quick check for the comfort reboarding rule: whether the arriving
-	// transport has any outgoing edge at this halt. The target-specific
-	// comparison is in reboarding_blocked().
+	// The rule that prevents changing transport only to reset the comfort
+	// allowance needs the outgoing edges of the transport the passenger arrived
+	// on. Cache their contiguous range per state: the edges are sorted by
+	// transport, so the range is found once here instead of by a search and
+	// scan for every candidate edge during the routing search.
 	state_arriving_continues = new uint8[ state_count > 0 ? state_count : 1 ]();
+	state_arriving_edge_begin = new uint32[ state_count > 0 ? state_count : 1 ]();
+	state_arriving_edge_end = new uint32[ state_count > 0 ? state_count : 1 ]();
+	state_arriving_table_offset = new uint32[ state_count > 0 ? state_count : 1 ]();
+	state_arriving_table_mask = new uint32[ state_count > 0 ? state_count : 1 ]();
 	for ( uint32 s = 0; s < state_count; ++s )
 	{
 		const uint32 arriving = state_key[s];
-		if ( arriving == 0xFFFFFFFFu )
+		if ( arriving == 0xFFFFFFFFu || arriving == 0 )
 		{
 			continue;
 		}
 		const uint32 h = state_halt[s];
-		for ( uint32 i = out_offset[h]; i < out_offset[ h + 1 ]; ++i )
+		uint32 low = out_offset[h];
+		uint32 high = out_offset[ h + 1 ];
+		while ( low < high )
 		{
-			if ( out_edges[i].transport == arriving )
+			const uint32 mid = (low + high) / 2;
+			if ( out_edges[mid].transport < arriving )
 			{
-				state_arriving_continues[s] = 1;
-				break;
+				low = mid + 1;
+			}
+			else
+			{
+				high = mid;
+			}
+		}
+		uint32 end = low;
+		while ( end < out_offset[ h + 1 ] && out_edges[end].transport == arriving )
+		{
+			++end;
+		}
+		if ( low < end )
+		{
+			state_arriving_continues[s] = 1;
+			state_arriving_edge_begin[s] = low;
+			state_arriving_edge_end[s] = end;
+		}
+	}
+
+	// Build one small hash table (linear probing) per state. Each table is
+	// sized to twice the number of destinations served by the arriving
+	// transport, so the destination lookup stays in cache instead of searching
+	// the edge range for every candidate change.
+	size_t arriving_target_slots = 0;
+	for ( uint32 s = 0; s < state_count; ++s )
+	{
+		if ( state_arriving_continues[s] == 0 )
+		{
+			continue;
+		}
+		const uint32 count = state_arriving_edge_end[s] - state_arriving_edge_begin[s];
+		uint32 size = 4;
+		while ( size < count * 2 )
+		{
+			size <<= 1;
+		}
+		state_arriving_table_offset[s] = (uint32)arriving_target_slots;
+		state_arriving_table_mask[s] = size - 1;
+		arriving_target_slots += size;
+	}
+	arriving_targets = new arriving_target_t[ arriving_target_slots > 0 ? arriving_target_slots : 1 ];
+	memset( arriving_targets, 0xFF, sizeof(arriving_target_t) * ( arriving_target_slots > 0 ? arriving_target_slots : 1 ) );
+	for ( uint32 s = 0; s < state_count; ++s )
+	{
+		if ( state_arriving_continues[s] == 0 )
+		{
+			continue;
+		}
+		const uint32 offset = state_arriving_table_offset[s];
+		const uint32 mask = state_arriving_table_mask[s];
+		for ( uint32 i = state_arriving_edge_begin[s]; i < state_arriving_edge_end[s]; ++i )
+		{
+			const uint32 target = out_edges[i].target;
+			uint32 slot = ( target * 2654435761u ) & mask;
+			while ( arriving_targets[ offset + slot ].target != 0xFFFFFFFFu
+				&& arriving_targets[ offset + slot ].target != target )
+			{
+				slot = ( slot + 1 ) & mask;
+			}
+			if ( arriving_targets[ offset + slot ].target == 0xFFFFFFFFu )
+			{
+				arriving_targets[ offset + slot ].target = target;
+				arriving_targets[ offset + slot ].journey_time = out_edges[i].journey_time;
 			}
 		}
 	}
@@ -1994,39 +2085,29 @@ void path_explorer_t::compartment_t::build_search_graph()
 }
 
 
-bool path_explorer_t::compartment_t::reboarding_blocked(const uint32 halt, const uint32 arriving, const uint32 target, const uint32 candidate_weight) const
+bool path_explorer_t::compartment_t::reboarding_blocked(const uint32 state, const uint32 target, const uint32 candidate_weight) const
 {
-	// out_edges is sorted by transport and then target.
-	uint32 low = out_offset[halt];
-	uint32 high = out_offset[ halt + 1 ];
-	while ( low < high )
+	const uint32 offset = state_arriving_table_offset[state];
+	const uint32 mask = state_arriving_table_mask[state];
+	uint32 slot = ( target * 2654435761u ) & mask;
+	while ( arriving_targets[ offset + slot ].target != 0xFFFFFFFFu )
 	{
-		const uint32 mid = (low + high) / 2;
-		if ( out_edges[mid].transport < arriving )
+		if ( arriving_targets[ offset + slot ].target == target )
 		{
-			low = mid + 1;
+			// Compare the cost of changing (waiting, transfer and
+			// comfort-adjusted ride) with the time the passenger would actually
+			// spend staying on the arriving transport to the same destination.
+			// The stay time has no comfort adjustment, so the comparison is
+			// deliberately strict: if the change is not cheaper even on that
+			// basis, the only reason to change would be to reset the comfort
+			// allowance for the next leg.
+			return candidate_weight >= arriving_targets[ offset + slot ].journey_time;
 		}
-		else
-		{
-			high = mid;
-		}
+		slot = ( slot + 1 ) & mask;
 	}
-	const uint32 end = out_offset[ halt + 1 ];
-	for ( uint32 i = low; i < end && out_edges[i].transport == arriving; ++i )
-	{
-		if ( out_edges[i].target == target )
-		{
-			// Compare the candidate's full perceived cost (waiting, transfer
-			// and comfort-adjusted ride) with the arriving transport's
-			// actual remaining ride time. The latter has no comfort surcharge,
-			// so this is conservative: if the candidate is not cheaper even on
-			// that basis, the only reason to change would be to reset the
-			// comfort clock.
-			return candidate_weight >= out_edges[i].journey_time;
-		}
-	}
-	// The arriving transport does not serve this target, so the change is
-	// necessary rather than a comfort-clock reset.
+	// The arriving transport does not serve this destination, so the change is
+	// necessary rather than an attempt to get a fresh comfortable-time
+	// allowance.
 	return false;
 }
 
@@ -2083,11 +2164,12 @@ void path_explorer_t::compartment_t::run_origin(const uint16 origin, const uint3
 				&& edge.transport != 0
 				&& state_arriving_continues[s]
 				&& edge.comfort <= transport_comfort[arriving]
-				&& reboarding_blocked(h, arriving, edge.target, edge.weight) )
+				&& reboarding_blocked(s, edge.target, edge.weight) )
 			{
-				// The arriving transport serves this target and the candidate is
-				// not cheaper on an actual-time basis, so changing would only
-				// reset the comfort clock.
+				// The arriving transport serves this destination and the
+				// candidate is not cheaper on an actual-time basis, so changing
+				// would only get a fresh comfortable-time allowance for the
+				// next leg.
 				continue;
 			}
 			if ( edge.target_state == 0xFFFFFFFFu || d > UINT32_MAX_VALUE - edge.weight )
@@ -2785,8 +2867,9 @@ void path_explorer_t::compartment_t::step()
 					// any serving line/lineless convoy increments serving transport count
 					++connexion_list[ halt_list[h].get_id() ].serving_transport;
 
-					const uint16 origin_maximum_comfortable_wait = halt_list[h]->get_maximum_comfortable_wait(g_class);
-					const uint16 origin_maximum_tolerable_wait = halt_list[h]->get_maximum_tolerable_wait(g_class);
+					uint16 origin_maximum_comfortable_wait;
+					uint16 origin_maximum_tolerable_wait;
+					halt_list[h]->get_wait_comfort(g_class, origin_maximum_comfortable_wait, origin_maximum_tolerable_wait);
 
 					uint8 last_consist_order_stop_point_t = last_consist_order_stop_point_h;
 					uint8 last_consist_order_start_point_t = last_consist_order_start_point_h;

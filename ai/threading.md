@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 7655609c9; ex-15 path-explorer rows @ 6447a1d2e (2026-11-07)
+verified: master @ 7655609c9; ex-15 path-explorer rows @ 6447a1d2e (2026-11-07); ex-15 comfort wait read @ c1e914343 plus working tree (2026-11-09)
 ---
 # Threading
 
@@ -372,6 +372,16 @@ the inventory) [CODE master @ 79e91affc].
   [CODE master @ 78a4bb3b9].
 - `stadt_t::private_car_route_finding_in_progress` is written by workers without a mutex,
   persisted, and has no reader — dead state [CODE master @ 78a4bb3b9].
+- Comfort routing's stop waiting-count read (`haltestelle_t::get_wait_comfort` ->
+  `get_ware_summe`) needs no mutex: every main-thread change to a halt's `cargo` (its
+  waiting passenger and goods lists) runs inside `karte_t::step`. That function awaits the path
+  explorer at the start of the step and starts it only at the end of the step, after those
+  changes; `sync_step` does not load or unload cargo. The explorer's `prepare_goods_list` still
+  publishes an empty `cargo` vector from its worker thread while the UI may read the same
+  pointer. That is a data race in the C++ memory-model sense; it predates comfort routing and
+  is harmless in practice because the published vector is empty. Recorded in
+  [comfort-routing](path-explorer-optimisation/comfort-routing.md) [CODE ex-15 @ c1e914343
+  plus working tree].
 - MSVC "single threaded" configurations compile MT code (Build configuration) — user decision
   2026-09-07: very low priority, leave for now; fix-or-delete undecided
   (→ [known-bugs](known-bugs.md) P4).

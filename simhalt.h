@@ -552,10 +552,6 @@ private:
 	// private helper function for recalc_station_type()
 	void add_to_station_type( grund_t *gr );
 
-	// Compute the effective comfortable and tolerable waiting times for a
-	// passenger class from the halt's buildings and waiting count.
-	void get_wait_comfort(uint8 g_class, uint16 &maximum_comfortable_wait, uint16 &maximum_tolerable_wait) const;
-
 	/**
 	 * Reconnect and reroute if counter different from welt->get_schedule_counter()
 	 */
@@ -856,6 +852,8 @@ public:
 	// buildings and from the current number of waiting passengers.
 	uint16 get_maximum_comfortable_wait(uint8 g_class) const;
 	uint16 get_maximum_tolerable_wait(uint8 g_class) const;
+	// Both values in one pass, for callers that need the pair.
+	void get_wait_comfort(uint8 g_class, uint16 &maximum_comfortable_wait, uint16 &maximum_tolerable_wait) const;
 
 	bool existiert_in_welt() const;
 

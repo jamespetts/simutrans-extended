@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8109f6dab (core implementation, target-specific reboarding, effective fare class fallback, zero comfort-point handling and no fixed boarding cost; 2026-11-08)
+verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-10)
 ---
 # Comfort influenced routing: time-based model
 
@@ -10,9 +10,9 @@ and comfort capacity. Parent: [comfort-routing](comfort-routing.md). Integration
 (edge weights, savegame, settings, UI, companion changes):
 [comfort-routing-integration](comfort-routing-integration.md).
 
-Status: design and partial implementation. User decisions of 2026-11-08 are
-tagged [RECOLLECTION:2026-11-08]; derivations are [UNVERIFIED]. Implementation
-status: [comfort-routing](comfort-routing.md).
+Status: design and partial implementation. Statements made by the user on
+2026-11-08 are tagged [RECOLLECTION:2026-11-08]; derivations are [UNVERIFIED].
+Implementation status: [comfort-routing](comfort-routing.md).
 
 ## Definitions
 
@@ -50,13 +50,13 @@ variable names are the fully expressed `maximum_comfortable_journey`,
 `maximum_tolerable_journey`, `maximum_comfortable_wait` and
 `maximum_tolerable_wait`. No `MC_v`/`MT_v`/`MC_s`/`MT_s` abbreviations are used.
 
-### Old comfort points and backward compatibility
+### Comfort points and backward compatibility
 
 Existing vehicle comfort is a 0-255 byte per class. It remains in the pakset
 format indefinitely and is not deprecated.
 
 Where a vehicle gives no explicit `maximum_comfortable_journey`, derive it from
-the old comfort points:
+comfort points:
 
 ```
 maximum_comfortable_journey = max_tolerable_journey(comfort[class]) / 6
@@ -64,8 +64,8 @@ maximum_comfortable_journey = max_tolerable_journey(comfort[class]) / 6
 
 `max_tolerable_journey` returns seconds; division by 6 gives tenths of minutes.
 Where a vehicle gives an explicit `maximum_comfortable_journey`, the explicit
-value overrides the conversion. Old and new fields may coexist; the old field
-remains the fallback.
+value overrides the conversion. Comfort-point and time fields may coexist; the
+comfort-point field remains the fallback.
 
 A comfort-point value of 0 is treated as absent data rather than as a comfort
 rating. It falls back to the 180-minute default, in the same way as a vehicle
@@ -105,14 +105,14 @@ The inverse table is the existing bridge from comfort points to time. Its top en
 needs auditing before it drives hard limits: [known-bugs](../known-bugs.md)
 records a reported calculation problem at comfort 240 or more.
 
-The existing maximum-comfortable-journey-time display remains. It is the natural
-player-facing expression of `maximum_comfortable_journey` and should not be
-replaced by a comfort-point display. It reads the explicit
-`maximum_comfortable_journey` when present and the converted value otherwise.
+The existing maximum-comfortable-journey-time display remains. It is the
+player-facing expression of `maximum_comfortable_journey` and is not replaced by a
+comfort-point display. It reads the explicit `maximum_comfortable_journey` when
+present and the converted value otherwise.
 
 ### Defaults
 
-- If a vehicle or private car gives neither old comfort points nor explicit time
+- If a vehicle or private car gives neither comfort points nor explicit time
   values, `maximum_comfortable_journey` defaults to 180 minutes.
 - If `maximum_tolerable_journey` is not given, it defaults to
   `maximum_comfortable_journey * 3`.
@@ -167,11 +167,12 @@ is luxurious for that journey. Its route cost is still the actual time. The
 existing `comfort_preference_percentage` per passenger and the class-choice logic
 decide whether the passenger waits for that luxury.
 
-Class choice is time-based. The current points algorithm becomes:
+Class choice is time-based:
 
 1. `journey_time_seconds` is the expected arrival time minus the current time.
 2. `ideal_comfort_time = journey_time_seconds *
-   comfort_preference_percentage / 100`, as now.
+   comfort_preference_percentage / 100`, where
+   `comfort_preference_percentage` is the passenger's preference for comfort.
 3. For each class from the passenger's class down to 0, if the convoy's
    `maximum_comfortable_journey` for that class is at least
    `ideal_comfort_time`, that class becomes the best class. For a class with
@@ -180,24 +181,25 @@ Class choice is time-based. The current points algorithm becomes:
 4. If the best class differs from the passenger's class, the passenger waits for
    a better class under the existing wait rules.
 
-This is the current points algorithm with `maximum_comfortable_journey`
-replacing `max_tolerable_journey(comfort)`. The old comfort points are converted
-to a time for old paksets, but the class-choice algorithm itself does not operate
-on points.
+The algorithm operates on time values only. A pakset that provides comfort points
+has them converted to `maximum_comfortable_journey`; the class-choice algorithm
+does not use points.
 
 ## Split-incentive analysis
 
-Decision 3 is approved: comfort is assessed per leg, with option B as the
-reboarding mitigation. This section records the analysis behind that decision.
+Comfort is assessed per leg, with a reboarding rule that prevents changing
+transport only to get a fresh comfortable-time allowance. This section records the
+analysis behind that rule.
 
-Decision 2's lift/ocean-liner principle refers to the total time spent in the
-conditions. The per-leg curve applies it to each continuous ride; that is an
+The lift/ocean-liner principle described above refers to the total time spent in
+the conditions. The per-leg curve applies it to each continuous ride; that is an
 approximation, and the split incentive is the difference between the approximation
 and the principle.
 
 The cost curve uses the leg duration `t` against the vehicle's comfortable time
-`maximum_comfortable_journey`. That is the natural per-leg reading of Decision 2, and it is decomposable:
-every edge has one non-negative cost. It also creates the split incentive.
+`maximum_comfortable_journey`. That is the natural per-leg reading of that
+principle, and it is decomposable: every edge has one non-negative cost. It also
+creates the split incentive.
 
 For a journey of total duration `T` in vehicles of the same comfort:
 
@@ -215,8 +217,8 @@ The saving grows with `T` and with the penalty. With
 minutes, the saving is about 30 minutes; ordinary waiting and transfer times at a
 change do not reliably offset it. Splitting a 180-minute ride into three 60-minute
 legs can remove the penalty almost entirely. A fixed boarding cost would have to
-be large to offset it, and would distort short journeys, so the rule in option B is
-used instead.
+be large to offset it, and would distort short journeys, so the implemented rule
+below is used instead.
 
 A literal whole-journey threshold, where the penalty is assessed on the total time
 spent in discomfort rather than on each leg, would not have this incentive. It is
@@ -229,31 +231,31 @@ not compatible with the current design:
 - Representing the accumulated time in the routing-search state would require a
   time band in the state key. That multiplies the expanded state space and the
   matrix work; it is a much larger change than the current plan.
-- Storing the whole-journey actual time in the matrix (option S) and applying the
-  penalty after the search still leaves the route-choice/tolerance mismatch; it
-  also costs the extra 2 bytes per cell that B avoids.
+- Storing the whole-journey actual time in the matrix and applying the penalty
+  after the search still leaves the route-choice/tolerance mismatch; it also costs
+  the extra 2 bytes per cell that the implemented storage avoids.
 
-The options considered were:
+The approaches considered were:
 
-- **A. Accept the split incentive and add a fixed boarding cost to offset it.**
-  Rejected: the required cost is large and varies with journey length, and a fixed
+- **Rejected: accept the split incentive and add a fixed boarding cost to offset
+  it.** The required cost is large and varies with journey length, and a fixed
   cost does not correspond to a real cost. Charged on every boarding, it also
   makes short journeys appear disproportionately worse.
-- **B. Forbid a change that does not improve comfort or save actual time.** When
-  the arriving transport continues to the same target, an outgoing edge on a
-  different transport with equal or lower comfort is allowed only if its full
-  perceived cost (waiting, transfer and comfort-adjusted ride) is less
-  than the arriving transport's actual remaining ride time to that target. If the
+- **Implemented: forbid a change that does not improve comfort or save actual
+  time.** When the arriving transport continues to the same target, an outgoing
+  edge on a different transport with equal or lower comfort is allowed only if its
+  full perceived cost (waiting, transfer and comfort-adjusted ride) is less than
+  the arriving transport's actual remaining ride time to that target. If the
   arriving transport does not serve that target, the change is allowed because it
   is necessary. A change to a higher-comfort transport remains allowed. Walking
   is exempt. This is compatible with the existing expanded state
   `(halt, arriving transport)` because the arriving transport is already part of
   the state and its comfort can be looked up. It changes the search's edge
   filter, not the graph size.
-- **C. Apply a whole-journey penalty after the search.** Rejected for the reasons
-  above.
+- **Rejected: apply a whole-journey penalty after the search.** Rejected for the
+  reasons above.
 
-Decision: option B alone; no fixed boarding cost is charged. The rule removes the
+The implemented rule is: no fixed boarding cost is charged. The rule removes the
 artificial incentive to change to an identical or lower-comfort vehicle solely to
 reset the comfortable-time threshold. A change to a genuinely better vehicle
 remains allowed and is realistic; the first leg's discomfort is still counted, and
@@ -264,9 +266,10 @@ continues to the same destination but a much faster service is available at an
 interchange, even when the fast service is equally or less comfortable.
 
 The rule is implemented in `path_explorer_t::compartment_t::reboarding_blocked`:
-the search keeps the arriving transport in the state, and the per-halt out-edge
-list is sorted by transport and target so the arriving transport's edge to the
-candidate target can be found without scanning the whole list. Walking remains
+the search keeps the arriving transport in the state, and the list of outgoing
+connections from each halt is sorted by transport and target so the arriving
+transport's connection to the candidate destination can be found without scanning
+the whole list. Walking remains
 exempt, and through edges use the source transport's comfort and journey time.
 
 ## Stop comfort and capacity
@@ -295,7 +298,7 @@ With unlimited capacity, or `N` within the best building's capacity, this reduce
 to the highest-comfort rule. With `N` above the comfortable capacity, it falls
 towards the base or standing comfort, exactly as the vehicle mean falls when
 passengers stand. The mean depends on the current waiting count, so it is computed
-on each path refresh, as Decision 6 requires.
+on each path refresh.
 
 The `maximum_tolerable_wait` hard limit removes edges from the stop when the
 expected wait exceeds the stop's tolerable waiting time. The default
@@ -314,9 +317,8 @@ not need a new per-passenger field. The data cost is one uint16 per building.
 
 ### Overcrowding and standing
 
-Decision 6 requires the measured mean comfort, including standing, to be used for
-vehicles. The time-based equivalent lowers `maximum_comfortable_journey` when
-passengers stand. It does not change `maximum_tolerable_journey`; the reduced
+The measured mean comfort, including standing, is used for vehicles. The
+time-based equivalent lowers `maximum_comfortable_journey` when passengers stand. It does not change `maximum_tolerable_journey`; the reduced
 comfortable time makes the comfort-adjusted journey longer and can therefore take
 the journey above the passenger's time budget.
 
@@ -337,15 +339,14 @@ lowers only the comfortable time; `maximum_tolerable_wait` is unchanged.
 
 ### Catering
 
-Catering keeps the old bonus scale, expressed as a percentage of the time values:
-levels 1 to 5 raise both the comfortable and the tolerable time by 5, 10, 16, 20
-and 25 percent. The old code added the same numbers as comfort points; the
-percentage form preserves the ordering and relative size of the bonus without
-reintroducing points into the routing model. A vehicle with self-contained
+Catering uses the existing bonus scale, expressed as a percentage of the time
+values: levels 1 to 5 raise both the comfortable and the tolerable time by 5, 10,
+16, 20 and 25 percent. The percentage form preserves the ordering and relative
+size of the bonus without reintroducing points into the routing model. A vehicle with self-contained
 catering uses the higher of its own catering level and the convoy's level.
 
-This is why the comfort-capacity concept belongs in the model rather than being
-deferred: it is the stop-side implementation of the same overcrowding principle.
+The comfort-capacity concept is part of the model: it is the stop-side
+implementation of the same overcrowding principle.
 
 ## Open questions
 

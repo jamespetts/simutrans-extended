@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 7b5e20584 (runtime boarding comparison and full route view; 2026-11-09)
+verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-09)
 ---
 # Comfort influenced routing: integration
 
@@ -9,9 +9,9 @@ network effects, settings, UI, fares, the runtime give-up rule, private cars, an
 the implementation sequence. Parent: [comfort-routing](comfort-routing.md). Model:
 [comfort-routing-model](comfort-routing-model.md).
 
-Status: design and partial implementation. User decisions of 2026-11-08 are
-tagged [RECOLLECTION:2026-11-08]; untagged code facts are [CODE] at the
-frontmatter commit; derivations are [UNVERIFIED]. Implementation status:
+Status: design and partial implementation. Statements made by the user on
+2026-11-08 are tagged [RECOLLECTION:2026-11-08]; untagged code facts are [CODE] at
+the frontmatter commit; derivations are [UNVERIFIED]. Implementation status:
 [comfort-routing](comfort-routing.md).
 
 ## Edge weights and through journeys
@@ -32,8 +32,8 @@ waiting(h) comfort cost
   maximum_tolerable_journey)` for the class and the ride time when
   `vehicle_comfort_weighting` is on; otherwise the actual ride time is used and
   the ride hard limit is not applied.
-- Within a convoy, the vehicle mean is capacity-weighted as now. The mean across a
-  line's convoys is unweighted.
+- Within a convoy, the vehicle mean is capacity-weighted. The mean across a line's
+  convoys is unweighted.
 - A vehicle's contribution for a fare class uses its effective fare class: the
   highest fare class at or below the requested class for which that vehicle has
   accommodation. A class with no usable accommodation in a vehicle contributes
@@ -47,21 +47,24 @@ waiting(h) comfort cost
   is weighted.
 - Through edges across couplings use the comfort of the portion the passenger
   stays in and count as one leg; the coupling stop's waiting terms do not apply.
-- Walking edges use actual time in the first implementation; first and last walks
-  remain per-packet costs outside the tables.
+- Walking edges use actual time; first and last walks are per-packet costs outside
+  the tables.
 - Deduplication compares the full comfort-adjusted cost, so a slower comfortable
   line can beat a faster uncomfortable one.
 
-The routing search adds the Decision 3 reboarding filter. The filter depends on
-the arriving transport's comfort and on the arriving transport's edge to the
-candidate target, so it changes [routing-search-kernel](routing-search-kernel.md)
-semantics and must be verified against the standalone oracle. The expanded state
-`(halt, arriving transport)` already contains the arriving transport. Each edge
-also stores its actual journey time, and each halt's out-edges are sorted by
-transport and target so the arriving transport's edge to the same target can be
-found efficiently. The filter is a static predicate on the state and edge, so the
-Dijkstra remains exact over the filtered graph; the oracle check is for the
-filtered graph's semantics, not for search optimality.
+The routing search prevents a change of transport that would merely get a fresh
+comfortable-time allowance for the next leg. The rule needs to know whether the
+arriving transport also serves the candidate destination, and if so how long the
+passenger would stay aboard it. That information belongs to the
+state `(halt, arriving transport)`. Each edge already stores its actual ride time;
+the graph build also stores, for each state, the stop-to-stop connections served
+by the arriving transport and a small hash table with linear probing from
+destination to actual ride time. Each check is therefore constant time on average
+instead of searching the stop's connection list. The rule depends only on the
+state and the edge being considered, not on the path taken to reach the state, so
+the shortest-path search remains exact over the graph that remains after blocked
+changes are removed. A separate, standalone implementation of the same search is
+the reference for that graph's semantics, not for search optimality.
 
 The `fetch_goods` boarding comparison adds each candidate convoy's ride comfort
 surcharge (from the convoy's maximum comfortable and tolerable journey times for
@@ -69,14 +72,13 @@ the class) to its arrival time at the next transfer; a candidate whose ride
 would exceed its tolerable journey is not waited for. The existing
 waiting-tolerance check then compares the extra wait for the faster convoy with
 the resulting perceived time saved. The passenger stays aboard when the current
-convoy continues. This is Decision 7. The comparison uses the ride surcharge
-only; waiting comfort remains in the route-table cost and the stop give-up rule.
+convoy continues. The comparison uses the ride comfort cost only; waiting comfort
+remains in the route-table cost and in the rule that discards passengers after
+the maximum tolerable wait.
 
-Class choice is time-based. The current points algorithm compares
-`max_tolerable_journey(comfort)` with the passenger's ideal comfort time; the
-equivalent time value is the vehicle's `maximum_comfortable_journey`, which is
-what the old conversion produces from the comfort points. The old comfort points
-are converted to a time for old paksets, but the class-choice algorithm itself
+Class choice is time-based: the vehicle's `maximum_comfortable_journey` is
+compared with the passenger's ideal comfort time. Paksets that provide comfort
+points have those points converted to a time; the class-choice algorithm itself
 does not operate on points.
 
 Transfer time itself remains actual time. Overcrowding affects it through the
@@ -86,9 +88,10 @@ component is comfort-weighted at all.
 
 ## Blended storage and actual-time reconstruction
 
-Blended storage B is approved. The matrix keeps one 4-byte cost per cell and the
-2-byte next stop. The runtime `haltestelle_t::connexion` keeps the actual waiting,
-journey and transfer components and gains a comfort surcharge. Then:
+The matrix stores blended data: one 4-byte cost per cell and the 2-byte next stop.
+No separate per-cell actual-time or discomfort array is stored. The runtime
+`haltestelle_t::connexion` keeps the actual waiting, journey and transfer
+components and gains a comfort surcharge. Then:
 
 - actual route time = sum of waiting + journey + transfer along the next-stop
   chain;
@@ -99,53 +102,56 @@ The route tab can show both directly for direct connexions. For a route with
 changes, a helper follows the stored next-stop chain and sums the components. This
 is O(number of legs), typically one to four, and only on display.
 
-The matrix layout and memory are unchanged. The runtime edge record grows from 20
-to 24 bytes; on the measured fixture that is about 2 MB across passenger classes.
-No per-cell discomfort or actual-time array is added.
+The runtime edge record is 24 bytes; on the measured fixture that is about 2 MB
+across passenger classes. No per-cell discomfort or actual-time array is added.
 
 ## Savegame, pakset and network
 
-The changes below require the AGENTS.md rule-5 review before implementation
-(see [savegame-versioning](../savegame-versioning.md) and
-[network](../network.md)):
+The following changes are implemented under the AGENTS.md rule-5 review (see
+[savegame-versioning](../savegame-versioning.md) and [network](../network.md)):
 
 - new vehicle fields for `maximum_comfortable_journey` and `maximum_tolerable_journey` per class;
 - new building fields for `maximum_comfortable_wait`, `maximum_tolerable_wait` and `comfort_capacity`;
 - new city-car fields for `maximum_comfortable_journey` and
   `maximum_tolerable_journey`;
 - new settings;
-- the extra `connexion` field;
-- a route-cost model marker so a table built with different weights is discarded
-  and rebuilt.
+- the extra `connexion` field.
 
-This is a savegame-format change. `EX_SAVE_MINOR` must be stepped and the
-`gui/settings_stats.cc` version arrays updated together. All saves created before
-this feature load with `comfort_routing` off. The value is part of the saved-game
-settings; the advanced settings dialogue (the one that changes saved-game
-settings) can turn it on. Turning it on runs the normal full route refresh; no
-warning is shown. New games start with it on. The measured full refresh is about
-68 seconds on the gargantuan fixture.
+The saved route-cost model marker is not implemented. Without it, a table built
+with different comfort weights can be reused after a `simuconf.tab` change between
+sessions. The planned change is to save a marker with the table and rebuild the
+table when the marker differs; the remaining work is recorded in
+[comfort-routing](comfort-routing.md).
+
+The savegame revision is 10 (`EX_SAVE_MINOR`), and the version arrays in
+`gui/settings_stats.cc` match it. All saves created before this feature load with
+`comfort_routing` off. The value is part of the saved-game settings; the advanced
+settings dialogue (the one that changes saved-game settings) can turn it on.
+Turning it on runs the normal full route refresh; no warning is shown. New games
+start with it on. The measured complete rebuild is about 57 s with comfort routing
+off and 69 s with it on (see [comfort-routing](comfort-routing.md)).
 
 The new vehicle and building fields accept `_minutes` and `_tenths` alternative
 pakset keys; makeobj converts minutes to tenths before encoding and rejects an
 object that gives both forms of the same field. The new fields are part of the pakset checksum, so a network client with
-different pakset values is detected. Old paksets remain valid: vehicles derive
-`maximum_comfortable_journey` from comfort points, and objects without either old
-points or new times use the defaults in the model page.
+different pakset values is detected. Paksets without the new time fields remain
+valid: vehicles derive `maximum_comfortable_journey` from comfort points, and
+objects with neither points nor times use the defaults in the model page.
 
-The line/consist comfort history changes from comfort points to the two time
-values. On load of an older save, the existing points-based history is converted
-to `maximum_comfortable_journey` with
-`settings_t::max_tolerable_journey(points)`, the same inverse table used by
-Decision 4; the maximum-tolerable chart is filled with the current
+The line/consist comfort history is stored as the two time values. On load of an
+older save, points-based history is converted to `maximum_comfortable_journey`
+with
+`settings_t::max_tolerable_journey(points)`, the same inverse table used to derive
+a vehicle's comfortable time from comfort points; the maximum-tolerable chart
+is filled with the current
 `maximum_tolerable_journey` value for the whole history, because the older save
 has no separate tolerable series. The in-month rolling averages for the convoy
 and line comfort series are converted on the same basis, so the first samples
 after loading stay on the new scale. This is part of the same savegame revision.
 
-`connexion` is saved in the halt table. Old saves need a default for the new
-field and a refresh; the version condition must read and write the field under the
-same version number.
+`connexion` is saved in the halt table. Saves without the field need a default and
+a refresh; the version condition must read and write the field under the same
+version number.
 
 ## Settings
 
@@ -189,27 +195,27 @@ max_comfortable_wait_overcrowded = 15
 `comfort_routing` is Extended-specific; its advanced-settings toggle is in the
 Extended -> Passengers tab, not the base Routing tab ([gui](../gui.md)).
 
-The former `comfort_boarding_minutes` key is no longer read. The corresponding
-saved setting value is retained only so that 15.10 saves keep their settings
-layout; it has no effect.
+`comfort_boarding_minutes` is not read. The corresponding saved setting value is
+retained only so that 15.10 saves keep their settings layout; it has no effect.
 
 No fixed boarding cost is charged. The stop-side cost is the actual waiting and
 transfer time, with the stop comfort adjustment applied to the waiting time; the
-reboarding rule prevents a change that only resets the comfort clock.
+reboarding rule prevents a change that only gets a fresh comfortable-time allowance
+for the next leg.
 
 The 0% point of the curve is fixed at 100 (actual time); the four settings above
 are the tunable points. The default per-object times are:
 `maximum_comfortable_journey` 180 minutes where
-neither old comfort points nor explicit time fields are given;
+neither comfort points nor explicit time fields are given;
 `maximum_tolerable_journey` = `maximum_comfortable_journey * 3`;
 `maximum_comfortable_wait` 180 minutes; `maximum_tolerable_wait` = 540 minutes.
 
-The reboarding rule is part of the route search, not a setting. The old
-`tolerable_comfort_*` curve remains for converting comfort points and for the
-time-based class-choice comparison. The old revenue comfort settings
-(`base_comfort_revenue`, `comfort_derating`, the luxury and discomfort limits)
-remain readable for savegame and pakset compatibility but are no longer used for
-fares. Settings that change route weights must force a full refresh.
+The reboarding rule is part of the route search, not a setting. The
+`tolerable_comfort_*` curve is used only to convert comfort points and for the
+time-based class-choice comparison. The revenue comfort settings
+(`base_comfort_revenue`, `comfort_derating`, the luxury and discomfort limits) are
+read for savegame and pakset compatibility but are not used for fares. Settings
+that change route weights must force a full refresh.
 
 ## UI
 
@@ -242,43 +248,41 @@ fares. Settings that change route weights must force a full refresh.
   `max. comfortable / max. tolerable` journey times as a pair in each passenger
   capacity row. The Spec tab's Payload mode also has the per-vehicle mean rows
   and the convoy total.
-- The line/consist comfort history chart becomes time-based: the convoy chart has
+- The line/consist comfort history chart is time-based: the convoy chart has
   `Max. comfortable journey` and `Max. tolerable journey` series for the mean
   maximum comfortable and maximum tolerable journey times, and the line chart's
-  comfort series is relabelled `Comfort time`. Values are stored in seconds
-  because `gui_chart_t::TIME` formats the axis labels, tooltip and
-  current-value label with `sprintf_time_secs`. The maximum comfortable
-  series accounts for overcrowding in the same way as the old chart. Existing
-  points-based history is converted to time at load for the comfortable series;
-  the tolerable series uses the current value for the whole history of an older
-  save.
+  comfort series is labelled `Comfort time`. Values are stored in seconds because
+  `gui_chart_t::TIME` formats the axis labels, tooltip and current-value label with
+  `sprintf_time_secs`. The maximum comfortable series accounts for overcrowding in
+  the same way as the time-based vehicle mean. Points-based history is converted
+  to time at load for the comfortable series; the tolerable series uses the
+  current value for the whole history of an older save.
 - Adjusted times are passenger-only; mail and goods keep actual times.
 - The vehicle class manager shows the minimum and maximum comfortable journey
-  times instead of comfort points. The goods fare calculator no longer has a
-  comfort input; the legacy `comfort` parameter remains in `get_total_fare` for
-  caller compatibility but is ignored.
-- Raw comfort points remain only as pakset input, in the old-save history
-  migration, in the legacy `tolerable_comfort` conversion table, and in the
-  debug conversion chart. They are not used for routing, class choice, fares or
-  the current player displays.
+  times instead of comfort points. The goods fare calculator has no comfort input;
+  the legacy `comfort` parameter remains in `get_total_fare` for caller
+  compatibility but is ignored.
+- Raw comfort points are used only as pakset input, in the older-save history
+  migration, in the `tolerable_comfort` conversion table, and in the debug
+  conversion chart. They are not used for routing, class choice, fares or the
+  current player displays.
 
 ## Revenue and the runtime give-up rule
 
-- Remove the comfort block from `goods_desc_t::get_total_fare`. The speed bonus
-  remains removed from fares as previously decided. Keep the pakset fields and
-  function parameters readable for compatibility; mark them deprecated in the
-  code, not removed.
-- Replace the speed-bonus give-up rule in `haltestelle_t::step` with the stop's
-  `maximum_tolerable_wait` (default 540 minutes). A passenger who waits longer is
-  discarded or walks. This makes the runtime behaviour match the routing hard
-  limit. Mail and goods keep their current behaviour; per-category stop waiting
-  limits are the separate roadmap item.
-- `passenger_max_wait` can remain as an absolute cap or be reduced to a fallback;
-  the default 180-minute stop limit ensures there is no infinite wait.
+The fare calculation in `goods_desc_t::get_total_fare` does not use comfort. The
+speed bonus is also not used for fares. The pakset fields and function parameters
+remain readable for compatibility.
+
+`haltestelle_t::step` discards a passenger who waits longer than the stop's
+`maximum_tolerable_wait` (default 540 minutes); the passenger may walk instead.
+This makes the runtime behaviour match the routing hard limit. Mail and goods keep
+their separate waiting rule; per-category stop waiting limits are future roadmap
+work. `passenger_max_wait` remains an absolute cap; the default 180-minute stop
+limit ensures that a passenger cannot wait indefinitely.
 
 ## Private cars
 
-Private cars get `maximum_comfortable_journey` and
+Private cars have `maximum_comfortable_journey` and
 `maximum_tolerable_journey`. Where neither is specified, they default to 180
 minutes comfortable and `maximum_comfortable_journey * 3` tolerable. The car
 journey uses the same curve; a journey above `maximum_tolerable_journey` makes the
@@ -289,28 +293,31 @@ era-constrained pool. The draw must not depend on the mode outcome, so every pee
 consumes the same random values. The chosen type is passed to every spawned car
 and to the return trip. A packet without access does not draw a type.
 
-Future: separate car-type pools by wealth class, when the graphics and pakset
-data exist. A TODO at the draw site records this. Do not add it now; it would be
-unplanned provision without the assets.
+Future work: separate car-type pools by wealth class, when the graphics and
+pakset data exist. A TODO at the draw site records this. Do not add it until those
+assets exist; it would be unplanned provision without them.
 
-## Implementation sequence
+## Implementation status
 
-1. Add the time fields to vehicle, building and city-car descriptors; accept the
-   `_minutes` and `_tenths` pakset forms; keep the comfort-point conversion;
-   update readers, writers, checksums and pak versions.
-2. Add every new `simuconf.tab` key with the explanatory comments and defaults
-   shown above, and add the saved `comfort_routing` control to the advanced
-   settings dialogue.
-3. Implement the halt effective comfort, the comfort-capacity mean and the
-   overcrowded defaults.
-4. Add the edge cost, the reboarding rule, the two weighting switches and the
-   savegame/version changes, including the comfort-history migration.
-5. Update boarding, rerouting and the runtime give-up.
-6. Add the stop tooltip and comfort-capacity display, the pair of line/consist
-   charts, and the dark-blue adjusted times; then remove comfort from fares.
-7. Test: unit and Squirrel checks for the curve, conversion, capacity mean, hard
-   limits and the weighting switches; network loopback; performance run; pakset
-   calibration.
+- The time fields are in the vehicle, building and city-car descriptors; the
+  `_minutes` and `_tenths` pakset forms are accepted; the comfort-point conversion
+  is kept; readers, writers, checksums and pak versions are updated.
+- All new `simuconf.tab` keys are present with the explanatory comments and
+  defaults shown above; the saved `comfort_routing` control is in the advanced
+  settings dialogue.
+- The halt effective comfort, the comfort-capacity mean and the overcrowded
+  defaults are implemented.
+- The edge cost, the reboarding rule, the two weighting switches and the
+  savegame/version changes, including the comfort-history migration, are
+  implemented.
+- Boarding, rerouting and the runtime give-up are updated.
+- The stop tooltip and comfort-capacity display, the pair of line/consist charts
+  and the dark-blue adjusted times are implemented; comfort is removed from fares.
+- Test: unit and Squirrel scripting checks for the curve, conversion, capacity
+  mean, hard limits and the weighting switches; network loopback; performance run;
+  pakset calibration (checking the shipped time values against realistic journeys).
+  The network loopback and the complete-rebuild performance run have passed; the
+  Squirrel checks and pakset calibration remain.
 
 ## Open questions
 
@@ -320,3 +327,5 @@ unplanned provision without the assets.
   worthwhile. Whether to use a time band in the state or a less conservative
   threshold is open.
 - Whether the stop hard limit uses the mean wait or a sample-based statistic.
+- Whether `passenger_max_wait` should remain an absolute cap or become a fallback
+  when the stop limit applies.

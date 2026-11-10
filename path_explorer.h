@@ -239,7 +239,7 @@ private:
 			uint16 transport_idx;
 			uint16 comfort;
 			uint32 weight;
-			uint32 journey_time;	// actual ride time, used by the reboarding comparison
+			uint32 journey_time;	// actual ride time, used by the comfort-allowance reset check
 		};
 		vector_tpl<full_connexion_t> full_connexions;
 
@@ -252,7 +252,7 @@ private:
 			uint16 transport;
 			uint16 comfort;
 			uint32 weight;
-			uint32 journey_time;	// actual ride time, used by the reboarding comparison
+			uint32 journey_time;	// actual ride time, used by the comfort-allowance reset check
 			uint32 target_state;
 		};
 		full_edge_t *full_edges;
@@ -265,6 +265,22 @@ private:
 		uint32 *state_key;		// transport index; 0xFFFFFFFF for the origin state
 		uint16 *transport_comfort;	// maximum comfortable journey time per transport index
 		uint8 *state_arriving_continues;	// quick check: the arriving transport has an outgoing edge at this halt
+		uint32 *state_arriving_edge_begin;	// start of the arriving transport's outgoing edges in out_edges
+		uint32 *state_arriving_edge_end;	// end of the arriving transport's outgoing edges in out_edges
+
+		// Per-state lookup used by the rule that prevents changing transport
+		// only to get a fresh comfortable-time allowance: maps each destination
+		// served by the arriving transport to the actual ride time. A small hash
+		// table with linear probing, sized to twice the number of served
+		// destinations so it stays small enough to remain in cache.
+		struct arriving_target_t
+		{
+			uint32 target;
+			uint32 journey_time;
+		};
+		arriving_target_t *arriving_targets;
+		uint32 *state_arriving_table_offset;
+		uint32 *state_arriving_table_mask;
 		uint32 state_count;
 
 		// Per-thread Dijkstra scratch. The heap stores heap_item_t values
@@ -369,7 +385,7 @@ private:
 		// Whether an equal- or lower-comfort change to `target` must be blocked
 		// because the arriving transport also serves that target and staying on
 		// it is no slower than the candidate's full perceived cost.
-		bool reboarding_blocked(uint32 halt, uint32 arriving, uint32 target, uint32 candidate_weight) const;
+		bool reboarding_blocked(uint32 state, uint32 target, uint32 candidate_weight) const;
 
 		// Build and release the routing-search graph and thread scratch.
 		void build_search_graph();
