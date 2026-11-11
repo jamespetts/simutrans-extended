@@ -1522,7 +1522,9 @@ grund_t* vehicle_t::hop_check()
 			}
 			koord3d nextnext_pos = cnv->get_route()->at(route_index+1);
 			if ( nextnext_pos == get_pos() ) {
-				dbg->error("vehicle_t::hop_check", "route contains point (%s) twice for %s", nextnext_pos.get_str(), cnv->get_name());
+				// A route that returns to the current tile is a reversal, which is
+				// normal at a scheduled stop.
+				dbg->warning("vehicle_t::hop_check", "route contains point (%s) twice for %s", nextnext_pos.get_str(), cnv->get_name());
 			}
 			uint8 new_dir = ribi_type(nextnext_pos - pos_next);
 			if((dir&new_dir)==0) {
