@@ -5452,6 +5452,22 @@ The stored route ends before the destination.
 The stored route ends before the destination.
 comfort_routing
 Comfort influenced routing
+vehicle_comfort_weighting
+Weight vehicle comfort in routing
+waiting_comfort_weighting
+Weight waiting comfort in routing
+max_comfortable_journey_overcrowded
+Max. comfortable journey time when overcrowded (minutes)
+max_comfortable_wait_overcrowded
+Max. comfortable wait when overcrowded (minutes)
+comfort_penalty_at_25_percent
+Comfort penalty at 25% of the comfortable-to-tolerable range
+comfort_penalty_at_50_percent
+Comfort penalty at 50% of the comfortable-to-tolerable range
+comfort_penalty_at_75_percent
+Comfort penalty at 75% of the comfortable-to-tolerable range
+comfort_penalty_at_100_percent
+Comfort penalty at the tolerable limit
 income_pr_km_(when_full):
 Income per km (when full):
 tpo_income_pr_km_(full_convoy):

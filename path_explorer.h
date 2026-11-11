@@ -113,6 +113,9 @@ public:
 	};
 
 	static bool must_refresh_on_loading;
+	// Set during load when the simuconf overrides replaced the comfort cost
+	// model after the saved route tables were built.
+	static bool comfort_settings_overridden_on_loading;
 
 	static void rdwr(loadsave_t* file);
 
@@ -661,6 +664,10 @@ public:
 	inline static bool get_must_refresh_on_loading() { return must_refresh_on_loading; }
 	inline static void set_must_refresh_on_loading() { must_refresh_on_loading = true; }
 	inline static void reset_must_refresh_on_loading() { must_refresh_on_loading = false; }
+
+	inline static bool get_comfort_settings_overridden_on_loading() { return comfort_settings_overridden_on_loading; }
+	inline static void set_comfort_settings_overridden_on_loading() { comfort_settings_overridden_on_loading = true; }
+	inline static void reset_comfort_settings_overridden_on_loading() { comfort_settings_overridden_on_loading = false; }
 };
 
 #endif

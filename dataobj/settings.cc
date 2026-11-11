@@ -3801,6 +3801,55 @@ uint32 settings_t::get_comfort_time_cost(uint32 actual_time, uint16 maximum_comf
 	return (uint32)(adjusted - actual_time);
 }
 
+comfort_routing_settings_t settings_t::get_comfort_routing_settings() const
+{
+	comfort_routing_settings_t result;
+	result.comfort_routing = comfort_routing;
+	result.vehicle_comfort_weighting = vehicle_comfort_weighting;
+	result.waiting_comfort_weighting = waiting_comfort_weighting;
+	result.max_comfortable_journey_overcrowded = max_comfortable_journey_overcrowded;
+	result.max_comfortable_wait_overcrowded = max_comfortable_wait_overcrowded;
+	result.comfort_penalty_at_25_percent = comfort_penalty_at_25_percent;
+	result.comfort_penalty_at_50_percent = comfort_penalty_at_50_percent;
+	result.comfort_penalty_at_75_percent = comfort_penalty_at_75_percent;
+	result.comfort_penalty_at_100_percent = comfort_penalty_at_100_percent;
+	result.tolerable_comfort_short = tolerable_comfort_short;
+	result.tolerable_comfort_short_minutes = tolerable_comfort_short_minutes;
+	result.tolerable_comfort_median_short = tolerable_comfort_median_short;
+	result.tolerable_comfort_median_short_minutes = tolerable_comfort_median_short_minutes;
+	result.tolerable_comfort_median_median = tolerable_comfort_median_median;
+	result.tolerable_comfort_median_median_minutes = tolerable_comfort_median_median_minutes;
+	result.tolerable_comfort_median_long = tolerable_comfort_median_long;
+	result.tolerable_comfort_median_long_minutes = tolerable_comfort_median_long_minutes;
+	result.tolerable_comfort_long = tolerable_comfort_long;
+	result.tolerable_comfort_long_minutes = tolerable_comfort_long_minutes;
+	return result;
+}
+
+bool settings_t::comfort_routing_settings_changed(const comfort_routing_settings_t &other) const
+{
+	const comfort_routing_settings_t current = get_comfort_routing_settings();
+	return current.comfort_routing != other.comfort_routing
+		|| current.vehicle_comfort_weighting != other.vehicle_comfort_weighting
+		|| current.waiting_comfort_weighting != other.waiting_comfort_weighting
+		|| current.max_comfortable_journey_overcrowded != other.max_comfortable_journey_overcrowded
+		|| current.max_comfortable_wait_overcrowded != other.max_comfortable_wait_overcrowded
+		|| current.comfort_penalty_at_25_percent != other.comfort_penalty_at_25_percent
+		|| current.comfort_penalty_at_50_percent != other.comfort_penalty_at_50_percent
+		|| current.comfort_penalty_at_75_percent != other.comfort_penalty_at_75_percent
+		|| current.comfort_penalty_at_100_percent != other.comfort_penalty_at_100_percent
+		|| current.tolerable_comfort_short != other.tolerable_comfort_short
+		|| current.tolerable_comfort_short_minutes != other.tolerable_comfort_short_minutes
+		|| current.tolerable_comfort_median_short != other.tolerable_comfort_median_short
+		|| current.tolerable_comfort_median_short_minutes != other.tolerable_comfort_median_short_minutes
+		|| current.tolerable_comfort_median_median != other.tolerable_comfort_median_median
+		|| current.tolerable_comfort_median_median_minutes != other.tolerable_comfort_median_median_minutes
+		|| current.tolerable_comfort_median_long != other.tolerable_comfort_median_long
+		|| current.tolerable_comfort_median_long_minutes != other.tolerable_comfort_median_long_minutes
+		|| current.tolerable_comfort_long != other.tolerable_comfort_long
+		|| current.tolerable_comfort_long_minutes != other.tolerable_comfort_long_minutes;
+}
+
 // Returns *scaled* values.
 sint64 settings_t::get_forge_cost(waytype_t wt) const
 {

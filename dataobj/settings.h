@@ -70,6 +70,35 @@ public:
 };
 
 /**
+ * The settings that determine the comfort surcharge on route edges. A change
+ * to any of these requires the path explorer's route tables to be rebuilt.
+ * The tolerable comfort values are included because paksets that define
+ * comfort points rather than times derive the vehicle times from them.
+ */
+struct comfort_routing_settings_t
+{
+	bool comfort_routing;
+	bool vehicle_comfort_weighting;
+	bool waiting_comfort_weighting;
+	uint16 max_comfortable_journey_overcrowded;
+	uint16 max_comfortable_wait_overcrowded;
+	uint16 comfort_penalty_at_25_percent;
+	uint16 comfort_penalty_at_50_percent;
+	uint16 comfort_penalty_at_75_percent;
+	uint16 comfort_penalty_at_100_percent;
+	uint16 tolerable_comfort_short;
+	uint16 tolerable_comfort_short_minutes;
+	uint16 tolerable_comfort_median_short;
+	uint16 tolerable_comfort_median_short_minutes;
+	uint16 tolerable_comfort_median_median;
+	uint16 tolerable_comfort_median_median_minutes;
+	uint16 tolerable_comfort_median_long;
+	uint16 tolerable_comfort_median_long_minutes;
+	uint16 tolerable_comfort_long;
+	uint16 tolerable_comfort_long_minutes;
+};
+
+/**
  * Game settings
  */
 class settings_t
@@ -820,6 +849,9 @@ public:
 	uint16 legacy_comfort_boarding_minutes;
 	piecewise_linear_tpl<uint8, uint16, uint32> comfort_penalty_curve;
 	void cache_comfort_penalty_curve();
+
+	comfort_routing_settings_t get_comfort_routing_settings() const;
+	bool comfort_routing_settings_changed(const comfort_routing_settings_t &other) const;
 
 	// Returns the extra perceived time in tenths of minutes for a journey that
 	// exceeds the comfortable time, or UINT32_MAX_VALUE if it exceeds the

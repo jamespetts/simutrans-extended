@@ -45,6 +45,7 @@ uint32 path_explorer_t::compartment_t::time_lower_limit;
 uint32 path_explorer_t::compartment_t::time_upper_limit;
 uint32 path_explorer_t::compartment_t::time_threshold;
 bool path_explorer_t::must_refresh_on_loading;
+bool path_explorer_t::comfort_settings_overridden_on_loading = false;
 
 
 uint16 path_explorer_t::get_linkage_maximum_comfortable_journey(const linehandle_t &line, const convoihandle_t &convoy, uint8 g_class)

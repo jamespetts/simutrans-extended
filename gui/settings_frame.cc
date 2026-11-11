@@ -12,6 +12,7 @@
 #include "../dataobj/translator.h"
 #include "../dataobj/loadsave.h"
 #include "../dataobj/tabfile.h"
+#include "../path_explorer.h"
 #include "settings_frame.h"
 
 
@@ -83,6 +84,7 @@ bool settings_frame_t::action_triggered( gui_action_creator_t *comp, value_t )
 {
 	if(  comp==&revert_to_default  ) {
 		// reread from simucon.tab(s) the settings and apply them
+		const comfort_routing_settings_t old_comfort_settings = sets->get_comfort_routing_settings();
 		tabfile_t simuconf;
 		env_t::init();
 		*sets = settings_t();
@@ -105,6 +107,12 @@ bool settings_frame_t::action_triggered( gui_action_creator_t *comp, value_t )
 		}
 		simuconf.close();
 
+		if (sets->comfort_routing_settings_changed(old_comfort_settings))
+		{
+			// The comfort settings determine the route edge costs.
+			path_explorer_t::refresh_all_categories(false);
+		}
+
 		// and update ...
 		general.init( sets );
 		display.init( sets );
@@ -118,11 +126,18 @@ bool settings_frame_t::action_triggered( gui_action_creator_t *comp, value_t )
 	}
 	else if(  comp==&revert_to_last_save  ) {
 		// load settings of last generated map
+		const comfort_routing_settings_t old_comfort_settings = sets->get_comfort_routing_settings();
 		loadsave_t file;
 		dr_chdir( env_t::user_dir  );
 		if(  file.rd_open("default.sve") == loadsave_t::FILE_STATUS_OK  ) {
 			sets->rdwr(&file);
 			file.close();
+		}
+
+		if (sets->comfort_routing_settings_changed(old_comfort_settings))
+		{
+			// The comfort settings determine the route edge costs.
+			path_explorer_t::refresh_all_categories(false);
 		}
 
 		// and update ...

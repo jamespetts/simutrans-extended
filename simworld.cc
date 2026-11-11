@@ -8832,6 +8832,10 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 	settings.rdwr(file);
 
 	if (file->is_loading()) {
+		// Capture the comfort cost model stored in the save before the
+		// simuconf overrides below can replace it.
+		const comfort_routing_settings_t saved_comfort_settings = settings.get_comfort_routing_settings();
+
 		// The path explorer block is present or absent according to the value
 		// stored in this save. Capture it before the overrides below so that
 		// the conditional read in load() follows the file layout.
@@ -8874,6 +8878,11 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 					simuconf.close();
 				}
 			}
+		}
+
+		if (settings.comfort_routing_settings_changed(saved_comfort_settings))
+		{
+			path_explorer_t::set_comfort_settings_overridden_on_loading();
 		}
 
 		loaded_rotation = settings.get_rotation();
@@ -10464,8 +10473,15 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 	{
 		path_explorer_t::full_instant_refresh();
 	}
+	else if (path_explorer_t::get_comfort_settings_overridden_on_loading())
+	{
+		// The simuconf overrides replaced the comfort cost model after the
+		// saved route tables were built. Rebuild them under the new model.
+		path_explorer_t::refresh_all_categories(false);
+	}
 
 	path_explorer_t::reset_must_refresh_on_loading();
+	path_explorer_t::reset_comfort_settings_overridden_on_loading();
 
 	cities_awaiting_private_car_route_check.clear();
 	if (file->get_extended_version() >= 15 || (file->get_extended_version() == 14 && file->get_extended_revision() >= 35))

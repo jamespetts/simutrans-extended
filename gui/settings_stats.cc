@@ -508,6 +508,16 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 	SEPERATOR;
 	INIT_BOOL("comfort_routing", sets->comfort_routing);
 	INIT_NUM("max_comfort_preference_percentage", sets->get_max_comfort_preference_percentage(), 100, 65535, gui_numberinput_t::AUTOLINEAR, false);
+	SEPERATOR;
+	INIT_BOOL("vehicle_comfort_weighting", sets->vehicle_comfort_weighting);
+	INIT_BOOL("waiting_comfort_weighting", sets->waiting_comfort_weighting);
+	INIT_NUM("max_comfortable_journey_overcrowded", sets->max_comfortable_journey_overcrowded / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("max_comfortable_wait_overcrowded", sets->max_comfortable_wait_overcrowded / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
+	SEPERATOR;
+	INIT_NUM("comfort_penalty_at_25_percent", sets->comfort_penalty_at_25_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("comfort_penalty_at_50_percent", sets->comfort_penalty_at_50_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("comfort_penalty_at_75_percent", sets->comfort_penalty_at_75_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("comfort_penalty_at_100_percent", sets->comfort_penalty_at_100_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
 	end_table();
 
 	add_table(1,0);
@@ -520,7 +530,7 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 void settings_extended_revenue_stats_t::read(settings_t *sets)
 {
 	READ_INIT
-	const bool old_comfort_routing = sets->comfort_routing;
+	const comfort_routing_settings_t old_comfort_settings = sets->get_comfort_routing_settings();
 
 	READ_NUM_VALUE( sets->passenger_trips_per_month_hundredths );
 	READ_NUM_VALUE( sets->mail_packets_per_month_hundredths );
@@ -576,16 +586,25 @@ void settings_extended_revenue_stats_t::read(settings_t *sets)
 
 	READ_BOOL_VALUE(sets->comfort_routing);
 	READ_NUM_VALUE(sets->max_comfort_preference_percentage);
+	READ_BOOL_VALUE(sets->vehicle_comfort_weighting);
+	READ_BOOL_VALUE(sets->waiting_comfort_weighting);
+	READ_NUM_VALUE_TENTHS(sets->max_comfortable_journey_overcrowded);
+	READ_NUM_VALUE_TENTHS(sets->max_comfortable_wait_overcrowded);
+	READ_NUM_VALUE(sets->comfort_penalty_at_25_percent);
+	READ_NUM_VALUE(sets->comfort_penalty_at_50_percent);
+	READ_NUM_VALUE(sets->comfort_penalty_at_75_percent);
+	READ_NUM_VALUE(sets->comfort_penalty_at_100_percent);
 	READ_BOOL_VALUE(sets->simplified_maintenance);
 
 	// And convert to the form used in-game...
 	sets->cache_catering_revenues();
 	sets->cache_comfort_tables();
+	sets->cache_comfort_penalty_curve();
 
-	if (old_comfort_routing != sets->comfort_routing)
+	if (sets->comfort_routing_settings_changed(old_comfort_settings))
 	{
-		// Comfort routing changes every edge weight, so the route tables must
-		// be rebuilt.
+		// Every edge weight may have changed, so the route tables must be
+		// rebuilt.
 		path_explorer_t::refresh_all_categories(false);
 	}
 }
