@@ -2999,8 +2999,9 @@ void path_explorer_t::compartment_t::step()
 				++phase_counter;
 
 				// iteration control
+				++iterations;
 				++total_iterations;
-				if ( use_limits && iterations == limit_rebuild_connexions)
+				if ( use_limits && iterations >= limit_rebuild_connexions)
 				{
 					break;
 				}
@@ -3264,8 +3265,8 @@ void path_explorer_t::compartment_t::step()
 			// iterations statistics collection
 			if ( catg == representative_category )
 			{
-				++statistic_duration;	// step count
-				statistic_iteration += static_cast<uint32>( iterations_processed / ( diff ? diff : 1 ) );	// sum of iterations per ms
+				statistic_duration += ( diff ? diff : 1 );	// total time in ms
+				statistic_iteration += static_cast<uint32>( iterations_processed );	// total iterations
 			}
 
 			if ( origin_index == working_halt_count )
@@ -3273,7 +3274,7 @@ void path_explorer_t::compartment_t::step()
 				// iteration limit adjustment
 				if ( catg == representative_category )
 				{
-					const uint64 projected_iterations = static_cast<uint64>( statistic_iteration / statistic_duration ) * static_cast<uint64>( time_midpoint );
+					const uint64 projected_iterations = static_cast<uint64>( statistic_iteration ) * static_cast<uint64>( time_midpoint ) / static_cast<uint64>( statistic_duration ? statistic_duration : 1 );
 					if ( projected_iterations > 0 )
 					{
 						if ( env_t::networkmode )
