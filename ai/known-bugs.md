@@ -226,6 +226,44 @@ Rank on discovery; re-rank on triage.
 - Found by code inspection 2026-11-07 [CODE ex-15 @ f3be628dc; same struct and cache on master @
   6194cd341].
 
+### `meters_per_tile` changes do not invalidate saved route data — priority 2
+
+- `settings_t::parse_simuconf` can set `meters_per_tile` (from `meters_per_tile` or the legacy
+  `distance_per_tile` key), and the load-time simuconf override block in
+  `karte_t::rdwr_gamestate` applies it after `settings.rdwr(file)`. `karte_t::load` then calls
+  `karte_t::set_scale()` if the value differs from the pre-load scale. `set_scale()` re-scales
+  the vehicle, way, tunnel, bridge, way-object, station, goods, industry and sign descriptors
+  and `settings_t`'s own scale-derived values, but it does not request a path-explorer refresh.
+- The path explorer tables are loaded later by `path_explorer_t::rdwr` and are reused as-is
+  when their saved `refresh_requested` flag is false. Their times were computed under the scale
+  in force when the tables were built (walking times from
+  `walking_time_tenths_from_distance`, journey times from the connexion rebuild), so they stay
+  at that scale. The comfort-routing load hook compares only the comfort model, so a
+  scale-only override does not trigger it
+  [CODE ex-15 @ 8a2d2b988 plus working-tree comfort-routing changes].
+- The settings window's "Simuconf.tab" reset has a second path:
+  `settings_frame_t::action_triggered` replaces the settings with a default-constructed
+  `settings_t` and then parses simuconf, but never calls `karte_t::set_scale()`. The
+  `settings_t` constructor sets `meters_per_tile` to 250; `parse_simuconf` leaves that value in
+  place when the simuconf does not set `meters_per_tile` or `distance_per_tile`. The scale can
+  therefore change even without an explicit key, while the descriptors remain at the old scale.
+- Effect: route times and next-transfer choices continue to reflect the old scale while vehicle
+  movement and other scale-derived values use the new scale; on the settings-window reset path
+  the descriptors themselves are also stale and can keep the old scale's speed, cost and
+  maintenance figures. No crash or save corruption is known.
+- To investigate / decide: whether `meters_per_tile` should be changeable for an existing
+  world at all. It feeds distance, speed and walking-time calculations, descriptor scaling,
+  the goods multiplier, cost and maintenance scaling, and route recording; the full set of
+  caches derived from it has not been audited. Candidate remedies are (a) reject or ignore
+  `meters_per_tile` changes in the load-time override and the settings-frame reset for an
+  existing world, or (b) require a full scale re-application plus a path-explorer refresh, and
+  audit every scale-derived cache, whenever it changes. This needs a user decision; recorded
+  2026-11-11 during the comfort-routing load-hook review.
+- Ranked 2: real functional defect with gameplay impact, no crash or data loss. On the load
+  path the trigger requires a simuconf that sets `meters_per_tile` or `distance_per_tile`
+  explicitly (the shipped simuconf sets only `base_meters_per_tile`); the settings-window reset
+  path can change the scale to the constructor default 250 even without such a key.
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -272,6 +310,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| `meters_per_tile` changes do not invalidate saved route data (not a forum report: code inspection 2026-11-11) | — | detailed entry above; load-time simuconf override leaves the path explorer tables at the old scale; the settings-window "Simuconf.tab" reset also skips `karte_t::set_scale()` and can reset the scale to the `settings_t` default (250 m/tile); possible remedy is to disallow changing the scale for an existing world |
 | Service-frequency cache keys keep only the low 8 bits of the halt ID (not a forum report: code inspection 2026-11-07) | — | detailed entry above; originally both branches; wrong waiting-time fallback for unsampled halt pairs; order-dependent cache explained the mid-pass resume difference; fixed on ex-15 @ 711656d4b, master remains affected until 15.x merges |
 | Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
