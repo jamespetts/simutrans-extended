@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-09)
+verified: ex-15 @ ac9234842 plus working-tree path-explorer budget changes (budget section; 2026-11-11); rest @ c1e914343 plus working-tree comfort performance changes (2026-11-09)
 ---
 # Path explorer optimisation: the routing-search engine
 
@@ -124,6 +124,14 @@ The budget unit is **origins per step**:
   least one when a pass is entered with no budget left.
 - In network mode `nwc_routesearch_t` broadcasts the minimum limit set across peers. Every
   peer processes the same number of origins per step, so the slowest peer sets the pace.
+
+The other refresh phases use the same controller with their own units. The
+connexion-rebuild phase counts **linkages per step** (`limit_rebuild_connexions`, default
+1024; a linkage is one line or one lineless convoy with a schedule), while the
+eligible-halt filter (`phase_filter_eligible`) and the packet-reroute phase
+(`phase_reroute_goods`) count halts. Each limit is projected
+independently from its measured work per millisecond and `path_explorer_time_midpoint`,
+and the resulting limit set is what `nwc_routesearch_t` synchronises across peers.
 
 A mid-refresh save carries the finished matrix only. On load the compartment restarts from
 the start of the refresh, and the previous finished matrix stays available. The expected join
