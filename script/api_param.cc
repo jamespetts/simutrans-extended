@@ -552,42 +552,6 @@ namespace script_api {
 		return welt->get_scenario();
 	}
 
-	SQInteger param<schedule_entry_t>::push(HSQUIRRELVM vm, schedule_entry_t const& v)
-	{
-		return push_instance(vm, "schedule_entry_x",
-			v.pos,
-			v.minimum_loading,
-			v.waiting_time_shift,
-			v.spacing_shift,
-			v.reverse,
-			v.flags,
-			v.unique_entry_id,
-			v.condition_bitfield_broadcaster,
-			v.condition_bitfield_receiver,
-			v.target_id_condition_trigger,
-			v.target_id_couple,
-			v.target_id_uncouple,
-			v.target_unique_entry_uncouple,
-			v.max_speed_kmh);
-	}
-
-	SQInteger param<schedule_t*>::push(HSQUIRRELVM vm, schedule_t* const& v)
-	{
-		return param<const schedule_t*>::push(vm, v);
-	}
-
-
-	SQInteger param<const schedule_t*>::push(HSQUIRRELVM vm, const schedule_t* const& v)
-	{
-		if (v) {
-			return push_instance(vm, "schedule_x", v->get_waytype(), v->entries);
-		}
-		else {
-			sq_pushnull(vm); return 1;
-		}
-	}
-
-
 	settings_t* param<settings_t*>::get(HSQUIRRELVM, SQInteger)
 	{
 		return &welt->get_settings();

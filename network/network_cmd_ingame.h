@@ -394,6 +394,7 @@ private:
 	// transferred data
 	plainstring default_param;
 	uint32 tool_client_id;
+	uint32 callback_id;
 	uint16 tool_id;
 	sint16 wt; // needed for scenario checks
 	koord3d pos;

@@ -26,6 +26,7 @@
 #include "../utils/cbuffer_t.h"
 #include "../utils/csv.h"
 #include "../display/viewport.h"
+#include "../script/script.h" // callback for calls to tools
 
 
 network_command_t* network_command_t::read_from_packet(packet_t *p)
@@ -1136,6 +1137,7 @@ void nwc_chg_player_t::do_command(karte_t *welt)
 
 
 nwc_tool_t::nwc_tool_t() : network_broadcast_world_command_t(NWC_TOOL, 0, 0),
+	callback_id(0),
 	init(false),
 	custom_data(custom_data_buf, lengthof(custom_data_buf), true)
 {
@@ -1159,6 +1161,8 @@ nwc_tool_t::nwc_tool_t(player_t *player, tool_t *tool_, koord3d pos_, uint32 syn
 	karte_ptr_t welt;
 	last_sync_step = welt->get_last_checklist_sync_step();
 	last_checklist = welt->get_last_checklist();
+
+	callback_id = tool_->callback_id;
 	// write custom data of tool_ to our internal buffer
 	if (player) {
 		tool_->rdwr_custom_data(&custom_data);
@@ -1179,6 +1183,7 @@ nwc_tool_t::nwc_tool_t(const nwc_tool_t &nwt)
 	init = nwt.init;
 	tool_client_id = nwt.our_client_id;
 	flags = nwt.flags;
+	callback_id = nwt.callback_id;
 	// copy custom data of tool to our internal buffer
 	custom_data.append(nwt.custom_data);
 	tool = NULL;
@@ -1206,6 +1211,7 @@ void nwc_tool_t::rdwr()
 	packet->rdwr_bool(init);
 	packet->rdwr_long(tool_client_id);
 	packet->rdwr_byte(flags);
+	packet->rdwr_long(callback_id);
 	// copy custom data of tool to/from packet
 	if (packet->is_saving()) {
 		// write to packet
@@ -1375,11 +1381,18 @@ void nwc_tool_t::do_command(karte_t *welt)
 		tool->flags = flags & ~tool_t::WFL_LOCAL;
 	}
 	DBG_MESSAGE("nwc_tool_t::do_command","id=%d init=%d defpar=%s flag=%d",tool_id&0xFFF,init,(const char*)default_param,tool->flags);
+
+	const char* err = NULL;
+	bool res = false;
 	// call INIT
 	if(  init  ) {
 		// we should be here only if tool->init() returns false
 		// no need to change active tool of world
 		tool->init(player);
+		// tool_t::init() returning false means that the tool has no further work to do,
+		// not that the call failed. A scripted init call that reached this point has
+		// been executed, so report success to the suspended script.
+		res = true;
 	}
 	// call WORK
 	else if(init_successful) {
@@ -1388,15 +1401,28 @@ void nwc_tool_t::do_command(karte_t *welt)
 		if(active_tool  &&  active_tool->remove_preview_necessary()) {
 			active_tool->cleanup();
 		}
-		const char *err = tool->work( player, pos );
-		// only local players get the callback
-		if (local  /*&&  callback_id == 0*/  &&  player) {
+		err = tool->work( player, pos );
+		// only local players get the callback, unless a script waits for the result
+		if (local  &&  callback_id == 0  &&  player) {
 			player->tell_tool_result(tool, pos, err);
 		}
 		if (err) {
 			dbg->warning("nwc_tool_t::do_command","Tool %s failed with '%s'", tool->get_name(), err);
 		}
 		tool->exit(player);
+	}
+	else {
+		err = "Init was not successful, returned false.";
+	}
+
+	// resume the script that called this tool; only the originating peer has it
+	if (local  &&  callback_id != 0) {
+		if (init) {
+			suspended_scripts_t::tell_return_value(callback_id, res);
+		}
+		else {
+			suspended_scripts_t::tell_return_value(callback_id, err);
+		}
 	}
 }
 

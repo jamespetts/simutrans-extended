@@ -1158,6 +1158,11 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 	while (!entries.empty()) {
 		remove();
 	}
+	// Consist orders are keyed by entry id. Clear them as well: a stale order
+	// from the schedule this string is being read into must not survive the
+	// reconstruction, and an old key must not capture a new entry that reuses
+	// its id.
+	orders.clear();
 	if (p == NULL || *p == 0) {
 		// empty string
 		return false;
@@ -1243,16 +1248,37 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 
 	if (consist_order_count > 0)
 	{
+		// The entries loop above consumes the consist-order marker (written by
+		// cbuffer_t::append(long) as the number 33, the character '!'), so p
+		// points at the first order here. Each order follows as
+		// '<unique_entry_id>,<order text>', with no separator after the order
+		// text. The unique_entry_id has no fixed width, so its digits must be
+		// skipped rather than assumed to be one character.
 		for (uint32 i = 0; i < consist_order_count; i++)
 		{
+			if (*p == 0 || !isdigit(*p))
+			{
+				dbg->error("schedule_t::sscanf_schedule()", "missing consist-order unique_entry_id!");
+				return false;
+			}
 			const uint32 index = atoi(p);
-			const uint8 index_buffer_incrementer = 2;
+			while (*p && isdigit(*p))
+			{
+				p++;
+			}
+			if (*p != ',')
+			{
+				dbg->error("schedule_t::sscanf_schedule()", "incomplete consist-order header!");
+				return false;
+			}
+			p++;
 
 			consist_order_t order;
-			p = order.sscanf_consist_order(p + index_buffer_incrementer) + 1;
-			if (order.orders.get_count() > 0)
+			p = order.sscanf_consist_order(p);
+			orders.put(index, order);
+			if (*p == ',')
 			{
-				orders.put(index, order);
+				p++;
 			}
 		}
 	}
@@ -1563,7 +1589,7 @@ void schedule_t::parse_orders()
 
 	for (auto order : orders)
 	{
-		const uint8 unique_id = order.key;
+		const uint16 unique_id = order.key;
 		vector_tpl<uint8> category_vector;
 		uint8 min_class_passenger = goods_manager_t::passengers->get_number_of_classes();
 		uint8 min_class_mail = goods_manager_t::mail->get_number_of_classes();

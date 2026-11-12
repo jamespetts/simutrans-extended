@@ -214,9 +214,19 @@ bool tool_param_fits_network(const char *param)
 }
 
 
+static const char tool_param_too_large_text[] = "The schedule is too large to send over the network; the change has not been applied. Reduce the number or complexity of consist orders.";
+
+
+const char* tool_param_too_large_msg()
+{
+	return translator::translate(tool_param_too_large_text);
+}
+
+
 void show_tool_param_too_large_msg()
 {
-	open_error_msg_win("The schedule is too large to send over the network; the change has not been applied. Reduce the number or complexity of consist orders.");
+	// open_error_msg_win creates a news window, which translates this text.
+	open_error_msg_win(tool_param_too_large_text);
 }
 
 

@@ -21,6 +21,7 @@ include("tests/test_player")
 include("tests/test_powerline")
 include("tests/test_reservation")
 include("tests/test_scenario")
+include("tests/test_schedule")
 include("tests/test_sign")
 include("tests/test_slope")
 include("tests/test_terraform")
@@ -155,6 +156,18 @@ all_tests <- [
 // 	test_way_road_upgrade_downgrade_across_bridge,
 	test_way_road_build_cityroad,
 	test_way_road_has_double_slopes,
+	test_schedule_standard_entry_constructor,
+	test_schedule_round_trip_rich_entry,
+	test_schedule_y_style_pair,
+	test_schedule_rejects_invalid_input,
+	test_schedule_order_edit_delete_line,
+	test_schedule_alias_and_flags_edits,
+	test_schedule_rejects_zero_alternative_slots,
+	test_schedule_spacing_range,
+	test_convoy_state_enum_values,
+	test_halt_laid_over_list,
+	test_convoy_vehicle_snapshot,
+	test_schedule_order_edit_delete_convoy,
 // 	test_way_road_make_public,
 // 	test_way_runway_build_rw_flat,
 // 	test_way_runway_build_tw_flat,

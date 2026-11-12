@@ -355,7 +355,7 @@ call_tool_init depot_append_vehicle(depot_t *depot, player_t *player, convoihand
 	// see depot_frame_t::image_from_storage_list: tool = 'a'
 	// see depot_t::call_depot_tool for command string composition
 	cbuffer_t buf;
-	buf.printf( "%c,%s,%hu,%s", 'a', depot->get_pos().get_str(), cnv.get_id(), desc->get_name());
+	buf.printf( "%c,%s,%hu,%hu,%s", 'a', depot->get_pos().get_str(), cnv.get_id(), cnv.is_bound() ? cnv->get_livery_scheme_index() : 0, desc->get_name());
 
 	return call_tool_init(TOOL_CHANGE_DEPOT | SIMPLE_TOOL, buf, 0, player);
 }
@@ -366,10 +366,10 @@ call_tool_init depot_start_convoy(depot_t *depot, player_t *player, convoihandle
 	// see depot_t::call_depot_tool for command string composition
 	cbuffer_t buf;
 	if (cnv.is_bound()) {
-		buf.printf( "%c,%s,%hu", 'b', depot->get_pos().get_str(), cnv->self.get_id());
+		buf.printf( "%c,%s,%hu,%hu", 'b', depot->get_pos().get_str(), cnv->self.get_id(), 0);
 	}
 	else {
-		buf.printf( "%c,%s,%hu", 'B', depot->get_pos().get_str(), 0);
+		buf.printf( "%c,%s,%hu,%hu", 'B', depot->get_pos().get_str(), 0, 0);
 	}
 
 	return call_tool_init(TOOL_CHANGE_DEPOT | SIMPLE_TOOL, buf, 0, player);

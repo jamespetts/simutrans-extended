@@ -226,6 +226,8 @@ public:
 
 	static const roadsign_desc_t *find_desc(const char *name) { return table.get(name); }
 
+	static const vector_tpl<roadsign_desc_t *>& get_all_signs() { return list; }
+
 	static void set_scale(uint16 scale_factor);
 
 	// Upgrades this sign or signal to another type.

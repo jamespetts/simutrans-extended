@@ -61,6 +61,13 @@ bool tool_param_fits_network(const char *param);
  */
 void show_tool_param_too_large_msg();
 
+/**
+ * Returns the standard error text for a tool parameter that cannot be sent
+ * over the network, translated once. For callers that report the error without
+ * opening a window (the script API).
+ */
+const char* tool_param_too_large_msg();
+
 /************************ general tool *******************************/
 
 // query tile info: default tool

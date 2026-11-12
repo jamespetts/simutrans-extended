@@ -18,6 +18,7 @@
 #include "../../descriptor/vehicle_desc.h"
 #include "../../descriptor/goods_desc.h"
 #include "../../descriptor/roadsign_desc.h"
+#include "../../descriptor/tunnel_desc.h"
 #include "../../descriptor/way_obj_desc.h"
 #include "../../descriptor/factory_desc.h"
 #include "../../bauer/brueckenbauer.h"
@@ -39,6 +40,38 @@
 
 
 using namespace script_api;
+
+
+const vector_tpl<const tunnel_desc_t *>& get_available_tunnels(waytype_t wtyp)
+{
+	static vector_tpl<const tunnel_desc_t *> dummy;
+	dummy.clear();
+	const uint16 time = welt->get_timeline_year_month();
+	stringhashtable_tpl<tunnel_desc_t *, N_BAGS_MEDIUM> *tunnel_list = tunnel_builder_t::get_all_tunnels();
+	if (tunnel_list) {
+		for (auto const &i : *tunnel_list) {
+			const tunnel_desc_t *b = i.value;
+			if (b->get_waytype() == wtyp  &&  b->is_available(time)  &&  b->get_builder()) {
+				dummy.append(b);
+			}
+		}
+	}
+	return dummy;
+}
+
+
+const vector_tpl<const roadsign_desc_t *>& get_available_signs(waytype_t wt)
+{
+	static vector_tpl<const roadsign_desc_t *> dummy;
+	dummy.clear();
+	const uint16 time = welt->get_timeline_year_month();
+	for (roadsign_desc_t *desc : roadsign_t::get_all_signs()) {
+		if (desc->is_available(time)  &&  desc->get_wtyp() == wt  &&  desc->get_builder()) {
+			dummy.append(desc);
+		}
+	}
+	return dummy;
+}
 
 
 SQInteger get_next_ware_desc(HSQUIRRELVM vm)
@@ -679,10 +712,10 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * Object descriptors for tunnels.
 	 */
 	begin_desc_class(vm, "tunnel_desc_x", "obj_desc_transport_x", (GETDESCFUNC)param<const tunnel_desc_t*>::getfunc());
-// 	/**
-// 	 * Returns a list with available tunnel types.
-// 	 */
-// 	STATIC register_method(vm, tunnel_builder_t::get_available_tunnels, "get_available_tunnels", false, true);
+	/**
+	 * Returns a list with available tunnel types.
+	 */
+	STATIC register_method(vm, get_available_tunnels, "get_available_tunnels", false, true);
 	end_class(vm);
 
 	/**
@@ -822,11 +855,11 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns true if sign is end-of-choose sign
 	 */
 	register_method(vm, &roadsign_desc_t::is_end_choose_signal, "is_end_choose_signal");
-// 	/**
-// 	 * Returns a list with available sign types.
-// 	 * @param wt waytype
-// 	 */
-// 	STATIC register_method(vm, roadsign_t::get_available_signs, "get_available_signs", false, true);
+	/**
+	 * Returns a list with available sign types.
+	 * @param wt waytype
+	 */
+	STATIC register_method(vm, get_available_signs, "get_available_signs", false, true);
 
 	end_class(vm);
 	/**

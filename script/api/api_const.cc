@@ -9,6 +9,7 @@
 
 #include "../api_param.h"
 #include "../../obj/simobj.h"
+#include "../../simconvoi.h"
 #include "../../simmenu.h"
 #include "../../simunits.h"
 
@@ -291,6 +292,43 @@ void export_global_constants(HSQUIRRELVM vm)
 	enum_slot(vm, "cl_tundra", tundra_climate);
 	enum_slot(vm, "cl_rocky", rocky_climate);
 	enum_slot(vm, "cl_arctic", arctic_climate);
+	end_enum();
+
+	/**
+	 * Convoy states, as returned by convoy_x::get_state.
+	 */
+	begin_enum("convoy_states");
+	enum_slot(vm, "convoy_state_initial",             convoi_t::INITIAL);
+	enum_slot(vm, "convoy_state_edit_schedule",       convoi_t::EDIT_SCHEDULE);
+	enum_slot(vm, "convoy_state_routing_1",           convoi_t::ROUTING_1);
+	enum_slot(vm, "convoy_state_routing_2",           convoi_t::ROUTING_2);
+	enum_slot(vm, "convoy_state_dummy5",              convoi_t::DUMMY5);
+	enum_slot(vm, "convoy_state_no_route",            convoi_t::NO_ROUTE);
+	enum_slot(vm, "convoy_state_driving",             convoi_t::DRIVING);
+	enum_slot(vm, "convoy_state_loading",             convoi_t::LOADING);
+	enum_slot(vm, "convoy_state_waiting_for_clearance", convoi_t::WAITING_FOR_CLEARANCE);
+	enum_slot(vm, "convoy_state_waiting_for_clearance_one_month", convoi_t::WAITING_FOR_CLEARANCE_ONE_MONTH);
+	enum_slot(vm, "convoy_state_can_start",           convoi_t::CAN_START);
+	enum_slot(vm, "convoy_state_can_start_one_month", convoi_t::CAN_START_ONE_MONTH);
+	enum_slot(vm, "convoy_state_self_destruct",       convoi_t::SELF_DESTRUCT);
+	enum_slot(vm, "convoy_state_waiting_for_clearance_two_months", convoi_t::WAITING_FOR_CLEARANCE_TWO_MONTHS);
+	enum_slot(vm, "convoy_state_can_start_two_months", convoi_t::CAN_START_TWO_MONTHS);
+	enum_slot(vm, "convoy_state_leaving_depot",       convoi_t::LEAVING_DEPOT);
+	enum_slot(vm, "convoy_state_entering_depot",      convoi_t::ENTERING_DEPOT);
+	enum_slot(vm, "convoy_state_reversing",           convoi_t::REVERSING);
+	enum_slot(vm, "convoy_state_out_of_range",        convoi_t::OUT_OF_RANGE);
+	enum_slot(vm, "convoy_state_emergency_stop",      convoi_t::EMERGENCY_STOP);
+	enum_slot(vm, "convoy_state_route_just_found",    convoi_t::ROUTE_JUST_FOUND);
+	enum_slot(vm, "convoy_state_no_route_too_complex", convoi_t::NO_ROUTE_TOO_COMPLEX);
+	enum_slot(vm, "convoy_state_waiting_for_loading_three_months", convoi_t::WAITING_FOR_LOADING_THREE_MONTHS);
+	enum_slot(vm, "convoy_state_waiting_for_loading_four_months", convoi_t::WAITING_FOR_LOADING_FOUR_MONTHS);
+	enum_slot(vm, "convoy_state_replenishing",        convoi_t::REPLENISHING);
+	enum_slot(vm, "convoy_state_maintenance",         convoi_t::MAINTENANCE);
+	enum_slot(vm, "convoy_state_overhaul",            convoi_t::OVERHAUL);
+	enum_slot(vm, "convoy_state_awaiting_trigger",    convoi_t::AWAITING_TRIGGER);
+	enum_slot(vm, "convoy_state_layover",             convoi_t::LAYOVER);
+	enum_slot(vm, "convoy_state_shunting",            convoi_t::SHUNTING);
+	enum_slot(vm, "convoy_state_awaiting_recombination", convoi_t::AWAITING_RECOMBINATION);
 	end_enum();
 
 }

@@ -37,14 +37,28 @@ function run_all_tests()
 	print("== Running tests ... =======================================")
 	print("============================================================")
 
+	local failed = false
 	foreach (i,test_func in all_tests) {
 		local func_name = test_func.getinfos().name
 		print("[" + (num_tests_done+1) + "/" + num_tests + "] " + func_name)
-		test_func() // run the test
-		++num_tests_done
+		try {
+			test_func() // run the test
+			++num_tests_done
+		}
+		catch (e) {
+			// report the failing test by name, then stop: later tests would run on a dirty map
+			local msg = "TEST FAILED: " + func_name + ": " + e
+			print(msg)
+			error_msg = msg
+			failed = true
+			break
+		}
 	}
 
-	print("Tests completed successfully.")
+	if (!failed) {
+		print("Tests completed successfully.")
+	}
+
 }
 
 

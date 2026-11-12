@@ -19,6 +19,7 @@
 
 // for manipulation of lines
 #include "../../simmenu.h"
+#include "../../simtool.h"
 #include "../../dataobj/schedule.h"
 
 // template<> schedule_t* script_api::param<schedule_t*>::get(HSQUIRRELVM, SQInteger);
@@ -67,8 +68,13 @@ call_tool_init line_change_schedule(simline_t* line, player_t *player, schedule_
 			// build param string (see line_management_gui_t::apply_schedule)
 			buf.printf( "g,%i,", line->get_handle().get_id() );
 			copy->sprintf_schedule( buf );
+			if (!tool_param_fits_network((const char*)buf)) {
+				delete copy;
+				return tool_param_too_large_msg();
+			}
 		}
 		else {
+			delete copy;
 			return "Invalid schedule provided: less than two entries remained after removing doubles";
 		}
 		delete copy;

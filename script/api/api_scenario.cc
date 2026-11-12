@@ -16,6 +16,7 @@
 #include "../../utils/simstring.h"
 
 #include "../../simintr.h"
+#include "../../simworld.h"
 
 using namespace script_api;
 
@@ -54,6 +55,32 @@ static plainstring koord_to_string_intern(koord k)
 static plainstring koord3d_to_string_intern(koord3d k)
 {
 	return k.get_str();
+}
+
+/*
+ * Standard semantics: clear_way_tool_rect/cube(player_nr, tool_id, wt, nw, se,
+ * allow) removes the stored rectangular rule of the requested kind, allow=true
+ * meaning an allow rule and allow=false a forbid rule.
+ *
+ * Extended stores rectangular scenario rules only as forbid rules; its
+ * allow_way_tool_rect/allow_way_tool_cube calls remove a forbid rule. Therefore:
+ *  - allow=false (clear the forbid rule) maps to allow_way_tool_* here;
+ *  - allow=true (clear an allow rule) has nothing to clear, because Extended
+ *    never stores an allow rule. It is deliberately a no-op, not a prohibition:
+ *    it must not add a forbid rule, which is what an inverted mapping would do.
+ */
+void clear_way_tool_rect(uint8 player_nr, uint16 tool_id, waytype_t wt, koord pos_nw, koord pos_se, bool allow)
+{
+	if (!allow) {
+		welt->get_scenario()->allow_way_tool_rect(player_nr, tool_id, wt, pos_nw, pos_se);
+	}
+}
+
+void clear_way_tool_cube(uint8 player_nr, uint16 tool_id, waytype_t wt, koord3d pos_nw, koord3d pos_se, bool allow)
+{
+	if (!allow) {
+		welt->get_scenario()->allow_way_tool_cube(player_nr, tool_id, wt, pos_nw, pos_se);
+	}
 }
 
 void export_string_methods(HSQUIRRELVM vm)
@@ -241,6 +268,59 @@ void export_scenario(HSQUIRRELVM vm)
 	 * @see tool_ids way_types player_all
 	 */
 	STATIC register_method(vm, &scenario_t::allow_way_tool_cube,  "allow_way_tool_cube");
+
+	/**
+	 * Allow again an internal tool.
+	 *
+	 * @param player_nr number of player this rule applies to,
+	 *                  if this is set to player_all then this acts for all players except public player
+	 * @param tool_id id of tool
+	 * @see tool_ids way_types player_all
+	 */
+	STATIC register_method(vm, &scenario_t::allow_tool, "clear_forbid_tool");
+
+	/**
+	 * Clear rule with certain waytype.
+	 *
+	 * @param player_nr number of player this rule applies to,
+	 *                  if this is set to player_all then this acts for all players except public player
+	 * @param tool_id id of tool
+	 * @param wt waytype
+	 * @see tool_ids way_types player_all
+	 */
+	STATIC register_method(vm, &scenario_t::allow_way_tool, "clear_forbid_way_tool");
+
+	/**
+	 * Clear rule with certain waytype within rectangular region on the map.
+	 *
+	 * @param player_nr number of player this rule applies to,
+	 *                  if this is set to player_all then this acts for all players except public player
+	 * @param tool_id id of tool
+	 * @param wt waytype
+	 * @param pos_nw coordinate of north-western corner of rectangle
+	 * @param pos_se coordinate of south-eastern corner of rectangle
+	 * @param allow false clears the stored forbid rule. true would clear a
+	 *              stored allow rule; Extended stores no allow rules, so true
+	 *              has no effect.
+	 * @see tool_ids way_types player_all
+	 */
+	STATIC register_method(vm, &clear_way_tool_rect, "clear_way_tool_rect");
+
+	/**
+	 * Clear rule with certain waytype within cubic region on the map.
+	 *
+	 * @param player_nr number of player this rule applies to,
+	 *                  if this is set to player_all then this acts for all players except public player
+	 * @param tool_id id of tool
+	 * @param wt waytype
+	 * @param pos_nw 3d-coordinate of north-western corner of cube
+	 * @param pos_se 3d-coordinate of south-eastern corner of cube
+	 * @param allow false clears the stored forbid rule. true would clear a
+	 *              stored allow rule; Extended stores no allow rules, so true
+	 *              has no effect.
+	 * @see tool_ids way_types player_all
+	 */
+	STATIC register_method(vm, &clear_way_tool_cube, "clear_way_tool_cube");
 
 	/**
 	 * Clear all forbidding rules, effectively allowing all tools again that were forbidden using functions of the table @ref rules.

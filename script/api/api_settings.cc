@@ -12,10 +12,23 @@
 #include "../api_class.h"
 #include "../api_function.h"
 #include "../../dataobj/settings.h"
+#include "../../descriptor/ground_desc.h"
+#include "../../boden/grund.h"
 #include "../../simmenu.h"
 #include "../../simworld.h"
 
 using namespace script_api;
+
+
+sint8 get_underground_view_level()
+{
+	return grund_t::underground_level;
+}
+
+bool has_double_slopes()
+{
+	return ground_desc_t::double_grounds;
+}
 
 
 mytime_t get_start_time(settings_t* settings)
@@ -99,6 +112,17 @@ void export_settings(HSQUIRRELVM vm)
 // 	register_method(vm, &settings_t::get_max_air_convoi_length, "get_max_air_convoi_length");
 	/// @returns true, if drive-on-left is on
 	register_method(vm, &settings_t::is_drive_left, "get_drive_on_left");
+	/// @returns minimal z-distance between tiles with ways (possible values = 1,2)
+	register_method(vm, &settings_t::get_way_height_clearance, "get_way_height_clearance");
+	/// @returns whether paksets support two different slope heights
+	register_method(vm, &has_double_slopes, "has_double_slopes", true);
+	/**
+	 * Returns current view mode and underground view level.
+	 * -128 == full underground view
+	 * +127 == normal view
+	 * other values == sliced view at the given value
+	 */
+	register_method(vm, &get_underground_view_level, "get_underground_view_level", true);
 // 	/**
 // 	 * Three modes of transfer payment:
 // 	 * 0 = pay for travelled Manhattan distance

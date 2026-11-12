@@ -14,6 +14,7 @@
 #include "../../simmenu.h"
 #include "../../simworld.h"
 #include "../../boden/wasser.h"
+#include "../../obj/crossing.h"
 
 #include "../../simconvoi.h"
 #include "../../vehicle/vehicle.h"
@@ -92,6 +93,12 @@ grund_t* get_neighbour(grund_t *gr, waytype_t wt, my_ribi_t ribi)
 my_slope_t get_slope(grund_t *gr)
 {
 	return gr->get_grund_hang();
+}
+
+
+bool is_crossing(grund_t *gr)
+{
+	return gr->find<crossing_t>();
 }
 
 
@@ -189,6 +196,12 @@ void export_tiles(HSQUIRRELVM vm)
 	 * @returns true if tile is an ocean tile
 	 */
 	register_method(vm, &grund_t::is_water, "is_water");
+
+	/**
+	 * Checks for crossing object.
+	 * @returns true if there is a crossing on the tile.
+	 */
+	register_method(vm, &is_crossing, "is_crossing", true);
 
 	/**
 	 * Queries tile type.

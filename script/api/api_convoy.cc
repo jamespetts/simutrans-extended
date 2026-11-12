@@ -14,8 +14,10 @@
 #include "../../simconvoi.h"
 #include "../../simhalt.h"
 #include "../../simline.h"
+#include "../../simtool.h"
 #include "../../simworld.h"
 #include "../../vehicle/vehicle.h"
+#include "../../display/viewport.h"
 
 // for convoy tools
 #include "../../simmenu.h"
@@ -161,9 +163,100 @@ bool convoy_is_schedule_editor_open(convoi_t *cnv)
 	return cnv->get_state() == convoi_t::EDIT_SCHEDULE;
 }
 
+bool convoy_is_followed(convoi_t const *cnv)
+{
+	return cnv ? welt->get_viewport()->get_follow_convoi().get_id() == cnv->self.get_id() : false;
+}
+
+void convoy_set_followed(convoi_t const *cnv)
+{
+	if (cnv) {
+		welt->get_viewport()->set_follow_convoi(cnv->self);
+	}
+}
+
 bool convoy_is_loading(convoi_t *cnv)
 {
 	return cnv->get_state() == convoi_t::LOADING;
+}
+
+/**
+ * Current state as a value of the convoy_states enum.
+ */
+sint32 convoy_get_state(convoi_t *cnv)
+{
+	return cnv ? cnv->get_state() : convoi_t::INITIAL;
+}
+
+/**
+ * Index of the current entry in the convoy's schedule, or -1 if it has none.
+ */
+sint32 convoy_get_current_stop(convoi_t *cnv)
+{
+	if (cnv  &&  cnv->get_schedule()  &&  !cnv->get_schedule()->empty()) {
+		return cnv->get_schedule()->get_current_stop();
+	}
+	return -1;
+}
+
+/**
+ * unique_entry_id of the current entry, or 0 if it has none.
+ */
+sint32 convoy_get_current_entry_id(convoi_t *cnv)
+{
+	if (cnv  &&  cnv->get_schedule()  &&  !cnv->get_schedule()->empty()) {
+		return cnv->get_schedule()->get_current_entry().unique_entry_id;
+	}
+	return 0;
+}
+
+/**
+ * Snapshot of the convoy's vehicles in running order. Each entry is a
+ * vehicle_slot_x value object, so no vehicle pointer outlives the call.
+ */
+SQInteger convoy_get_vehicle_snapshot(HSQUIRRELVM vm)
+{
+	convoi_t *cnv = param<convoi_t*>::get(vm, 1);
+	if (cnv == NULL) {
+		sq_pushnull(vm);
+		return 1;
+	}
+	sq_newarray(vm, 0);
+	for (uint16 i = 0; i < cnv->get_vehicle_count(); i++) {
+		vehicle_t *v = cnv->get_vehicle(i);
+		if (v == NULL) {
+			continue;
+		}
+		if (SQ_FAILED(push_instance(vm, "vehicle_slot_x"))) {
+			sq_poptop(vm);
+			return SQ_ERROR;
+		}
+		// stack: array, slot
+		set_slot(vm, "index", (SQInteger)i);
+		sq_pushstring(vm, "desc", -1);
+		if (SQ_FAILED(param<const vehicle_desc_t*>::push(vm, v->get_desc()))) {
+			sq_poptop(vm);
+			return SQ_ERROR;
+		}
+		if (SQ_FAILED(sq_set(vm, -3))) {
+			sq_poptop(vm);
+			return SQ_ERROR;
+		}
+		sq_pushstring(vm, "owner", -1);
+		if (SQ_FAILED(param<player_t*>::push(vm, v->get_owner()))) {
+			sq_poptop(vm);
+			return SQ_ERROR;
+		}
+		if (SQ_FAILED(sq_set(vm, -3))) {
+			sq_poptop(vm);
+			return SQ_ERROR;
+		}
+		set_slot(vm, "reversed", v->is_reversed());
+		set_slot(vm, "cargo", (SQInteger)v->get_total_cargo());
+		set_slot(vm, "capacity", (SQInteger)v->get_cargo_max());
+		sq_arrayappend(vm, -2);
+	}
+	return 1;
 }
 
 call_tool_init convoy_change_schedule(convoi_t *cnv, player_t *player, schedule_t *sched)
@@ -177,8 +270,13 @@ call_tool_init convoy_change_schedule(convoi_t *cnv, player_t *player, schedule_
 			// build param string (see convoi_info_t::apply_schedule and convoi_t::call_convoi_tool())
 			buf.printf("g,%u,", cnv->self.get_id());
 			copy->sprintf_schedule(buf);
+			if (!tool_param_fits_network((const char*)buf)) {
+				delete copy;
+				return tool_param_too_large_msg();
+			}
 		}
 		else {
+			delete copy;
 			return "Invalid schedule provided: less than two entries remained after removing doubles";
 		}
 		delete copy;
@@ -361,6 +459,39 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns true if convoy is currently waiting (for way clearance)
 	 */
 	register_method(vm, &convoi_t::is_waiting, "is_waiting");
+	/**
+	 * @returns true if the camera is following this convoy.
+	 */
+	register_method(vm, convoy_is_followed, "is_followed", true);
+	/**
+	 * Centers the camera on this convoy and follows it.
+	 * @ingroup game_cmd
+	 */
+	register_method(vm, convoy_set_followed, "set_followed", true);
+	/**
+	 * @returns current state, a value of the convoy_states enum
+	 */
+	register_method(vm, convoy_get_state, "get_state", true);
+	/**
+	 * @returns index of the current schedule entry, or -1 without a schedule
+	 */
+	register_method(vm, convoy_get_current_stop, "get_current_stop", true);
+	/**
+	 * @returns unique_entry_id of the current schedule entry, or 0
+	 */
+	register_method(vm, convoy_get_current_entry_id, "get_current_entry_id", true);
+	/**
+	 * @returns true if the convoy is running its schedule backwards
+	 */
+	register_method(vm, &convoi_t::get_reverse_schedule, "is_reverse_schedule");
+	/**
+	 * @returns array of vehicle_slot_x snapshots in running order
+	 */
+	register_function(vm, convoy_get_vehicle_snapshot, "get_vehicle_snapshot", 1, param<convoi_t*>::typemask());
+	/**
+	 * @returns the convoy's livery scheme index
+	 */
+	register_method(vm, &convoi_t::get_livery_scheme_index, "get_livery_scheme_index");
 	/**
 	 * @returns true if convoy is currently waiting (for way clearance)
 	 */

@@ -80,6 +80,74 @@ SQInteger halt_export_convoy_list(HSQUIRRELVM vm)
 }
 
 
+/**
+ * Reads the halt_id slot of a laid-over list instance.
+ */
+static halthandle_t laid_over_halt(HSQUIRRELVM vm)
+{
+	uint16 id = 0;
+	halthandle_t halt;
+	if (SQ_SUCCEEDED(get_slot(vm, "halt_id", id, 1))) {
+		halt.set_id(id);
+	}
+	return halt;
+}
+
+SQInteger halt_export_laid_over_list(HSQUIRRELVM vm)
+{
+	halthandle_t halt = param<halthandle_t>::get(vm, 1);
+	if (halt.is_bound()) {
+		push_instance(vm, "laid_over_list_x");
+		set_slot(vm, "halt_id", halt.get_id());
+		return 1;
+	}
+	else {
+		sq_raise_error(vm, "Invalid halt id %d", halt.get_id());
+		return SQ_ERROR;
+	}
+}
+
+SQInteger laid_over_list_count(HSQUIRRELVM vm)
+{
+	halthandle_t halt = laid_over_halt(vm);
+	if (!halt.is_bound()) {
+		return SQ_ERROR;
+	}
+	return param<uint32>::push(vm, halt->get_laid_over().get_count());
+}
+
+SQInteger laid_over_list_next(HSQUIRRELVM vm)
+{
+	halthandle_t halt = laid_over_halt(vm);
+	if (!halt.is_bound()) {
+		return SQ_ERROR;
+	}
+	return generic_get_next(vm, halt->get_laid_over().get_count());
+}
+
+SQInteger laid_over_list_get(HSQUIRRELVM vm)
+{
+	halthandle_t halt = laid_over_halt(vm);
+	if (!halt.is_bound()) {
+		return SQ_ERROR;
+	}
+	const sint32 index = param<sint32>::get(vm, 2);
+	if (index < 0) {
+		sq_pushnull(vm);
+		return 1;
+	}
+	slist_tpl<convoihandle_t>::iterator iter = halt->get_laid_over().begin();
+	for (sint32 i = 0; i < index  &&  iter != halt->get_laid_over().end(); i++) {
+		++iter;
+	}
+	if (iter != halt->get_laid_over().end()) {
+		return param<convoihandle_t>::push(vm, *iter);
+	}
+	sq_pushnull(vm);
+	return 1;
+}
+
+
 call_tool_init halt_set_name(halthandle_t halt, const char* name)
 {
 	if (!halt.is_bound()) {
@@ -260,6 +328,11 @@ void export_halt(HSQUIRRELVM vm)
 	 */
 	register_function(vm, &halt_export_convoy_list, "get_convoy_list", 1, param<halthandle_t>::typemask());
 	/**
+	 * Exports the stop's laid-over (loose-stock) convoys. Read-only.
+	 * @typemask laid_over_list_x()
+	 */
+	register_function(vm, &halt_export_laid_over_list, "get_laid_over_list", 1, param<halthandle_t>::typemask());
+	/**
 	 * Exports list of lines that serve this halt.
 	 * @typemask line_list_x()
 	 */
@@ -302,5 +375,21 @@ void export_halt(HSQUIRRELVM vm)
 	 */
 	STATIC register_method(vm, &get_halt_from_koord3d, "get_halt", false, true);
 
+	end_class(vm);
+
+	/**
+	 * Read-only list of a stop's laid-over convoys.
+	 *
+	 * Usage:
+	 * @code
+	 * foreach(cnv in halt.get_laid_over_list()) {
+	 *     ... // cnv is a convoy_x
+	 * }
+	 * @endcode
+	 */
+	begin_class(vm, "laid_over_list_x", 0);
+	register_function(vm, laid_over_list_next,  "_nexti", 2, "x o|i");
+	register_function(vm, laid_over_list_get,   "_get",   2, "xi");
+	register_function(vm, laid_over_list_count, "get_count", 1, "x");
 	end_class(vm);
 }

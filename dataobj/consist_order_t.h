@@ -217,6 +217,7 @@ protected:
 public:
 
 	uint16 get_available_to_id() const { return available_to_id; }
+	uint8 get_available_to_flags() const { return available_to_flags; }
 	bool get_available_to_is_convoy() const { return (available_to_flags & available_to_is_convoy) != 0; }
 	bool is_available_to_any() const { return available_to_id == 0 && available_to_flags == 0; }
 	bool is_available_to_same() const { return available_to_id == 0 && (available_to_flags & available_to_is_same) != 0; }
