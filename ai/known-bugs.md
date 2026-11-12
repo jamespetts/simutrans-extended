@@ -47,11 +47,37 @@ Rank on discovery; re-rank on triage.
   not read. Descriptions are the topic titles. Re-rank and expand on triage.
 - Excluded: guidance/meta stickies, moved-topic redirects, junk posts, OTRP-fork-specific
   reports, patch/pull-request threads, pure question threads.
-- Scripting-specific bugs are not tracked here at all: the Squirrel scenario host is
-  non-working (its tool-call suspension is never resumed) and low priority
-  (→ [scripting-and-tests](scripting-and-tests.md)).
 
 ## Detailed entries
+
+### Destroying an INITIAL depot convoy fails in route unreservation — priority 1
+
+- Reproduced with `Debug|x64` by calling `cnv.destroy(pl)` on a newly created convoy still in its
+  depot (`convoi_t::INITIAL`): `vector_tpl<weg_t*>::operator[]` reports index 3 outside 0..2 from
+  `convoi_t::unreserve_route_range`, called by `unreserve_route_threaded`
+  [EXECUTION-VERIFIED:2026-11-12].
+- The code calculates worker ranges over `weg_t::get_alle_wege()` in `unreserve_route_threaded`;
+  `unreserve_route_range` accesses `all_ways[i]` for the requested inclusive range. Neither the
+  index calculation's exact fault nor whether other convoy states reach the same bad range has been
+  established. The separate zero-way underflow and `threads = 1` division hazards below must not be
+  assumed to cause this observation.
+- Until this is fixed, the final two tests in `tests/tests/test_schedule.nut` leave their depot
+  convoys in place and discard the test world after the suite. Fix and remove that workaround when
+  testing depot-convoy destruction or save/reload for the dividing runtime; no engine fix is
+  currently applied.
+
+### Entries at x=33 truncate a schedule-string apply — priority 1
+
+- `schedule_t::sprintf_schedule` writes the consist-order terminator with `buf.append('!')`.
+  `cbuffer_t` has an integral `append(long)` overload, so this writes decimal text `33`.
+  `schedule_t::sscanf_schedule` detects the terminator with `atoi(p) == '!'`. At the beginning of an
+  entry, the same test evaluates an entry whose x coordinate is 33 as the terminator.
+- Applying a line or convoy schedule silently drops the entry at x=33 and every subsequent entry.
+  The consist-order count determines whether any following text is parsed as order data. This text
+  format is used by existing schedule tool commits as well as by the new script interface
+  [CODE ex-15 @ 957d5ced8 plus working-tree changes].
+- No format correction is applied: an unambiguous, backward-compatible marker/read strategy must be
+  presented under the network/serialisation restriction before implementation.
 
 ### Await gaps around map operations — priority 2
 
@@ -273,6 +299,9 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Destroying an INITIAL depot convoy fails in route unreservation (not a forum report: execution 2026-11-12) | — | detailed entry above; affects test cleanup and potentially ordinary destruction paths |
+| Entries at x=33 truncate a schedule-string apply (not a forum report: code inspection 2026-11-12) | — | detailed entry above; silent schedule data loss through the shared tool-commit path |
+| Zero-alternative passenger/mail consist slot aborts `schedule_t::parse_orders` (not a forum report: code inspection) | — | `get_vehicle_description(0)` is called without an alternative-count guard; current Squirrel conversion rejects this input before the call; GUI reachability not execution-verified |
 | First-join desync then clean rejoin (not a forum report: investigation 2026-09-30; see also 22203 below) | — | detailed investigation → [bug-first-join-desync](bug-first-join-desync.md); isolated to single-convoy speed divergence 3 frames after unpause; cause not yet isolated |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |

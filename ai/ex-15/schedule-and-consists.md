@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ f4f6fd2b5
+verified: ex-15 @ f4f6fd2b5; script interface and pre-runtime fixture ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -41,6 +41,17 @@ explorer's treatment of consist orders.
   no dedicated network command for consist orders. Vehicle-tag fields in saves from before
   Extended 15.4 (`vehicle_t::tags`, per-slot tag flags, per-order `tags_to_clear`) are read and
   discarded on load; older save targets are written with zeros.
+- Script interface: `schedule_x` contains all entry fields, schedule-level authoring settings,
+  `current_stop` and an `orders` table keyed by `unique_entry_id`. Its consist-order objects cover
+  ordered slots, prioritised specific/rule-based alternatives and recipient settings. Conversion
+  uses the existing line/convoy tools, not direct live-schedule mutation, and rejects the same
+  oversized parameter strings that the GUI rejects. The depot script wrappers include the required
+  livery-index field and preserve a bound convoy's current livery scheme.
+  `schedule_t::sscanf_schedule` clears the copied schedule's old orders before rebuilding them and
+  accepts multi-digit order keys; `schedule_t::parse_orders` keeps those keys at 16 bits. The
+  schedule-string format is unchanged.
+- Scripted test setup is demonstrated for two portions in
+  [yh-path-explorer](yh-path-explorer.md); it does not imply that the runtime division exists.
 
 ## IMPLEMENTED features
 

@@ -15,6 +15,10 @@ active development branch (currently `ex-15`; this rule generalises to whichever
 development branch is active after `ex-15` merges into `master`). Work specific to a
 development branch is done on that branch directly.
 
+Feature-placement clarification (user instruction, 2026-11-11): all new features are
+developed on the active development branch, not on `master`. The master-first rule above
+applies to shared bug fixes and infrastructure work, not to new features.
+
 ## Knowledge base
 
 All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for lazy retrieval.

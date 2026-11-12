@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ a203862c1 (SIMD section; 2026-11-07); rest @ 29bc1a6e8
+verified: ex-15 @ a203862c1 (SIMD section; 2026-11-07); rest @ 29bc1a6e8; Squirrel harness ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # Build & toolchain
 
@@ -9,7 +9,8 @@ Nettool.vcxproj, Makefile, common.mk, uncommon.mk, config.template, config.defau
 configs/, CMakeLists.txt, cmake/, makeobj/ and nettools/ build files, .github/ (workflows,
 init_env.py, toolchain_mingw.cmake), nsis/, cleanup_code.sh, distribute.sh, get_pak.sh, play.sh,
 restart.sh, findversion.sh, revision.jse, scripts/run-automated-tests.sh,
-scripts/run-smoke-tests.sh/.ps1, scripts/run-perf-suite.ps1, OSX/osx.mk.
+scripts/run-pending-runtime-tests.sh, scripts/run-smoke-tests.sh/.ps1, scripts/run-perf-suite.ps1,
+OSX/osx.mk.
 
 ## Overview
 
@@ -195,7 +196,7 @@ The `REVISION` define must match between server and clients for network play
   `tests/` symlinked to `<pakset>/scenario/automated-tests`; `~/simutrans/simuconf.tab` sets
   fps=100; `scripts/run-automated-tests.sh` runs the binary headless-ish and watches the log for
   "Tests completed successfully." or script-error markers, 10-minute timeout) are deferred to
-  workflow_dispatch only (`squirrel_tests` input; they hang —
+  workflow_dispatch only (`squirrel_tests` input; local execution and invocation are covered in
   [scripting-and-tests](scripting-and-tests.md)).
 - `tsan-smoke.yml` (push/PR; "TSan smoke"): same harness call with `sanitizer: tsan`; regression
   detector for threading races (worker threads are created only at the end of `karte_t::load`,

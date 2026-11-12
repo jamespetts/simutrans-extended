@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ ad1815c (rest); ex-15 @ edd49a130 (scripting note)
+verified: ex-15 @ ad1815c (rest); ex-15 @ 957d5ced8 plus working-tree Squirrel restoration (scripting note)
 ---
 # Project general notes
 
@@ -60,9 +60,10 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
   Network desyncs are a huge risk with even slightly incorrect multi-threading of simulation code.
   Mechanics/rules: [threading](threading.md); sync rules: [sync-and-determinism](sync-and-determinism.md).
 
-- Squirrel is compiled in and the API is broad (world/city/factory/halt/line/convoy/player/tiles/descriptors), but no AI
-  script host is wired and the scenario host's tool-call suspension is never resumed (`callback_id` unused); a tool call
-  during `start` hangs at `[suspended]`. Read-only queries do not use that path. [scripting-and-tests](scripting-and-tests.md). [CODE ex-15 @ edd49a130]
+- Squirrel is compiled in and its application programming interface (API) is broad
+  (world/city/factory/halt/line/convoy/player/tiles/descriptors), but no AI
+  script host is wired. The scenario host resumes suspended tool calls through `nwc_tool_t::callback_id`; schedule and
+  consist-order data are script-accessible, while other Extended fields remain incomplete. [scripting-and-tests](scripting-and-tests.md).
 
 - User-facing text: `translator::translate("English literal")` — the key IS the English text; missing or format-mismatched
   translations silently fall back to it. Details: [translations](translations.md). [CODE master @ 84b8345a4]

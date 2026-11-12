@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (implementation, GUI and tests); routing-search engine @ a203862c1 (2026-11-07); design revised 2026-11-07
+verified: ex-15 @ f4f6fd2b5 (implementation, GUI and tests); routing-search engine @ a203862c1 (2026-11-07); pre-runtime script fixture ex-15 @ 957d5ced8 plus working-tree changes; design revised 2026-11-07
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -192,6 +192,17 @@ The uncouple scenario was repeated after the other modes and returned the same r
 a within-process determinism check. The temporary hook is not in the code; the results above are
 the verification record. Not yet covered: the category/class consist-order predicate,
 cross-process determinism of saves containing couplings, and interactive GUI operation.
+
+`tests/pending-runtime/scenario.nut` builds a source convoy and target schedule through the script
+interface and authors one end-state order for each portion. In the current runtime the source
+entry's existing consist-order processing releases the non-retained vehicle into the junction's
+laid-over registry, but no new portion adopts the target schedule. The dividing implementation
+must not apply the source entry's order a second time; it must apply the target entry's order to
+the newly created portion. The fixture reads the schedule/order data back before starting the
+convoy and records this pending junction state. [EXECUTION-VERIFIED:2026-11-12, Debug|x64 with
+`-nomidi`]. Only that pending source/loose-stock state is observed behaviour. Applying the target
+order to the new portion is planned runtime work specified by
+[recombination-design](recombination-design.md), not implemented division behaviour.
 
 ### Rebuild triggers
 
