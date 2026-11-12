@@ -480,6 +480,21 @@ public:
 
 	typedef inthashtable_tpl<uint32, waiting_time_set, N_BAGS_SMALL> waiting_time_map;
 
+	// Sum and count of elapsed waits measured at the last waiting-time poll
+	// for packets whose wait exceeded twice the base mean at this halt. Each
+	// aggregate applies to one next-transfer halt, goods category and class.
+	// The base mean is returned by get_base_average_waiting_time().
+	struct current_waiting_time_aggregate
+	{
+		uint64 sum;
+		uint64 count;
+	};
+
+	// Key: x is the next-transfer halt ID; y holds the goods category in its
+	// high byte and class in its low byte. koordhash_tpl<id_pair> compares the
+	// two uint16 fields separately, so ordering does not overflow.
+	typedef koordhashtable_tpl<id_pair, current_waiting_time_aggregate, N_BAGS_SMALL> current_waiting_time_map;
+
 	void add_control_tower() { control_towers ++; }
 	void remove_control_tower() { if(control_towers > 0) control_towers --; }
 
@@ -618,11 +633,32 @@ private:
 	haltestelle_t(koord pos, player_t *player);
 	~haltestelle_t();
 
-	// Record of waiting times. Takes a list of the last 16 waiting times per type of goods.
-	// Getter method will need to average the waiting times.
+	// Retained waiting-time samples: a fixed 32-entry list per category, class
+	// and next-transfer halt. get_average_waiting_time() averages these samples
+	// and any current-wait snapshot observations.
 	// @author: jamespetts
 
 	vector_tpl<vector_tpl<waiting_time_map*>> waiting_times;
+
+	// Current-wait snapshot as of the last waiting-time poll, keyed by
+	// next-transfer halt, goods category and class. It contains only packets
+	// whose elapsed wait exceeded twice the base mean for those keys and this
+	// halt at that poll. Rebuilt at every poll; not serialised, so it starts
+	// empty when a halt is loaded. After loading it remains empty until that
+	// halt's next poll: current-snapshot observations are transiently absent,
+	// while retained history and any saved path-explorer matrix remain present.
+	// This is a deliberate memory and save-format trade-off, not uninterrupted
+	// equivalence.
+	current_waiting_time_map *current_waiting_times;
+
+	// Mean of retained samples for this halt, next-transfer halt, goods
+	// category and class, or the fallback estimate returned by
+	// get_fallback_waiting_time() when no samples exist. The current-wait
+	// snapshot is deliberately excluded so that current observations cannot
+	// affect their own inclusion threshold.
+	uint32 get_base_average_waiting_time(halthandle_t halt, uint8 category, uint8 g_class);
+	uint32 get_fallback_waiting_time(halthandle_t halt, uint8 category, uint8 g_class);
+	void remove_current_waiting_time(uint16 halt_id);
 
 	// Store the service frequencies to all other halts so that this does not need to be
 	// recalculated frequently. These are used as proxies for waiting times when no

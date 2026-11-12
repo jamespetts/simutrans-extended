@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine)
+verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine); waiting-time estimates and connexion weighting @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12)
 ---
 # ex-15: through-journey path explorer — current state
 
@@ -49,11 +49,16 @@ frontmatter value.
   `row * count + column` in `size_t`. The routing search is a per-origin Dijkstra over the expanded
   `(halt, arriving transport)` state graph built from the full connexion-rebuild candidate list. [CODE
   ex-15 @ a203862c1; engine: [path-explorer-optimisation](../../path-explorer-optimisation.md)]
-- Journey times come from per line/convoy `average_journey_times` keyed by halt pair, booked in
-  `convoi_t::laden` from the interval between the booked departure at the previous stop and the
-  arrival here; because departure is booked at departure, the recorded leg time excludes the dwell
-  at the stop. A distance-and-speed estimate replaces the table when no history exists. Waiting
-  time comes from `haltestelle_t::get_average_waiting_time` (history mean, else half the service
-  frequency); walking transfer time comes from `haltestelle_t::calc_transfer_time`
-  (`get_transfer_time` / `get_transshipment_time`). The connexion aggregate is
-  `waiting + journey + transfer` [CODE master @ dc2fc3fcd].
+- Journey times come from per line/convoy `average_journey_times` keyed by halt
+  pair, booked in `convoi_t::laden` from the interval between the booked
+  departure at the previous stop and the arrival here; because departure is
+  booked at departure, the recorded leg time excludes the dwell at the stop. A
+  distance-and-speed estimate replaces the table when no history exists.
+  Waiting time comes from `haltestelle_t::get_average_waiting_time`, which
+  pools retained samples with current-wait snapshot observations, or uses the
+  airport/service-frequency fallback when neither source has observations
+  (mechanism: [waiting-time estimates](../../routing-and-scheduling.md)).
+  Walking transfer time comes from `haltestelle_t::calc_transfer_time`
+  (`get_transfer_time` / `get_transshipment_time`). The connexion weight is
+  `waiting + journey + transfer + comfort_cost`; comfort cost is zero for
+  non-passenger categories and when comfort routing is disabled.

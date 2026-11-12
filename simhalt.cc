@@ -80,6 +80,15 @@ uint8 haltestelle_t::reconnect_counter = 0;
 // controls the halt iterator in step_all():
 static bool restart_halt_iterator = true;
 
+// Key for aggregating current waits: x is the next-transfer halt ID; y holds
+// the goods category in its high byte and class in its low byte. The two
+// uint16 fields are compared separately by koordhash_tpl<id_pair>::comp, and
+// each component subtraction fits in an int.
+static id_pair get_current_waiting_time_key(const halthandle_t halt, const uint8 category, const uint8 g_class)
+{
+	return id_pair(halt.get_id(), ((uint16)category << 8) | (uint16)g_class);
+}
+
 void haltestelle_t::step_all()
 {
 	const uint32 count = alle_haltestellen.get_count();
@@ -418,6 +427,8 @@ haltestelle_t::haltestelle_t(loadsave_t* file)
 		}
 	}
 
+	current_waiting_times = NULL;
+
 #ifdef MULTI_THREAD
 	transferring_cargoes = new vector_tpl<transferring_cargo_t>[max(world()->get_parallel_operations() + 2, env_t::num_threads + 1)];
 #else
@@ -496,6 +507,8 @@ haltestelle_t::haltestelle_t(koord k, player_t* player)
 		}
 	}
 
+	current_waiting_times = NULL;
+
 	// TODO: Allow these to be saved when path explorer saving is introduced
 	connexions.set_count(max_categories);
 	for (uint8 i = 0; i < max_categories; i++)
@@ -566,6 +579,13 @@ haltestelle_t::~haltestelle_t()
 {
 	assert(self.is_bound());
 
+#ifdef MULTI_THREAD
+	// Cleanup below removes this halt from other halts' waiting-time maps,
+	// which get_average_waiting_time() reads in path-explorer workers. Wait for
+	// those workers to finish before any of that data is mutated.
+	welt->await_path_explorer();
+#endif
+
 	// first: remove halt from all lists
 	int i=0;
 	while(alle_haltestellen.remove(self)) {
@@ -601,6 +621,7 @@ haltestelle_t::~haltestelle_t()
 						current_halt->waiting_times[category][g_class]->remove(self.get_id());
 					}
 				}
+				current_halt->remove_current_waiting_time(self.get_id());
 			}
 		}
 	}
@@ -679,10 +700,6 @@ haltestelle_t::~haltestelle_t()
 	}
 	free(cargo);
 
-#ifdef MULTI_THREAD
-	welt->await_path_explorer();
-#endif
-
 	if (!welt->is_destroying())
 	{
 		for (uint8 i = 0; i < max_categories; i++)
@@ -700,6 +717,9 @@ haltestelle_t::~haltestelle_t()
 	{
 		clear_ptr_vector(waiting_time_vector);
 	}
+
+	delete current_waiting_times;
+	current_waiting_times = NULL;
 
 	for(auto connexions_vector : connexions)
 	{
@@ -1333,6 +1353,14 @@ void haltestelle_t::step()
 	// Will overflow at 255.
 	if(++ check_waiting == 0)
 	{
+		// Rebuild the current-wait snapshot from the packets still waiting at
+		// this poll. Clearing it first makes every previous snapshot observation
+		// cease contributing before the new observations are calculated.
+		if(current_waiting_times != NULL)
+		{
+			current_waiting_times->clear();
+		}
+
 		vector_tpl<ware_t> *warray;
 		for(uint16 j = 0; j < goods_manager_t::get_max_catg_index(); j ++)
 		{
@@ -1491,24 +1519,57 @@ void haltestelle_t::step()
 						fabrik_t::update_transit(tmp, false);
 						tmp.menge = 0;
 
-						// Normally we record long waits below, but we just did, so don't do it twice.
+						// This packet has been discarded. Its give-up observation
+						// has been recorded in retained history if its next transfer
+						// is bound. Exclude it from the current-wait snapshot, which
+						// describes only packets that are still waiting.
 						continue;
 					}
 				}
 
-				// Check to see whether these passengers/this freight has been waiting more than 2x as long
-				// as the existing registered waiting times. If so, register the waiting time to prevent an
-				// artificially low time from being recorded if there is a long service interval.
-				if(waiting_tenths > 2 * get_average_waiting_time(tmp.get_zwischenziel(), tmp.get_desc()->get_catg_index(), tmp.get_class()))
+				// Include this packet's elapsed wait in the current-wait snapshot
+				// only when it exceeds twice the base mean for this halt, its next
+				// transfer and its goods category and class. The base mean comes
+				// from retained history or get_fallback_waiting_time() and excludes
+				// the snapshot, so an observation cannot affect its own threshold.
+				if(tmp.get_zwischenziel().is_bound())
 				{
-					linehandle_t account_line = get_preferred_line(tmp.get_zwischenziel(), tmp.get_desc()->get_catg_index(), tmp.get_class());
-					convoihandle_t account_convoy = get_preferred_convoy(tmp.get_zwischenziel(), tmp.get_desc()->get_catg_index(), tmp.get_class());
-					const uint16 airport_wait = (account_convoy.is_bound() && account_convoy->front()->get_typ() == obj_t::air_vehicle) ||
-						(account_line.is_bound() && account_line->count_convoys() > 0 && account_line->get_convoy(0).is_bound() && account_line->get_convoy(0)->front()->get_typ() == obj_t::air_vehicle) ?
-							welt->get_settings().get_min_wait_airport() : 0;
-					add_waiting_time(max(waiting_tenths, airport_wait), tmp.get_zwischenziel(), tmp.get_desc()->get_catg_index(), tmp.get_class());
+					const uint8 catg = tmp.get_desc()->get_catg_index();
+					const uint8 g_class = tmp.get_class();
+					const uint32 base_waiting_time = get_base_average_waiting_time(tmp.get_zwischenziel(), catg, g_class);
+					if((uint64)waiting_tenths > 2ull * base_waiting_time)
+					{
+						linehandle_t account_line = get_preferred_line(tmp.get_zwischenziel(), catg, g_class);
+						convoihandle_t account_convoy = get_preferred_convoy(tmp.get_zwischenziel(), catg, g_class);
+						const uint16 airport_wait = (account_convoy.is_bound() && account_convoy->front()->get_typ() == obj_t::air_vehicle) ||
+							(account_line.is_bound() && account_line->count_convoys() > 0 && account_line->get_convoy(0).is_bound() && account_line->get_convoy(0)->front()->get_typ() == obj_t::air_vehicle) ?
+								welt->get_settings().get_min_wait_airport() : 0;
+
+						if(current_waiting_times == NULL)
+						{
+							current_waiting_times = new current_waiting_time_map;
+						}
+						const id_pair key = get_current_waiting_time_key(tmp.get_zwischenziel(), catg, g_class);
+						current_waiting_time_aggregate *aggregate = current_waiting_times->access(key);
+						if(aggregate == NULL)
+						{
+							current_waiting_time_aggregate empty_aggregate = {0, 0};
+							current_waiting_times->put(key, empty_aggregate);
+							aggregate = current_waiting_times->access(key);
+						}
+						aggregate->sum += max(waiting_tenths, (uint32)airport_wait);
+						aggregate->count++;
+					}
 				}
 			}
+		}
+
+		// The snapshot is derived state. Reclaim the table when this poll found
+		// no packet above the threshold, so inactive halts keep no snapshot data.
+		if(current_waiting_times != NULL && current_waiting_times->empty())
+		{
+			delete current_waiting_times;
+			current_waiting_times = NULL;
 		}
 	}
 }
@@ -1548,7 +1609,10 @@ void haltestelle_t::new_month()
 					const uint32 airport_min_wait = preferred_convoy.is_bound() && preferred_convoy->front()->get_typ() == obj_t::air_vehicle ? welt->get_settings().get_min_wait_airport() : 0;
 					const uint32 estimated_waiting_time = max(airport_min_wait, service_frequency / 2);
 
-					const uint32 average_waiting_time = get_average_waiting_time(check_halt, category, g_class);
+					// Ageing decisions use the base mean: retained samples when
+					// present, otherwise the fallback estimate. The current snapshot
+					// is excluded so that it cannot alter stale-sample handling.
+					const uint32 average_waiting_time = get_base_average_waiting_time(check_halt, category, g_class);
 
 					if (average_waiting_time > max(service_frequency, airport_min_wait))
 					{
@@ -1832,51 +1896,72 @@ sint8 haltestelle_t::is_connected(halthandle_t halt, uint8 catg_index) const
 
 uint32 haltestelle_t::get_average_waiting_time(halthandle_t halt, uint8 category, uint8 g_class)
 {
-	inthashtable_tpl<uint32, haltestelle_t::waiting_time_set, N_BAGS_SMALL> * const wt = waiting_times[category][g_class];
-	if(wt->is_contained((halt.get_id())))
+	uint64 total_times = 0;
+	uint64 total_count = 0;
+
+	if(halt.is_bound())
 	{
-		fixed_list_tpl<uint32, 32> times = waiting_times[category][g_class]->get(halt.get_id()).times;
-		const uint32 count = times.get_count();
-		if(count > 0 && halt.is_bound())
+		waiting_time_set * const wt = waiting_times[category][g_class]->access(halt.get_id());
+		if(wt != NULL)
 		{
-#ifdef USE_MEDIAN_WAITING_TIME
-			// This is *much* slower than the mean average and
-			// makes only a very modest difference to long waiting times.
-			binary_heap_tpl<uint32*> sorted_waiting_times;
-			uint32 tt[32];
-
-			uint32 i = 0;
-			for(auto time : times)
-			{
-				tt[i] = time;
-				sorted_waiting_times.insert(&tt[i]);
-				i++;
-			}
-
-			const uint32 count = sorted_waiting_times.get_count();
-			vector_tpl<uint32> sorted_vector;
-
-			while (!sorted_waiting_times.empty())
-			{
-				uint32 time = *sorted_waiting_times.pop();
-				sorted_vector.append(time);
-			}
-
-			const uint32 output = sorted_vector[(count - 1) / 2];
-			return output;
-#else
-
-			uint32 total_times = 0;
+			fixed_list_tpl<uint32, 32> &times = wt->times;
+			const uint32 count = times.get_count();
 			// We cannot use C++11 ranged for here as the fixed_list_tpl does not support it.
-			for(uint32 i = 0; i < times.get_count(); i ++)
+			for(uint32 i = 0; i < count; i ++)
 			{
 				total_times += times[i];
 			}
-			total_times /= count;
-			return total_times;
-#endif
+			total_count += count;
+		}
+
+		if(current_waiting_times != NULL)
+		{
+			const current_waiting_time_aggregate * const aggregate =
+				current_waiting_times->access(get_current_waiting_time_key(halt, category, g_class));
+			if(aggregate != NULL)
+			{
+				total_times += aggregate->sum;
+				total_count += aggregate->count;
+			}
 		}
 	}
+
+	if(total_count > 0)
+	{
+		// Count-weighted mean of the retained samples and the snapshot.
+		return (uint32)(total_times / total_count);
+	}
+
+	return get_fallback_waiting_time(halt, category, g_class);
+}
+
+uint32 haltestelle_t::get_base_average_waiting_time(halthandle_t halt, uint8 category, uint8 g_class)
+{
+	if(halt.is_bound())
+	{
+		waiting_time_set * const wt = waiting_times[category][g_class]->access(halt.get_id());
+		if(wt != NULL)
+		{
+			fixed_list_tpl<uint32, 32> &times = wt->times;
+			const uint32 count = times.get_count();
+			if(count > 0)
+			{
+				uint64 total_times = 0;
+				// We cannot use C++11 ranged for here as the fixed_list_tpl does not support it.
+				for(uint32 i = 0; i < count; i ++)
+				{
+					total_times += times[i];
+				}
+				return (uint32)(total_times / count);
+			}
+		}
+	}
+
+	return get_fallback_waiting_time(halt, category, g_class);
+}
+
+uint32 haltestelle_t::get_fallback_waiting_time(halthandle_t halt, uint8 category, uint8 g_class)
+{
 	// The service frequency is divided by two to get the waiting times
 	// because the time that passengers, goods, etc. wait is, on average,
 	// half the interval between services, because they do not all arrive
@@ -1894,11 +1979,6 @@ uint32 haltestelle_t::get_average_waiting_time(halthandle_t halt, uint8 category
 		airport_min_wait = welt->get_settings().get_min_wait_airport();
 	}
 	const uint32 estimated_waiting_time = max(airport_min_wait, service_frequency / 2);
-	fixed_list_tpl<uint32, 32> tmp;
-	waiting_time_set set;
-	set.times = tmp;
-	set.month = 2; // Set this so as to be stale and flushed quickly to keep this up to date.
-	set.times.add_to_tail(estimated_waiting_time);
 
 #ifdef ALWAYS_CACHE_SERVICE_INTERVAL
 
@@ -1915,6 +1995,32 @@ uint32 haltestelle_t::get_average_waiting_time(halthandle_t halt, uint8 category
 #endif
 
 	return estimated_waiting_time;
+}
+
+void haltestelle_t::remove_current_waiting_time(uint16 halt_id)
+{
+	if(current_waiting_times == NULL)
+	{
+		return;
+	}
+
+	for(current_waiting_time_map::iterator iter = current_waiting_times->begin(); iter != current_waiting_times->end(); )
+	{
+		if(iter->key.x == halt_id)
+		{
+			iter = current_waiting_times->erase(iter);
+		}
+		else
+		{
+			++iter;
+		}
+	}
+
+	if(current_waiting_times->empty())
+	{
+		delete current_waiting_times;
+		current_waiting_times = NULL;
+	}
 }
 
 uint32 haltestelle_t::get_service_frequency(halthandle_t destination, uint8 category) const

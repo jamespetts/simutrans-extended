@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ bf447619a; waiting-time mechanisms @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12)
 ---
 # Path explorer optimisation: per-packet routing (assessed, rejected)
 
@@ -28,9 +28,10 @@ Not feasible at gargantuan scale.
   From 200 nodes at degree 20 up to 3,000 nodes at degree 300 this is ≈ 20 µs–3 ms.
 - Goal-directed search (ALT landmarks) gains little, because waiting times inside the edge
   weights make lower bounds weak.
-- Weights cannot be read live: `get_average_waiting_time` copies 32 samples by value and has an
-  expensive fallback (service frequency, preferred line or convoy). Any search needs a weight
-  snapshot.
+- Weights cannot be read live at this rate: `get_average_waiting_time` sums
+  up to 32 retained samples, can read a current-wait snapshot entry, and has
+  an expensive fallback (service frequency, preferred line or convoy) when
+  neither source has observations. Any search needs a weight snapshot.
 
 ## Decision volume and placement
 
@@ -67,9 +68,10 @@ Not feasible at gargantuan scale.
   steps, so reading them directly would give searches a mixture of old and new tables.
 - **Route loops:** packets re-route at every transfer. With weights changing between hops, a
   packet can be sent from A to B and back; the loop guard covers walking only.
-- **Feedback instability:** waiting times are 32-sample means that the routing decisions
-  themselves change. Fast response lets flows switch together between alternatives; the long
-  present refresh period damps this.
+- **Feedback instability:** waiting-time estimates pool retained samples with
+  current-wait snapshot observations, and routing decisions themselves change
+  passenger queues and later retained samples. Fast response lets flows switch
+  together between alternatives; the long present refresh period damps this.
 - **`reroute_goods` stays:** without it, cargo waiting for a removed linkage is never collected or
   discarded, and factory in-transit accounting (`fabrik_t::update_transit`) goes wrong.
 - **Validation:** route outcomes decide later `simrand` draws (→ parent, engine-semantics).

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 1c8d9cadf
+verified: ex-15 @ 1c8d9cadf; waiting-time estimates @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12)
 ---
 # Routing, halts & scheduling
 
@@ -59,6 +59,41 @@ verified: ex-15 @ 1c8d9cadf
 - Halt GUI: `gui/halt_info.*` (station information window) and `gui/halt_detail.*` (station
   details window) show the stop's status, services and cargo and, where loose vehicles are
   stored, a count icon and a per-vehicle list with owners [CODE ex-15 @ 343b6b9cb].
+
+### Waiting-time estimates
+
+- `haltestelle_t::waiting_times` holds retained observations in a fixed 32-entry
+  list per goods category, class and next-transfer halt. `convoi_t::book_waiting_times`
+  records the wait of newly boarded packets when their convoy departs.
+  `haltestelle_t::step` records four times the elapsed wait for a packet that
+  gives up, to estimate how long it would have needed to wait for transport.
+  `haltestelle_t::new_month` ages these retained lists and can clear them or add
+  fallback estimates to stale entries.
+- `get_base_average_waiting_time()` returns the retained-sample mean when
+  samples exist. Otherwise, `get_fallback_waiting_time()` supplies half the
+  calculated service frequency, subject to the airport minimum and the
+  airstop assumption.
+- The current-wait snapshot contains replaceable observations from packets
+  whose elapsed wait exceeds twice this base mean. On each 256th call to a
+  halt's `step()`, `haltestelle_t::current_waiting_times` is cleared and
+  rebuilt with the exact sum and count of qualifying packets, grouped by this
+  halt, the packet's next-transfer halt, goods category and class. An included
+  observation uses the greater of elapsed wait and airport minimum. These
+  observations are not appended to retained history and do not alter its month
+  counter or their own base mean.
+- `get_average_waiting_time()` divides the combined retained and current-wait
+  sums by their combined counts. If neither source has observations, it returns
+  the fallback estimate. Ageing decisions in `new_month()` use the base mean,
+  excluding the snapshot.
+- Snapshot storage is sparse: each halt owns one pointer, and the map is
+  allocated only while qualifying observations exist. The map is deleted when
+  a poll produces no observations. Halt destruction removes entries referring
+  to the destroyed halt after waiting for path-explorer workers to finish.
+- A snapshot describes the queue at its last poll. Departure and give-up
+  samples enter retained history immediately, but the last snapshot remains
+  until the next scheduled poll. Snapshots are not serialised: after loading,
+  a halt has no snapshot observations until its next poll, while retained
+  history and any saved path-explorer matrix remain available.
 
 ## Planned sections
 
