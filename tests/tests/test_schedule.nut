@@ -412,6 +412,158 @@ function test_schedule_rejects_invalid_input()
 }
 
 
+// Builds a road on row 13 from x = 30 to x = 36 and creates a road line, so
+// that schedule entries can be placed at x = 33. The row is clear of the rows
+// used by the other schedule tests, and the fixture is wider than 36 tiles.
+function make_wide_test_road_line(pl)
+{
+	local road_desc = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	ASSERT_TRUE(road_desc != null)
+	ASSERT_EQUAL(command_x.build_way(pl, coord3d(30, 13, 0), coord3d(36, 13, 0), road_desc, true), null)
+
+	local existing = {}
+	foreach (l in pl.get_line_list()) {
+		existing[l.id] <- true
+	}
+
+	ASSERT_TRUE(pl.create_line(wt_road))
+
+	local line = null
+	foreach (l in pl.get_line_list()) {
+		if (!(l.id in existing)) {
+			line = l
+			break
+		}
+	}
+	ASSERT_TRUE(line != null)
+	return line
+}
+
+
+// The schedule string marks the end of its entries with the text "33", so an
+// entry whose x coordinate is 33 must survive the string round trip, together
+// with every entry after it and the consist orders. Each test goes through
+// sprintf_schedule (the writer), the line change tool and sscanf_schedule (the
+// reader).
+
+function test_schedule_string_x33_first_without_orders()
+{
+	local pl = player_x(0)
+	local line = make_wide_test_road_line(pl)
+
+	local e0 = schedule_entry_x(coord3d(33, 13, 0), 0, 0)
+	e0.unique_entry_id = 11
+	local e1 = schedule_entry_x(coord3d(34, 13, 0), 0, 0)
+	e1.unique_entry_id = 12
+	local sched = schedule_x(wt_road, [e0, e1])
+
+	ASSERT_EQUAL(line.change_schedule(pl, sched), true)
+
+	local back = line.get_schedule()
+	ASSERT_TRUE(back != null)
+	ASSERT_EQUAL(back.entries.len(), 2)
+	ASSERT_EQUAL(back.entries[0].x, 33)
+	ASSERT_EQUAL(back.entries[0].unique_entry_id, 11)
+	ASSERT_EQUAL(back.entries[1].x, 34)
+	ASSERT_EQUAL(back.entries[1].unique_entry_id, 12)
+
+	ASSERT_TRUE(line.destroy(pl))
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(30, 13, 0), coord3d(36, 13, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_schedule_string_x33_first_with_order()
+{
+	local pl = player_x(0)
+	local line = make_wide_test_road_line(pl)
+
+	local e0 = schedule_entry_x(coord3d(33, 13, 0), 0, 0)
+	e0.unique_entry_id = 11
+	local e1 = schedule_entry_x(coord3d(34, 13, 0), 0, 0)
+	e1.unique_entry_id = 12
+	local sched = schedule_x(wt_road, [e0, e1])
+	sched.orders[11] <- make_test_order(wt_road, 7)
+
+	ASSERT_EQUAL(line.change_schedule(pl, sched), true)
+
+	local back = line.get_schedule()
+	ASSERT_TRUE(back != null)
+	ASSERT_EQUAL(back.entries.len(), 2)
+	ASSERT_EQUAL(back.entries[0].x, 33)
+	ASSERT_EQUAL(back.entries[1].x, 34)
+	ASSERT_TRUE(11 in back.orders)
+	ASSERT_EQUAL(back.orders[11].available_to_id, 7)
+	ASSERT_EQUAL(back.orders.len(), 1)
+
+	ASSERT_TRUE(line.destroy(pl))
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(30, 13, 0), coord3d(36, 13, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_schedule_string_x33_middle_multi_digit_order()
+{
+	local pl = player_x(0)
+	local line = make_wide_test_road_line(pl)
+
+	local e0 = schedule_entry_x(coord3d(31, 13, 0), 0, 0)
+	e0.unique_entry_id = 11
+	local e1 = schedule_entry_x(coord3d(33, 13, 0), 0, 0)
+	e1.unique_entry_id = 65534
+	local e2 = schedule_entry_x(coord3d(34, 13, 0), 0, 0)
+	e2.unique_entry_id = 12
+	local sched = schedule_x(wt_road, [e0, e1, e2])
+	sched.orders[65534] <- make_test_order(wt_road, 9)
+
+	ASSERT_EQUAL(line.change_schedule(pl, sched), true)
+
+	local back = line.get_schedule()
+	ASSERT_TRUE(back != null)
+	ASSERT_EQUAL(back.entries.len(), 3)
+	ASSERT_EQUAL(back.entries[0].x, 31)
+	ASSERT_EQUAL(back.entries[1].x, 33)
+	ASSERT_EQUAL(back.entries[1].unique_entry_id, 65534)
+	ASSERT_EQUAL(back.entries[2].x, 34)
+	ASSERT_TRUE(65534 in back.orders)
+	ASSERT_EQUAL(back.orders[65534].available_to_id, 9)
+	ASSERT_EQUAL(back.orders.len(), 1)
+
+	ASSERT_TRUE(line.destroy(pl))
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(30, 13, 0), coord3d(36, 13, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
+function test_schedule_string_x33_last_without_orders()
+{
+	local pl = player_x(0)
+	local line = make_wide_test_road_line(pl)
+
+	local e0 = schedule_entry_x(coord3d(31, 13, 0), 0, 0)
+	e0.unique_entry_id = 11
+	local e1 = schedule_entry_x(coord3d(32, 13, 0), 0, 0)
+	e1.unique_entry_id = 12
+	local e2 = schedule_entry_x(coord3d(33, 13, 0), 0, 0)
+	e2.unique_entry_id = 13
+	local sched = schedule_x(wt_road, [e0, e1, e2])
+
+	ASSERT_EQUAL(line.change_schedule(pl, sched), true)
+
+	local back = line.get_schedule()
+	ASSERT_TRUE(back != null)
+	ASSERT_EQUAL(back.entries.len(), 3)
+	ASSERT_EQUAL(back.entries[0].x, 31)
+	ASSERT_EQUAL(back.entries[1].x, 32)
+	ASSERT_EQUAL(back.entries[2].x, 33)
+	ASSERT_EQUAL(back.entries[2].unique_entry_id, 13)
+
+	ASSERT_TRUE(line.destroy(pl))
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(30, 13, 0), coord3d(36, 13, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
 function test_convoy_vehicle_snapshot()
 {
 	local pl = player_x(0)
@@ -467,14 +619,19 @@ function test_convoy_vehicle_snapshot()
 	ASSERT_EQUAL(cnv.get_current_entry_id(), 0)
 	ASSERT_EQUAL(cnv.get_state(), convoy_state_initial)
 
-	// The convoy, depot and track are left in place. Destroying a convoy that
-	// is still in its depot (state convoi_t::INITIAL) fails in the
-	// route-unreserve worker thread at convoi_t::unreserve_route_range() with
-	//   vector_tpl<T>::[] - class weg_t * __ptr64: index out of bounds:
-	//   3 not in 0..2
-	// That is a pre-existing engine defect outside the scripting layer and is
-	// not repaired here. The next test restores funds without asserting zero
-	// maintenance, and the world is discarded after the suite.
+	// Destroying a convoy that is still in its depot (state
+	// convoi_t::INITIAL) runs convoi_t::destroy(), which unreserves the route
+	// through the route-unreserve worker threads. This world has only a few
+	// ways, fewer than the per-worker slice size, which used to underflow the
+	// worker's range end and make the scan run past the end of the way list.
+	ASSERT_EQUAL(cnv.destroy(pl), true)
+	ASSERT_EQUAL(depot.get_convoy_list().len(), 0)
+
+	// The convoy is gone: remove the now-empty depot and the track, then check
+	// that neither vehicles nor ways are left charging maintenance.
+	ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(13, 1, 0)), null)
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(13, 1, 0), coord3d(13, 3, 0), "" + wt_rail), null)
+	RESET_ALL_PLAYER_FUNDS()
 }
 
 
@@ -709,10 +866,9 @@ function test_schedule_order_edit_delete_line()
 function test_schedule_order_edit_delete_convoy()
 {
 	local pl = player_x(0)
-	// This test runs after another test that leaves its rail depot in place,
-	// so funds are restored without the zero-maintenance assertion in
-	// RESET_ALL_PLAYER_FUNDS.
-	SET_PLAYER_FUNDS(pl, 33*1000*1000 * 100)
+	// The previous tests clean up after themselves, so zero maintenance is a
+	// valid precondition and a valid postcondition here too.
+	RESET_ALL_PLAYER_FUNDS()
 	local rail_desc = way_desc_x.get_available_ways(wt_rail, st_flat)[0]
 	ASSERT_TRUE(rail_desc != null)
 	ASSERT_EQUAL(command_x.build_way(pl, coord3d(11, 12, 0), coord3d(11, 14, 0), rail_desc, true), null)
@@ -800,16 +956,16 @@ function test_schedule_order_edit_delete_convoy()
 	// The convoy is in its depot and has never departed.
 	ASSERT_EQUAL(cnv.get_state(), convoy_state_initial)
 
-	// The convoy, depot and track are left in place, and this is the last test
-	// of the suite. Destroying a convoy that is still in its depot (state
-	// convoi_t::INITIAL) reaches convoi_t::unreserve_route() and then fails in
-	// the route-unreserve worker thread at convoi_t::unreserve_route_range(),
-	// with the fatal message
-	//   vector_tpl<T>::[] - class weg_t * __ptr64: index out of bounds:
-	//   3 not in 0..2
-	// That is a pre-existing engine defect outside the scripting layer, so the
-	// test does not attempt the destruction. The world is discarded after the
-	// suite.
+	// Destroy the depot convoy, then the now-empty depot and the track. At this
+	// point the world holds three rail ways, fewer than the per-worker slice
+	// size, so every worker's slice is empty and the whole list is scanned. An
+	// unsigned underflow in that range calculation used to make the scan run
+	// past the end of the way list.
+	ASSERT_EQUAL(cnv.destroy(pl), true)
+	ASSERT_EQUAL(depot.get_convoy_list().len(), 0)
+	ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(11, 12, 0)), null)
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(11, 12, 0), coord3d(11, 14, 0), "" + wt_rail), null)
+	RESET_ALL_PLAYER_FUNDS()
 }
 
 
@@ -889,10 +1045,14 @@ function test_schedule_alias_and_flags_edits()
 }
 
 
-// A passenger or mail slot with no alternatives is rejected before the C++
-// conversion can index an empty alternatives list, and the live schedule is
-// left untouched.
-function test_schedule_rejects_zero_alternative_slots()
+// A slot with no alternatives is accepted for every goods category and is
+// preserved through the schedule string round trip. Such a slot declares its
+// category and matches no vehicle at run time. The category and class tables
+// that schedule_t::parse_orders derives must not index an empty alternatives
+// list, so this change must neither abort nor discard the order. A slot that
+// may be left empty is a different case: it holds an alternative whose empty
+// flag is set.
+function test_schedule_zero_alternative_slots()
 {
 	local pl = player_x(0)
 	local line = make_test_road_line(pl)
@@ -903,52 +1063,75 @@ function test_schedule_rejects_zero_alternative_slots()
 	e1.unique_entry_id = 8
 	ASSERT_EQUAL(line.change_schedule(pl, schedule_x(wt_road, [e0, e1])), true)
 
-	foreach (catg in [good_desc_x.passenger.get_catg_index(), good_desc_x.mail.get_catg_index()]) {
-		local bad = line.get_schedule()
+	// A freight category is taken from a road vehicle rather than assumed.
+	// vehicle_desc_t::get_freight() is never null (it also returns the
+	// passenger or mail descriptor), so the category is compared explicitly.
+	local passenger_catg = good_desc_x.passenger.get_catg_index()
+	local mail_catg = good_desc_x.mail.get_catg_index()
+	local freight_catg = -1
+	foreach (v in vehicle_desc_x.get_available_vehicles(wt_road)) {
+		local f = v.get_freight()
+		if (f != null && f.get_catg_index() != passenger_catg && f.get_catg_index() != mail_catg) {
+			freight_catg = f.get_catg_index()
+			break
+		}
+	}
+	ASSERT_TRUE(freight_catg >= 2)
+
+	foreach (catg in [passenger_catg, mail_catg, freight_catg]) {
+		local sched = line.get_schedule()
 		local slot = consist_order_element_x()
 		slot.catg = catg
 		local order = consist_order_x()
 		order.slots = [slot]
-		bad.orders[7] <- order
+		sched.orders[7] <- order
 
-		local caught = false
-		try { line.change_schedule(pl, bad) } catch (err) { caught = true }
-		ASSERT_TRUE(caught)
+		// The passenger and mail categories reach the derived class tables, so an
+		// unguarded read of the first vehicle description would end the process
+		// with an index-out-of-bounds fatal error.
+		ASSERT_EQUAL(line.change_schedule(pl, sched), true)
+
+		local after = line.get_schedule()
+		ASSERT_EQUAL(after.entries.len(), 2)
+		ASSERT_TRUE(7 in after.orders)
+		ASSERT_EQUAL(after.orders[7].slots.len(), 1)
+		ASSERT_EQUAL(after.orders[7].slots[0].catg, catg)
+		ASSERT_EQUAL(after.orders[7].slots[0].alternatives.len(), 0)
+	}
+
+	// A well-formed order on the same entry is parsed after a slot with no
+	// alternatives has been stored, so the guard does not disturb a later
+	// derivation of the class tables.
+	{
+		local sched = line.get_schedule()
+		local slot = consist_order_element_x()
+		slot.catg = passenger_catg
+		local alt = vehicle_description_x()
+		alt.specific_vehicle = null
+		alt.empty = false
+		alt.must_carry_class = 1
+		slot.alternatives = [alt]
+		local order = consist_order_x()
+		order.slots = [slot]
+		sched.orders[7] <- order
+		ASSERT_EQUAL(line.change_schedule(pl, sched), true)
+
+		local after = line.get_schedule()
+		ASSERT_TRUE(7 in after.orders)
+		ASSERT_EQUAL(after.orders[7].slots[0].catg, passenger_catg)
+		ASSERT_EQUAL(after.orders[7].slots[0].alternatives.len(), 1)
+		ASSERT_EQUAL(after.orders[7].slots[0].alternatives[0].must_carry_class, 1)
+	}
+
+	// Removing the order re-derives the tables from the remaining orders.
+	{
+		local sched = line.get_schedule()
+		delete sched.orders[7]
+		ASSERT_EQUAL(line.change_schedule(pl, sched), true)
 
 		local after = line.get_schedule()
 		ASSERT_EQUAL(after.entries.len(), 2)
 		ASSERT_FALSE(7 in after.orders)
-	}
-
-	// A freight slot with no alternatives only contributes its category and is
-	// valid. vehicle_desc_t::get_freight() is never null (it also returns the
-	// passenger or mail descriptor), so the category is compared explicitly.
-	{
-		local passenger_catg = good_desc_x.passenger.get_catg_index()
-		local mail_catg = good_desc_x.mail.get_catg_index()
-		local freight_catg = -1
-		foreach (v in vehicle_desc_x.get_available_vehicles(wt_road)) {
-			local f = v.get_freight()
-			if (f != null && f.get_catg_index() != passenger_catg && f.get_catg_index() != mail_catg) {
-				freight_catg = f.get_catg_index()
-				break
-			}
-		}
-		ASSERT_TRUE(freight_catg >= 2)
-
-		local ok = line.get_schedule()
-		local slot = consist_order_element_x()
-		slot.catg = freight_catg
-		local order = consist_order_x()
-		order.slots = [slot]
-		ok.orders[7] <- order
-		ASSERT_EQUAL(line.change_schedule(pl, ok), true)
-
-		local after = line.get_schedule()
-		ASSERT_TRUE(7 in after.orders)
-		ASSERT_EQUAL(after.orders[7].slots.len(), 1)
-		ASSERT_EQUAL(after.orders[7].slots[0].catg, freight_catg)
-		ASSERT_EQUAL(after.orders[7].slots[0].alternatives.len(), 0)
 	}
 
 	ASSERT_TRUE(line.destroy(pl))

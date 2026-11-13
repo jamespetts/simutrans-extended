@@ -10,7 +10,6 @@
 #include "api_obj_desc_base.h"
 #include "../api_class.h"
 #include "../api_function.h"
-#include "../../bauer/goods_manager.h"
 #include "../../dataobj/consist_order_t.h"
 #include "../../dataobj/schedule.h"
 #include "../../dataobj/translator.h"
@@ -496,18 +495,9 @@ bool read_consist_order_element(HSQUIRRELVM vm, SQInteger obj, consist_order_ele
 		sq_pop(vm, 2);
 	}
 
-	// schedule_t::parse_orders() reads the first alternative's must_carry_class
-	// for passenger and mail slots. A passenger or mail slot with no
-	// alternatives would therefore index an empty vector and abort, so refuse it
-	// here, before the schedule is constructed. Freight slots with no
-	// alternatives are valid: they contribute only their category to the
-	// carried-category tables.
-	if (elem.get_count() == 0  &&  catg >= 0
-			&&  ((uint8)catg == goods_manager_t::passengers->get_catg_index()
-				|| (uint8)catg == goods_manager_t::mail->get_catg_index())) {
-		sq_raise_error(vm, "%s", translator::translate("A passenger or mail consist-order slot needs at least one alternative."));
-		return false;
-	}
+	// A slot with no alternatives is accepted for every goods category. It
+	// declares its category and matches no vehicle at run time; the schedule
+	// tables derive no class restriction for it (see schedule_t::parse_orders).
 
 	if (catg >= 0) {
 		if (!elem.set_catg_index((uint8)catg)) {

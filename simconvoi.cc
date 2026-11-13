@@ -397,7 +397,14 @@ bool convoi_t::is_waypoint( koord3d ziel ) const
 void convoi_t::unreserve_route_range(route_range_specification range)
 {
 	const vector_tpl<weg_t *> &all_ways = weg_t::get_alle_wege();
-	for (uint32 i = range.start; i <= range.end; i++)
+	const uint32 count = all_ways.get_count();
+	if (range.start >= count)
+	{
+		// Empty list, or a slice beyond the live list: nothing to scan.
+		return;
+	}
+	const uint32 end = range.end < count ? range.end : count - 1;
+	for (uint32 i = range.start; i <= end; i++)
 	{
 		weg_t* const way = all_ways[i];
 		//schiene_t* const sch = obj_cast<schiene_t>(way);

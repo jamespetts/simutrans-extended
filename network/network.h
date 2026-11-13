@@ -68,7 +68,10 @@
 
 
 // version of network protocol code
-#define NETWORK_VERSION (1)
+// A peer rejects any packet whose protocol version is greater than its own, so
+// changing the interpretation of a packet payload requires a bump. Protocol
+// version 2: schedule strings carry an entry count (dataobj/schedule.cc).
+#define NETWORK_VERSION (2)
 
 class network_command_t;
 class gameinfo_t;

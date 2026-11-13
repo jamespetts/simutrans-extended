@@ -7,6 +7,8 @@ verified: none
 Registry of OPEN bugs. Hard rule: only open bugs are listed — when a bug is fixed, its
 entry (and any dedicated bug doc) is DELETED; fixed bugs are never kept or moved within
 this doc family (rule in [conventions](conventions.md)). Fix history lives in git (`FIX:` commits).
+If a bug remains open only on particular branches, describe only its current defect on those
+branches. Do not record fixes, fixed-branch comparisons or fix-verification results.
 
 **Trust level (user decision, 2026-09-06):** this doc is NOT user-reviewed and will not be
 interactively reviewed: the entries derive from third-party forum reports rather than the
@@ -50,34 +52,21 @@ Rank on discovery; re-rank on triage.
 
 ## Detailed entries
 
-### Destroying an INITIAL depot convoy fails in route unreservation — priority 1
+### Route unreservation reads beyond the way list on master — priority 1
 
-- Reproduced with `Debug|x64` by calling `cnv.destroy(pl)` on a newly created convoy still in its
-  depot (`convoi_t::INITIAL`): `vector_tpl<weg_t*>::operator[]` reports index 3 outside 0..2 from
-  `convoi_t::unreserve_route_range`, called by `unreserve_route_threaded`
-  [EXECUTION-VERIFIED:2026-11-12].
-- The code calculates worker ranges over `weg_t::get_alle_wege()` in `unreserve_route_threaded`;
-  `unreserve_route_range` accesses `all_ways[i]` for the requested inclusive range. Neither the
-  index calculation's exact fault nor whether other convoy states reach the same bad range has been
-  established. The separate zero-way underflow and `threads = 1` division hazards below must not be
-  assumed to cause this observation.
-- Until this is fixed, the final two tests in `tests/tests/test_schedule.nut` leave their depot
-  convoys in place and discard the test world after the suite. Fix and remove that workaround when
-  testing depot-convoy destruction or save/reload for the dividing runtime; no engine fix is
-  currently applied.
-
-### Entries at x=33 truncate a schedule-string apply — priority 1
-
-- `schedule_t::sprintf_schedule` writes the consist-order terminator with `buf.append('!')`.
-  `cbuffer_t` has an integral `append(long)` overload, so this writes decimal text `33`.
-  `schedule_t::sscanf_schedule` detects the terminator with `atoi(p) == '!'`. At the beginning of an
-  entry, the same test evaluates an entry whose x coordinate is 33 as the terminator.
-- Applying a line or convoy schedule silently drops the entry at x=33 and every subsequent entry.
-  The consist-order count determines whether any following text is parsed as order data. This text
-  format is used by existing schedule tool commits as well as by the new script interface
-  [CODE ex-15 @ 957d5ced8 plus working-tree changes].
-- No format correction is applied: an unambiguous, backward-compatible marker/read strategy must be
-  presented under the network/serialisation restriction before implementation.
+- `unreserve_route_threaded` splits `weg_t::get_alle_wege()` between the route-unreserve workers.
+  When the way count is greater than zero and not greater than
+  `karte_t::get_parallel_operations()`, the per-worker slice size (`fraction`) is 0, so
+  `(thread_number + 1) * fraction - 1` underflows to 4294967295. `min` (simtypes.h) takes and
+  returns `int`, so that argument narrows to -1, wins the comparison and becomes
+  `range.end = 4294967295` [CODE master @ 87948985b].
+- `convoi_t::unreserve_route_range` indexes the way vector through that inclusive end without
+  bounding it by the live vector size. A call to `convoi_t::unreserve_route()` under the condition
+  above therefore aborts on the first out-of-range `vector_tpl<weg_t*>::operator[]` access. Depot
+  entry, convoy destruction, route recalculation and reserved-way removal can reach this path in
+  any convoy state [CODE master @ 87948985b].
+- An empty way list also underflows at `get_all_ways_count() - 1` in `unreserve_route_threaded`.
+  The separate `threads = 1` division defect retains its own entry below.
 
 ### Await gaps around map operations — priority 2
 
@@ -133,7 +122,7 @@ Rank on discovery; re-rank on triage.
   `#ifndef MULTI_THREAD` path and are unaffected). Re-rank to 1 if threads=1 on MT builds is
   considered a supported configuration.
 
-### Halt connexions skipped on load when goods categories change — priority 2 (fixed on ex-15, open on master)
+### Halt connexions skipped on load when goods categories change on master — priority 2
 
 - `haltestelle_t::rdwr` (simhalt.cc) sets `path_explorer_t::set_must_refresh_on_loading()`
   when the saved `iteration_limit` differs from the current pakset (simhalt.cc:4689-4694).
@@ -144,11 +133,6 @@ Rank on discovery; re-rank on triage.
   finance history, path explorer, private-car queue) whenever the pakset's goods
   categories or classes changed since saving. Symmetric across peers with identical
   file and pakset, so not a network join vector; single-player load corruption.
-  Recorded per user instruction 2026-09-30 for a separate fix session.
-- Fixed on ex-15 at `22e14c237`: the load block always reads each saved count-plus-entry
-  block, driven by the saved `iteration_limit`, and discards the values when the refresh
-  flag is set; the `non_identical_schedules` assignment is bounded by the current vector
-  size. No savegame format change (`EX_SAVE_MINOR` remains 9) [CODE ex-15 @ 22e14c237].
 
 ### Server ignores nettool shutdown for 30+ minutes on the gargantuan fixture — priority 2
 
@@ -218,39 +202,22 @@ Rank on discovery; re-rank on triage.
   loses its owner link while remaining in a running convoy
   [CODE ex-15 @ c6adde69b; not reproduced in game].
 
-### Service-frequency cache keys keep only the low 8 bits of the halt ID — priority 2 (fixed on ex-15, open on master)
+### Service-frequency cache keys keep only the low 8 bits of the halt ID on master — priority 2
 
 - `haltestelle_t::service_frequency_specifier` (simhalt.h) stores the destination halt ID in
   `uint8 y`, but halt IDs are 16-bit. Each halt's `service_frequencies` cache is therefore keyed
   by (category, destination ID mod 256), so destinations whose IDs share a low byte share one
-  cached service frequency. `ALWAYS_CACHE_SERVICE_INTERVAL` is defined, so the cache is used.
+  cached service frequency. `ALWAYS_CACHE_SERVICE_INTERVAL` is defined, so the cache is used
+  [CODE master @ 6194cd341].
 - Effect on routing: when a halt pair has no waiting-time samples, `get_average_waiting_time`
   estimates the wait as half the service frequency from `get_service_frequency`, which can
   return another destination's cached value. The path explorer's connexion rebuild uses this
   fallback for connexion weights.
-- Order dependence: the cache is not saved (`haltestelle_t::rdwr` clears it) and is filled
-  lazily, including through the connexion rebuild's fallback. Which colliding destination's
-  value is stored for a key depends on the order of queries since load. This was the cause of
-  the recorded difference between a full refresh and a resumed mid-pass save. In a full refresh
-  passenger class 0's connexion rebuild fills the passenger-category entries first; in a
-  resumed pass class 1 does. That matches the recorded
-  symptoms: class 0, mail and goods are identical; classes 1–4 differ; refreshing only classes
-  1–4 reproduces the resumed result. [causal link EXECUTION-VERIFIED:2026-11-07; the truncation
-  was CODE.]
-- Network play: every peer saves and reloads when a client joins (`nwc_sync_t`), and the query
-  order is deterministic, so peers keep identical caches. A peer that continued without
-  reloading would diverge, and single-player save/load changes route results.
-- Fix applied on ex-15 @ 711656d4b: `y` widened to `uint16`; `koordhash_tpl` already hashes and
-  compares `y` as a full integer. No savegame change (the cache is not saved); route results
-  change, as expected for the corrected fallback.
-- Verification: with the fix, a full refresh and a resumed mid-pass pass produce identical
-  finished matrices on month-boundary (all 16 compartments' hash fields match; iteration totals
-  differ only by the repeated work of the resume). The network smoke passes with 1,049 identical
-  per-step route hashes. The same struct and cache remain on master @ 6194cd341 with the `uint8`
-  key until 15.x merges. [EXECUTION-VERIFIED:2026-11-07, ex-15 @ 711656d4b, Profile (server) x64;
-  oracle harness and network smoke.]
-- Found by code inspection 2026-11-07 [CODE ex-15 @ f3be628dc; same struct and cache on master @
-  6194cd341].
+- The cache is not saved (`haltestelle_t::rdwr` clears it) and is filled lazily, including through
+  the connexion rebuild's fallback. Which colliding destination's value is stored depends on query
+  order after loading, so save/reload or resuming a rebuild can change route results.
+- Every peer saves and reloads when a client joins (`nwc_sync_t`). Peers that execute the same
+  query order keep identical caches, while a peer that continues without reloading can diverge.
 
 ### `meters_per_tile` changes do not invalidate saved route data — priority 2
 
@@ -299,9 +266,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| Destroying an INITIAL depot convoy fails in route unreservation (not a forum report: execution 2026-11-12) | — | detailed entry above; affects test cleanup and potentially ordinary destruction paths |
-| Entries at x=33 truncate a schedule-string apply (not a forum report: code inspection 2026-11-12) | — | detailed entry above; silent schedule data loss through the shared tool-commit path |
-| Zero-alternative passenger/mail consist slot aborts `schedule_t::parse_orders` (not a forum report: code inspection) | — | `get_vehicle_description(0)` is called without an alternative-count guard; current Squirrel conversion rejects this input before the call; GUI reachability not execution-verified |
+| Route unreservation reads beyond the way list on master (not a forum report: code triage) | — | detailed entry above; an unsigned empty-slice underflow followed by signed `min` narrowing produces an unbounded worker range when the way count is not greater than `karte_t::get_parallel_operations()` |
 | First-join desync then clean rejoin (not a forum report: investigation 2026-09-30; see also 22203 below) | — | detailed investigation → [bug-first-join-desync](bug-first-join-desync.md); isolated to single-convoy speed divergence 3 frames after unpause; cause not yet isolated |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
@@ -340,8 +305,8 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | `meters_per_tile` changes do not invalidate saved route data (not a forum report: code inspection 2026-11-11) | — | detailed entry above; load-time simuconf override leaves the path explorer tables at the old scale; the settings-window "Simuconf.tab" reset also skips `karte_t::set_scale()` and can reset the scale to the `settings_t` default (250 m/tile); possible remedy is to disallow changing the scale for an existing world |
-| Service-frequency cache keys keep only the low 8 bits of the halt ID (not a forum report: code inspection 2026-11-07) | — | detailed entry above; originally both branches; wrong waiting-time fallback for unsampled halt pairs; order-dependent cache explained the mid-pass resume difference; fixed on ex-15 @ 711656d4b, master remains affected until 15.x merges |
-| Halt connexions skipped on load when goods categories change (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
+| Service-frequency cache keys keep only the low 8 bits of the halt ID on master (not a forum report: code inspection) | — | detailed entry above; colliding destination IDs produce incorrect waiting-time fallbacks and query-order-dependent route results |
+| Halt connexions skipped on load when goods categories change on master (not a forum report: code inspection 2026-09-30) | — | detailed entry above; load corruption when pakset categories change; symmetric, not a join vector |
 | threads = 1 crashes multi-threaded builds (divide by zero) (not a forum report: found during determinism triage 2026-09-13) | — | detailed entry above; both branches; non-default config only |
 | Industry-generation rework: four functional/numeric defects (not a forum report: code inspection) | — | rework branch only; [CODE] → [bug-industry-generation](bug-industry-generation.md). Unsigned wrap in `karte_t::recalc_idp` target density → runaway growth; `adjust_input_consumption` returns 0 for a consumer-less manufacturer so partially-supplied stranded manufacturers are invisible to the infill (defeats the rework's own purpose); 32-bit overflow in the oversupplied-goods weight; `find_valid_factory_pos` early return leaves `rotation` indeterminate |
 | Industry density cap fails open when actual exceeds target (not a forum report: code inspection) | — | BOTH branches, pre-existing; unsigned subtraction `get_target_industry_density() - get_actual_industry_density()` wraps in `factory_builder_t::increase_industry_density`, so `do_not_add_beyond_target_density` stops bounding; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
@@ -401,9 +366,9 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| Depot auto-continuous-removal preview may use the wrong last-vehicle length (not a forum report: code inspection 2026-11-09) | — | gui/components/gui_convoy_assembler.cc, update_vehicle_info_text(): when the auto-removed block reaches the end of the consist, `new_last_veh_length` is taken from `count-2` (or `count-1`) rather than from the vehicle before the block, so the automatic end margin in the preview is wrong; the code carries a TODO for this case. Display-only. The replacement-window removal path was corrected by the depot preview fix. [CODE master @ 48b0fbf4a] |
+| Depot auto-continuous-removal preview may use the wrong last-vehicle length (not a forum report: code inspection 2026-11-09) | — | gui/components/gui_convoy_assembler.cc, update_vehicle_info_text(): when the auto-removed block reaches the end of the consist, `new_last_veh_length` is taken from `count-2` (or `count-1`) rather than from the vehicle before the block, so the automatic end margin in the preview is wrong; the code carries a TODO for this case. Display-only. [CODE master @ 48b0fbf4a] |
 | recalc_transitions climate-byte data race (not a forum report: TSan CI triage) | — | detailed entry above; both branches; intermittent non-blocking-TSan failure only, value-benign, cannot deadlock; whether/how to fix open |
-| Walking connexion replaced by a slower line connexion (not a forum report: code inspection 2026-11-04) | - | master only (fixed on ex-15): the deduplication of the halt's runtime `connexions_map` compares `journey_time` alone, so a line whose ride is shorter than the walk replaces the walking connexion even when waiting makes it slower door to door; `get_preferred_line` and `starte_mit_route` then make passengers wait for the line. ex-15 compares the full weight (waiting + journey + transfer) and keeps the walk. [CODE ex-15 @ 375ebf369; CODE master @ 6194cd341]; gameplay impact not measured |
+| Walking connexion replaced by a slower line connexion on master (not a forum report: code inspection) | - | The halt's runtime `connexions_map` deduplication compares `journey_time` alone, so a line whose ride is shorter than the walk replaces the walking connexion even when waiting makes it slower door to door; `get_preferred_line` and `starte_mit_route` then make passengers wait for the line. [CODE master @ 6194cd341]; gameplay impact not measured |
 | MSVC "single threaded" configurations compile multi-threaded code (not a forum report) | — | found by code inspection 2026-09-06 [CODE master @ 78a4bb3b9]: Simutrans-Extended.vcxproj "Release (single threaded)\|x64" defines `MULTI_THREAD=0`, "Debug (single threaded new)\|x64" defines plain `MULTI_THREAD`; all guards are `#ifdef`, so both build MT code — misleads debugging/bisection. Details → [threading](threading.md) |
 | Industry-generation rework: persisted density discarded + contradictory overload docs (not a forum report: code inspection) | — | rework branch only; `karte_t::load` reads `actual_industry_density` then recomputes it unconditionally (and duplicates the call under a condition that can never add anything), so the persisted datum is never honoured; `factory_builder_t::adjust_input_consumption(fab, good)` returns the amount NOT used while its declaration documents the amount used; [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 | [UI: can't jump to stop from Stops list](https://forum.simutrans.com/index.php/topic,23391.0.html) | 2025 | |
@@ -436,8 +401,6 @@ confirms they affect current builds in live games.
 
 ## Open questions
 
-- Should fixed-bug history be recorded anywhere beyond git `FIX:` commit messages?
-  (Current position: nowhere.)
 - Which catalogue entries are actually already fixed but unmoved from the board?
   Verify per entry on triage; delete from the registry when confirmed fixed.
 - Which P1 desync/crash entries still reproduce on current master/ex-15 builds?

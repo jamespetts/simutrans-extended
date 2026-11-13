@@ -1119,6 +1119,13 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 	buf.printf( ",%i,%i,%i,%i,%i", bidirectional, mirrored, spacing, same_spacing_shift, orders.get_count()) ;
 	buf.append( "|" );
 	buf.append( (int)get_type() );
+	// The number of entries follows the type, inside the type field: a reader
+	// that does not know this field parses the type with atoi() and then skips
+	// to the closing '|'. This reader uses the count to bound the entry loop,
+	// which keeps an entry whose x coordinate is 33 distinct from the terminator
+	// written after the entries.
+	buf.append( "," );
+	buf.append( (int)entries.get_count() );
 	buf.append( "|" );
 	FOR(minivec_tpl<schedule_entry_t>, const& i, entries)
 	{
@@ -1139,7 +1146,10 @@ void schedule_t::sprintf_schedule( cbuffer_t &buf ) const
 			(int)i.target_unique_entry_couple
 		);
 	}
-	buf.append('!'); // This terminates if there are consist orders
+	// The entries are terminated by the two characters "33"; the consist orders
+	// follow, if any. The terminator is appended as text because cbuffer_t's
+	// integer overload writes the decimal value of a character argument.
+	buf.append( "33" );
 
 	// Next, write the consist orders, if any
 
@@ -1205,23 +1215,40 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 		dbg->error("schedule_t::sscanf_schedule()", "schedule has wrong type (%d)! should have been %d.", type, get_type());
 		return false;
 	}
-	while (*p && *p != '|') {
+	// The type is followed by ",<entry count>" inside the type field (see
+	// sprintf_schedule). The count is required: it bounds the entry loop, so an
+	// entry whose x coordinate is 33 is not read as the terminator.
+	while (*p && isdigit(*p)) {
 		p++;
 	}
-	if (*p != '|') {
-		dbg->error("schedule_t::sscanf_schedule()", "incomplete entry termination!");
+	if (*p != ',') {
+		dbg->error("schedule_t::sscanf_schedule()", "missing schedule entry count!");
 		return false;
 	}
 	p++;
+	if (!isdigit(*p)) {
+		dbg->error("schedule_t::sscanf_schedule()", "missing schedule entry count!");
+		return false;
+	}
+	const uint32 entry_count = atoi(p);
+	while (*p && isdigit(*p)) {
+		p++;
+	}
+	if (*p != '|') {
+		dbg->error("schedule_t::sscanf_schedule()", "incomplete entry count!");
+		return false;
+	}
+	p++;
+	// The entry count is a uint8, and schedule authoring is capped at 254 entries;
+	// reject a larger count before filling the entry vector.
+	if (entry_count > 254) {
+		dbg->error("schedule_t::sscanf_schedule()", "schedule has too many entries (%u)!", entry_count);
+		return false;
+	}
 	const uint32 number_of_data_per_entry = 15 + 2; // +2 is necessary as a koord3d takes 3 values
 	// now scan the entries
-	while (*p > 0)
+	for (uint32 entry_index = 0; entry_index < entry_count; entry_index++)
 	{
-		if (atoi(p) == '!')
-		{
-			p += 3;
-			break;
-		}
 		sint32 values[number_of_data_per_entry];
 		for (sint8 i = 0; i < number_of_data_per_entry; i++)
 		{
@@ -1245,42 +1272,66 @@ bool schedule_t::sscanf_schedule(const char* ptr)
 		// ok, now we have a complete entry
 		entries.append(schedule_entry_t(koord3d(values[0], values[1], (sint8)values[2]), (uint16)values[3], (sint8)values[4], (sint16)values[5], (sint8)values[6], (uint32)values[7], (uint16)values[8], (uint16)values[9], (uint16)values[10], (uint16)values[11], (uint16)values[12], (uint16)values[13], (uint16)values[14], (uint16)values[15], (uint16)values[16]));
 	}
-
-	if (consist_order_count > 0)
+	if (p[0] != '3' || p[1] != '3')
 	{
-		// The entries loop above consumes the consist-order marker (written by
-		// cbuffer_t::append(long) as the number 33, the character '!'), so p
-		// points at the first order here. Each order follows as
-		// '<unique_entry_id>,<order text>', with no separator after the order
-		// text. The unique_entry_id has no fixed width, so its digits must be
-		// skipped rather than assumed to be one character.
-		for (uint32 i = 0; i < consist_order_count; i++)
+		dbg->error("schedule_t::sscanf_schedule()", "missing schedule entry terminator!");
+		return false;
+	}
+	p += 2;
+	// After the terminator the string ends, or the consist orders follow.
+	if (consist_order_count == 0)
+	{
+		if (*p != 0)
 		{
-			if (*p == 0 || !isdigit(*p))
-			{
-				dbg->error("schedule_t::sscanf_schedule()", "missing consist-order unique_entry_id!");
-				return false;
-			}
-			const uint32 index = atoi(p);
-			while (*p && isdigit(*p))
-			{
-				p++;
-			}
-			if (*p != ',')
-			{
-				dbg->error("schedule_t::sscanf_schedule()", "incomplete consist-order header!");
-				return false;
-			}
-			p++;
-
-			consist_order_t order;
-			p = order.sscanf_consist_order(p);
-			orders.put(index, order);
-			if (*p == ',')
-			{
-				p++;
-			}
+			dbg->error("schedule_t::sscanf_schedule()", "unexpected text after the schedule entries!");
+			return false;
 		}
+	}
+	else
+	{
+		if (*p != ',')
+		{
+			dbg->error("schedule_t::sscanf_schedule()", "missing consist-order separator!");
+			return false;
+		}
+		p++;
+	}
+
+	// The consist orders follow the terminator as '<unique_entry_id>,<order
+	// text>' pairs separated by commas, with no separator after the last order
+	// text. The unique_entry_id has no fixed width, so its digits must be
+	// skipped rather than assumed to be one character.
+	for (uint32 i = 0; i < consist_order_count; i++)
+	{
+		if (*p == 0 || !isdigit(*p))
+		{
+			dbg->error("schedule_t::sscanf_schedule()", "missing consist-order unique_entry_id!");
+			return false;
+		}
+		const uint32 index = atoi(p);
+		while (*p && isdigit(*p))
+		{
+			p++;
+		}
+		if (*p != ',')
+		{
+			dbg->error("schedule_t::sscanf_schedule()", "incomplete consist-order header!");
+			return false;
+		}
+		p++;
+
+		consist_order_t order;
+		p = order.sscanf_consist_order(p);
+		orders.put(index, order);
+		if (*p == ',')
+		{
+			p++;
+		}
+	}
+	if (*p != 0)
+	{
+		dbg->error("schedule_t::sscanf_schedule()", "unexpected text after the consist orders!");
+		return false;
 	}
 
 	parse_orders();
@@ -1579,8 +1630,15 @@ uint16 schedule_t::get_unique_id_from_entry(uint8 entry) const
 
 void schedule_t::parse_orders()
 {
+	// All six tables are derived from the orders and are not serialised, so
+	// recompute each of them from scratch. Clearing only the category tables
+	// would leave class minima keyed by orders that are no longer present.
 	catg_carried_to.clear();
 	catg_carried_from.clear();
+	passenger_min_class_carried_to.clear();
+	passenger_min_class_carried_from.clear();
+	mail_min_class_carried_to.clear();
+	mail_min_class_carried_from.clear();
 
 	if (orders.empty())
 	{
@@ -1595,20 +1653,30 @@ void schedule_t::parse_orders()
 		uint8 min_class_mail = goods_manager_t::mail->get_number_of_classes();
 		for (uint32 i = 0; i < order.value.get_count(); i++)
 		{
-			const uint8 catg_index = order.value.get_order(i).get_catg_index();
+			const consist_order_element_t &slot = order.value.get_order(i);
+			const uint8 catg_index = slot.get_catg_index();
 			if (catg_index == consist_order_element_t::any_catg_index) {
 				// The carried set of a wildcard slot cannot be known in advance.
 				continue;
 			}
 			category_vector.append(catg_index);
 
+			// A slot with no vehicle descriptions matches no vehicle at run time,
+			// so there is no first description whose must_carry_class could be
+			// read. The slot still declares its category, like a freight slot with
+			// no vehicle descriptions. A slot that may be left empty is a
+			// different case: its element has the empty flag set.
+			if (slot.get_count() == 0) {
+				continue;
+			}
+
 			if (goods_manager_t::passengers->get_catg_index() == catg_index)
 			{
-				min_class_passenger = min(min_class_passenger, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+				min_class_passenger = min(min_class_passenger, slot.get_vehicle_description(0).must_carry_class);
 			}
 			else if (goods_manager_t::mail->get_catg_index() == catg_index)
 			{
-				min_class_mail = min(min_class_mail, order.value.get_order(i).get_vehicle_description(0).must_carry_class);
+				min_class_mail = min(min_class_mail, slot.get_vehicle_description(0).must_carry_class);
 			}
 		}
 		catg_carried_from.put(unique_id, category_vector);

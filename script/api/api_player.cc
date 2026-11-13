@@ -99,8 +99,10 @@ call_tool_init player_create_line(player_t *player, waytype_t wt)
 		return "Invalid waytype provided";
 	}
 	// build param string (see schedule_list_gui_t::action_triggered)
+	// The schedule string carries an entry count in the type field and a "33"
+	// entry terminator; this is an empty schedule.
 	cbuffer_t buf;
-	buf.printf( "c,0,%i,0,0|%i|", lt, lt);
+	buf.printf( "c,0,%i,0,0|%i,0|33", lt, lt);
 	return call_tool_init(TOOL_CHANGE_LINE | SIMPLE_TOOL, buf, 0, player);
 }
 

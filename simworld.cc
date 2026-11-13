@@ -2277,22 +2277,31 @@ void* unreserve_route_threaded(void* args)
 			continue;
 		}
 
-		const uint32 max_count = weg_t::get_all_ways_count() - 1;
-		const uint32 fraction = max_count / karte_t::world->get_parallel_operations();
-
-		route_range_specification range;
-
-		range.start = thread_number * fraction;
-		if (thread_number == karte_t::world->get_parallel_operations() - 1)
+		const uint32 way_count = weg_t::get_all_ways_count();
+		if (way_count > 0)
 		{
-			range.end = max_count;
-		}
-		else
-		{
-			range.end = min(((thread_number + 1) * fraction - 1), max_count);
-		}
+			const uint32 max_count = way_count - 1;
+			const uint32 fraction = max_count / karte_t::world->get_parallel_operations();
 
-		convoi_t::unreserve_route_range(range);
+			route_range_specification range;
+
+			range.start = thread_number * fraction;
+			if (thread_number == karte_t::world->get_parallel_operations() - 1)
+			{
+				range.end = max_count;
+			}
+			else
+			{
+				// With an empty slice (slice_end == 0, i.e. fraction == 0)
+				// slice_end - 1 would underflow to UINT32_MAX, so map it to
+				// max_count: this worker scans the whole list, bounded by
+				// max_count. Otherwise use slice_end - 1, capped at max_count.
+				const uint32 slice_end = (thread_number + 1) * fraction;
+				range.end = (slice_end == 0 || slice_end - 1 > max_count) ? max_count : slice_end - 1;
+			}
+
+			convoi_t::unreserve_route_range(range);
+		}
 
 		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
 

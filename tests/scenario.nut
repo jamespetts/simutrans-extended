@@ -4,7 +4,7 @@
 //
 
 
-map.file = "empty-16x16.sve"
+map.file = "empty-64x64.sve"
 
 scenario.short_description = "Automated tests"
 scenario.author = "ceeac"

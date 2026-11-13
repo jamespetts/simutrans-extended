@@ -648,7 +648,7 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 		tool_t *tmp_tool = create_tool( TOOL_CHANGE_LINE | SIMPLE_TOOL );
 		cbuffer_t buf;
 		int type = tabs_to_lineindex[tabs.get_active_tab_index()];
-		buf.printf( "c,0,%i,0,0|%i|", type, type );
+		buf.printf( "c,0,%i,0,0|%i,0|33", type, type ); // an empty schedule: entry count 0 and the "33" terminator
 		tmp_tool->set_default_param(buf);
 		welt->set_tool( tmp_tool, player );
 		// since init always returns false, it is safe to delete immediately

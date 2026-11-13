@@ -154,7 +154,7 @@ function test_way_road_build_straight()
 			"........"
 		])
 
-	tool_result = command_x.build_way(pl, coord3d(16, 5, 0), coord3d(5, 5, 0), desc, true)
+	tool_result = command_x.build_way(pl, coord3d(world.get_size().x, 5, 0), coord3d(5, 5, 0), desc, true)
 	ASSERT_EQUAL(tool_result, "")
 	ASSERT_WAY_PATTERN(wt_road, coord3d(0, 0, 0),
 		[
