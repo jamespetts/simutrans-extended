@@ -80,8 +80,10 @@ struct comfort_routing_settings_t
 	bool comfort_routing;
 	bool vehicle_comfort_weighting;
 	bool waiting_comfort_weighting;
+	bool walking_comfort_weighting;
 	uint16 max_comfortable_journey_overcrowded;
 	uint16 max_comfortable_wait_overcrowded;
+	uint16 max_comfortable_walk;
 	uint16 comfort_penalty_at_25_percent;
 	uint16 comfort_penalty_at_50_percent;
 	uint16 comfort_penalty_at_75_percent;
@@ -838,8 +840,10 @@ public:
 	bool comfort_routing;
 	bool vehicle_comfort_weighting;
 	bool waiting_comfort_weighting;
+	bool walking_comfort_weighting;
 	uint16 max_comfortable_journey_overcrowded; // tenths of minutes
 	uint16 max_comfortable_wait_overcrowded;    // tenths of minutes
+	uint16 max_comfortable_walk;                // tenths of minutes
 	uint16 comfort_penalty_at_25_percent;
 	uint16 comfort_penalty_at_50_percent;
 	uint16 comfort_penalty_at_75_percent;
@@ -853,7 +857,7 @@ public:
 	comfort_routing_settings_t get_comfort_routing_settings() const;
 	bool comfort_routing_settings_changed(const comfort_routing_settings_t &other) const;
 
-	// Returns the extra perceived time in tenths of minutes for a journey that
+	// Returns the extra perceived time in tenths of minutes for a leg that
 	// exceeds the comfortable time, or UINT32_MAX_VALUE if it exceeds the
 	// tolerable time. The actual time is not included in the result.
 	uint32 get_comfort_time_cost(uint32 actual_time, uint16 maximum_comfortable, uint16 maximum_tolerable) const;

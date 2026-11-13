@@ -2426,8 +2426,22 @@ uint32 haltestelle_t::find_route(const vector_tpl<halthandle_t>& destination_hal
 			if (!is_freight)
 			{
 				// Passengers or mail.
-				// Calculate walking time from destination stop to final destination; add it.
-				test_time += welt->walking_time_tenths_from_distance(walk_distance);
+				// Calculate walking time from destination stop to the final
+				// destination, including the walking comfort surcharge; add it.
+				const uint32 walk_time = welt->walking_time_tenths_from_distance(walk_distance);
+				const uint32 walk_perceived_time = ware.is_passenger()
+					? welt->get_walking_perceived_time(walk_time) : walk_time;
+				if (walk_perceived_time == UINT32_MAX_VALUE
+					|| (uint64)test_time + walk_perceived_time > UINT32_MAX_VALUE)
+				{
+					// The walk exceeds the maximum tolerable walking time, or
+					// the sum would overflow.
+					test_time = UINT32_MAX_VALUE;
+				}
+				else
+				{
+					test_time += walk_perceived_time;
+				}
 			}
 			else
 			{

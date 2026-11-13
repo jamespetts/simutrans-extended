@@ -1,12 +1,13 @@
 ---
 status: draft
-verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-10)
+verified: ex-15 @ 3abf55259 plus working-tree walking comfort changes (2026-11-12)
 ---
 # Comfort influenced routing: time-based model
 
-**Covers:** the time-based comfort measurement, the cost curve between the
-comfortable and tolerable limits, the split-incentive analysis, and stop comfort
-and comfort capacity. Parent: [comfort-routing](comfort-routing.md). Integration
+**Covers:** the time-based comfort measurement for vehicles, halts and walking,
+the cost curve between the comfortable and tolerable limits, the
+split-incentive analysis, and stop comfort and comfort capacity. Parent:
+[comfort-routing](comfort-routing.md). Integration
 (edge weights, savegame, settings, UI, companion changes):
 [comfort-routing-integration](comfort-routing-integration.md).
 
@@ -30,6 +31,22 @@ For each passenger class:
 - `maximum_comfortable_wait`: maximum comfortable waiting time of a halt.
 - `maximum_tolerable_wait`: maximum tolerable waiting time of a halt. Above `maximum_tolerable_wait`, passengers refuse
   to wait and the packet is discarded or walks.
+- `maximum_comfortable_walk`: maximum comfortable walking time. The setting is
+  `settings_t::max_comfortable_walk`, held in tenths of minutes and read from the
+  `max_comfortable_walk_minutes` key in `simuconf.tab` (default 30 minutes).
+- `maximum_tolerable_walk`: maximum tolerable walking time. This is derived,
+  not set: `karte_t::get_maximum_tolerable_walk_tenths()` returns the walking
+  time of `karte_t::get_maximum_walk_distance()`. A stop covers every tile
+  within `station_coverage` of its position, so two stops are within walking
+  distance when their coverage squares share a tile. The greatest separation is
+  between opposite corners of the two squares, twice the coverage away on each
+  axis, measured with `shortest_distance` (the distance function that the
+  connexion rebuild uses). The result is never less than
+  `max_comfortable_walk`. Above `maximum_tolerable_walk`, a walking edge is
+  removed. `karte_t::get_walking_perceived_time()` applies the curve: it returns
+  the actual time when `comfort_routing` or `walking_comfort_weighting` is off,
+  the actual time plus the surcharge up to `maximum_tolerable_walk`, and
+  `UINT32_MAX_VALUE` above it.
 
 All times are stored internally in tenths of minutes.
 
@@ -122,6 +139,10 @@ present and the converted value otherwise.
 
 The default tolerable wait is therefore 9 hours.
 
+`maximum_comfortable_walk` defaults to 30 minutes. There is no separate
+setting for the maximum tolerable walk: it changes with the station coverage
+and the walking speed.
+
 ## Cost curve
 
 For a ride of `t` tenths in a vehicle with
@@ -137,10 +158,11 @@ For a ride of `t` tenths in a vehicle with
 - `t > maximum_tolerable_journey`: the edge is removed.
 
 A wait of `w` at a stop with
-`(maximum_comfortable_wait, maximum_tolerable_wait)` uses the same function. The
-smooth factor applies only between the comfortable and tolerable times; comfort
-above the comfortable time gives no discount. Luxury therefore does not make a
-route faster, only more attractive at the class-choice stage.
+`(maximum_comfortable_wait, maximum_tolerable_wait)` uses the same function. A
+walk of `w` with `(maximum_comfortable_walk, maximum_tolerable_walk)` also uses
+it. The smooth factor applies only between the comfortable and tolerable times;
+comfort above the comfortable time gives no discount. Luxury therefore does not
+make a route faster, only more attractive at the class-choice stage.
 
 All arithmetic is integer: times in tenths, factors in percent, 64-bit
 intermediates, round to nearest. No floating point in synced code.

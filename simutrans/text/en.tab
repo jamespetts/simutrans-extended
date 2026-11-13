@@ -5456,10 +5456,14 @@ vehicle_comfort_weighting
 Weight vehicle comfort in routing
 waiting_comfort_weighting
 Weight waiting comfort in routing
+walking_comfort_weighting
+Weight walking comfort in routing
 max_comfortable_journey_overcrowded
 Max. comfortable journey time when overcrowded (minutes)
 max_comfortable_wait_overcrowded
 Max. comfortable wait when overcrowded (minutes)
+max_comfortable_walk_minutes
+Max. comfortable walking time (minutes)
 comfort_penalty_at_25_percent
 Comfort penalty at 25% of the comfortable-to-tolerable range
 comfort_penalty_at_50_percent

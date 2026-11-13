@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 7b5e20584 (comfort-adjusted boarding comparison; 2026-11-09)
+verified: ex-15 @ 3abf55259 plus working-tree walking comfort changes (2026-11-12)
 ---
 # Path explorer optimisation: route semantics
 
@@ -19,12 +19,13 @@ the examples are constructed illustrations.
    time (origin and destination halt, mean of the last 32 samples) + journey time (linkage
    average for the pair, else an accumulated estimate) + the origin halt's transfer time.
    Passengers also get walking candidates between halts within walking distance (waiting 0,
-   walking time, destination halt's transfer time).
+   walking time, destination halt's transfer time, and the walking comfort surcharge when
+   walking comfort is weighted).
 2. **Candidate list:** every candidate is kept in `full_connexions` before the round's
    deduplication. The halts' runtime `connexions_map` keeps one best full weight per halt
    pair; the routing-search graph uses the full list. The best weight compares waiting,
-   journey and transfer time together, so a walking edge with no waiting time can beat a
-   line whose ride is shorter (Example E).
+   journey, transfer and comfort cost together, so a walking edge with no waiting time can
+   beat a line whose ride is shorter (Example E).
 3. **State graph (graph build):** a state is `(halt, arriving transport)`; transport 0 is
    walking and is exempt from the no-reboarding rule. The origin state has no arriving
    transport. An edge from a state on transport X to transport X is forbidden unless X is

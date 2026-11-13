@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-09)
+verified: ex-15 @ 3abf55259 plus working-tree walking comfort changes (2026-11-12)
 ---
 # Path explorer optimisation
 
@@ -25,9 +25,9 @@ expanded state graph**:
 - The halt-list preparation and connexion rebuild generate every walking candidate, every
   direct ride, and every through candidate across a coupling (a journey that stays aboard
   when portions join or split), before the round's deduplication. A candidate is
-  `(origin halt, target halt, transport, waiting + journey + transfer)`. The halts'
-  `connexions_map` is deduplicated to one best full weight per halt pair for runtime
-  boarding; the full list is kept separately for the routing-search graph.
+  `(origin halt, target halt, transport, waiting + journey + transfer + comfort cost)`.
+  The halts' `connexions_map` is deduplicated to one best full weight per halt pair for
+  runtime boarding; the full list is kept separately for the routing-search graph.
 - The eligible-halt selection picks the working halts and swaps the deduplicated runtime
   tables into the halts.
 - The graph build creates a compact per-origin edge list and the expanded state space. A state is

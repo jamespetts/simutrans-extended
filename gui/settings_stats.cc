@@ -511,8 +511,10 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 	SEPERATOR;
 	INIT_BOOL("vehicle_comfort_weighting", sets->vehicle_comfort_weighting);
 	INIT_BOOL("waiting_comfort_weighting", sets->waiting_comfort_weighting);
+	INIT_BOOL("walking_comfort_weighting", sets->walking_comfort_weighting);
 	INIT_NUM("max_comfortable_journey_overcrowded", sets->max_comfortable_journey_overcrowded / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("max_comfortable_wait_overcrowded", sets->max_comfortable_wait_overcrowded / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("max_comfortable_walk_minutes", sets->max_comfortable_walk / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
 	SEPERATOR;
 	INIT_NUM("comfort_penalty_at_25_percent", sets->comfort_penalty_at_25_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("comfort_penalty_at_50_percent", sets->comfort_penalty_at_50_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
@@ -588,8 +590,10 @@ void settings_extended_revenue_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE(sets->max_comfort_preference_percentage);
 	READ_BOOL_VALUE(sets->vehicle_comfort_weighting);
 	READ_BOOL_VALUE(sets->waiting_comfort_weighting);
+	READ_BOOL_VALUE(sets->walking_comfort_weighting);
 	READ_NUM_VALUE_TENTHS(sets->max_comfortable_journey_overcrowded);
 	READ_NUM_VALUE_TENTHS(sets->max_comfortable_wait_overcrowded);
+	READ_NUM_VALUE_TENTHS(sets->max_comfortable_walk);
 	READ_NUM_VALUE(sets->comfort_penalty_at_25_percent);
 	READ_NUM_VALUE(sets->comfort_penalty_at_50_percent);
 	READ_NUM_VALUE(sets->comfort_penalty_at_75_percent);

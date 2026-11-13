@@ -2359,6 +2359,13 @@ void path_explorer_t::compartment_t::step()
 						);
 
 					const uint32 journey_time = world->walking_time_tenths_from_distance(walking_journey_distance);
+					const uint32 walking_perceived_time = world->get_walking_perceived_time(journey_time);
+					if (walking_perceived_time == UINT32_MAX_VALUE)
+					{
+						// The walking time exceeds the maximum tolerable
+						// walking time, so the walk is not available.
+						continue;
+					}
 
 					// Check the journey times to the connexion
 					haltestelle_t::connexion new_connexion;
@@ -2367,7 +2374,7 @@ void path_explorer_t::compartment_t::step()
 					new_connexion.best_convoy = convoihandle_t();
 					new_connexion.best_line = linehandle_t();
 					new_connexion.journey_time = journey_time;
-					new_connexion.comfort_cost = 0;
+					new_connexion.comfort_cost = walking_perceived_time - journey_time;
 					new_connexion.alternative_seats = 0;
 					add_full_connexion(all_halts_list[i], walking_distance_halt, new_connexion);
 

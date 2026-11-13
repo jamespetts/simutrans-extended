@@ -338,10 +338,12 @@ max_comfort_preference_percentage = 500
 # route refresh.
 comfort_routing = 1
 
-# Vehicle ride comfort and waiting comfort can be weighted independently.
-# Set either to 0 to leave that component out of route costs.
+# Vehicle ride comfort, waiting comfort and walking comfort can be weighted
+# independently. Set any of these to 0 to leave that component out of route
+# costs.
 vehicle_comfort_weighting = 1
 waiting_comfort_weighting = 1
+walking_comfort_weighting = 1
 
 # Extra perceived time at 25%, 50%, 75% and 100% of the range from the
 # maximum comfortable time to the maximum tolerable time, as a percentage of
@@ -361,6 +363,14 @@ max_comfortable_journey_overcrowded = 5
 # Comfortable waiting time when the comfortable facility capacity is full, in
 # minutes. Overcrowding never changes the maximum tolerable waiting time.
 max_comfortable_wait_overcrowded = 15
+
+# Maximum comfortable walking time in minutes. A walk longer than this is
+# charged extra perceived time by the same curve as vehicle and waiting
+# comfort. The maximum tolerable walking time is derived from the greatest
+# distance at which two stops can be within walking distance of each other
+# (twice the station coverage on each axis), converted to time at the walking
+# speed; there is no separate tolerable setting.
+max_comfortable_walk_minutes = 30
 
 ################################## Industry settings #################################
 

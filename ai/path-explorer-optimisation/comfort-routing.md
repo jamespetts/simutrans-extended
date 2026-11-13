@@ -1,12 +1,12 @@
 ---
 status: draft
-verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (2026-11-09)
+verified: ex-15 @ 3abf55259 plus working-tree walking comfort changes (2026-11-12)
 ---
 # Comfort influenced routing (design)
 
-**Covers:** the design for comfort influenced passenger routing: time-based comfort
-measurement for vehicles and halts, the route-cost curve, stop comfort and
-capacity, blended route storage, UI, the fare and give-up changes, and
+**Covers:** the design for comfort influenced passenger routing: time-based
+comfort measurement for vehicles, halts and walking, the route-cost curve, stop
+comfort and capacity, blended route storage, UI, the fare and give-up changes, and
 private-car comfort. Parent: [path-explorer-optimisation](../path-explorer-optimisation.md).
 Roadmap: [project-roadmap](../project-roadmap.md) ("Comfort influenced routing",
 "Waiting time limits and stop facilities", "Different private cars for different
@@ -46,12 +46,14 @@ The design uses:
   stop. There is no separate per-cell actual-time or discomfort array.
 - **Comfort is measured as time, not as points.** A vehicle has a maximum
   comfortable journey time and a maximum tolerable journey time. A halt has a
-  maximum comfortable waiting time and a maximum tolerable waiting time. At or
-  below the comfortable time, actual time is used. Between the comfortable and
-  tolerable times, a scaled increase factor applies; it is small for short
-  durations or a small shortfall, and grows, possibly in an S-curve, as either
-  increases. Above the tolerable time, the leg is refused. Comfort above the
-  comfortable time is luxury and affects class choice only.
+  maximum comfortable waiting time and a maximum tolerable waiting time. A walk
+  has a global maximum comfortable time; its maximum tolerable time is derived
+  from the walking distance bound. At or below the comfortable time, actual time
+  is used. Between the comfortable and tolerable times, a scaled increase factor
+  applies; it is small for short durations or a small shortfall, and grows,
+  possibly in an S-curve, as either increases. Above the tolerable time, the leg
+  is refused. Comfort above the comfortable time is luxury and affects class
+  choice only.
 - **Comfort is assessed per leg, with a reboarding rule.** The route table stores
   one route per stop pair, so a threshold on the whole journey would require more
   information per route than the table stores. To prevent splitting a long ride
@@ -84,11 +86,11 @@ The design uses:
   stop.
 - **Settings and migration.** The global comfort-point multiplier table is
   replaced by the per-object comfortable and tolerable times plus a penalty curve
-  whose points are set in simuconf.tab. Vehicle and waiting comfort have separate
-  weighting switches, placed together with one comment block. All new settings
-  are added to the shipped simuconf.tab with comments and defaults. Saves without
-  the setting load with comfort routing off; the advanced settings dialogue can
-  turn it on, with no warning. New games start with it on.
+  whose points are set in simuconf.tab. Vehicle, waiting and walking comfort have
+  separate weighting switches, placed together with one comment block. All new
+  settings are added to the shipped simuconf.tab with comments and defaults. Saves
+  without the setting load with comfort routing off; the advanced settings dialogue
+  can turn it on, with no warning. New games start with it on.
 - **UI.** Comfort-adjusted times are shown in dark blue and are hidden entirely
   when comfort routing is disabled. There is no prominent "comfort routing
   enabled" indicator; the presence of the adjusted times is the indication. The
@@ -115,8 +117,11 @@ Implemented:
 - the comfort settings, penalty-curve cache, the default-off behaviour for saves
   without the setting, the advanced settings toggle (Extended -> Passengers tab)
   and the working `simutrans/config/simuconf.tab` block;
-- the blended routing cost, hard limits, the two weighting switches, the
-  target-specific reboarding rule and the time-based class choice;
+- the blended routing cost, hard limits, the vehicle, waiting and walking
+  weighting switches, the target-specific reboarding rule and the time-based
+  class choice;
+- walking comfort, including the walking edges, the start and destination halt
+  choices and the all-walking mode comparison;
 - no fixed boarding cost; the reboarding rule and the actual stop times are the
   split-incentive mitigation;
 - the effective fare class fallback on vehicles and convoys, so a fare class

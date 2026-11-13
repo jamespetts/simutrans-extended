@@ -1796,6 +1796,54 @@ public:
 	}
 
 	/**
+	 * The greatest distance in tiles at which two stops can be within walking
+	 * distance of each other. A stop covers every tile within station_coverage
+	 * of its position, so two stops are within walking distance when their
+	 * coverage squares share a tile. The greatest separation is therefore
+	 * between opposite corners of the two squares, twice the coverage away on
+	 * each axis. The result uses shortest_distance, as the connexion rebuild
+	 * does.
+	 */
+	uint32 get_maximum_walk_distance() const
+	{
+		const uint32 offset = 2u * get_settings().get_station_coverage();
+		// shortest_distance for equal x and y offsets.
+		return (offset * 181u + 64u) >> 7;
+	}
+
+	/**
+	 * The maximum tolerable walking time in tenths of minutes, derived from
+	 * get_maximum_walk_distance() at the walking speed. This is the upper end
+	 * of the walking comfort penalty curve. It is never less than the maximum
+	 * comfortable walking time.
+	 */
+	uint16 get_maximum_tolerable_walk_tenths() const
+	{
+		const uint32 tenths = walking_time_tenths_from_distance(get_maximum_walk_distance());
+		const uint16 bounded = (uint16)min(65535, (int)tenths);
+		return (uint16)max((int)get_settings().max_comfortable_walk, (int)bounded);
+	}
+
+	/**
+	 * The perceived walking time for a walk of actual_time tenths of minutes,
+	 * including the walking comfort surcharge. Returns actual_time unchanged
+	 * when comfort routing or walking comfort weighting is off. Returns
+	 * UINT32_MAX_VALUE when the walk exceeds the maximum tolerable walking
+	 * time. Only passengers use walking comfort; callers must not apply this
+	 * to mail or freight.
+	 */
+	uint32 get_walking_perceived_time(uint32 actual_time) const
+	{
+		if (!get_settings().comfort_routing || !get_settings().walking_comfort_weighting)
+		{
+			return actual_time;
+		}
+		const uint32 comfort_cost = get_settings().get_comfort_time_cost(actual_time,
+			get_settings().max_comfortable_walk, get_maximum_tolerable_walk_tenths());
+		return comfort_cost == UINT32_MAX_VALUE ? UINT32_MAX_VALUE : actual_time + comfort_cost;
+	}
+
+	/**
 	 * Conversion from walking distance in tiles to walking time
 	 * Returns seconds; used for display purposes
 	 */

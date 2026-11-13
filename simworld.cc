@@ -6699,6 +6699,13 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 			// This number may be very long.
 			walking_time = walking_time_tenths_from_distance(straight_line_distance);
 			car_minutes = UINT32_MAX_VALUE;
+
+			// Walking comfort makes a long walk feel longer. The all-walking
+			// comparison uses this perceived time; the physical arrival time
+			// remains walking_time.
+			const uint32 walking_perceived_time = wtyp == goods_manager_t::passengers
+				? get_walking_perceived_time(walking_time) : walking_time;
+
 			bool skip_route_checks = false;
 
 			// Make sure that the implicit minimum speed required to complete this journey within the journey time tolerance is possible.
@@ -6871,14 +6878,17 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					current_halt = nearby_halt.halt;
 
 #ifdef MULTI_THREAD
-					// Start with the walking time to the start halt.
+					// Start with the walking time to the start halt, including
+					// the walking comfort surcharge.
 					// Note that the walking time to the destination stop is already added by find_route.
-					current_journey_time = walking_time_tenths_from_distance(start_halts[passenger_generation_thread_number].get_element(i).distance);
+					const uint32 start_walk_time = walking_time_tenths_from_distance(start_halts[passenger_generation_thread_number].get_element(i).distance);
 
 #else
-					current_journey_time = walking_time_tenths_from_distance(start_halts[i].distance);
+					const uint32 start_walk_time = walking_time_tenths_from_distance(start_halts[i].distance);
 #endif
-					if (current_journey_time < best_journey_time && (current_journey_time < walking_time || !can_walk) && current_journey_time < tolerance)
+					current_journey_time = wtyp == goods_manager_t::passengers
+						? get_walking_perceived_time(start_walk_time) : start_walk_time;
+					if (current_journey_time < best_journey_time && (current_journey_time < walking_perceived_time || !can_walk) && current_journey_time < tolerance)
 					{
 						// Do not hit the database with a request if even walking to the local stop takes longer than the tolerance time, is worse than the best journey time, is worse than simply walking to the destination
 						// or if the impicit speed taking into account the time taken to walk to the origin stop.
@@ -6956,9 +6966,9 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					best_journey_time = 1;
 				}
 
-				if(can_walk && walking_time < best_journey_time && (walking_time <= walking_time_preference_threshold || best_journey_time > tolerance))
+				if(can_walk && walking_perceived_time < best_journey_time && (walking_time <= walking_time_preference_threshold || best_journey_time > tolerance))
 				{
-					// If walking is faster than public transport, passengers will walk, unless
+					// If walking is perceived as faster than public transport, passengers will walk, unless
 					// the public transport journey is within passengers' tolerance and the walking
 					// time exceeds passenger' walking time preference threshold.
 					const grund_t* destination_gr = lookup_kartenboden(current_destination.location);
@@ -6972,7 +6982,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 				// Check first whether the best route is outside
 				// the passengers' tolerance.
 
-				if(best_journey_time_including_crowded_halts < tolerance && route_status != public_transport && walking_time > best_journey_time)
+				if(best_journey_time_including_crowded_halts < tolerance && route_status != public_transport && walking_perceived_time > best_journey_time)
 				{
 					route_status = overcrowded;
 					if(!overcrowded_already_set)
@@ -7129,7 +7139,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					// The passengers can get to their destination by car but not by public transport.
 					// Therefore, they will always use their car unless it is faster to walk and they
 					// are not people who always prefer to use the car.
-					if(car_perceived_minutes > walking_time && can_walk && walking_time <= walking_time_preference_threshold && private_car_chance > settings.get_always_prefer_car_percent())
+					if(car_perceived_minutes > walking_perceived_time && can_walk && walking_time <= walking_time_preference_threshold && private_car_chance > settings.get_always_prefer_car_percent())
 					{
 						// If walking is faster than taking the car, and the walking time is below passengers'
 						// walking time preference threshold, passengers will walk.
@@ -8835,6 +8845,13 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 		// Capture the comfort cost model stored in the save before the
 		// simuconf overrides below can replace it.
 		const comfort_routing_settings_t saved_comfort_settings = settings.get_comfort_routing_settings();
+
+		if (settings.comfort_routing && !file->is_version_ex_atleast(15, 11))
+		{
+			// Saves from before walking comfort was part of the cost model
+			// have route tables without the walking surcharge.
+			path_explorer_t::set_must_refresh_on_loading();
+		}
 
 		// The path explorer block is present or absent according to the value
 		// stored in this save. Capture it before the overrides below so that
