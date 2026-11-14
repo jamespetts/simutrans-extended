@@ -9,8 +9,10 @@ simutrans/themes/ (assets); launch/menu glue simmenu/simticker/simmesg (root →
 [simulation-core](simulation-core.md)); drawing primitives → [rendering](rendering.md).
 
 Read when touching windows, frames, GUI components, themes, or any user-interface work; for
-image-free dialog-geometry verification see [gui-layout-dump](gui/layout-dump.md), and for the
-rendered-pixel screenshot feedback loop see [gui-visual-feedback](gui/visual-feedback.md).
+image-free dialog-geometry verification see [gui-layout-dump](gui/layout-dump.md), for the
+rendered-pixel screenshot feedback loop see [gui-visual-feedback](gui/visual-feedback.md), and
+for planned accessibility, first-run and explanation work see
+[usability-considerations](gui/usability-considerations.md).
 
 ## Component model
 
@@ -86,6 +88,14 @@ the same relative order.
   overlap, clipping, z-order) without a rendered image. Design; not yet implemented.
 - [gui-visual-feedback](gui/visual-feedback.md) — read when iterating dialog design with real
   screenshots: `SIMUTRANS_UI_AUTOMATION` build gates, env vars, run recipe, loop procedure.
+
+## Usability considerations
+
+[usability-considerations](gui/usability-considerations.md) records accessibility, first-run and
+explanation considerations: real toolbar scroll controls, translated settings labels and tooltips,
+a visible route to the existing help text, a tutorial, a clickable balance, line-list and
+new-game-dialogue controls, and the line-status legend. It also records which complaints from
+the source usability report are already addressed in Extended.
 
 ## Window persistence (save/restore)
 

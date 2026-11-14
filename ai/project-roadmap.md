@@ -245,6 +245,22 @@ The path explorer already stores one route per stop pair and compartment, so the
 
 This is a player information feature, not a routing change; it should not alter route choice, fares or the simulation.
 
+## Interface usability and first-run experience
+
+This workstream is not from the original forum list; it records interface problems identified in
+a third-party usability report and is maintained separately from the balance-critical features
+above.
+
+A livestream transcript using Simutrans-Standard with the Britain pakset identified problems
+that are independent of simulation balance: the toolbar overflow arrows are not clickable, most
+settings labels are internal configuration keys, the existing help pages are hidden behind the
+title-bar help button, there is no tutorial, the status-bar balance is not clickable, the line
+list is absent from the list-of-lists dialogues, and the new-game dialogue has no reset control.
+The items, their code anchors, what is already addressed in Extended, and the open design
+questions are in [gui/usability-considerations](gui/usability-considerations.md).
+
+This is a set of accessibility and first-run improvements. It does not change the simulation.
+
 ## Fractional power and tractive effort values[*S]
 
 Currently, it is only possible to specify power and tractive effort in units of kilowatts or kilonewtons. This is problematic for very low powered vehicles (e.g., bicycles, horses), as it is not possible to set realistic values for power. Internally, the physics engine can cope with fractional values of power and tractive effort, and it is possible to work around this to some extent for power by using "gear", but this is not effective for tractive effort.
