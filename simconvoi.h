@@ -1694,7 +1694,10 @@ public:
 
 	// The return value is whether the consist order can be processed at the current time (i.e., whether there are
 	// sufficient of the right number of vehicles to do so).
-	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy);
+	// If split_candidate is not null, the vehicles displaced from this convoy are collected
+	// into one newly created laid-over convoy instead of being appended to an existing
+	// laid-over convoy, and that new convoy's handle is stored there.
+	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr);
 
 	// True when any vehicle supplies power: a powerless consist cannot run.
 	bool has_power() const;
@@ -1705,17 +1708,111 @@ public:
 	bool is_route_failure_from_combination() const { return !has_power() || needs_electrification(); }
 
 	private:
-		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy);
+		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate);
 
 		// Carry out the current entry's consist order, exchanging with the given
 		// coupling target (unbound: assemble from the stop's pool). Sets SHUNTING
 		// when the consist changes.
-		consist_order_process_result process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy);
+		consist_order_process_result process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr);
 
 		// A couple order whose target does not resolve has a broken target: log
 		// the error and leave the order unexecuted. It is never assembled from
 		// the stop's pool.
 		void report_broken_couple_target(halthandle_t halt);
+
+		// An uncouple entry's resolved target: its line (also used when the
+		// named convoy is bound to a line), its lineless convoy, and the target
+		// entry's schedule and index.
+		struct uncouple_target_t
+		{
+			linehandle_t line;
+			convoihandle_t convoy;
+			schedule_t *schedule;
+			uint8 entry_index;
+
+			uncouple_target_t() : schedule(nullptr), entry_index(255) {}
+		};
+
+		// Resolve an uncouple entry's target as path_explorer.cc does: a line
+		// names that line's schedule; a convoy bound to a line names the line;
+		// a lineless convoy names its own schedule. The target entry must exist
+		// in that schedule, be at the given stop and carry a consist order.
+		bool resolve_uncouple_target(const schedule_entry_t &entry, halthandle_t halt, uncouple_target_t &target);
+
+		// Form the split-off portion: apply the target entry's consist order to
+		// the newly created laid-over convoy, then give that convoy the target
+		// schedule at the target entry and return it to normal loading.
+		void form_divided_portion(convoihandle_t portion, halthandle_t halt, const schedule_entry_t &source_entry, const uncouple_target_t &target);
+
+		// How a pair entry's counterpart stands at a stop.
+		enum paired_exchange_state_t
+		{
+			paired_not_configured, // not a pair entry: ordinary coupling, division or pool assembly
+			paired_ready,          // the counterpart convoy is waiting: execute the exchange
+			paired_partner_absent, // a valid pair whose counterpart has not arrived yet: wait
+			paired_invalid         // configured as a pair but cannot be carried out
+		};
+
+		// Why a paired exchange was refused. A report names the reason once.
+		enum pair_failure_t
+		{
+			pair_failure_none,
+			pair_failure_target_missing,
+			pair_failure_both_flags,
+			pair_failure_missing_order,
+			pair_failure_invalid_counterpart,
+			pair_failure_waytype,
+			pair_failure_self_target,
+			pair_failure_lay_over,
+			pair_failure_unsatisfiable,
+			pair_failure_access,
+			pair_failure_budget
+		};
+
+		// A resolved paired exchange: which side executes it, the counterpart
+		// convoy when it is waiting, and the two consist orders.
+		struct paired_exchange_t
+		{
+			bool own_is_receiver;
+			convoihandle_t counterpart;
+			const consist_order_t *own_order;
+			const consist_order_t *counterpart_order;
+			pair_failure_t failure;
+
+			paired_exchange_t() : own_is_receiver(false), own_order(nullptr), counterpart_order(nullptr), failure(pair_failure_none) {}
+		};
+
+		// Classify the current entry. A pair is a couple entry whose counterpart
+		// entry at the same stop carries uncouple, or the reverse; the two entries
+		// must name each other and both must have a consist order. Readiness
+		// requires the counterpart convoy to be waiting in AWAITING_RECOMBINATION.
+		paired_exchange_state_t resolve_paired_exchange(halthandle_t halt, paired_exchange_t &pair) const;
+
+		// True when the given convoy waits at the stop for the given counterpart
+		// entry in AWAITING_RECOMBINATION, travelling in the required direction.
+		bool is_waiting_pair_counterpart(const convoihandle_t &candidate, const schedule_entry_t &counterpart_entry, const schedule_t *counterpart_schedule, bool counterpart_reversed, halthandle_t halt) const;
+
+		// Solve both end-state orders jointly and commit both consists as one
+		// exchange. Returns false and reports once when the pair cannot be carried
+		// out; in that case neither consist is changed and both convoys return to
+		// loading.
+		bool execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair);
+
+		// Replace the two consists with the solved forward-oriented final consists.
+		// Only vehicles that become loose stock are discharged at the stop.
+		void commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const bool changed[2], halthandle_t halt);
+
+		void report_paired_exchange_failure(halthandle_t halt, convoihandle_t counterpart, pair_failure_t failure) const;
+
+		// Does the given entry's coupling or division target name this convoy or
+		// its line?
+		bool entry_names_this_convoy(const schedule_entry_t &entry, bool use_couple_target) const;
+
+		// Carry out the current entry's recombination orders at a stop: a paired
+		// exchange, the ordinary one-sided coupling receive, a division, or
+		// targetless pool assembly. Called on arrival and while waiting for a
+		// counterpart in AWAITING_RECOMBINATION.
+		void process_recombination_at_stop(halthandle_t halt, bool first_run);
 };
 
 #endif

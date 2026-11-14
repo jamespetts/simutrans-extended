@@ -294,7 +294,6 @@ public:
 		couple_target_missing  // the named target does not resolve (gone, or id 0)
 	};
 	couple_target_state_t get_couple_target(uint16 unique_id, halthandle_t halt, convoihandle_t &target);
-	// TODO: Implement get_uncouple_target
 
 	// Authoring guard: does any entry arm the couple flag without a target id?
 	// That arrangement is not authorable - a pool-only re-combination needs no

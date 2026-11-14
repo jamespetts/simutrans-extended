@@ -3932,9 +3932,12 @@ bool vehicle_t::matches_consist_order_element(const consist_order_element_t& ele
 		return true;
 	}
 
-	if (vde.specific_vehicle == desc)
+	if (vde.specific_vehicle)
 	{
-		return true;
+		// A specific vehicle is named: no rule may substitute for it. The class
+		// requirement still applies, because a vehicle's class can be reassigned
+		// in service.
+		return vde.specific_vehicle == desc && vde.must_carry_class <= get_min_class();
 	}
 
 	// must_carry_class needs the instance (accommodations may be reassigned);

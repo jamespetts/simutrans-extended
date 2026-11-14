@@ -1332,6 +1332,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 		case EMERGENCY_STOP:
 		case REPLENISHING:
 		case SHUNTING:
+		case AWAITING_RECOMBINATION:
 			break;
 
 		case OVERHAUL:
@@ -2581,32 +2582,10 @@ void convoi_t::step()
 
 	case AWAITING_RECOMBINATION:
 	{
-		// Waiting for the named coupling target (deliberately no timeout).
+		// Waiting for the named counterpart (deliberately no timeout).
 		// Re-resolve every step and carry out the exchange when it arrives.
-		halthandle_t wait_halt = haltestelle_t::get_halt(get_pos(), owner);
-		convoihandle_t joining_convoy;
-		const schedule_t::couple_target_state_t couple_state = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, wait_halt, joining_convoy);
-		if (couple_state == schedule_t::couple_target_present)
-		{
-			process_current_entry_consist_order(wait_halt, joining_convoy);
-			if (state == AWAITING_RECOMBINATION)
-			{
-				// The exchange changed nothing: continue without it.
-				state = LOADING;
-			}
-		}
-		else if (couple_state == schedule_t::couple_target_missing)
-		{
-			// The target is gone: report once and continue without the order.
-			report_broken_couple_target(wait_halt);
-			state = LOADING;
-		}
-		else if (couple_state == schedule_t::couple_not_configured)
-		{
-			// The entry lost its couple configuration (its target was deleted):
-			// nothing is left to wait for.
-			state = LOADING;
-		}
+		const halthandle_t wait_halt = haltestelle_t::get_halt(get_pos(), owner);
+		process_recombination_at_stop(wait_halt, false);
 		break;
 	}
 
@@ -4452,7 +4431,7 @@ void convoi_t::set_working_method(working_method_t value)
 	for (uint32 i = 0; i < vehicle_count; i++)
 	{
 		vehicle_t* veh = get_vehicle(i);
-		if (veh->get_waytype() == track_wt || veh->get_waytype() == tram_wt || veh->get_waytype() == maglev_wt || veh->get_waytype() == monorail_wt)
+		if (veh->get_waytype() == track_wt || veh->get_waytype() == tram_wt || veh->get_waytype() == maglev_wt || veh->get_waytype() == monorail_wt || veh->get_waytype() == narrowgauge_wt)
 		{
 			rail_vehicle_t* rv = static_cast<rail_vehicle_t *>(veh);
 			rv->set_working_method(value);
@@ -6518,35 +6497,14 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		enter_layover(halt);
 	}
 
-	if (first_run && schedule->entry_has_consist_order(schedule->get_current_entry().unique_entry_id))
+	const schedule_entry_t &current_entry = schedule->get_current_entry();
+	if (first_run
+		&& (schedule->entry_has_consist_order(current_entry.unique_entry_id)
+			|| current_entry.is_flag_set(schedule_entry_t::couple)
+			|| current_entry.is_flag_set(schedule_entry_t::uncouple)))
 	{
-		convoihandle_t joining_convoy;
-		const schedule_t::couple_target_state_t couple_state = schedule->get_couple_target(schedule->get_current_entry().unique_entry_id, halt, joining_convoy);
-		if (couple_state == schedule_t::couple_target_absent)
-		{
-			// The named coupling target exists but has not arrived: wait for it.
-			// There is deliberately no timeout (a timeout would make a major jam
-			// worse); deadlock avoidance is part of the two-party coupling work.
-			state = AWAITING_RECOMBINATION;
-		}
-		else if (couple_state == schedule_t::couple_target_missing)
-		{
-			// Broken target: the order is not carried out and the consist
-			// continues as if it had no consist order.
-			report_broken_couple_target(halt);
-		}
-		else
-		{
-			// couple_target_present: exchange with the target.
-			// couple_not_configured: an intentionally targetless order draws on
-			// the vehicles at the stop.
-			process_current_entry_consist_order(halt, joining_convoy);
-			vehicles_loading = min(vehicles_loading, vehicle_count);
-		}
-
-		// TODO: Consider what happens if the exchange itself fails.
-
-		// TODO: Implement logic for dividing
+		process_recombination_at_stop(halt, true);
+		vehicles_loading = min(vehicles_loading, vehicle_count);
 	}
 
 	if(no_load || state == LAYOVER || schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only))
@@ -9765,10 +9723,10 @@ void convoi_t::report_broken_couple_target(halthandle_t halt)
 }
 
 
-convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy)
+convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate)
 {
 	const consist_order_t &order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
-	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy);
+	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy, split_candidate);
 	if (result == succeed)
 	{
 		if (state == LAYOVER)
@@ -9785,7 +9743,466 @@ convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_o
 }
 
 
-convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy)
+// Coupling predicate for one slot of a consist order under construction.
+// Mirrors convoi_t::check_validity(): the first vehicle must be able to be at
+// the front, each later vehicle must follow the vehicle chosen for the
+// preceding slot, and the vehicle chosen for the final slot must be able to be
+// at the rear.
+static bool consist_slot_couples(uint32 slot, uint32 slot_count, const vector_tpl<vehicle_t*> &chosen, const vehicle_t *candidate)
+{
+	const vehicle_desc_t *const desc = candidate->get_desc();
+	if (slot == 0 && !desc->can_follow(nullptr))
+	{
+		return false;
+	}
+	if (slot > 0)
+	{
+		if (chosen.empty())
+		{
+			return false;
+		}
+		const vehicle_desc_t *const previous = chosen.back()->get_desc();
+		if (!previous->can_lead(desc) || !desc->can_follow(previous))
+		{
+			return false;
+		}
+	}
+	if (slot + 1 == slot_count && !desc->can_lead(nullptr))
+	{
+		return false;
+	}
+	return true;
+}
+
+
+// The joint paired-exchange search may try at most this many candidate
+// placements in one exchange. This is an implementation computation limit, not
+// a game quantity: it is the square of two full rail consists
+// (2 * convoi_t::max_rail_vehicle). Exceeding it refuses the exchange
+// all-or-nothing and reports the limit; it never produces a partial exchange.
+static const uint32 paired_exchange_step_budget = (2u * convoi_t::max_rail_vehicle) * (2u * convoi_t::max_rail_vehicle);
+
+
+// One vehicle of the joint solver's canonical universe. The universe is the
+// receiver's forward-oriented pre-exchange consist, then the target's, then the
+// eligible laid-over vehicles at the stop. No pointer ordering is used: the
+// order is fixed by the consists and by the stop's laid-over list; pointers are
+// compared only for identity.
+struct paired_vehicle_t
+{
+	vehicle_t *vehicle;
+	const vehicle_desc_t *desc;
+	player_t *owner;
+	uint8 min_class;
+	bool powered;
+	bool in_pool;
+	uint32 equiv_id;
+};
+
+
+enum paired_solver_result_t
+{
+	paired_solver_solved,
+	paired_solver_unsatisfiable,
+	paired_solver_budget_exceeded
+};
+
+
+// Joint solver for the two end-state orders of a paired exchange. It searches
+// for a disjoint pair of powered, coupling-valid final consists, taking the
+// fewest possible vehicles from the stop's laid-over pool. The receiver may
+// draw on the pool; the target never does.
+struct paired_exchange_solver_t
+{
+	// Inputs.
+	const consist_order_t *order[2];
+	const vector_tpl<vehicle_t*> *shadow[2];
+	const vector_tpl<vehicle_t*> *pool;
+	waytype_t waytype[2];
+	uint32 shadow_count[2];
+	uint32 slot_count[2];
+	uint32 total_slots;
+
+	vector_tpl<paired_vehicle_t> universe;
+	vector_tpl<uint32> candidates[2 * convoi_t::max_rail_vehicle];
+	uint32 assigned[2 * convoi_t::max_rail_vehicle];
+	vector_tpl<uint8> used;
+	uint32 last_powerable_slot[2];
+
+	// Search state.
+	uint32 pool_cap;
+	uint32 steps_used;
+	bool budget_hit;
+	bool side_powered[2];
+	player_t *side_locomotive_owner[2];
+	bool access_pruned;
+
+	vector_tpl<vehicle_t*> final[2];
+
+
+	void init(const consist_order_t &order_R, const vector_tpl<vehicle_t*> &shadow_R, waytype_t waytype_R,
+		const consist_order_t &order_T, const vector_tpl<vehicle_t*> &shadow_T, waytype_t waytype_T,
+		const vector_tpl<vehicle_t*> &pool_vehicles)
+	{
+		order[0] = &order_R;
+		order[1] = &order_T;
+		shadow[0] = &shadow_R;
+		shadow[1] = &shadow_T;
+		pool = &pool_vehicles;
+		waytype[0] = waytype_R;
+		waytype[1] = waytype_T;
+		shadow_count[0] = shadow_R.get_count();
+		shadow_count[1] = shadow_T.get_count();
+		slot_count[0] = order_R.get_count();
+		slot_count[1] = order_T.get_count();
+		total_slots = slot_count[0] + slot_count[1];
+
+		for (uint8 side = 0; side < 2; side++)
+		{
+			for (uint32 i = 0; i < shadow_count[side]; i++)
+			{
+				add_to_universe(shadow[side]->get_element(i), false);
+			}
+		}
+		for (uint32 i = 0; i < pool_vehicles.get_count(); i++)
+		{
+			add_to_universe(pool_vehicles.get_element(i), true);
+		}
+
+		used.set_count(universe.get_count());
+		for (uint32 i = 0; i < universe.get_count(); i++)
+		{
+			used.store_at(i, 0);
+		}
+	}
+
+
+	void add_to_universe(vehicle_t *const v, bool in_pool)
+	{
+		if (!v || is_in_universe(v))
+		{
+			return;
+		}
+		paired_vehicle_t entry;
+		entry.vehicle = v;
+		entry.desc = v->get_desc();
+		entry.owner = v->get_owner();
+		entry.min_class = v->get_min_class();
+		entry.powered = entry.desc->get_power() > 0;
+		entry.in_pool = in_pool;
+		entry.equiv_id = universe.get_count();
+		// Two unused vehicles with the same descriptor, minimum class, owner and
+		// pool status are interchangeable for every later predicate: matching,
+		// coupling, power, access and pool accounting. Giving them one class lets
+		// the search skip a class that has already failed at this depth.
+		for (uint32 i = 0; i < universe.get_count(); i++)
+		{
+			const paired_vehicle_t &other = universe.get_element(i);
+			if (other.desc == entry.desc && other.min_class == entry.min_class && other.owner == entry.owner && other.in_pool == entry.in_pool)
+			{
+				entry.equiv_id = other.equiv_id;
+				break;
+			}
+		}
+		universe.append(entry);
+	}
+
+
+	bool is_in_universe(const vehicle_t *const v) const
+	{
+		for (uint32 i = 0; i < universe.get_count(); i++)
+		{
+			if (universe.get_element(i).vehicle == v)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+
+	uint32 universe_index(const vehicle_t *const v) const
+	{
+		for (uint32 i = 0; i < universe.get_count(); i++)
+		{
+			if (universe.get_element(i).vehicle == v)
+			{
+				return i;
+			}
+		}
+		return 0xFFFFFFFFu;
+	}
+
+
+	void add_candidate(vector_tpl<uint32> &list, uint32 side, uint32 local, vehicle_t *const v, const consist_order_element_t &element, uint32 priority) const
+	{
+		if (!v)
+		{
+			return;
+		}
+		const uint32 u = universe_index(v);
+		if (u == 0xFFFFFFFFu || list.is_contained(u))
+		{
+			return;
+		}
+		const paired_vehicle_t &candidate = universe.get_element(u);
+		if (candidate.desc->get_waytype() != waytype[side])
+		{
+			return;
+		}
+		if (!v->matches_consist_order_element(element, priority))
+		{
+			return;
+		}
+		if (local == 0 && !candidate.desc->can_follow(nullptr))
+		{
+			return;
+		}
+		if (local + 1 == slot_count[side] && !candidate.desc->can_lead(nullptr))
+		{
+			return;
+		}
+		list.append(u);
+	}
+
+
+	bool build_candidates()
+	{
+		for (uint8 side = 0; side < 2; side++)
+		{
+			const uint32 offset = side == 0 ? 0 : slot_count[0];
+			for (uint32 local = 0; local < slot_count[side]; local++)
+			{
+				vector_tpl<uint32> &list = candidates[offset + local];
+				list.clear();
+				const consist_order_element_t &element = order[side]->get_order(local);
+				const uint32 alternative_count = element.get_count();
+				for (uint32 j = 0; j < alternative_count; j++)
+				{
+					// The vehicle already in this position is tried first, then the
+					// side's own consist, then the counterpart's consist, then (for
+					// the receiver only) the stop's laid-over pool. This preserves
+					// the per-alternative priority order of the single-order solver.
+					if (local < shadow_count[side])
+					{
+						add_candidate(list, side, local, shadow[side]->get_element(local), element, j);
+					}
+					for (uint32 i = 0; i < shadow_count[side]; i++)
+					{
+						add_candidate(list, side, local, shadow[side]->get_element(i), element, j);
+					}
+					for (uint32 i = 0; i < shadow_count[1 - side]; i++)
+					{
+						add_candidate(list, side, local, shadow[1 - side]->get_element(i), element, j);
+					}
+					if (side == 0)
+					{
+						for (uint32 i = 0; i < pool->get_count(); i++)
+						{
+							add_candidate(list, side, local, pool->get_element(i), element, j);
+						}
+					}
+				}
+				if (list.empty())
+				{
+					return false;
+				}
+			}
+
+			// The highest slot of this side that any powered vehicle can fill.
+			// If no slot can be powered, the side can never produce a valid find.
+			bool found = false;
+			for (uint32 local = slot_count[side]; local-- > 0;)
+			{
+				const vector_tpl<uint32> &list = candidates[offset + local];
+				for (uint32 i = 0; i < list.get_count(); i++)
+				{
+					if (universe.get_element(list.get_element(i)).powered)
+					{
+						last_powerable_slot[side] = local;
+						found = true;
+						break;
+					}
+				}
+				if (found)
+				{
+					break;
+				}
+			}
+			if (!found)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+
+	bool access_allowed(uint32 side, uint32 slot, uint32 u)
+	{
+		paired_vehicle_t &candidate = universe.get_element(u);
+		player_t *const locomotive_owner = side_locomotive_owner[side];
+		if (locomotive_owner)
+		{
+			if (candidate.owner && !locomotive_owner->allows_access_to(candidate.owner->get_player_nr()))
+			{
+				access_pruned = true;
+				return false;
+			}
+			return true;
+		}
+		if (!candidate.powered || !candidate.owner)
+		{
+			return true;
+		}
+		// This vehicle would become the side's first powered vehicle: every
+		// vehicle already placed on this side must be accessible from its owner.
+		const uint32 start = side == 0 ? 0 : slot_count[0];
+		for (uint32 s = start; s < slot; s++)
+		{
+			player_t *const other = universe.get_element(assigned[s]).owner;
+			if (other && !candidate.owner->allows_access_to(other->get_player_nr()))
+			{
+				access_pruned = true;
+				return false;
+			}
+		}
+		return true;
+	}
+
+
+	bool search(uint32 slot, uint32 pool_used)
+	{
+		if (slot == total_slots)
+		{
+			return true;
+		}
+		const uint32 side = slot < slot_count[0] ? 0 : 1;
+		const uint32 local = side == 0 ? slot : slot - slot_count[0];
+		vector_tpl<uint32> failed_equiv;
+		const vector_tpl<uint32> &list = candidates[slot];
+
+		for (uint32 i = 0; i < list.get_count(); i++)
+		{
+			const uint32 u = list.get_element(i);
+			paired_vehicle_t &candidate = universe.get_element(u);
+			if (used.get_element(u) || failed_equiv.is_contained(candidate.equiv_id))
+			{
+				continue;
+			}
+			if (candidate.in_pool && pool_used >= pool_cap)
+			{
+				continue;
+			}
+			if (local > 0)
+			{
+				const vehicle_desc_t *const previous = universe.get_element(assigned[slot - 1]).desc;
+				if (!previous->can_lead(candidate.desc) || !candidate.desc->can_follow(previous))
+				{
+					continue;
+				}
+			}
+			const bool powered = side_powered[side] || candidate.powered;
+			if (!powered && local >= last_powerable_slot[side])
+			{
+				continue;
+			}
+			if (!access_allowed(side, slot, u))
+			{
+				continue;
+			}
+			steps_used++;
+			if (steps_used > paired_exchange_step_budget)
+			{
+				budget_hit = true;
+				return false;
+			}
+
+			const bool previous_powered = side_powered[side];
+			player_t *const previous_locomotive_owner = side_locomotive_owner[side];
+			assigned[slot] = u;
+			used.store_at(u, 1);
+			side_powered[side] = powered;
+			if (!side_locomotive_owner[side] && candidate.powered)
+			{
+				side_locomotive_owner[side] = candidate.owner;
+			}
+			const uint32 next_pool_used = pool_used + (candidate.in_pool ? 1u : 0u);
+			if (search(slot + 1, next_pool_used))
+			{
+				return true;
+			}
+			used.store_at(u, 0);
+			side_powered[side] = previous_powered;
+			side_locomotive_owner[side] = previous_locomotive_owner;
+			if (budget_hit)
+			{
+				return false;
+			}
+			failed_equiv.append_unique(candidate.equiv_id);
+		}
+		return false;
+	}
+
+
+	void reset_search()
+	{
+		for (uint32 i = 0; i < universe.get_count(); i++)
+		{
+			used.store_at(i, 0);
+		}
+		for (uint8 side = 0; side < 2; side++)
+		{
+			side_powered[side] = false;
+			side_locomotive_owner[side] = nullptr;
+		}
+		budget_hit = false;
+		access_pruned = false;
+	}
+
+
+	paired_solver_result_t solve()
+	{
+		steps_used = 0;
+		pool_cap = 0;
+		if (total_slots == 0 || total_slots > 2 * convoi_t::max_rail_vehicle || !build_candidates())
+		{
+			return paired_solver_unsatisfiable;
+		}
+
+		// Try the smallest possible pool draw first. A solution within the current
+		// cap is complete for that cap, so the first cap that succeeds is the
+		// minimum number of laid-over vehicles the exchange needs.
+		const uint32 max_pool = min(slot_count[0], pool->get_count());
+		for (uint32 cap = 0; cap <= max_pool; cap++)
+		{
+			reset_search();
+			pool_cap = cap;
+			if (search(0, 0))
+			{
+				for (uint8 side = 0; side < 2; side++)
+				{
+					final[side].clear();
+					const uint32 offset = side == 0 ? 0 : slot_count[0];
+					for (uint32 local = 0; local < slot_count[side]; local++)
+					{
+						final[side].append(universe.get_element(assigned[offset + local]).vehicle);
+					}
+				}
+				return paired_solver_solved;
+			}
+			if (budget_hit)
+			{
+				return paired_solver_budget_exceeded;
+			}
+		}
+		return paired_solver_unsatisfiable;
+	}
+};
+
+
+convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate)
+
 {
 	convoi_t::consist_order_process_result success = fail;
 
@@ -9821,6 +10238,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	else
 	{
 		slist_tpl<convoihandle_t> &available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
+		const waytype_t waytype = get_schedule()->get_waytype();
 
 		for (auto cnv : available_convoys)
 		{
@@ -9829,7 +10247,8 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 				const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
 				for (uint8 i = 0; i < cnv_vehicle_count; i++)
 				{
-					if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !cnv->get_vehicle(i)->get_is_mothballed())
+					if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !cnv->get_vehicle(i)->get_is_mothballed()
+						&& cnv->get_vehicle(i)->get_desc()->get_waytype() == waytype)
 					{
 						available_vehicles.append(cnv->get_vehicle(i));
 					}
@@ -9898,7 +10317,10 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
 			{
-				if (shadow_consist[i] && shadow_consist[i]->matches_consist_order_element(element, j))
+				if (i < shadow_consist.get_count() && shadow_consist[i]
+					&& !final_consist.is_contained(shadow_consist[i])
+					&& shadow_consist[i]->matches_consist_order_element(element, j)
+					&& consist_slot_couples(i, element_count, final_consist, shadow_consist[i]))
 				{
 					// The existing vehicle in its existing position is a match - no change needed
 					final_consist.append(shadow_consist[i]);
@@ -9916,24 +10338,12 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 						// Skip putting this vehicle into this slot if the last run did not work
 						continue;
 					}
-					else if (veh->matches_consist_order_element(element, j) && !final_consist.is_contained(veh))
+					else if (veh->matches_consist_order_element(element, j) && !final_consist.is_contained(veh)
+						&& consist_slot_couples(i, element_count, final_consist, veh))
 					{
-						// Check whether this can couple to the previous vehicle.
-						const vehicle_desc_t* previous_vehicle = nullptr;
-						if (!final_consist.empty())
-						{
-							previous_vehicle = final_consist.back()->get_desc();
-						}
-
-						if (veh->get_desc()->can_lead(previous_vehicle))
-						{
-							if (!previous_vehicle || previous_vehicle->can_follow(veh->get_desc()))
-							{
-								final_consist.append(veh);
-								matched_this_element = true;
-								break;
-							}
-						}
+						final_consist.append(veh);
+						matched_this_element = true;
+						break;
 					}
 				}
 			}
@@ -10000,7 +10410,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			recipient_is_convoy = order.get_available_to_is_convoy();
 		}
 
-		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy);
+		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy, split_candidate);
 
 		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
 		{
@@ -10018,7 +10428,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	return success;
 }
 
-void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy)
+void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate)
 {
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
 	// The vehicles may include vehicles already present in the consist, but will always include
@@ -10060,10 +10470,17 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 				remove_index = i;
 				index_offset++;
 			}
-			unload_individual_vehicle_at(i, halt, true);
+			// A displaced vehicle that becomes loose stock is discharged at the
+			// stop. The split-off group of a division is not yet known to be loose
+			// stock: it keeps its load pending promotion (see form_divided_portion),
+			// so its discharge is deferred until promotion fails.
+			if (!split_candidate)
+			{
+				unload_individual_vehicle_at(i, halt, true);
+			}
 			vehicle_t* removed_vehicle = remove_vehicle_at(remove_index - index_offset);
 			removed_vehicle->set_loose_recipient(recipient_id, recipient_is_convoy);
-			if (new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
+			if (!split_candidate && new_lead_cnv && new_lead_cnv->get_state() == LAYOVER)
 			{
 				new_lead_cnv->add_vehicle(removed_vehicle);
 				grund_t* const gr = welt->lookup(new_lead_cnv->get_pos());
@@ -10113,7 +10530,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			removed_vehicle->reposition_vehicle(gr);
 			removed_vehicle->set_loose_recipient(recipient_id, recipient_is_convoy);
 
-			if (new_vehicle_cnv->get_state() == LAYOVER)
+			if (!split_candidate && new_vehicle_cnv->get_state() == LAYOVER)
 			{
 				new_vehicle_cnv->add_vehicle(removed_vehicle);
 				new_vehicle_cnv->update_default_name(new_vehicle);
@@ -10158,7 +10575,146 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 		cnv->reserve_own_tiles();
 		cnv->enter_layover(halt);
 		cnv->create_schedule();
+
+		if (split_candidate)
+		{
+			*split_candidate = cnv->self;
+		}
 	}
+}
+
+
+bool convoi_t::resolve_uncouple_target(const schedule_entry_t &entry, halthandle_t halt, uncouple_target_t &target)
+{
+	target = uncouple_target_t();
+
+	// A zero target is a plain uncouple: no portion receives a schedule.
+	if (!entry.is_flag_set(schedule_entry_t::uncouple) || entry.target_id_uncouple == 0)
+	{
+		return false;
+	}
+
+	if (entry.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv))
+	{
+		target.convoy.set_id(entry.target_id_uncouple);
+		if (target.convoy.is_bound() && target.convoy->get_line().is_bound())
+		{
+			target.line = target.convoy->get_line();
+		}
+	}
+	else
+	{
+		target.line.set_id(entry.target_id_uncouple);
+	}
+
+	schedule_t *const target_schedule = target.line.is_bound() ? target.line->get_schedule() : (target.convoy.is_bound() ? target.convoy->get_schedule() : nullptr);
+	if (!target_schedule)
+	{
+		return false;
+	}
+
+	const uint8 entry_index = target_schedule->get_entry_from_unique_id(entry.target_unique_entry_uncouple);
+	if (entry_index == 255 || !target_schedule->entry_has_consist_order(entry.target_unique_entry_uncouple))
+	{
+		return false;
+	}
+
+	const player_t *const target_owner = target.line.is_bound() ? target.line->get_owner() : target.convoy->get_owner();
+	if (!halt.is_bound() || halt != haltestelle_t::get_halt(target_schedule->entries[entry_index].pos, target_owner))
+	{
+		// The target entry is at a different stop, so it cannot receive a split-off portion here.
+		return false;
+	}
+
+	target.schedule = target_schedule;
+	target.entry_index = entry_index;
+	return true;
+}
+
+
+void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, const schedule_entry_t &source_entry, const uncouple_target_t &target)
+{
+	const uint16 target_unique_id = target.schedule->get_unique_id_from_entry(target.entry_index);
+
+	// The target entry's order defines the split-off group's end state. It may
+	// draw on the stop's laid-over vehicles; vehicles that it releases remain
+	// ordinary loose stock under the existing commit rules.
+	const consist_order_process_result result = portion->process_consist_order(target.schedule->get_consist_order(target_unique_id), halt, nullptr, convoihandle_t());
+	if ((result != succeed && result != no_change_needed) || !portion->has_power())
+	{
+		// The group cannot be promoted, so it is loose stock at the stop. This is
+		// where the discharge deferred by convoi_t::commit_recombined_consist
+		// takes effect: a vehicle that remains in a scheduled consist keeps its
+		// load, while a vehicle that becomes loose stock is discharged here.
+		// process_consist_order itself tests power only when it re-forms the
+		// consist, so an unchanged portion can still be unpowered.
+		for (uint8 i = 0; i < portion->get_vehicle_count(); i++)
+		{
+			portion->unload_individual_vehicle_at(i, halt, true);
+		}
+		return;
+	}
+
+	// The portion now runs a schedule, so it must no longer be registered as
+	// loose stock. Deregister through the halt directly: the portion's front
+	// vehicle need not be on the halt tile at which its group was registered.
+	if (halt.is_bound())
+	{
+		halt->remove_laid_over(portion);
+	}
+
+	if (target.line.is_bound())
+	{
+		portion->set_line(target.line);
+	}
+	else
+	{
+		portion->set_schedule(target.convoy->get_schedule()->copy());
+	}
+
+	schedule_t *const portion_schedule = portion->get_schedule();
+	portion_schedule->set_current_stop(target.entry_index);
+	portion->set_reverse_schedule(source_entry.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed));
+
+	// The portion starts, rather than ends, its journey at this stop. Recording
+	// this stop in the convoy's last stop id prevents the next loading pass
+	// from treating the target entry as a fresh arrival and processing its
+	// consist order a second time.
+	portion->last_stop_id = halt.get_id();
+	// The portion shares the source consist's arrival time at this stop.
+	portion->arrival_time = arrival_time;
+	portion->set_last_stop_was_depot(false);
+
+	// The portion has not travelled a leg since assuming the target schedule.
+	// Setting each vehicle's last stop to its current position, as when a
+	// convoy leaves a depot, makes laden() measure a zero-length journey, so no
+	// journey-time sample is taken, leaves the range estimate at zero and lets
+	// departure booking treat this stop as the start of the leg. The first
+	// loading pass then sees no movement since this position: it skips
+	// unloading and leaves the loading time at zero, so the shunting delay is
+	// the portion's dwell here. Later stops refresh the last stop positions
+	// normally.
+	for (uint8 i = 0; i < portion->get_vehicle_count(); i++)
+	{
+		vehicle_t *const v = portion->get_vehicle(i);
+		v->last_stop_pos = v->get_pos();
+	}
+
+	portion->front()->set_leading(true);
+	portion->back()->set_last(true);
+
+	// Promotion makes this an operating convoy, so it must take part in the
+	// synced-object step. Its constructor only registers it with the world's
+	// convoy list. As in convoi_t::start, remove first because the list does
+	// not deduplicate.
+	welt->sync.remove(portion.get_rep());
+	welt->sync.add(portion.get_rep());
+
+	// Both portions wait out the same shunting delay. The split-off portion
+	// then takes the normal loading path at the target entry, which applies the
+	// entry's minimum loading and spacing before departure.
+	portion->state = LOADING;
+	portion->wait_lock = seconds_to_ticks(welt->get_settings().get_shunting_time_seconds(), welt->get_settings().get_meters_per_tile());
 }
 
 void convoi_t::set_blank_route()
@@ -10167,5 +10723,743 @@ void convoi_t::set_blank_route()
 	for (uint8 i = 0; i < vehicle_count; i++)
 	{
 		route.append(vehicle[i]->get_pos());
+	}
+}
+
+
+// Does the entry's coupling or division target name this convoy or its line?
+bool convoi_t::entry_names_this_convoy(const schedule_entry_t &entry, bool use_couple_target) const
+{
+	const uint16 target_id = use_couple_target ? entry.target_id_couple : entry.target_id_uncouple;
+	if (target_id == 0)
+	{
+		return false;
+	}
+	const bool target_is_convoy = entry.is_flag_set(use_couple_target ? schedule_entry_t::couple_target_is_line_or_cnv : schedule_entry_t::uncouple_target_is_line_or_cnv);
+	if (target_is_convoy)
+	{
+		convoihandle_t cnv;
+		cnv.set_id(target_id);
+		if (!cnv.is_bound())
+		{
+			return false;
+		}
+		if (cnv.get_rep() == this)
+		{
+			return true;
+		}
+		return get_line().is_bound() && cnv->get_line().is_bound() && cnv->get_line() == get_line();
+	}
+	linehandle_t line;
+	line.set_id(target_id);
+	return line.is_bound() && get_line().is_bound() && line == get_line();
+}
+
+
+// The counterpart convoy waits for this pair when it is in
+// AWAITING_RECOMBINATION with the counterpart entry as its current entry, at
+// this stop, and travelling in the direction the entry specifies.
+bool convoi_t::is_waiting_pair_counterpart(const convoihandle_t &candidate, const schedule_entry_t &counterpart_entry, const schedule_t *counterpart_schedule, bool counterpart_reversed, halthandle_t halt) const
+{
+	if (!candidate.is_bound() || !halt.is_bound() || candidate.get_rep() == this)
+	{
+		return false;
+	}
+	if (candidate->get_state() != AWAITING_RECOMBINATION)
+	{
+		return false;
+	}
+	const schedule_t *const candidate_schedule = candidate->get_schedule();
+	if (!candidate_schedule || candidate_schedule->get_current_entry().unique_entry_id != counterpart_entry.unique_entry_id)
+	{
+		return false;
+	}
+	if (counterpart_schedule->is_mirrored() && candidate->get_reverse_schedule() != counterpart_reversed)
+	{
+		return false;
+	}
+	if (candidate->last_stop_id != halt.get_id())
+	{
+		return false;
+	}
+	if (haltestelle_t::get_halt(candidate->get_pos(), candidate->get_owner()) == halt)
+	{
+		return true;
+	}
+	// A ship's front vehicle can stand beyond the stop's tile while the
+	// scheduled entry is still at this stop (see haltestelle_t::request_loading).
+	return candidate->get_vehicle_count() > 0
+		&& candidate->get_vehicle(0)->get_waytype() == water_wt
+		&& haltestelle_t::get_halt(candidate_schedule->get_current_entry().pos, candidate->get_owner()) == halt;
+}
+
+
+convoi_t::paired_exchange_state_t convoi_t::resolve_paired_exchange(halthandle_t halt, paired_exchange_t &pair) const
+{
+	pair = paired_exchange_t();
+	if (!halt.is_bound() || !schedule)
+	{
+		return paired_not_configured;
+	}
+	const schedule_entry_t &entry = schedule->get_current_entry();
+	const bool is_receiver = entry.is_flag_set(schedule_entry_t::couple);
+	const bool is_target = entry.is_flag_set(schedule_entry_t::uncouple);
+
+	if (!is_receiver && !is_target)
+	{
+		return paired_not_configured;
+	}
+	if (is_receiver && is_target)
+	{
+		pair.own_is_receiver = true;
+		pair.failure = pair_failure_both_flags;
+		return paired_invalid;
+	}
+	if (is_target && entry.target_id_uncouple == 0)
+	{
+		// A plain uncouple releases loose stock without waiting for anybody.
+		return paired_not_configured;
+	}
+
+	pair.own_is_receiver = is_receiver;
+
+	const uint16 target_id = is_receiver ? entry.target_id_couple : entry.target_id_uncouple;
+	const bool target_is_convoy = entry.is_flag_set(is_receiver ? schedule_entry_t::couple_target_is_line_or_cnv : schedule_entry_t::uncouple_target_is_line_or_cnv);
+	if (target_id == 0)
+	{
+		if (!is_receiver)
+		{
+			return paired_not_configured;
+		}
+		pair.failure = pair_failure_target_missing;
+		return paired_invalid;
+	}
+
+	linehandle_t target_line;
+	convoihandle_t target_convoy;
+	if (target_is_convoy)
+	{
+		target_convoy.set_id(target_id);
+	}
+	else
+	{
+		target_line.set_id(target_id);
+	}
+
+	schedule_t *const other_schedule = target_line.is_bound() ? target_line->get_schedule() : (target_convoy.is_bound() ? target_convoy->get_schedule() : nullptr);
+	if (!other_schedule)
+	{
+		// A receiver's named target that no longer resolves is the existing
+		// broken-target case. A target's departed counterpart is an ordinary
+		// division fallback, which keeps the existing behaviour.
+		if (is_receiver)
+		{
+			pair.failure = pair_failure_target_missing;
+			return paired_invalid;
+		}
+		return paired_not_configured;
+	}
+	if ((target_convoy.is_bound() && target_convoy.get_rep() == this)
+		|| (target_line.is_bound() && get_line().is_bound() && target_line == get_line()))
+	{
+		pair.failure = pair_failure_self_target;
+		return paired_invalid;
+	}
+	if (other_schedule->get_waytype() != schedule->get_waytype())
+	{
+		// Vehicles of one waytype cannot join a consist of another: a pair
+		// across waytypes is an authoring error, not a one-sided coupling.
+		pair.failure = pair_failure_waytype;
+		return paired_invalid;
+	}
+
+	player_t *const other_owner = target_line.is_bound() ? target_line->get_owner() : target_convoy->get_owner();
+	const schedule_entry_t *counterpart_entry = nullptr;
+	uint32 matches = 0;
+	uint32 non_reciprocal_at_halt = 0;
+	uint32 reciprocal_elsewhere = 0;
+	uint32 both_flags_at_halt = 0;
+	for (uint32 i = 0; i < other_schedule->get_count(); i++)
+	{
+		const schedule_entry_t &candidate = other_schedule->entries[i];
+		const bool has_opposing_flag = is_receiver ? candidate.is_flag_set(schedule_entry_t::uncouple) : candidate.is_flag_set(schedule_entry_t::couple);
+		if (!has_opposing_flag)
+		{
+			continue;
+		}
+		const bool has_own_flag = is_receiver ? candidate.is_flag_set(schedule_entry_t::couple) : candidate.is_flag_set(schedule_entry_t::uncouple);
+		const bool at_halt = haltestelle_t::get_halt(candidate.pos, other_owner) == halt;
+		const bool names_us = entry_names_this_convoy(candidate, !is_receiver);
+		if (has_own_flag)
+		{
+			if (at_halt && names_us)
+			{
+				both_flags_at_halt++;
+			}
+			continue;
+		}
+		if (!names_us)
+		{
+			if (at_halt)
+			{
+				non_reciprocal_at_halt++;
+			}
+			continue;
+		}
+		if (!at_halt)
+		{
+			reciprocal_elsewhere++;
+			continue;
+		}
+		matches++;
+		counterpart_entry = &candidate;
+	}
+
+	if (both_flags_at_halt > 0)
+	{
+		pair.failure = pair_failure_both_flags;
+		return paired_invalid;
+	}
+	if (matches > 1)
+	{
+		// Two entries at this stop address this convoy: the pair is ambiguous.
+		pair.failure = pair_failure_invalid_counterpart;
+		return paired_invalid;
+	}
+	if (matches == 0)
+	{
+		if (non_reciprocal_at_halt > 0 || reciprocal_elsewhere > 0)
+		{
+			// The counterpart schedule configures an exchange here or elsewhere
+			// but does not reciprocate, or reciprocates at a different stop.
+			pair.failure = pair_failure_invalid_counterpart;
+			return paired_invalid;
+		}
+		return paired_not_configured;
+	}
+
+	// Locate a waiting counterpart before validating the pair, so that a
+	// validation failure can release it from AWAITING_RECOMBINATION instead of
+	// leaving it waiting for an exchange that cannot happen.
+	const bool counterpart_reversed = entry.is_flag_set(is_receiver ? schedule_entry_t::couple_target_sch_is_reversed : schedule_entry_t::uncouple_target_sch_is_reversed);
+	convoihandle_t partner;
+	if (target_convoy.is_bound())
+	{
+		if (is_waiting_pair_counterpart(target_convoy, *counterpart_entry, other_schedule, counterpart_reversed, halt))
+		{
+			partner = target_convoy;
+		}
+	}
+	else
+	{
+		for (uint32 i = 0; i < target_line->count_convoys(); i++)
+		{
+			const convoihandle_t candidate = target_line->get_convoy(i);
+			if (!is_waiting_pair_counterpart(candidate, *counterpart_entry, other_schedule, counterpart_reversed, halt))
+			{
+				continue;
+			}
+			if (!partner.is_bound()
+				|| candidate->get_arrival_time() < partner->get_arrival_time()
+				|| (candidate->get_arrival_time() == partner->get_arrival_time() && candidate.get_id() < partner.get_id()))
+			{
+				partner = candidate;
+			}
+		}
+	}
+	if (partner.is_bound())
+	{
+		pair.counterpart = partner;
+	}
+
+	// The counterpart's own unique-entry reference must name this entry when set.
+	const uint16 counterpart_reference = is_receiver ? counterpart_entry->target_unique_entry_uncouple : counterpart_entry->target_unique_entry_couple;
+	if (counterpart_reference != 0 && counterpart_reference != 65535 && counterpart_reference != entry.unique_entry_id)
+	{
+		pair.failure = pair_failure_invalid_counterpart;
+		return paired_invalid;
+	}
+	if (entry.is_flag_set(schedule_entry_t::lay_over) || counterpart_entry->is_flag_set(schedule_entry_t::lay_over))
+	{
+		// The once-only suppression would also suppress the counterpart's
+		// layover handling, so a pair entry may not lay over.
+		pair.failure = pair_failure_lay_over;
+		return paired_invalid;
+	}
+	if (!schedule->entry_has_consist_order(entry.unique_entry_id) || !other_schedule->entry_has_consist_order(counterpart_entry->unique_entry_id))
+	{
+		pair.failure = pair_failure_missing_order;
+		return paired_invalid;
+	}
+
+	pair.own_order = &schedule->get_consist_order(entry.unique_entry_id);
+	pair.counterpart_order = &other_schedule->get_consist_order(counterpart_entry->unique_entry_id);
+
+	if (!partner.is_bound())
+	{
+		return paired_partner_absent;
+	}
+	return paired_ready;
+}
+
+
+void convoi_t::report_paired_exchange_failure(halthandle_t halt, convoihandle_t counterpart, pair_failure_t failure) const
+{
+	if (failure == pair_failure_none)
+	{
+		return;
+	}
+	cbuffer_t buf;
+	const char *const halt_name = halt.is_bound() ? halt->get_name() : get_pos().get_str();
+	const char *const counterpart_name = counterpart.is_bound() ? counterpart->get_name() : translator::translate("the other convoy");
+	switch (failure)
+	{
+		case pair_failure_target_missing:
+			// This reason uses the existing broken-target report, which names the
+			// convoy and the stop. The caller does that for a receiver.
+			return;
+		case pair_failure_both_flags:
+			buf.printf(translator::translate("Convoy %s: the schedule entry at %s sets both coupling and division, so no exchange is carried out."), get_name(), halt_name);
+			break;
+		case pair_failure_missing_order:
+			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because one of the two schedule entries has no consist order."), get_name(), counterpart_name, halt_name);
+			break;
+		case pair_failure_invalid_counterpart:
+			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the counterpart schedule entry does not name this convoy in return at this stop."), get_name(), counterpart_name, halt_name);
+			break;
+		case pair_failure_waytype:
+			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the two schedules serve different waytypes."), get_name(), counterpart_name, halt_name);
+			break;
+		case pair_failure_self_target:
+			buf.printf(translator::translate("Convoy %s: the schedule entry at %s targets its own line or convoy, so no exchange is carried out."), get_name(), halt_name);
+			break;
+		case pair_failure_lay_over:
+			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because one of the entries also sets a layover."), get_name(), counterpart_name, halt_name);
+			break;
+		case pair_failure_unsatisfiable:
+			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because no arrangement of the two consists and the stop's loose vehicles satisfies both consist orders."), get_name(), counterpart_name, halt_name);
+			break;
+		case pair_failure_access:
+			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the resulting consist would combine vehicles whose owners do not grant access to the owner of the leading powered vehicle."), get_name(), counterpart_name, halt_name);
+			break;
+		case pair_failure_budget:
+			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the search for an arrangement reached its computation limit."), get_name(), counterpart_name, halt_name);
+			break;
+		default:
+			return;
+	}
+
+	welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
+	if (counterpart.is_bound() && counterpart->get_owner() != get_owner())
+	{
+		welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | counterpart->get_owner()->get_player_nr(), IMG_EMPTY);
+	}
+}
+
+
+bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair)
+{
+	convoi_t *const convoys[2] = {
+		pair.own_is_receiver ? this : pair.counterpart.get_rep(),
+		pair.own_is_receiver ? pair.counterpart.get_rep() : this
+	};
+	const consist_order_t *const orders[2] = {
+		pair.own_is_receiver ? pair.own_order : pair.counterpart_order,
+		pair.own_is_receiver ? pair.counterpart_order : pair.own_order
+	};
+
+	if (!convoys[0] || !convoys[1] || convoys[0] == convoys[1] || !orders[0] || !orders[1])
+	{
+		report_paired_exchange_failure(halt, pair.counterpart, pair_failure_invalid_counterpart);
+		return false;
+	}
+
+	waytype_t waytype[2] = { convoys[0]->get_schedule()->get_waytype(), convoys[1]->get_schedule()->get_waytype() };
+	vector_tpl<vehicle_t*> shadow[2];
+	bool reversed[2] = { convoys[0]->is_reversed(), convoys[1]->is_reversed() };
+	for (uint8 side = 0; side < 2; side++)
+	{
+		for (uint8 i = 0; i < convoys[side]->get_vehicle_count(); i++)
+		{
+			shadow[side].append(convoys[side]->get_vehicle(i));
+		}
+		if (reversed[side])
+		{
+			execute_reverse_order(shadow[side], shadow[side].get_count(), false, true);
+		}
+	}
+
+	// Only the receiver may draw on the stop's laid-over vehicles, and only
+	// those whose recorded recipient permits this receiver to take them.
+	vector_tpl<vehicle_t*> pool_vehicles;
+	if (halt.is_bound())
+	{
+		for (auto cnv : halt->get_laid_over())
+		{
+			if (!cnv.is_bound() || cnv->get_state() != LAYOVER)
+			{
+				continue;
+			}
+			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+			{
+				vehicle_t *const v = cnv->get_vehicle(i);
+				if (!v || v->get_is_mothballed() || v->get_desc()->get_waytype() != waytype[0])
+				{
+					continue;
+				}
+				const uint16 recipient_id = v->get_loose_recipient_id();
+				if (recipient_id != 0)
+				{
+					if (v->get_loose_recipient_is_convoy())
+					{
+						if (recipient_id != convoys[0]->self.get_id())
+						{
+							continue;
+						}
+					}
+					else if (!convoys[0]->get_line().is_bound() || convoys[0]->get_line().get_id() != recipient_id)
+					{
+						continue;
+					}
+				}
+				pool_vehicles.append(v);
+			}
+		}
+	}
+
+	paired_exchange_solver_t solver;
+	solver.init(*orders[0], shadow[0], waytype[0], *orders[1], shadow[1], waytype[1], pool_vehicles);
+	const paired_solver_result_t solver_result = solver.solve();
+
+	if (solver_result != paired_solver_solved)
+	{
+		const pair_failure_t failure = solver_result == paired_solver_budget_exceeded
+			? pair_failure_budget
+			: (solver.access_pruned ? pair_failure_access : pair_failure_unsatisfiable);
+		report_paired_exchange_failure(halt, pair.counterpart, failure);
+		// All-or-nothing: neither consist changes. Release the waiting counterpart
+		// so both convoys continue on their own schedules after this stop.
+		if (pair.counterpart.is_bound() && pair.counterpart->get_state() == AWAITING_RECOMBINATION)
+		{
+			pair.counterpart->state = LOADING;
+			pair.counterpart->wait_lock = 0;
+		}
+		if (state == AWAITING_RECOMBINATION)
+		{
+			state = LOADING;
+		}
+		return false;
+	}
+
+	vector_tpl<vehicle_t*> finals[2];
+	bool changed[2];
+	for (uint8 side = 0; side < 2; side++)
+	{
+		for (uint32 i = 0; i < solver.final[side].get_count(); i++)
+		{
+			finals[side].append(solver.final[side].get_element(i));
+		}
+		changed[side] = solver.final[side].get_count() != shadow[side].get_count();
+		for (uint32 i = 0; !changed[side] && i < solver.final[side].get_count(); i++)
+		{
+			changed[side] = solver.final[side].get_element(i) != shadow[side].get_element(i);
+		}
+		if (changed[side] && reversed[side])
+		{
+			execute_reverse_order(finals[side], finals[side].get_count(), true, true);
+		}
+	}
+
+	commit_paired_exchange(convoys, orders, finals, changed, halt);
+	return true;
+}
+
+
+void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const bool changed[2], halthandle_t halt)
+{
+	// The recipient of each side's leftover vehicles follows that side's own
+	// end-state order: "same" means the releasing convoy's line if it has one,
+	// else the releasing convoy itself; "any" leaves no named recipient.
+	uint16 recipient_id[2];
+	bool recipient_is_convoy[2];
+	for (uint8 side = 0; side < 2; side++)
+	{
+		recipient_id[side] = 0;
+		recipient_is_convoy[side] = false;
+		const consist_order_t *const order = orders[side];
+		if (order->is_available_to_same())
+		{
+			if (convoys[side]->get_line().is_bound())
+			{
+				recipient_id[side] = convoys[side]->get_line().get_id();
+			}
+			else
+			{
+				recipient_id[side] = convoys[side]->self.get_id();
+				recipient_is_convoy[side] = true;
+			}
+		}
+		else if (!order->is_available_to_any())
+		{
+			recipient_id[side] = order->get_available_to_id();
+			recipient_is_convoy[side] = order->get_available_to_is_convoy();
+		}
+	}
+
+	// Only vehicles that leave both scheduled consists become loose stock, and
+	// those are discharged here. A vehicle transferred directly between the two
+	// consists keeps its load.
+	vector_tpl<vehicle_t*> leftovers[2];
+	for (uint8 side = 0; side < 2; side++)
+	{
+		convoi_t *const cnv = convoys[side];
+		for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+		{
+			vehicle_t *const v = cnv->get_vehicle(i);
+			if (finals[0].is_contained(v) || finals[1].is_contained(v))
+			{
+				continue;
+			}
+			cnv->unload_individual_vehicle_at(i, halt, true);
+			leftovers[side].append(v);
+		}
+	}
+
+	// Remove the final vehicles from laid-over pool donors. A donor that loses
+	// its last vehicle is deregistered and destroyed at once rather than being
+	// left at the stop until the monthly cleanup.
+	for (uint8 side = 0; side < 2; side++)
+	{
+		for (uint32 i = 0; i < finals[side].get_count(); i++)
+		{
+			vehicle_t *const v = finals[side].get_element(i);
+			convoi_t *const donor = v->get_convoi();
+			if (!donor || donor == convoys[0] || donor == convoys[1])
+			{
+				continue;
+			}
+			donor->remove_vehicle(v);
+			if (donor->get_vehicle_count() == 0)
+			{
+				if (halt.is_bound())
+				{
+					halt->remove_laid_over(donor->self);
+				}
+				donor->self_destruct();
+			}
+		}
+	}
+
+	// Remember the physical rear position and default name of each changed
+	// side, then detach every vehicle from it before repopulating it. The
+	// detach happens for both changed sides first, so a vehicle moving from one
+	// side to the other is never in two consists. An unchanged side is left
+	// untouched: its final consist is exactly its own pre-exchange consist in
+	// the same order, so no vehicle enters or leaves it.
+	grund_t *rear_gr[2];
+	vehicle_t *previous_lead[2];
+	for (uint8 side = 0; side < 2; side++)
+	{
+		rear_gr[side] = nullptr;
+		previous_lead[side] = nullptr;
+		if (!changed[side])
+		{
+			continue;
+		}
+		rear_gr[side] = welt->lookup(convoys[side]->back()->get_pos());
+		previous_lead[side] = convoys[side]->front();
+		while (convoys[side]->get_vehicle_count() > 0)
+		{
+			convoys[side]->remove_vehicle_at(0);
+		}
+	}
+
+	for (uint8 side = 0; side < 2; side++)
+	{
+		if (!changed[side])
+		{
+			continue;
+		}
+		convoi_t *const cnv = convoys[side];
+		for (uint32 i = 0; i < finals[side].get_count(); i++)
+		{
+			vehicle_t *const v = finals[side].get_element(i);
+			cnv->add_vehicle(v);
+			if (rear_gr[side])
+			{
+				v->reposition_vehicle(rear_gr[side]);
+			}
+			v->clear_loose_recipient();
+		}
+		cnv->update_default_name(previous_lead[side]);
+		cnv->recalc_metrics();
+		cnv->reserve_own_tiles();
+	}
+
+	// Lay out each side's leftovers as loose stock at the stop.
+	for (uint8 side = 0; side < 2; side++)
+	{
+		if (leftovers[side].empty())
+		{
+			continue;
+		}
+		convoi_t *const loose = new convoi_t(convoys[side]->get_owner());
+		for (uint32 i = 0; i < leftovers[side].get_count(); i++)
+		{
+			vehicle_t *const v = leftovers[side].get_element(i);
+			loose->add_vehicle(v);
+			v->set_loose_recipient(recipient_id[side], recipient_is_convoy[side]);
+		}
+		depot_t *const home_depot = depot_t::find_nearest_depot(leftovers[side].front()->get_pos(), leftovers[side].front());
+		loose->set_home_depot(home_depot ? home_depot->get_pos() : koord3d::invalid);
+		loose->set_name(leftovers[side].front()->get_desc()->get_name());
+		loose->set_blank_route();
+		loose->reserve_own_tiles();
+		if (halt.is_bound())
+		{
+			loose->enter_layover(halt);
+		}
+		loose->create_schedule();
+	}
+
+	// A changed convoy waits out the shunting delay. The convoy that did not
+	// execute the exchange is not inside hat_gehalten here, so it waits in
+	// LOADING: its new consist then loads when the delay expires. The executing
+	// convoy's loading pass runs in hat_gehalten immediately after the commit.
+	// Recording the stop in both convoys prevents the exchange from executing
+	// again on this visit.
+	const sint32 shunting_ticks = (sint32)seconds_to_ticks(welt->get_settings().get_shunting_time_seconds(), welt->get_settings().get_meters_per_tile());
+	for (uint8 side = 0; side < 2; side++)
+	{
+		convoi_t *const cnv = convoys[side];
+		cnv->last_stop_id = halt.get_id();
+		if (!changed[side])
+		{
+			cnv->state = LOADING;
+			cnv->wait_lock = 0;
+		}
+		else if (cnv == this)
+		{
+			cnv->state = SHUNTING;
+			cnv->wait_lock = shunting_ticks;
+		}
+		else
+		{
+			cnv->state = LOADING;
+			cnv->wait_lock = shunting_ticks;
+		}
+	}
+}
+
+
+void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
+{
+	const schedule_entry_t &current_entry = schedule->get_current_entry();
+	const uint16 unique_id = current_entry.unique_entry_id;
+	const bool has_order = schedule->entry_has_consist_order(unique_id);
+	const bool couple = current_entry.is_flag_set(schedule_entry_t::couple);
+	const bool uncouple = current_entry.is_flag_set(schedule_entry_t::uncouple);
+
+	paired_exchange_t pair;
+	const paired_exchange_state_t pair_state = resolve_paired_exchange(halt, pair);
+	switch (pair_state)
+	{
+		case paired_invalid:
+			if (pair.failure == pair_failure_target_missing)
+			{
+				report_broken_couple_target(halt);
+			}
+			else
+			{
+				report_paired_exchange_failure(halt, pair.counterpart, pair.failure);
+			}
+			if (pair.counterpart.is_bound() && pair.counterpart->get_state() == AWAITING_RECOMBINATION)
+			{
+				pair.counterpart->state = LOADING;
+				pair.counterpart->wait_lock = 0;
+			}
+			if (state == AWAITING_RECOMBINATION)
+			{
+				state = LOADING;
+			}
+			return;
+
+		case paired_ready:
+			execute_paired_exchange(halt, pair);
+			return;
+
+		case paired_partner_absent:
+			// The counterpart exists but has not arrived. There is deliberately no
+			// timeout: a finite timeout would turn a jam into a divided consist.
+			state = AWAITING_RECOMBINATION;
+			return;
+
+		case paired_not_configured:
+		default:
+			break;
+	}
+
+	// Ordinary recombination, with no pair involved.
+	if (!has_order)
+	{
+		if (couple && first_run)
+		{
+			// A coupling entry without an order cannot do anything; report it
+			// rather than bypassing it silently.
+			report_paired_exchange_failure(halt, convoihandle_t(), pair_failure_missing_order);
+		}
+		if (state == AWAITING_RECOMBINATION)
+		{
+			state = LOADING;
+		}
+		return;
+	}
+
+	if (couple)
+	{
+		// One-sided coupling receive: draw on the named target only. A target
+		// that does not arrive is waited for without a timeout.
+		convoihandle_t joining_convoy;
+		const schedule_t::couple_target_state_t couple_state = schedule->get_couple_target(unique_id, halt, joining_convoy);
+		if (couple_state == schedule_t::couple_target_absent)
+		{
+			state = AWAITING_RECOMBINATION;
+			return;
+		}
+		if (couple_state == schedule_t::couple_target_present)
+		{
+			process_current_entry_consist_order(halt, joining_convoy);
+		}
+		else if (couple_state == schedule_t::couple_target_missing)
+		{
+			report_broken_couple_target(halt);
+		}
+		if (state == AWAITING_RECOMBINATION)
+		{
+			state = LOADING;
+		}
+		return;
+	}
+
+	if (!first_run)
+	{
+		// A division or a targetless assembly runs on the arrival pass only.
+		if (state == AWAITING_RECOMBINATION)
+		{
+			state = LOADING;
+		}
+		return;
+	}
+
+	// A division uses the source entry's order for the retained portion and the
+	// target entry's order for the split-off portion. A plain or unresolved
+	// uncouple keeps the ordinary loose-stock commit behaviour.
+	uncouple_target_t uncouple_target;
+	const bool divide = uncouple && resolve_uncouple_target(current_entry, halt, uncouple_target);
+	convoihandle_t split_candidate;
+	const consist_order_process_result result = process_current_entry_consist_order(halt, convoihandle_t(), divide ? &split_candidate : nullptr);
+	if (divide && split_candidate.is_bound() && (result == succeed || result == no_change_needed))
+	{
+		form_divided_portion(split_candidate, halt, current_entry, uncouple_target);
 	}
 }
