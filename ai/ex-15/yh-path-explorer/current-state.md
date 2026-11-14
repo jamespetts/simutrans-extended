@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine); waiting-time estimates and connexion weighting @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12)
+verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine); waiting-time estimates and connexion weighting @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12); recombination runtime @ ex-15 @ 684d570f9 plus working-tree runtime (2026-11-13)
 ---
 # ex-15: through-journey path explorer — current state
 
@@ -21,12 +21,16 @@ frontmatter value.
   destination linkage/entry/direction. The through record is a direct candidate from the boarding
   halt to the downstream halt with the boarding linkage's transport. The routing search
   consumes it as an ordinary edge, so one transport field suffices. [CODE ex-15 @ f4f6fd2b5]
-- The runtime cannot yet execute a divide: `schedule_t::get_uncouple_target` is a TODO in
-  schedule.h; `convoi_t::hat_gehalten` carries `// TODO: Implement logic for dividing`, and
-  exchange failure remains unhandled (`// TODO: Consider what happens if the exchange itself
-  fails`). Joining data is stored, editable and serialised and the schedule GUI sets the
-  `couple`/`uncouple` flags, so the join path is reachable in play but unpaired and untimed
-  [rechecked ex-15 @ f4f6fd2b5].
+- The runtime executes a Y division and a paired H exchange. For a division,
+  `convoi_t::resolve_uncouple_target` resolves the uncouple target, and `convoi_t::hat_gehalten`
+  with `convoi_t::form_divided_portion` forms the split-off portion and gives it the target
+  schedule. For a paired exchange, `convoi_t::resolve_paired_exchange` validates the reciprocal
+  `couple`/`uncouple` entries, the joint solver (`paired_exchange_solver_t` in `simconvoi.cc`)
+  resolves both end-state orders together, and `convoi_t::commit_paired_exchange` replaces both
+  consists atomically; failure is all-or-nothing and reported once. The join path is reachable in
+  play and paired. The explorer still does not consume a handover's departure history, so a through
+  pair is timed from the accumulated legs [rechecked ex-15 @ 684d570f9 plus working-tree
+  recombination runtime].
 - Budget and parity: `limit_set_t` holds per-phase iteration limits that a feedback controller
   recalibrates toward `path_explorer_time_midpoint` (simuconf; default 64 ms). In network mode
   peers write local limits and `nwc_routesearch_t` broadcasts the minimum set, so all peers

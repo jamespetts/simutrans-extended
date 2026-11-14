@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 957d5ced8 plus working-tree Squirrel restoration and Extended script interface changes; test-harness facts as cited
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime and Squirrel restoration (2026-11-13); test-harness facts as cited
 ---
 # Scripting & tests
 
@@ -179,15 +179,45 @@ importing Standard-only mechanics. Remaining work includes:
   generic failure markers. The fixture is not in the repo: the workflow reads
   `BB_SYNC_FIXTURE_URL` (optional `BB_SYNC_FIXTURE_SHA256`) and SKIPs while unset.
 
-## Pending-runtime Y fixture
+## Pending-runtime recombination fixture
 
-`tests/pending-runtime/scenario.nut` and `scripts/run-pending-runtime-tests.sh` form a separate
-fixture for the unimplemented division runtime. The scenario uses only public script interfaces to
-build the infrastructure, source convoy and target line, author both portions' consist orders and
-start the convoy. It records the junction's current source, target and loose-stock state; details
-belong to [through-journey path-explorer traversal](ex-15/yh-path-explorer.md). Runner exit codes
-are 0 for the recorded pending state, 1 for setup/script/timeout/crash failure and 3 for any
-different junction state. The fixture is not part of the default passing suite.
+`tests/pending-runtime/` is a separate fixture for the recombination runtime (Y division and paired H
+exchange). It is not part of the default passing suite.
+
+- `harness.nut` builds the infrastructure, convoy, target and consist orders through public script
+  interfaces, then owns the Y-division observers and assertions. `pair-harness.nut` does the same for
+  two convoys that meet at one stop on two platforms of the same halt, with a reciprocal `couple` /
+  `uncouple` entry and an end-state order on each. Both read a case selector from the `case_kind`
+  global that the case's `scenario.nut` sets, and print
+  `RUNTIME CASE <case> PASS` or `RUNTIME CASE <case> FAIL: <assertion>`.
+- `scenario.nut` selects the forward Y case; `cases/<case>/scenario.nut` selects each further Y case;
+  `pair-cases/<case>/scenario.nut` selects each paired case. Each case runs in its own game process,
+  so the cases cannot contaminate one another.
+- `scripts/run-pending-runtime-tests.sh` stages the selected case with its harness and
+  `empty-16x16.sve` in the pakset scenario directory, runs one process per case with `-nomidi`,
+  and treats a printed PASS marker as the only success. A script error, a process exit before a
+  marker, no log progress for the stall timeout, the overall timeout and a crash all fail the
+  case. It selects `harness.nut` for `cases/` and `pair-harness.nut` for `pair-cases/`.
+  Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
+  `PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS`. Exit code 0 means every case printed PASS.
+- The paired cases cover a symmetric locomotive swap with either convoy started first, a one-way
+  transfer that leaves a vehicle as loose stock, an already-satisfied pair, a joint-solver
+  backtracking conflict, an unsatisfiable pair refused all-or-nothing, and a receiver that collects
+  a coach from the stop's laid-over pool while the emptied donor is destroyed.
+- `reload/scenario.nut` is deliberately outside `cases/`, so the baseline runner does not select
+  it. It runs the forward division on a loopback server, holds after the split-off portion forms,
+  re-asserts the divided state in `resume_game()` after the join's save/transfer/reload, and
+  advances the portion. Runners:
+  `scripts/run-pending-runtime-reload-tests.sh` (POSIX) and
+  `scripts/run-pending-runtime-reload-tests.ps1` (Windows). Both start a client to force the join,
+  check for desync markers and parsed checklist-pair mismatches, require the joined peers to stay
+  alive for an observation window, and then load the preserved join save in a fresh offline
+  process. The PowerShell runner stages the scenario through a directory junction and removes the
+  junction without following it. There is no reload fixture for a paired exchange.
+- The fixture uses `is_equal` for vehicle-descriptor and loose-stock identity. Sampled
+  `vehicle_desc_x` names are invalid immediately after map load (open bug in
+  [known-bugs](known-bugs.md)), so name comparison is not used. Successful cases print convoy
+  identities and vehicle counts, not descriptor names.
 
 ## Writing new tests
 
@@ -206,8 +236,10 @@ different junction state. The fixture is not part of the default passing suite.
 - Is the `ai` host mode usable as-is? It has no caller and may depend on scenario-only state.
 - Which remaining Extended fields need script interfaces? A full gap analysis against the GUI is
   still needed; schedule and consist-order coverage does not make the rest of the API complete.
-- What ex-15 network fixture should exercise the restored NWC_TOOL callback field and the Y/H
-  schedules over loopback? The 14.x-era smoke fixture is not a verified ex-15 substitute.
+- The pending-runtime reload runner exercises the Y-division schedule over loopback, including the
+  restored NWC_TOOL callback, but no fixture exercises a paired H exchange over loopback and no CI
+  job runs either pending-runtime fixture. Its map is an Extended 14 save loaded and re-saved by
+  ex-15; whether that is an adequate substitute for an ex-15-native save remains open.
 - join-sync on ex-15: the fixture is a 14.x-era save; loading it with the ex-15 engine and the
   ex-15 pakset pin is unverified. If it fails, restrict `join-sync.yml` to master or host a
   branch-specific fixture.
@@ -216,7 +248,7 @@ different junction state. The fixture is not part of the default passing suite.
 
 ## Provenance
 
-Scripting findings at ex-15 @ 957d5ced8 plus working-tree changes: `script/script.cc`,
+Scripting findings at ex-15 @ 684d570f9 plus working-tree changes: `script/script.cc`,
 `script/script_loader.cc`, `script/export_objs.cc`, `script/api/*`, `script/api_param.cc`,
 `simutrans/script/script_base.nut`, `dataobj/scenario.cc`, `dataobj/schedule.cc`,
 `dataobj/consist_order_t.h`, `network/network_cmd_ingame.cc`, `player/simplay.cc`,

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (implementation, GUI and tests); routing-search engine @ a203862c1 (2026-11-07); pre-runtime script fixture ex-15 @ 957d5ced8 plus working-tree changes; design revised 2026-11-07
+verified: ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -20,7 +20,8 @@ passengers or goods that stay aboard the same vehicles across the coupling. This
 "through" for the journey and "Y/H-shaped" only for the service shape; the definitions below
 are the authority.
 
-The connexion-rebuild exploration and the GUI are implemented; the runtime split/join is not. All
+The connexion-rebuild exploration and the GUI are implemented. The Y division (split), the
+one-sided coupling receive and the atomic two-party H exchange are implemented. All
 decisions marked [RECOLLECTION:2026-09-19] were taken by the user in the planning session of
 that date.
 
@@ -167,8 +168,9 @@ change in `gui/simwin.h`.
 The runtime requirement remains separate: the consist that arrives at the destination must book
 the actual through pair across the schedule handover. `convoi_t::departures` is keyed by schedule
 entry index and `convoi_t::set_schedule` clears it, so a handover must carry the pre-split
-departure times by halt ID. Until that runtime work exists, the explorer uses the accumulated-leg
-fallback for every through pair; tests inject the pair times directly.
+departure times by halt ID. The Y division performs the schedule handover but does not carry those
+departures, so the explorer still uses the accumulated-leg fallback for a through pair whose
+handover has run; tests inject the pair times directly.
 
 ### Verification status
 
@@ -193,16 +195,62 @@ a within-process determinism check. The temporary hook is not in the code; the r
 the verification record. Not yet covered: the category/class consist-order predicate,
 cross-process determinism of saves containing couplings, and interactive GUI operation.
 
-`tests/pending-runtime/scenario.nut` builds a source convoy and target schedule through the script
-interface and authors one end-state order for each portion. In the current runtime the source
-entry's existing consist-order processing releases the non-retained vehicle into the junction's
-laid-over registry, but no new portion adopts the target schedule. The dividing implementation
-must not apply the source entry's order a second time; it must apply the target entry's order to
-the newly created portion. The fixture reads the schedule/order data back before starting the
-convoy and records this pending junction state. [EXECUTION-VERIFIED:2026-11-12, Debug|x64 with
-`-nomidi`]. Only that pending source/loose-stock state is observed behaviour. Applying the target
-order to the new portion is planned runtime work specified by
-[recombination-design](recombination-design.md), not implemented division behaviour.
+`tests/pending-runtime/` is the runtime fixture for recombination, not for the explorer. Its shared
+`harness.nut` builds a source convoy and the target line or lineless convoy through the script
+interface, authors one end-state order for each portion and starts the convoy. The forward case
+observes the created portion's line, schedule, entry, vehicle membership and identity and then its
+normal advance from the target entry; the reversed cases also check the traversal direction.
+Further cases cover a plain uncouple, a deleted target line, a target entry without an order, an
+unsatisfiable order, an unpowered result, collection from the stop's pool, a reversed target
+schedule, a lineless target convoy and a mirrored source schedule. [EXECUTION-VERIFIED:2026-11-13,
+Debug|x64 with `-nomidi`] Every case passes.
+
+`pair-harness.nut` builds two lineless convoys whose pair entries lie on two platforms of the same
+halt; each entry carries one of `couple` and `uncouple`, names the other convoy and the other
+entry's unique id, and has an end-state order. One convoy starts first and must enter
+`convoi_t::AWAITING_RECOMBINATION` at its entry; the other then executes the exchange. Cases cover
+a symmetric locomotive swap with either convoy started first, a one-way transfer that leaves a
+vehicle as loose stock, an already-satisfied pair, a joint-solver backtracking conflict, an
+unsatisfiable pair refused all-or-nothing, and a receiver that must collect a coach from the stop's
+laid-over pool while the emptied donor is destroyed. Test layout and runners:
+[scripting-and-tests](../scripting-and-tests.md).
+
+The reload case runs the forward division on a loopback server, joins a client so that the server
+saves, transfers and reloads its state (`nwc_sync_t`), re-asserts the divided state from the loaded
+world and observes the split-off portion advance. It then loads the preserved join save in a fresh
+process and repeats the assertions. [EXECUTION-VERIFIED:2026-11-13, Debug|x64] Both reload paths
+pass, both peers stayed running through the observation window, and no parsed checklist pair
+mismatched.
+
+Neither fixture covers cargo or passenger continuity. A vehicle that becomes loose stock through the
+Y division's deferred discharge, or through a paired exchange, is force-unloaded at the stop
+(`convoi_t::unload_individual_vehicle_at`); a vehicle that remains in a scheduled consist, including
+one transferred directly between the two convoys of a pair, keeps its load. No through fare or
+journey-time history is recorded across the handover, because `convoi_t::calc_revenue` cannot find
+the boarding halt in the portion's schedule (recorded in
+[cargo-continuity](recombination-design/cargo-continuity.md)). The intended loose-stock treatment
+would supply that history retrospectively when the vehicle is collected (see below); it is not
+implemented.
+
+### Loose vehicles and discharge
+
+The decided discharge boundary is that a vehicle which remains in a scheduled consist keeps its
+load, and a vehicle which becomes loose stock is physically discharged at the stop; the boundary is
+recorded in [cargo-continuity](recombination-design/cargo-continuity.md) and may be revisited after
+play testing. The Y division implements it by deferring the discharge of the split candidate until
+promotion fails, so a promoted portion keeps its load; a paired exchange discharges only vehicles
+that leave both final consists. The through connexions in this document assume the decided boundary.
+Under the current runtime treatment a packet in a vehicle that becomes loose stock joins the
+ordinary halt transfer process and is not recorded as a through journey.
+
+The intended treatment for that loose stock is that the discharge is an accounting step only: the
+vehicle is treated as never having been unloaded, so its packets do not enter the halt transfer
+process. Cargo may be preloaded into the waiting vehicle, and its recorded arrival time supplies
+retrospective loading credit when a convoy collects it. This keeps the explorer's current model; the
+explorer does not gain a loaded-loose-wait through edge. The implications of the discharge —
+collection eligibility, capacity, waiting time and fare apportionment across the collector — are
+adjusted by these mechanisms instead. The treatment is not implemented; it is the next work on loose
+stock. [RECOLLECTION:2026-11-14 user statement]
 
 ### Rebuild triggers
 
@@ -247,12 +295,14 @@ exchanges, nested splits, and portion-sensitive discharge
 
 ## Co-requirements in the same release
 
-Recording through journeys that the runtime cannot execute would misroute cargo. The following
-must ship with the explorer change: the dividing runtime with schedule handover (including the
-reversed case and tile re-reservation), two-party timed joining with deadlock avoidance and
-specified waiting/retry/failure behaviour, freight and passenger continuity across portions,
-platform and home-depot handling, and the remaining per-portion consist-order validation
-(registry: [schedule-and-consists](schedule-and-consists.md)).
+Recording through journeys that the runtime cannot execute would misroute cargo. The following are
+required for the feature: the dividing runtime with schedule handover (including the reversed case
+and tile re-reservation), two-party timed joining with specified waiting/retry/failure behaviour,
+freight and passenger continuity across portions, platform and home-depot handling, and the
+remaining per-portion consist-order validation (registry:
+[schedule-and-consists](schedule-and-consists.md)). The division and handover, including the
+reversed case and tile re-reservation, are implemented and pass the runtime fixture; the paired
+exchange runtime is also implemented and passes its fixture. The rest is outstanding.
 
 ## Implementation stages
 

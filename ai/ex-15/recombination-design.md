@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (through-journey path-explorer changes; design revised 2026-11-07)
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -75,8 +75,11 @@ inthashtable keyed by `unique_entry_id`, one order per entry, independent of the
 N's uncouple entry carries the flag, both target fields and A's order simultaneously, and P's target
 entry carries B's order; `entry_has_consist_order(unique_id)`/`get_consist_order(unique_id)` look up
 by id; the schedule GUI allows both on stop entries (only depot entries hide the order UI); all of it
-is serialised. Only the runtime that reads the two orders together is absent (`// TODO: Implement
-logic for dividing`; `get_uncouple_target` TODO).
+is serialised. The Y division reads those two orders in sequence: `convoi_t::hat_gehalten` applies the
+source entry's order to the retained portion and `convoi_t::form_divided_portion` applies the target
+entry's order to the split-off portion. A paired exchange reads both convoys' orders together in the
+joint solver (`paired_exchange_solver_t` in `simconvoi.cc`) and commits both results atomically
+(IMPLEMENTED; see [schedule-and-consists](schedule-and-consists.md)).
 
 Residual questions inside the settled rule (runtime detail, not alternative composition rules):
 matching precedence when both orders could claim the same vehicle; joint vs sequential solving; and
@@ -101,11 +104,14 @@ become loose stock. Thus asynchronous detach-now/collect-later operation is dist
 exchange between two active consists.
 
 For a paired exchange, the receiver has `couple` + target + its order and the target has `uncouple`
-(receiver and target entry optional) + its order. The intended runtime evaluates both orders
-against the pre-exchange consists and commits both as one exchange
-[RECOLLECTION:2026-10-19]. The present one-sided receiver implementation is incomplete. A named
-couple target that has not arrived is awaited without substitution and deliberately without a
-timeout; the earlier timeout proposal is superseded [RECOLLECTION:2026-11-03 user statement].
+(receiver and target entry optional) + its order. The runtime evaluates both orders against the
+pre-exchange consists and commits both as one exchange
+[RECOLLECTION:2026-10-19]. The implemented rules — reciprocity validation, the joint solver, the
+receiver-only pool fallback, all-or-nothing failure and the once-only stop record (the stop is
+recorded in both convoys' `last_stop_id`, so neither treats the exchange as a fresh arrival) — are
+described in [schedule-and-consists](schedule-and-consists.md). A named couple target that has not
+arrived is awaited without substitution and deliberately without a timeout; the earlier timeout
+proposal is superseded [RECOLLECTION:2026-11-03 user statement].
 
 The 2018 proposal also requires exactly one of two joining convoys to concatenate schedules: the
 combined convoy retains the non-concatenating convoy's ID, and both/neither concatenating is an
@@ -122,16 +128,35 @@ Code constraints (packet model, per-leg revenue and the `calc_revenue` cross-sch
 convoy-level loading), realism constraints, candidate shapes and all sub-questions:
 [cargo-continuity](recombination-design/cargo-continuity.md).
 
+The discharge boundary is decided: a vehicle that remains in a scheduled consist keeps its load,
+and a vehicle that becomes loose stock is physically discharged at the stop. The boundary, its
+path-explorer consequences and the play-testing caveat are in
+[cargo-continuity](recombination-design/cargo-continuity.md). The discharge is intended to be an
+accounting step only for a loose vehicle, which is treated as never having been unloaded (see
+"Loading while stock is loose" below). [RECOLLECTION:2026-11-13 and 2026-11-14 user statements]
+
 ### Loading while stock is loose
 
 The 2013 discussion identified both the need to preload goods wagons before a passing train
 collects them and the impossibility of knowing their future service while they remain loose
-[FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.html]. The 2018 proposal was
-therefore not to load loose vehicles, but to store their arrival time and retrospectively adjust
-loading time when another convoy collects them
-[FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html]. Whether that remains the
-chosen mechanism is open below. Do not assume that a general system for routing new ware objects
-into stationary unscheduled vehicles is required.
+[FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.html]. Preloading means loading
+cargo into a loose vehicle at the stop before the convoy that will collect it arrives. The intended
+resolution of the loose-stock case is that the discharge boundary is physically applied but treated
+as an accounting step only: a loose vehicle is treated as never having been unloaded. Its packets
+stay associated with the vehicle, cargo arriving at the stop may be loaded into it in advance, and
+its recorded arrival time supplies retrospective loading credit when a convoy collects it: that is,
+the collection is charged as the vehicle's loading operation rather than as an extra wait, subject
+to the intersection rule in [remote-implications](recombination-design/remote-implications.md) A8
+[FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html]. The path explorer keeps
+its current two-case model (a vehicle in a scheduled consist, or a vehicle that becomes loose
+stock); these mechanisms adjust the implications of the discharge instead of adding a
+loaded-loose-wait case to the explorer. This treatment is not implemented; it is the next work on
+this subject and is not a consequence of the discharge boundary itself.
+[RECOLLECTION:2026-11-14 user statement]
+
+Whether preloading needs a general mechanism for placing new ware objects into stationary
+unscheduled vehicles, or only a bounded rule for loose vehicles awaiting a named collector, is part
+of that work.
 
 ### Multi-player consists: current model
 
@@ -161,6 +186,18 @@ a locomotive [FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.
 - Company removal currently destroys every vehicle in its convoys regardless of vehicle owner.
 - Recombination never changes liveries: through-worked stock keeps its owner's livery, and players
   cannot change other players' vehicles' liveries [RECOLLECTION:2026-11-01 user statement; CODE].
+
+A planned rule governs a consist whose vehicles belong to more than one player
+[RECOLLECTION:2026-11-13 user statement]. For each final consist after a re-combination, let `L` be
+the first vehicle whose `vehicle_desc_t::get_power()` is greater than zero. For every vehicle `v` in
+that consist whose owner differs from the owner of `L`, the owner of `L` must permit that owner to
+use the ways owned by the owner of `L`: `owner(L)->allows_access_to(owner(v)->get_player_nr())`
+(`player_t::allows_access_to`, `player/simplay.h`). The check is at consist assembly and whenever
+the leading powered vehicle changes, not on every tile. `vehicle_t::check_access` continues to check
+the way owner's permission for the leading vehicle's owner on each tile. The rule is not current
+behaviour. A schedule pre-check must inspect every convoy that could serve the counterpart line and
+every pool vehicle that could be taken, collect their owners, and report a missing permission by
+naming both players; the runtime check is on the actual final consist.
 
 ### Path exploration
 
@@ -196,14 +233,15 @@ The agreed ordering constraints are:
 
 The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
 
-1. Composition is settled (2026-11-03). Resolve the cargo/instance, loose-loading and
-   exchange-failure questions sufficiently to specify the dividing runtime. Confirm whether
-   retrospective loose-stock loading credit remains intended.
+1. Composition is settled (2026-11-03). Resolve the cargo/instance and exchange-failure questions
+   sufficiently to specify the divided-portion behaviour. Preloading plus retrospective loose-stock
+   loading credit is confirmed as the intended treatment (2026-11-14); its exact rule remains open.
 2. Implement division and schedule hand-over, including reversal, tile re-reservation and the
    per-portion picker gate.
 3. Implement the paired exchange, failure behaviour and deadlock avoidance, while preserving the
    separate plain-uncouple/asynchronous pool-collection path. Complete recipient eligibility at
    pickup. This follows division because the target's uncouple order supplies the paired exchange.
+   (The runtime is implemented; the remaining items are the ones listed under Open questions.)
 4. Implement the through-journey stages in parallel where useful, but release them only with the runtime and
    freight-continuity work. Resolve asynchronous collection dwell within that package.
 5. Complete platform/siding/home-depot and call-on handling, solver completeness, ownership/access
@@ -226,11 +264,19 @@ UNVERIFIED fixture composition].
   statement]; full question, candidate shapes and sub-questions (including grouped loading under
   capacity pressure): [cargo-continuity](recombination-design/cargo-continuity.md). Any persistent
   marking engages the savegame/network rules before implementation.
-- **Paired exchange:** exact validation, failure reporting, commit behaviour and deadlock
-  detection/avoidance. The no-timeout decision for an absent named target is settled.
-- **Loose-stock loading:** retain retrospective loading-time credit, model actual loading while
-  stationary, or use another abstraction? If actual loading is required, specify how cargo can know
-  the future service and how this differs from an ordinary layover, which forbids loading.
+- **Paired exchange:** the runtime validation, failure reporting, atomic commit, once-only stop record
+  and direct mutual-wait resolution are implemented. Remaining: wait-cycle detection longer than a
+  direct pair; the GUI authoring-time pre-check (designed but not brought into the knowledge base);
+  and save/network reload coverage of an exchange that has committed. The no-timeout decision for an
+  absent named target is settled.
+- **Loose-stock loading:** the recorded direction is preloading plus retrospective loading credit: a
+  loose vehicle is treated as never having been unloaded, and its recorded arrival time supplies
+  loading credit when a convoy collects it (see "Loading while stock is loose").
+  [RECOLLECTION:2026-11-14 user statement] Open details: the exact credit rule (A8 in
+  [remote-implications](recombination-design/remote-implications.md) requires the intersection of
+  cargo-present and suitable-capacity-available time), whether the mechanism is general or bounded
+  to loose vehicles awaiting a named collector, and the interaction with the discharge boundary
+  after play testing.
 - **Recipient model:** the 2018 proposal allowed a list of lines/convoys eligible to collect loose
   vehicles; the current data model stores one recipient (or Same/Any). Decide whether one recipient
   is sufficient for the required pickup-goods and through-carriage operations before completing the
@@ -238,9 +284,11 @@ UNVERIFIED fixture composition].
 - **Asynchronous dwell:** does measured through dwell include the full wait for a later collecting
   service, and how is it reconstructed before measurements exist? Do not silently charge either
   only the global shunting delay or an ordinary second wait plus walking transfer.
-- **Ownership/access/settlement:** retain leader-owner way access or use convoy-owner/operator
-  access with separate permission for foreign vehicles; define hire/through-carriage settlement and
-  protect foreign vehicles on company removal.
+- **Ownership/access/settlement:** the multi-owner access rule is decided: a final consist with
+  vehicles from more than one player is permitted only when the owner of the leading powered vehicle
+  allows every other vehicle owner (see the multi-player section). Remaining: hire and
+  through-carriage settlement, and the treatment of an existing consist when a permission is
+  withdrawn.
 - **Outgoing-route validation:** must the solver itself validate replacement traction against the
   next leg's way/electrification constraints, or do player-authored orders and normal departure
   checks suffice? The operational requirement does not by itself choose between these.

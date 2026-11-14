@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ f4f6fd2b5; script interface and pre-runtime fixture ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -50,8 +50,9 @@ explorer's treatment of consist orders.
   `schedule_t::sscanf_schedule` clears the copied schedule's old orders before rebuilding them and
   accepts multi-digit order keys; `schedule_t::parse_orders` keeps those keys at 16 bits. The
   schedule-string format is unchanged.
-- Scripted test setup is demonstrated for two portions in
-  [yh-path-explorer](yh-path-explorer.md); it does not imply that the runtime division exists.
+- Scripted test setup for two portions, the division cases and the save/network reload is in
+  [scripting-and-tests](../scripting-and-tests.md); its outcomes are recorded in
+  [yh-path-explorer](yh-path-explorer.md).
 
 ## IMPLEMENTED features
 
@@ -90,6 +91,60 @@ explorer's treatment of consist orders.
   catg/min-class carried-to/from tables; `compartment_t::schedule_flags` fragmentation with
   "invalid zones" across consist-order points; extra transfer time after layover/discharge stops.
   Within a single schedule only (see ABSENT below).
+- **Y division (uncouple)** — an `uncouple` entry without `couple` divides the convoy when it first
+  halts there, provided the entry has a consist order. `convoi_t::resolve_uncouple_target` resolves
+  `target_id_uncouple` by the path explorer's rules: without `uncouple_target_is_line_or_cnv` the
+  id names a line; with that flag it names a convoy, whose line supplies the schedule when the
+  convoy is on a line, and whose own schedule is used when it is lineless. The target entry
+  (`target_unique_entry_uncouple`) must exist in that schedule, carry a consist order and lie at
+  the halt the convoy has stopped at, checked with `haltestelle_t::get_halt` for the target's
+  owner. When the target resolves, the source entry's order runs as usual, but its displaced
+  vehicles are collected into a newly created laid-over convoy instead of being appended to an
+  existing one (`commit_recombined_consist` with the split-candidate handle). `convoi_t::form_divided_portion`
+  applies the target entry's order to that convoy and promotes it only when the result is complete
+  and powered. A promoted portion joins the target line (`convoi_t::set_line`) or receives a copy
+  of the lineless target convoy's schedule, starts at the target entry in the direction given by
+  `uncouple_target_sch_is_reversed`, is removed from the halt's lay-over registry
+  (`haltestelle_t::remove_laid_over`), inherits the source's `arrival_time`, takes current-position
+  `last_stop_pos` values, is removed from and re-added to `welt->sync`, and enters `LOADING` with
+  the `shunting_time_seconds` wait lock. `last_stop_id` is set to the current halt, so the target
+  entry's order is not processed again on the next loading pass. A plain uncouple (target id 0), an
+  unresolved or deleted target, a target entry without an order, an unsatisfiable order and an
+  unpowered result all leave the displaced vehicles as ordinary loose stock. An entry carrying both
+  `couple` and `uncouple` is excluded from this path. `commit_recombined_consist` defers the
+  discharge of a displacement collected into a split candidate: `form_divided_portion` discharges the
+  portion only when the target order cannot be completed or the result is unpowered, so a promoted
+  portion keeps its load (the decided discharge boundary). A vehicle displaced by substitution keeps
+  its load but is not priced as a through journey
+  ([cargo-continuity](recombination-design/cargo-continuity.md)).
+- **Paired H exchange (couple + uncouple)** — two convoys exchange vehicles at one stop as one
+  operation. The receiver's current entry carries `couple`; the target's current entry at the same
+  stop carries `uncouple`. Each entry names the other convoy or line; the counterpart's optional
+  `target_unique_entry_couple`/`target_unique_entry_uncouple` reference, when set, must name the
+  other entry. Both entries have a consist order. `convoi_t::resolve_paired_exchange`
+  requires that the two entries name each other, lie at the same `haltestelle_t` and use the same
+  waytype; it refuses both flags on an entry that names the other side, a self target, `lay_over` on
+  either entry, a missing order, an ambiguous match at the stop, and a counterpart entry that does not
+  reciprocate or lies at another stop. A counterpart that is present
+  but not yet waiting, and one that is not at the stop, is awaited:
+  `convoi_t::AWAITING_RECOMBINATION` has no timeout. The file-local `paired_exchange_solver_t` in
+  `simconvoi.cc` searches the two entries' consist orders (each order states the required end state
+  of its convoy) jointly over the canonical universe of both forward-oriented pre-exchange consists
+  and, for the receiver only, the stop's eligible laid-over vehicles. It enforces slot matching,
+  the `convoi_t::check_validity()` coupling predicates, power in both results, pairwise-disjoint
+  final consists, and the multi-owner access rule (every vehicle's owner must be granted access by
+  the owner of the first powered vehicle in that final consist). The receiver may draw on the
+  laid-over pool only after a solve without it has failed, and the search starts with the smallest
+  pool draw. The search stops after 16,384 candidate placements; this is an implementation
+  computation limit, not a game quantity, and exhaustion refuses the exchange.
+  `convoi_t::commit_paired_exchange` commits both final consists as one operation: only vehicles
+  that leave both final consists are discharged and laid out as loose stock under the releasing
+  order's recipient setting; vehicles transferred directly between the two consists keep their
+  load; a laid-over donor emptied by the exchange is deregistered and destroyed.
+  A changed convoy waits out `shunting_time_seconds`; the counterpart waits in `LOADING` under the
+  same lock so that its new consist loads after the delay. Failure is all-or-nothing: neither
+  consist changes, one warning is posted, the counterpart is released from
+  `AWAITING_RECOMBINATION`, and both convoys continue on their own schedules.
 
 ## PARTIAL features
 
@@ -103,10 +158,10 @@ explorer's treatment of consist orders.
   absent (waited for in `convoi_t::AWAITING_RECOMBINATION`, deliberately without a timeout), and
   missing — a broken target, reported and left unexecuted, never pool-assembled. An incomplete
   couple order (flag with no target selected) is removed at commit with a notice naming the stops.
-  Missing: no two-party synchronisation — the receiver's order strips the named target directly,
-  with no uncouple order required on the target and no atomic paired exchange; the failure of an
-  exchange with a present target is silently ignored
-  (`// TODO: Consider what happens if the exchange itself fails` in `hat_gehalten`).
+  Missing: the one-sided receive is now the fallback only when the counterpart entry does not carry
+  `uncouple`, which selects the paired exchange instead (see IMPLEMENTED features); an entry carrying
+  both flags is refused. A one-sided receive whose consist order fails with a present target remains
+  unexecuted and is not reported. Detection of wait cycles longer than a direct pair is absent.
 - **Consist orders** — data model: `consist_order_t` (end-state for one entry, keyed by
   unique_entry_id; exactly one order per entry
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202940.html]) →
@@ -118,8 +173,9 @@ explorer's treatment of consist orders.
   preference flags; priority is list order. `rule_flags` values in saves from before Extended
   15.2 are read and discarded on load. Solver:
   `convoi_t::process_consist_order` (single-pass heuristic matching with one pass-over retry) +
-  `commit_recombined_consist` (add/remove/substitute/move vehicles; displaced vehicles force-unloaded
-  then collected into a new layover convoy). Matching: `vehicle_t::matches_consist_order_element`
+  `commit_recombined_consist` (add/remove/substitute/move vehicles; removed vehicles force-unloaded
+  then collected into a new layover convoy; substituted vehicles keep their load). Matching:
+  `vehicle_t::matches_consist_order_element`
   (rules evaluated except preferences; enforces can_lead/can_follow). SHUNTING state with
   `shunting_time_seconds` setting. GUI `consist_order_frame_t`: order overview, consist copier
   (`set_convoy_order`, reversed-consist handling), vehicle picker with filters; edits apply
@@ -199,17 +255,12 @@ explorer's treatment of consist orders.
 
 ## ABSENT — core outstanding 15.x work [RECOLLECTION:2026-09-07]
 
-- **Uncouple/dividing runtime** — `// TODO: Implement logic for dividing` in `hat_gehalten`;
-  `get_uncouple_target` absent (`// TODO` in schedule.h); target_id_uncouple /
-  target_unique_entry_uncouple / uncouple_target_sch_is_reversed are stored, GUI-editable,
-  serialised and compared in `schedule_t::matches`, but never read at runtime. The only splitting
-  is incidental (consist-order displaced vehicles → layover convoy, no schedule).
-- **Schedule adoption/concatenation for divided portions** — no mechanism sets a split-off
-  portion's schedule to the target line/convoy schedule at the target entry.
 - **Through-journey path-explorer traversal** — the connexion-rebuild generation reads couple/uncouple
   targets and records through connexions as direct candidates whose time is the actual recorded
   through pair, with the existing accumulated-leg fallback. There is no routing-search substitution.
-  The runtime divider and schedule handover remain outstanding. Design:
+  The Y division supplies the runtime divider and the schedule handover; the explorer does not yet
+  consume a handover's departure history, so a through pair is still timed from the accumulated
+  legs. Design:
   [yh-path-explorer](yh-path-explorer.md). `target_unique_entry_couple` and
   `couple_target_sch_is_reversed` were added to `schedule_entry_t` (savegame revision 8). The
   connexion-rebuild generation, the cross-boundary predicate, the depth setting and the GUI controls are
@@ -222,14 +273,22 @@ explorer's treatment of consist orders.
   work must satisfy the routing-search engine requirements in
   [path-explorer-optimisation](../path-explorer-optimisation.md) [RECOLLECTION:2026-09-19;
   revised 2026-11-07].
-- **Two-party coupling; dead-lock avoidance** — waiting for an absent named target now exists
-  (`convoi_t::AWAITING_RECOMBINATION`, deliberately without a timeout
-  [RECOLLECTION:2026-11-03 user statement]), but there is no two-sided evaluation of the
-  receiver's and the target's orders as one exchange, and no validation of couple/uncouple target
-  graphs (mutual waits can deadlock, circular targets, platform blockage).
-- **Freight/passenger continuity across splits/joins** — displaced vehicles are force-unloaded at
-  the stop; no transfer of cargo between portions, no re-routing correction for cargo on moved
-  vehicles ("passengers stay on the through portion" is not modelled).
+- **Wait-cycle detection beyond a direct pair** — a convoy whose couple entry names an absent
+  target waits in `convoi_t::AWAITING_RECOMBINATION` without a timeout
+  [RECOLLECTION:2026-11-03 user statement]. A direct pair at one stop resolves because either
+  convoy's step re-resolves and executes the exchange. A longer cycle (A waits for B, B for C,
+  C for A) is not detected and jams; circular target graphs are refused only where the pair
+  reciprocity validation reaches them. Platform blockage is accepted congestion.
+- **Freight/passenger continuity across splits/joins** — the discharge boundary is implemented for
+  the Y promoted portion and for vehicles transferred directly by a paired exchange: a vehicle that
+  remains in a scheduled consist keeps its load and only a vehicle that becomes loose stock is
+  discharged. The intended treatment for that discharged loose stock is that the discharge is an
+  accounting step only: the vehicle is treated as never having been unloaded, with preloading and
+  retrospective loading credit when a convoy collects it, while the path explorer keeps its current
+  model ([cargo-continuity](recombination-design/cargo-continuity.md)). That treatment is not
+  implemented. There is still no deliberate transfer of cargo between portions, no re-routing
+  correction for cargo on moved vehicles, and no through fare ("passengers stay on the through
+  portion" is not modelled).
 - **Call-on-based coupling movements into occupied platforms** — call-on signalling exists for
   other purposes but is not connected to coupling; SHUNTING is only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
@@ -253,12 +312,18 @@ default being only the same convoy/line that loaded them"
 release time (the releasing convoy's line, else the convoy), so it remains correct if a schedule
 is copied between a line and a convoy; the resolved id/kind is copied to each released vehicle's
 `loose_recipient_id`/`loose_recipient_flags` (zero means no named recipient) [CODE]. The
-eligibility check that reads it at pickup is not yet written: `process_consist_order` still draws
-on the halt's laid-over pool without consulting the recipient, so the setting has no gameplay
-effect yet [CODE]. One recipient may be specified, not a list. The
+eligibility check that reads it at pickup is not written for `process_consist_order`: it still draws
+on the halt's laid-over pool without consulting the recipient, so the setting has no gameplay effect
+on that path yet [CODE]. The paired exchange is the exception: `convoi_t::execute_paired_exchange`
+admits a laid-over vehicle to the receiver's pool only when its recorded recipient is unset ("Any")
+or names the receiver's line, or the receiver itself when the receiver is lineless [CODE]. One
+recipient may be specified, not a list. The
 consist-order window lists the Same/Any entries plus the halt's lines or consists, with a
 Line/Consist filter; a specific recipient no longer registered at the halt (or hidden by a filter
-switch) resets to the default [CODE].
+switch) resets to the default [CODE]. A target order applied to a split-off portion resolves "Same"
+before the portion is given its target line (`convoi_t::form_divided_portion` calls
+`process_consist_order` first and `convoi_t::set_line` afterwards), so released vehicles can name
+the split-off convoy rather than the line it is about to join.
 
 - **Zero-id semantics** [CODE ex-15 @ 13ba17597]: 0 means "no specific target" by design for
   `consist_order_t::available_to_id` (`is_available_to_any`/`is_available_to_same`, branched on in
@@ -308,6 +373,11 @@ unbound/stale handles regardless.
 - Split composition: SETTLED — two end-state orders, one per portion (see
   [recombination-design](recombination-design.md)). Instance identity at a division remains open
   (same doc).
+- Substitution exchange: `commit_recombined_consist` force-unloads a vehicle that it removes but not
+  one that it displaces by substitution, so a substituted-out vehicle can keep through cargo when it
+  becomes loose stock. Is that intended (cargo stays with the physical vehicle) or should the
+  substitution branch unload like the removal branch? Either answer interacts with
+  [cargo-continuity](recombination-design/cargo-continuity.md).
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):
   naming suggests inverted ordering; intended semantics unresolved — left open deliberately
   [RECOLLECTION:2026-09-07].

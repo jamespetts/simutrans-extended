@@ -56,7 +56,8 @@ Note: the documents may be nested. Only top level documents are shown here.
 - [scale-factoring](scale-factoring.md) — read when touching per-month or per-tile quantities (industry production/consumption, demand, fixed maintenance, fares) or the `meters_per_tile`/`bits_per_month`/`base_*` scale settings: how nominal pakset figures are converted to the actual game scale, and which figures are pakset-specific.
 - [world-and-ground](world-and-ground.md) — read when touching the map/plan, ground tiles, ways, climates, terraforming, or place-finding.
 - [objects](objects.md) — read when touching obj/: things placed on tiles (buildings, signals, signs, trees, pedestrians, city cars, labels, piers, etc.).
-- [vehicles-and-convoys](vehicles-and-convoys.md) — read when touching vehicles, consists, convoys, depots, lines, or vehicle descriptors. **ex-15 hotspot.**
+- [vehicles-and-convoys](vehicles-and-convoys.md) - read when touching vehicles, consists, convoys, depots, lines, or vehicle descriptors. **ex-15 hotspot.**
+- [consist-recombination](consist-recombination.md) - read when touching coupling, uncoupling, consist orders, locomotive changes, through coaches, pick-up goods wagon collection, or the runtime re-formation of consists. **ex-15 hotspot.**
 - [industry](industry.md) — read when touching factories/industries: factory descriptors & goods, the industry-density system, chain building and inter-factory linking, contracts mode, the production/consumption model, closure & upgrade, or industry generation. Keys its own nested docs.
 - [economy-and-passengers](economy-and-passengers.md) — read when touching cities & city growth, passenger/mail generation, players/finance, or fares. Factories/industries and goods → [industry](industry.md).
 - [routing-and-scheduling](routing-and-scheduling.md) — read when touching path exploration, routing, stops (halts), connections, or schedules. **ex-15 hotspot.**

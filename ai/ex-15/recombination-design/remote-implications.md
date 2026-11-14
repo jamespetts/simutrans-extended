@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ bf447619a; loose-stock treatment recorded 2026-11-14
 ---
 # ex-15: re-combination — remote implications review
 
@@ -119,9 +119,11 @@ recorded per item in *Conflicts between the two reviews* and inline in
   is outside the halt: no overcrowding, no waiting-time refund/discard, no halt capacity limit, and
   layover's staff-cost relief makes it nearly free. Factories' in-transit accounting still counts
   it, so an uncollected loaded wagon can throttle a chain indefinitely (no timeout). Favours the
-  2018 retrospective-credit model (goods stay at the halt with existing penalties) and the
-  "unload unless a named recipient serves them" rule for loaded loose wagons; also argues that
-  time in a waiting portion counts in the recorded journey time.
+  2018 retrospective-credit model and the "unload unless a named recipient serves them" rule for
+  loaded loose wagons; also argues that time in a waiting portion counts in the recorded journey
+  time. Under the recorded loose-stock treatment (2026-11-14 user statement) the vehicle is treated
+  as never having been unloaded, so the cargo remains outside the halt and this exposure remains;
+  the A8 intersection rule and collection eligibility are the mitigations.
 - **A4 [M] — the explorer records authored intent, not feasibility.** Through journeys are
   recorded from saved data even where the orders can never be satisfied (e.g. no traction will ever
   be in the pool) — acceptable only with A2's invariant and with measured dwell/feedback eventually
@@ -235,7 +237,8 @@ are additions, qualifications and conflicts only; same tags and severity scale a
   before its tractor collects it, could receive ten hours' credit. The credit must be the
   intersection of cargo-present and suitable-capacity-available time, and must not double-credit
   across successive loads; grouped loading narrows "suitable" further (the trailer was available,
-  but not for that cargo's onward working).
+  but not for that cargo's onward working). This rule is part of the recorded loose-stock treatment
+  (2026-11-14 user statement), not an argument against it.
 
 ### Performance
 

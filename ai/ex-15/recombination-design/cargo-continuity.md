@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); discharge boundary decided and implemented 2026-11-13; intended loose-stock treatment recorded 2026-11-14
 ---
 # ex-15: re-combination — cargo and passenger continuity
 
@@ -18,11 +18,18 @@ The 2018 working assumption is that cargo is rearranged internally into the corr
 split; it need not have been assigned to its eventual post-split vehicle when it first boarded. The
 path explorer must not impose a vehicle-level pre-boarding constraint
 [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html;
-RECOLLECTION:2026-09-19]. This does not permit an alight-and-reboard model at the boundary: that
-would double-count waiting and walking transfers and run fare apportionment twice
-([yh-path-explorer](../yh-path-explorer.md)). NOTE: this abstraction was justified in 2018 by
-implementation capacity; that rationale is under reconsideration and the passenger side of the
-continuity question is reopened (see Open questions) [RECOLLECTION:2026-11-03 user statement].
+RECOLLECTION:2026-09-19]. This does not permit an alight-and-reboard model for a vehicle that
+remains in a scheduled consist: that would double-count waiting and walking transfers and run fare
+apportionment twice ([yh-path-explorer](../yh-path-explorer.md)). The exception is a vehicle that
+becomes loose stock under the discharge boundary below: under the current explorer model its load is
+discharged and reboards through the ordinary halt transfer process, and that movement is priced as
+an ordinary transfer, not as a through journey. The intended loose-stock treatment (see the
+discharge boundary below) instead treats the discharge as an accounting step only, keeping the load
+associated with the vehicle and supplying retrospective loading credit when it is collected; the
+explorer's edge model stays as it is. NOTE: the working assumption was justified in 2018 by
+implementation capacity;
+that rationale is under reconsideration and the passenger side of the continuity question is
+reopened (see Open questions) [RECOLLECTION:2026-11-03 user statement].
 
 Cargo-derived vehicle selection, passenger load-by-routing, internal shuffling and fallback
 unloading/reloading were all discussed in 2018
@@ -80,6 +87,52 @@ https://forum.simutrans.com/index.php/topic,17892.msg170688.html].
   make capacity a range and instance-dependent even without external joins, so static boarding
   gating covers only the fixed-slot case.
 
+## Discharge boundary — DECIDED
+
+A vehicle that leaves a consist during a re-combination has two possible outcomes:
+
+- It remains in a **scheduled consist**: the receiver's post-exchange consist, the target's retained
+  consist, or a Y division's split-off portion that `convoi_t::form_divided_portion` promotes to a
+  schedule. Such a vehicle keeps its load. A passenger, mail packet or goods packet aboard it stays
+  aboard, and [yh-path-explorer](../yh-path-explorer.md) records the movement as a through
+  connexion.
+- It becomes **loose stock**: it appears in neither final consist and is left at the stop in a
+  laid-over convoy. Such a vehicle is **physically discharged** at the stop. Under the current
+  runtime treatment its passengers, mail and goods join the ordinary halt transfer process, and the
+  path explorer prices the movement as an ordinary transfer rather than a through connexion. The
+  intended treatment of that discharge is set out after the boundary below: the vehicle is treated
+  as never having been unloaded.
+
+The boundary keeps the path explorer's current two-case model: the explorer does not gain a case for
+a loaded vehicle waiting loose and later collected. Under the intended treatment the discharge is an
+accounting step only. A loose vehicle is treated as never having been unloaded: its packets stay
+associated with the vehicle and do not enter the halt transfer process, cargo arriving at the stop
+may be loaded into it in advance (preloading), and its recorded arrival time supplies retrospective
+loading credit when a convoy collects it. The explorer's ordinary-transfer edge stays in the model
+for cargo that genuinely is discharged, but it is not the path taken by a packet that remains with
+the loose vehicle. The implications of the discharge — collection eligibility, capacity, waiting
+time and fare apportionment across the collector — are adjusted by those mechanisms, not by changing
+the explorer's edge model. This treatment is not implemented; it is the next work on loose stock.
+[RECOLLECTION:2026-11-14 user statement]
+
+The physical cost remains: a goods wagon or a through carriage left in a siding is emptied, and a
+through carriage detached for a later branch service is emptied. The intended treatment removes the
+gameplay cost by treating the vehicle as never having been unloaded, so the through journey
+continues when the vehicle is collected. **The discharge boundary itself may still need
+reconsideration after play testing**, but preloading and retrospective loading credit are the
+recorded direction for the loose-stock work. Implementing it requires the identity of the convoy
+that collects the vehicle, the recorded arrival time, capacity and access checks at collection, and
+fare apportionment across that collector; these are that work package, not a reason to add a
+loaded-loose-wait edge to the explorer.
+
+The boundary is implemented for both runtime paths. The Y division defers the discharge of the
+vehicles displaced into the split candidate: `convoi_t::commit_recombined_consist` skips
+`convoi_t::unload_individual_vehicle_at(..., true)` while a split candidate is being collected, and
+`convoi_t::form_divided_portion` discharges the portion only when the target order cannot be
+completed or the result is unpowered. A promoted portion therefore keeps its load. A paired exchange
+discharges only the vehicles that leave both final consists; a vehicle transferred directly between
+the two convoys keeps its load. [RECOLLECTION:2026-11-13 user statement]
+
 ## Grouped loading — refined scope [RECOLLECTION:2026-11-03 user statement]
 
 The grouping rule is narrower than "one next transfer per wagon":
@@ -109,12 +162,18 @@ The grouping rule is narrower than "one next transfer per wagon":
 - Nested divides: either group by the portion path through all future divides (same predicate,
   finer partition, still static) or accept transhipment fallback at nested divides — sub-question.
   [Review B R9 note: the constraint also propagates upstream, beyond the divides in this schedule.]
-- Wagons joining at the divide (couple/pool) were loaded under another schedule and may be mixed:
-  the transhipment fallback applies to them. SETTLED 2026-11-03 (Review B R9/C5 correct):
-  marshal-before-loading is not a sufficient answer — the loader itself can mix wagons the player
-  cannot un-mix, and players must not be charged for avoidable loader misallocation (the
-  loader-competence boundary, remote-implications C5, is a correctness requirement, not display
-  polish).
+- Wagons joining from another active consist at the divide may carry loads loaded under that
+  consist's schedule and may be mixed: the transhipment fallback applies to them. Wagons taken from
+  the laid-over pool are physically empty under the current implementation, because loose stock is
+  discharged at the stop. Under the intended loose-stock treatment (the vehicle is treated as never
+  having been unloaded, see the discharge boundary above), a collected wagon may carry the load it
+  held when it became loose, or cargo preloaded while it waited; the mixed-wagon rule must then
+  cover that load as well. The marshal-before-loading conclusion below is unchanged; only the set
+  of wagons that can arrive loaded grows [RECOLLECTION:2026-11-14 user statement]. SETTLED
+  2026-11-03 (Review B R9/C5 correct): marshal-before-loading is not a sufficient answer — the
+  loader itself can mix wagons the player cannot un-mix, and players must not be charged for
+  avoidable loader misallocation (the loader-competence boundary, remote-implications C5, is a
+  correctness requirement, not display polish).
 - If the target schedule changes en route, the divide-time assignment re-reads contents against
   current data and falls back if unservable — grouping can be stale, never wrong in its favour.
 
@@ -149,8 +208,10 @@ here and in remote-implications.md.
   above is required under every stay-aboard variant. Sub-questions:
 
   - the mixed-wagon/mixed-group tie-break rule (sync-relevant, must be exact);
-  - whether loaded wagons may become loose stock with loads aboard, and whether a collecting
-    convoy may take only loaded wagons it can serve;
+  - a vehicle that becomes loose stock is physically discharged at the stop, but the intended
+    treatment is that it is treated as never having been unloaded (see the discharge boundary
+    above). Whether a collecting convoy may take only loose vehicles that it can serve, and how
+    preloaded or retained loads are grouped, remain part of the loose-stock and recipient work;
   - mandatory-slot behaviour when no content-compatible wagon exists (empty-if-permitted vs order
     failure — interacts with the empty-slot question in
     [schedule-and-consists](../schedule-and-consists.md));
