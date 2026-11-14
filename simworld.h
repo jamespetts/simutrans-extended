@@ -16,6 +16,7 @@
 
 #include "tpl/weighted_vector_tpl.h"
 #include "tpl/vector_tpl.h"
+#include "tpl/array_tpl.h"
 #include "tpl/slist_tpl.h"
 #include "tpl/koordhashtable_tpl.h"
 
@@ -65,6 +66,7 @@ class memory_rw_t;
 class viewport_t;
 class loadingscreen_t;
 class terraformer_t;
+class schiene_t;
 
 
 #define CHK_RANDS 32
@@ -2347,6 +2349,12 @@ public:
 
 	// the convois are also handled each step => thus we keep track of them too
 	void add_convoi(convoihandle_t const &cnv);
+
+	void register_reserved_way(schiene_t *way, uint16 holder_id);
+	void unregister_reserved_way(schiene_t *way, uint16 holder_id);
+	const vector_tpl<schiene_t *> &get_reserved_ways(uint16 holder_id) const;
+	void release_reservation_bucket(uint16 holder_id);
+
 	void rem_convoi(convoihandle_t const &cnv);
 	vector_tpl<convoihandle_t> const& convoys() const { return convoi_array; }
 
@@ -2768,6 +2776,9 @@ private:
 	void refresh_private_car_routes();
 
 	static void clear_private_car_routes();
+
+	// Ways grouped by the raw ID stored in schiene_t::reserved.
+	array_tpl<vector_tpl<schiene_t *> > reservation_buckets;
 };
 
 

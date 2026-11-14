@@ -35,6 +35,9 @@ protected:
 	*/
 	convoihandle_t reserved;
 
+	// Position in karte_t::reservation_buckets for the raw ID stored in reserved.
+	uint32 reservation_index;
+
 	// The type of reservation
 	reservation_type type;
 
@@ -56,6 +59,8 @@ public:
 	schiene_t(loadsave_t *file);
 
 	schiene_t();
+
+	virtual ~schiene_t();
 
 	/**
 	* true, if this rail can be reserved
@@ -125,6 +130,10 @@ public:
 	*/
 	convoihandle_t get_reserved_convoi() const {return reserved;}
 
+	// Change only the reservation holder and its world index membership.
+	// Reservation type, direction and admission are unchanged.
+	void change_reservation_holder(convoihandle_t new_holder);
+
 	void rdwr(loadsave_t *file) OVERRIDE;
 
 	void rotate90() OVERRIDE;
@@ -153,6 +162,8 @@ public:
 			return "priority_reservation";
 		};
 	}
+
+	friend class karte_t;
 };
 
 

@@ -713,6 +713,10 @@ void convoi_info_t::update_labels()
 			rail_vehicle_t* rv1 = (rail_vehicle_t*)v1;
 			rail_vehicle_t* rv2 = (rail_vehicle_t*)cnv->get_vehicle(cnv->get_vehicle_count() - 1);
 			lb_working_method.buf().printf("%s: %s", translator::translate("Current working method"), translator::translate(rv1->is_leading() ? roadsign_t::get_working_method_name(rv1->get_working_method()) : roadsign_t::get_working_method_name(rv2->get_working_method())));
+			if (cnv->is_under_call_on())
+			{
+				lb_working_method.buf().printf(" (%s)", translator::translate("Call on"));
+			}
 		}
 	}
 	else if (uint16 minimum_runway_length = cnv->get_vehicle(0)->get_desc()->get_minimum_runway_length()) {

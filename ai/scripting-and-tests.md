@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); test-harness facts as cited
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); test-harness facts as cited; suite count 80/80 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -38,7 +38,7 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   with its result by `nwc_tool_t::do_command` as described below.
 - The active Squirrel suite completes under `Debug|x64` with `pak128.Britain-Ex`, including the
   schedule, consist-order and convoy-observation tests.
-  [EXECUTION-VERIFIED:2026-11-12, 76 of 76 tests, run with `-nomidi`].
+  [EXECUTION-VERIFIED:2026-11-14, 80 of 80 tests, run with `-nomidi`].
 - The API was ported from Standard. Extended schedule entries and complete consist orders are
   script-accessible, but other Extended fields remain incomplete, including parts of the
   line/convoy/replacement read model. Use the exported declarations in `script/api/` as the

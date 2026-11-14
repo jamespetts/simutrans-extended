@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 1c8d9cadf
+verified: ex-15 @ 1c8d9cadf; reservation-index clearing update plus working tree (2026-11-14)
 ---
 # Vehicles, consists & convoys
 
@@ -63,9 +63,8 @@ verified: ex-15 @ 1c8d9cadf
   is booked only `if (front())` — an emptied convoy books nothing (matching: convoys created
   outside the depot tools book no `+1`). `calc_sale_value()` is the sum over vehicles, so an
   emptied convoy books 0. `leave_tile()` does NOT release `schiene_t` reservations: `destroy()`
-  calls `unreserve_route()` to clear them (the waytype falls back to the schedule when `front()`
-  is absent, for an emptied convoy) and deregisters the convoy from its stop's layover pool
-  (removal attempted unconditionally).
+  calls `unreserve_route()` to clear this convoy's reservation bucket and deregisters the convoy
+  from its stop's layover pool (removal attempted unconditionally).
 - Per-km cost: `vehicle_t::get_running_cost(welt)` is the wear- and inflation-adjusted per-km
   figure; driving books it via `convoi_t::add_running_cost` → `player_t::book_running_costs`
   (negative amounts = cost; also books way tolls and convoy-level CONVOI_* accounts).
@@ -94,8 +93,6 @@ Measured on the gargantuan fixture (method and full inventory: [performance](per
   18.9% incl / 8.3% self; `vehicle_base_t::do_drive` 10.0% incl; `convoy_t::calc_move` 6.1% incl;
   `calc_min_braking_distance` 3.0% incl; the sync-safe fixed-point `float32e8_t` operators ~7%
   self combined.
-- Reservation clearing (`convoi_t::unreserve_route_range`) is 12.4% self on master, roughly 26%
-  on ex-15 (single run) → [signals-and-blocks](signals-and-blocks.md).
 - Loading a large save triggers a mass reroute wave in the first steps.
 
 ## Open questions

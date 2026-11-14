@@ -766,6 +766,11 @@ private:
 	// Flag to set to false during certain signalling operations to disable reservation clearing.
 	bool allow_clear_reservation = true;
 
+	// Display-only: set when this convoy entered an occupied block under a
+	// choose signal's call-on aspect, cleared on arrival or when the working
+	// method changes away from drive_by_sight.
+	bool call_on = false;
+
 
 	// This obviates the need to call can_enter_tile
 	// more than once in a step on the same tile
@@ -865,6 +870,7 @@ public:
 	void unreserve_route();
 
 	route_t* get_route() { return &route; }
+	const route_t* get_route() const { return &route; }
 	route_t* access_route() { return &route; }
 	route_t::route_result_t calc_route(koord3d start, koord3d ziel, sint32 max_speed);
 	void update_route(uint32 index, const route_t &replacement); // replace route with replacement starting at index.
@@ -1707,6 +1713,26 @@ public:
 	// not to the network, so retrying the same route search cannot help.
 	bool is_route_failure_from_combination() const { return !has_power() || needs_electrification(); }
 
+	// How the convoy named by the current entry's couple or uncouple target
+	// stands in relation to a choose-signal approach at the entry's stop.
+	enum recombination_target_state_t
+	{
+		recombination_target_none,      // no target, or it is not yet committed to this stop
+		recombination_target_committed, // the target has passed the last signal before the stop but is not stationary
+		recombination_target_available  // the target is stationary at the stop
+	};
+
+	// Resolve the coupling target named by the current entry for the given
+	// stop. The target is chosen deterministically among the named convoy or the
+	// named line's convoys: an available target outranks a committed one, then
+	// the earliest arrival_time wins, then the lowest convoy id.
+	recombination_target_state_t get_recombination_target_state(halthandle_t halt, convoihandle_t &target) const;
+
+	// Display-only state set when the convoy enters an occupied block under a
+	// choose signal's call-on aspect.
+	bool is_under_call_on() const { return call_on; }
+	void set_call_on(bool value) { call_on = value; }
+
 	private:
 		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate);
 
@@ -1807,6 +1833,10 @@ public:
 		// Does the given entry's coupling or division target name this convoy or
 		// its line?
 		bool entry_names_this_convoy(const schedule_entry_t &entry, bool use_couple_target) const;
+
+		// True when this convoy's current route to the given stop has passed the
+		// last signal before the first tile of that stop.
+		bool has_passed_last_signal_before_halt(halthandle_t halt) const;
 
 		// Carry out the current entry's recombination orders at a stop: a paired
 		// exchange, the ordinary one-sided coupling receive, a division, or

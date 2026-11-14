@@ -667,6 +667,64 @@ void karte_t::destroy()
 }
 
 
+void karte_t::register_reserved_way(schiene_t *way, uint16 holder_id)
+{
+	assert(holder_id != 0);
+	assert(holder_id < reservation_buckets.get_count());
+	assert(way->reservation_index == UINT32_MAX_VALUE);
+	if (holder_id == 0 || holder_id >= reservation_buckets.get_count() || way->reservation_index != UINT32_MAX_VALUE)
+	{
+		dbg->fatal("karte_t::register_reserved_way", "Invalid holder %u or back-index %u", holder_id, way->reservation_index);
+	}
+	vector_tpl<schiene_t *> &bucket = reservation_buckets[holder_id];
+	way->reservation_index = bucket.get_count();
+	bucket.append(way);
+}
+
+
+void karte_t::unregister_reserved_way(schiene_t *way, uint16 holder_id)
+{
+	assert(holder_id != 0);
+	assert(holder_id < reservation_buckets.get_count());
+	if (holder_id == 0 || holder_id >= reservation_buckets.get_count())
+	{
+		dbg->fatal("karte_t::unregister_reserved_way", "Invalid holder %u", holder_id);
+	}
+	vector_tpl<schiene_t *> &bucket = reservation_buckets[holder_id];
+	const uint32 index = way->reservation_index;
+	const bool valid = index < bucket.get_count() && bucket[index] == way;
+	assert(valid);
+	if (!valid)
+	{
+		dbg->fatal("karte_t::unregister_reserved_way", "Way %p has back-index %u in bucket %u with %u entries", (const void *)way, index, holder_id, bucket.get_count());
+	}
+	way->reservation_index = UINT32_MAX_VALUE;
+	bucket.remove_at(index, false);
+	if (index < bucket.get_count())
+	{
+		bucket[index]->reservation_index = index;
+	}
+}
+
+
+const vector_tpl<schiene_t *> &karte_t::get_reserved_ways(uint16 holder_id) const
+{
+	assert(holder_id < reservation_buckets.get_count());
+	return reservation_buckets[holder_id];
+}
+
+
+void karte_t::release_reservation_bucket(uint16 holder_id)
+{
+	vector_tpl<schiene_t *> &bucket = reservation_buckets[holder_id];
+	assert(bucket.empty());
+	if (bucket.empty())
+	{
+		bucket = vector_tpl<schiene_t *>();
+	}
+}
+
+
 void karte_t::add_convoi(convoihandle_t const &cnv)
 {
 	assert(cnv.is_bound());
@@ -3350,6 +3408,7 @@ karte_t::karte_t() :
 	cities(0),
 	speed_factors_are_set(false)
 {
+	reservation_buckets.resize(65535);
 	destroying = false;
 
 	// length of day and other time stuff

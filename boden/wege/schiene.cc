@@ -31,6 +31,7 @@ bool schiene_t::show_reservations = false;
 schiene_t::schiene_t(waytype_t waytype) :
 	weg_t(waytype),
 	reserved(convoihandle_t()),
+	reservation_index(UINT32_MAX_VALUE),
 	type(block),
 	direction(ribi_t::none)
 {
@@ -40,6 +41,7 @@ schiene_t::schiene_t(waytype_t waytype) :
 schiene_t::schiene_t() :
 	weg_t(track_wt),
 	reserved(convoihandle_t()),
+	reservation_index(UINT32_MAX_VALUE),
 	type(block),
 	direction(ribi_t::none)
 {
@@ -55,10 +57,45 @@ schiene_t::schiene_t() :
 schiene_t::schiene_t(loadsave_t *file) :
 	weg_t(track_wt),
 	reserved(convoihandle_t()),
+	reservation_index(UINT32_MAX_VALUE),
 	type(block),
 	direction(ribi_t::none)
 {
 	rdwr(file);
+}
+
+
+schiene_t::~schiene_t()
+{
+	change_reservation_holder(convoihandle_t());
+}
+
+
+void schiene_t::change_reservation_holder(convoihandle_t new_holder)
+{
+	uint16 new_id = new_holder.get_id();
+	if (new_id == 65535)
+	{
+		// A quickstone table with 65,535 entries uses IDs 0 through 65,534.
+		// Discard an invalid loaded ID rather than creating an unindexed reservation.
+		dbg->error("schiene_t::change_reservation_holder()", "Invalid reservation holder %u discarded", new_id);
+		new_holder = convoihandle_t();
+		new_id = 0;
+	}
+	const uint16 old_id = reserved.get_id();
+	if (old_id == new_id)
+	{
+		return;
+	}
+	if (old_id != 0)
+	{
+		welt->unregister_reserved_way(this, old_id);
+	}
+	reserved = new_holder;
+	if (new_id != 0)
+	{
+		welt->register_reserved_way(this, new_id);
+	}
 }
 
 
@@ -93,7 +130,7 @@ bool schiene_t::reserve(convoihandle_t c, ribi_t::ribi dir, reservation_type t, 
 			// is already done, but show that this is reservable.
 			return true;
 		}
-		reserved = c;
+		change_reservation_holder(c);
 		type = t;
 		direction = dir;
 
@@ -138,7 +175,7 @@ bool schiene_t::unreserve(convoihandle_t c)
 {
 	// is this tile reserved by us?
 	if(reserved.is_bound()  &&  reserved==c) {
-		reserved = convoihandle_t();
+		change_reservation_holder(convoihandle_t());
 		if(schiene_t::show_reservations) {
 			set_flag( obj_t::dirty );
 		}
@@ -161,7 +198,7 @@ bool schiene_t::unreserve(vehicle_t*)
 		return true;
 	}
 //	if(!welt->lookup(get_pos())->suche_obj(v->get_typ())) {
-		reserved = convoihandle_t();
+		change_reservation_holder(convoihandle_t());
 		if(schiene_t::show_reservations) {
 			set_flag( obj_t::dirty );
 		}
@@ -279,7 +316,9 @@ void schiene_t::rdwr(loadsave_t *file)
 			}
 		}
 		file->rdwr_short(reserved_index);
-		reserved.set_id(reserved_index);
+		convoihandle_t restored_holder;
+		restored_holder.set_id(reserved_index);
+		change_reservation_holder(restored_holder);
 
 		uint8 t = (uint8)type;
 		file->rdwr_byte(t);

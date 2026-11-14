@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes (2026-11-14)
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes (2026-11-14); choose-signal call-on Phase 1 plus working tree (2026-11-14)
 ---
 # Consist recombination
 
@@ -164,16 +164,23 @@ The reservation consequences are in [signals-and-blocks](signals-and-blocks.md) 
 convoy handle with no per-portion identity, every commit releases and re-reserves the changed
 convoy's tiles, and a train cannot reserve through a tile held by a standing convoy. A joining
 portion can therefore enter an occupied block or platform only up to the standing train's tile, under
-permissive working with the call-on aspect, and only from a stand.
+call-on and only from a stand.
 
-Call-on is implemented as general permissive working: at a stand at a permissive signal under
-absolute block, track circuit block or cab signalling with `no_junctions_to_next_signal`, a failed
+Call-on has two forms. Ordinary permissive working applies at a stand at a permissive signal under
+absolute block, track circuit block or cab signalling with `no_junctions_to_next_signal`: a failed
 reservation sets `roadsign_t::call_on`, switches the train to `drive_by_sight` and re-runs
-`rail_vehicle_t::block_reserver` with `from_call_on = true`. It admits the train to the occupied
-block up to the standing train's tile. The planned use of call-on for shunting movements into an
-occupied platform or yard as part of a recombination is not yet implemented: the recombination runtime
-does not request call-on and does not move a convoy into an occupied platform, and `SHUNTING` is only
-a timed pause. Call-on-based coupling movements remain part of the platform/call-on work.
+`rail_vehicle_t::block_reserver` with `from_call_on = true`, admitting the train to the occupied
+block up to the standing train's tile.
+
+Choose-signal call-on is target-specific and intrinsic to every choose signal. For an entry carrying
+`couple`, or the reciprocal `uncouple`, `convoi_t::get_recombination_target_state()` distinguishes a
+target that is not yet committed, a target that has passed the last signal before the stop, and a
+target stationary at the stop. A committed target holds the mover at the choose signal. An available
+target causes the choose signal to route to that target's rear tile; the mover is admitted under
+call-on and stops in the tile before the target's rear tile. `has_call_on` is display-only, and
+call-on always switches the train to `drive_by_sight`. The shared contact tile, exact stopping
+geometry, approach-link persistence and the reservation-holder handoff belong to the unimplemented
+shared-contact package; `SHUNTING` remains a timed pause, not a movement.
 
 ## Tests
 
@@ -190,12 +197,14 @@ questions are maintained in [ex-15/recombination-design](ex-15/recombination-des
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The main outstanding items are
 freight/passenger continuity (including the intended loose-stock preloading and retrospective
 loading credit), wait-cycle detection beyond a direct pair, reversal-aware picking, the per-portion
-validity gate, call-on/platform shunting movements, and the GUI authoring pre-check.
+validity gate, the shared-contact coupling movement (contact tile, exact stop and approach-link
+persistence), the off-map pool package, and the GUI authoring pre-check.
 
 Should the term "convoy"/"convoi" be phased out entirely in the code and this knowledge base as well
 as the UI?
 
 ## Provenance
 
-Code-verified against ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes. The detailed
-design history and forum provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).
+Code-verified against ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes;
+choose-signal call-on Phase 1 plus working tree (2026-11-14). The detailed design history and forum
+provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).

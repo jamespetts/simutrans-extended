@@ -121,9 +121,11 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
 
 `<PREFIX>: <short message>`, where PREFIX is one of:
 - FIX — a bug fix
-- CHANGE — changes existing behaviour
+- CHANGE — changes existing behaviour, including a change that materially alters the
+  performance characteristics of a hot path
 - ADD — adds a new feature
-- CODE — changes the code without changing behaviour
+- CODE — changes the code without changing behaviour or materially altering the
+  performance characteristics of a hot path
 - VERSION — increments the version
 - DOC — documentation (including this file and ai/)
 - BUILD — build system / CI

@@ -86,6 +86,8 @@ void runway_t::rdwr(loadsave_t *file)
 	{
 		uint16 reserved_index = reserved.get_id();
 		file->rdwr_short(reserved_index);
-		reserved.set_id(reserved_index);
+		convoihandle_t restored_holder;
+		restored_holder.set_id(reserved_index);
+		change_reservation_holder(restored_holder);
 	}
 }

@@ -363,6 +363,10 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 	// deregister from line (again)
 	unset_line();
 
+	if (!welt->is_destroying())
+	{
+		welt->release_reservation_bucket(self.get_id());
+	}
 	self.detach();
 }
 
@@ -421,44 +425,32 @@ void convoi_t::unreserve_route_range(route_range_specification range)
 #endif
 
 /**
- * unreserves the whole remaining route
+ * Release all reservations held by this convoy through karte_t::reservation_buckets.
+ * Main thread only: bucket entries and way reservations are not synchronised.
  */
 void convoi_t::unreserve_route()
 {
-	// Clears all reserved tiles on the whole map belonging to this convoy.
-	// The waytype only filters candidate ways; it falls back to the schedule for
-	// a convoy whose vehicles have already gone (destroy() of an emptied convoy).
-	const waytype_t wt = front() ? front()->get_waytype() : (schedule ? schedule->get_waytype() : invalid_wt);
-#ifdef MULTI_THREAD_ROUTE_UNRESERVER
-	if (karte_t::threads_initialised)
+	const uint16 holder_id = self.get_id();
+	const vector_tpl<schiene_t *> &reservations = welt->get_reserved_ways(holder_id);
+	uint32 i = 0;
+	while (i < reservations.get_count())
 	{
-		current_unreserver = self.get_id();
-		current_waytype = wt;
-
-		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
-		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
-
-		current_unreserver = 0;
-		current_waytype = invalid_wt;
-
-		set_needs_full_route_flush(false);
-		return;
-	}
-	// The worker threads are not initialised (e.g. during loading, they are
-	// created only at the end of karte_t::load()), so the barrier does not
-	// exist: fall through to the single-threaded loop below.
-#endif
-	for (auto const way : weg_t::get_alle_wege())
-	{
-		if(way->get_waytype() == wt)
+		schiene_t *const sch = reservations[i];
+		if (sch->get_reserved_convoi().get_id() == holder_id)
 		{
-			//schiene_t* const sch = obj_cast<schiene_t>(way);
-			schiene_t* const sch = way->is_rail_type() ? (schiene_t*)way : NULL;
-			if(sch && sch->get_reserved_convoi() == self)
+			const bool released = sch->unreserve(self);
+			assert(released);
+			if (released)
 			{
-				sch->unreserve(self);
+				// Swap-removal moves the last entry into this position.
+				continue;
 			}
 		}
+		else
+		{
+			assert(false && "reservation index holder mismatch");
+		}
+		i++;
 	}
 
 	set_needs_full_route_flush(false);
@@ -1478,6 +1470,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 
 bool convoi_t::prepare_for_routing()
 {
+	call_on = false;
 	if (vehicle_count > 0 && schedule)
 	{
 		koord3d start = front()->get_pos();
@@ -4428,6 +4421,12 @@ template <typename vehicle_collection> void convoi_t::execute_reverse_order(vehi
 
 void convoi_t::set_working_method(working_method_t value)
 {
+	if (value != drive_by_sight)
+	{
+		// Call-on is a drive-by-sight movement authority; leaving that method
+		// ends the displayed call-on state.
+		call_on = false;
+	}
 	for (uint32 i = 0; i < vehicle_count; i++)
 	{
 		vehicle_t* veh = get_vehicle(i);
@@ -6368,6 +6367,7 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, array_tpl<sint64> & apportione
  */
 void convoi_t::hat_gehalten(halthandle_t halt)
 {
+	call_on = false;
 	// Decide before loading, so that passengers for the onward journey are picked up at this stop.
 	turn_at_skipped_depot();
 
@@ -10744,7 +10744,7 @@ bool convoi_t::entry_names_this_convoy(const schedule_entry_t &entry, bool use_c
 		{
 			return false;
 		}
-		if (cnv.get_rep() == this)
+		if (cnv == self)
 		{
 			return true;
 		}
@@ -10756,12 +10756,171 @@ bool convoi_t::entry_names_this_convoy(const schedule_entry_t &entry, bool use_c
 }
 
 
+// True when this convoy's current route to the given stop has passed the last
+// signal before the first tile of that stop. A route with no signal before the
+// stop is not committed: ordinary free-platform selection may proceed.
+bool convoi_t::has_passed_last_signal_before_halt(halthandle_t halt) const
+{
+	const route_t *const current_route = get_route();
+	if (!halt.is_bound() || !front() || !current_route || current_route->get_count() < 2)
+	{
+		return false;
+	}
+	const uint16 route_count = current_route->get_count();
+	const uint16 start = min(front()->get_route_index(), route_count - 1u);
+	sint32 halt_entry = -1;
+	for (uint16 i = start; i < route_count; i++)
+	{
+		if (haltestelle_t::get_halt(current_route->at(i), get_owner()) == halt)
+		{
+			halt_entry = (sint32)i;
+			break;
+		}
+	}
+	if (halt_entry < 0)
+	{
+		return false;
+	}
+	sint32 last_signal = -1;
+	for (sint32 i = halt_entry - 1; i >= 0; i--)
+	{
+		const grund_t *const gr = welt->lookup(current_route->at((uint16)i));
+		const weg_t *const way = gr ? gr->get_weg(front()->get_waytype()) : NULL;
+		if (!way || !way->has_signal())
+		{
+			continue;
+		}
+		const ribi_t::ribi ribi = ribi_type(current_route->at(max(1, i) - 1), current_route->at(min((sint32)route_count - 1, i + 1)));
+		if (way->get_signal(ribi))
+		{
+			last_signal = i;
+			break;
+		}
+	}
+	return last_signal >= 0 && (sint32)front()->get_route_index() > last_signal;
+}
+
+
+convoi_t::recombination_target_state_t convoi_t::get_recombination_target_state(halthandle_t halt, convoihandle_t &target) const
+{
+	target = convoihandle_t();
+	if (!schedule || !halt.is_bound() || !front())
+	{
+		return recombination_target_none;
+	}
+	const schedule_entry_t &entry = schedule->get_current_entry();
+	const bool is_receiver = entry.is_flag_set(schedule_entry_t::couple);
+	const bool is_target_role = entry.is_flag_set(schedule_entry_t::uncouple);
+	if (is_receiver == is_target_role)
+	{
+		// Neither flag, or both: no valid coupling target for this entry.
+		return recombination_target_none;
+	}
+	const uint16 target_id = is_receiver ? entry.target_id_couple : entry.target_id_uncouple;
+	if (target_id == 0)
+	{
+		// Targetless assembly draws on the stop's pool and has no standing target.
+		return recombination_target_none;
+	}
+	const bool target_is_convoy = entry.is_flag_set(is_receiver ? schedule_entry_t::couple_target_is_line_or_cnv : schedule_entry_t::uncouple_target_is_line_or_cnv);
+
+	vector_tpl<convoihandle_t> candidates;
+	if (target_is_convoy)
+	{
+		convoihandle_t candidate;
+		candidate.set_id(target_id);
+		if (candidate.is_bound())
+		{
+			candidates.append(candidate);
+		}
+	}
+	else
+	{
+		linehandle_t line;
+		line.set_id(target_id);
+		if (line.is_bound())
+		{
+			for (uint32 i = 0; i < line->count_convoys(); i++)
+			{
+				candidates.append(line->get_convoy(i));
+			}
+		}
+	}
+
+	recombination_target_state_t best_state = recombination_target_none;
+	convoihandle_t best_target;
+	for (const convoihandle_t candidate : candidates)
+	{
+		if (!candidate.is_bound() || candidate == self || candidate->get_vehicle_count() == 0)
+		{
+			continue;
+		}
+		const schedule_t *const candidate_schedule = candidate->get_schedule();
+		if (!candidate_schedule || candidate_schedule->get_waytype() != schedule->get_waytype())
+		{
+			continue;
+		}
+
+		// A candidate whose current entry configures the reciprocal order must
+		// name this convoy; one with no reciprocal flag is a one-sided receive.
+		const schedule_entry_t &candidate_entry = candidate_schedule->get_current_entry();
+		const bool candidate_has_opposing = is_receiver ? candidate_entry.is_flag_set(schedule_entry_t::uncouple) : candidate_entry.is_flag_set(schedule_entry_t::couple);
+		if (candidate_has_opposing && !entry_names_this_convoy(candidate_entry, !is_receiver))
+		{
+			continue;
+		}
+
+		recombination_target_state_t candidate_state = recombination_target_none;
+		if (haltestelle_t::get_halt(candidate->get_pos(), candidate->get_owner()) == halt)
+		{
+			if (candidate->is_loading()
+				|| candidate->get_state() == AWAITING_RECOMBINATION
+				|| candidate->get_state() == AWAITING_TRIGGER
+				|| candidate->get_state() == SHUNTING
+				|| candidate->get_state() == LAYOVER)
+			{
+				candidate_state = recombination_target_available;
+			}
+			else if (candidate->get_state() == DRIVING)
+			{
+				candidate_state = recombination_target_committed;
+			}
+		}
+		else if (haltestelle_t::get_halt(candidate_schedule->get_current_entry().pos, candidate->get_owner()) == halt
+			&& candidate->get_state() != ROUTING_1
+			&& candidate->get_state() != ROUTING_2
+			&& candidate->get_state() != ROUTE_JUST_FOUND
+			&& candidate->has_passed_last_signal_before_halt(halt))
+		{
+			candidate_state = recombination_target_committed;
+		}
+
+		if (candidate_state == recombination_target_none)
+		{
+			continue;
+		}
+		if (best_state == recombination_target_none
+			|| candidate_state > best_state
+			|| (candidate_state == best_state
+				&& (!best_target.is_bound()
+					|| candidate->get_arrival_time() < best_target->get_arrival_time()
+					|| (candidate->get_arrival_time() == best_target->get_arrival_time() && candidate.get_id() < best_target.get_id()))))
+		{
+			best_state = candidate_state;
+			best_target = candidate;
+		}
+	}
+	target = best_target;
+	return best_state;
+}
+
+
 // The counterpart convoy waits for this pair when it is in
 // AWAITING_RECOMBINATION with the counterpart entry as its current entry, at
 // this stop, and travelling in the direction the entry specifies.
 bool convoi_t::is_waiting_pair_counterpart(const convoihandle_t &candidate, const schedule_entry_t &counterpart_entry, const schedule_t *counterpart_schedule, bool counterpart_reversed, halthandle_t halt) const
 {
-	if (!candidate.is_bound() || !halt.is_bound() || candidate.get_rep() == this)
+	if (!candidate.is_bound() || !halt.is_bound() || candidate == self)
 	{
 		return false;
 	}
@@ -10859,7 +11018,7 @@ convoi_t::paired_exchange_state_t convoi_t::resolve_paired_exchange(halthandle_t
 		}
 		return paired_not_configured;
 	}
-	if ((target_convoy.is_bound() && target_convoy.get_rep() == this)
+	if ((target_convoy.is_bound() && target_convoy == self)
 		|| (target_line.is_bound() && get_line().is_bound() && target_line == get_line()))
 	{
 		pair.failure = pair_failure_self_target;

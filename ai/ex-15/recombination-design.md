@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and choose-signal call-on core 2026-11-14
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -244,9 +244,11 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
    (The runtime is implemented; the remaining items are the ones listed under Open questions.)
 4. Implement the through-journey stages in parallel where useful, but release them only with the runtime and
    freight-continuity work. Resolve asynchronous collection dwell within that package.
-5. Complete platform/siding/home-depot and call-on handling, solver completeness, ownership/access
-   decisions and the remaining authoring validation. Basic loose-pool storage and visibility already
-   exist; do not recreate them as a prerequisite subsystem.
+5. Complete platform/siding/home-depot and shared-contact call-on handling, solver completeness,
+   ownership/access decisions and the remaining authoring validation. The choose-signal call-on
+   core (target resolution, committed-target hold, target-platform route and admission) is
+   implemented; the shared contact tile, exact stop and approach-link persistence remain. Basic
+   loose-pool storage and visibility already exist; do not recreate them as a prerequisite subsystem.
 
 ## Verification fixtures
 

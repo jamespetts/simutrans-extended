@@ -197,10 +197,8 @@ void rail_vehicle_t::set_convoi(convoi_t *c)
 
 
 // need to reset halt reservation (if there was one)
-// Main thread only: way reservations are read by the main thread without
-// synchronisation while convoy worker threads run route finding. Note that
-// unreserve_route() itself must stay main-thread-only: it releases the
-// unreserve worker pool via a barrier that expects main-thread participation.
+// Main thread only: way reservations and their per-holder buckets are not
+// synchronised with convoy worker threads, which perform route finding only.
 void rail_vehicle_t::release_target_reservations()
 {
 	if(leading  &&  route_index<cnv->get_route()->get_count()) {
@@ -299,6 +297,12 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 	if(cnv && cnv->get_is_choosing())
 	{
 		check_reservation = sch->can_reserve(cnv->self, ribi);
+		if (!check_reservation && choose_target_convoy.is_bound() && choose_target_tile != koord3d::invalid && bd->get_pos() == choose_target_tile)
+		{
+			// A coupling approach may enter the target's rear tile only; every
+			// other tile held by another convoy stays closed to the search.
+			check_reservation = sch->get_reserved_convoi() == choose_target_convoy;
+		}
 	}
 
 	return check_reservation && check_access(sch);
@@ -397,21 +401,92 @@ bool rail_vehicle_t::is_target(const grund_t *gr,const grund_t *prev_gr)
 	return false;
 }
 
-sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &next_signal_index, uint32 brake_steps, uint16 modified_sighting_distance_tiles, route_t* route, sint32 modified_route_index)
+sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &next_signal_index, uint32 brake_steps, uint16 modified_sighting_distance_tiles, route_t* route, sint32 modified_route_index, convoi_t::recombination_target_state_t coupling_state, convoihandle_t coupling_target)
 {
 	const schedule_t* schedule = cnv->get_schedule();
-
-	if (schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose))
-	{
-		// The schedule dictates that we must ignore this choose signal
-		return 0;
-	}
 
 	grund_t const* target = welt->lookup(schedule->get_current_entry().pos);
 
 	if(target == NULL)
 	{
 		cnv->suche_neue_route();
+		return 0;
+	}
+
+	// The direction allowed out of the choose signal. This is computed before
+	// the coupling branch so that both route searches use the same constraints.
+	const uint16 first_block = start_block == 0 ? start_block : start_block - 1;
+	const uint16 second_block = start_block == 0 ? start_block + 1 : start_block;
+	uint16 third_block = start_block == 0 ? start_block + 2 : start_block + 1;
+	third_block = min(third_block, route->get_count() - 1);
+	const koord3d first_tile = route->at(first_block);
+	const koord3d second_tile = route->at(second_block);
+	const koord3d third_tile = route->at(third_block);
+	const grund_t* third_ground = welt->lookup(third_tile);
+	uint8 direction = ribi_type(first_tile, second_tile);
+
+	if (third_ground)
+	{
+		const schiene_t* railway = (schiene_t*)third_ground->get_weg(get_waytype());
+		if (railway && railway->is_junction())
+		{
+			ribi_t::ribi old_direction = direction;
+			direction |= ribi_t::all;
+			direction ^= ribi_t::backward(old_direction);
+		}
+	}
+	direction |= ribi_type(second_tile, third_tile);
+	direction |= welt->lookup(second_tile)->get_weg(get_waytype())->get_ribi_unmasked();
+
+	if (coupling_state == convoi_t::recombination_target_committed)
+	{
+		// A target that has passed the last signal before the platform area is
+		// committed to its platform. Entering first can block it, so hold here.
+		return 0;
+	}
+
+	if (coupling_state == convoi_t::recombination_target_available && coupling_target.is_bound())
+	{
+		// Route to the target's rear tile, not to the halt: the halt route
+		// deliberately seeks a free platform. Pass zero as the convoy tile
+		// length so that the platform extension code does not move the goal.
+		const koord3d target_rear_tile = coupling_target->back()->get_pos();
+		route_t target_rt;
+		cnv->set_is_choosing(true);
+		choose_target_convoy = coupling_target;
+		choose_target_tile = target_rear_tile;
+		const bool can_find_route = target_rt.calc_route(welt, route->at(start_block), target_rear_tile, this, speed_to_kmh(cnv->get_min_top_speed()), cnv->get_highest_axle_load(), cnv->has_tall_vehicles(), 0, SINT64_MAX_VALUE, cnv->get_weight_summary().weight / 1000, koord3d::invalid, direction) == route_t::valid_route;
+		choose_target_tile = koord3d::invalid;
+		choose_target_convoy = convoihandle_t();
+		cnv->set_is_choosing(false);
+
+		if (can_find_route)
+		{
+			const uint32 route_length = target_rt.get_count();
+			const ribi_t::ribi arrival_direction = route_length >= 2 ? ribi_type(target_rt.at(route_length - 2), target_rt.at(route_length - 1)) : ribi_t::none;
+			if (route_length >= 2 && (arrival_direction & coupling_target->back()->get_direction()) != 0)
+			{
+				cnv->update_route(start_block, target_rt);
+				target_halt = target->get_halt();
+				// Reserve the new route. The target holds its rear tile, so the
+				// walk stops in front of it; the choose signal stays at danger
+				// until the convoy is at a stand and call-on is granted.
+				block_reserver(route, start_block, modified_sighting_distance_tiles, next_signal_index, 100000, true, false, true, false, false, false, brake_steps);
+				return 1;
+			}
+		}
+
+		// The target's platform cannot be reached from this choose signal in the
+		// convoy's direction. Do not divert to a free platform or exchange
+		// logically; wait for the obstruction to clear.
+		target_halt = halthandle_t();
+		return 0;
+	}
+
+	if (schedule->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose))
+	{
+		// The schedule dictates that we must ignore this choose signal for free
+		// platform selection. A present target was handled above.
 		return 0;
 	}
 
@@ -487,28 +562,6 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 
 	// We are in a step and can use the route search
 	route_t target_rt;
-	const uint16 first_block = start_block == 0 ? start_block : start_block - 1;
-	const uint16 second_block = start_block == 0 ? start_block + 1 : start_block;
-	uint16 third_block = start_block == 0 ? start_block + 2 : start_block + 1;
-	third_block = min(third_block, route->get_count() - 1);
-	const koord3d first_tile = route->at(first_block);
-	const koord3d second_tile = route->at(second_block);
-	const koord3d third_tile = route->at(third_block);
-	const grund_t* third_ground = welt->lookup(third_tile);
-	uint8 direction = ribi_type(first_tile, second_tile);
-
-	if (third_ground)
-	{
-		const schiene_t* railway = (schiene_t*)third_ground->get_weg(get_waytype());
-		if (railway && railway->is_junction())
-		{
-			ribi_t::ribi old_direction = direction;
-			direction |= ribi_t::all;
-			direction ^= ribi_t::backward(old_direction);
-		}
-	}
-	direction |= ribi_type(second_tile, third_tile);
-	direction |= welt->lookup(second_tile)->get_weg(get_waytype())->get_ribi_unmasked();
 	cnv->set_is_choosing(true);
 	bool can_find_route;
 
@@ -562,6 +615,102 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 	}
 	cnv->set_is_choosing(false);
 	return blocks;
+}
+
+
+bool rail_vehicle_t::target_obstructs_route_only(const signal_t *signal, const convoihandle_t &target) const
+{
+	if (!cnv || !signal || !signal->get_desc()->is_choose_sign() || !target.is_bound() || !cnv->front())
+	{
+		return false;
+	}
+	const schedule_entry_t &entry = cnv->get_schedule()->get_current_entry();
+	if (!entry.is_flag_set(schedule_entry_t::couple) && !entry.is_flag_set(schedule_entry_t::uncouple))
+	{
+		return false;
+	}
+	route_t *const current_route = cnv->get_route();
+	if (!current_route || current_route->get_count() < 2)
+	{
+		return false;
+	}
+	const koord3d contact_tile = target->back()->get_pos();
+	if (current_route->back() != contact_tile)
+	{
+		// The route was not selected for this target's platform.
+		return false;
+	}
+
+	const uint16 route_count = current_route->get_count();
+	const uint16 start = cnv->front()->get_route_index() > 0 ? min(cnv->front()->get_route_index() - 1, route_count - 1u) : 0;
+	uint16 signal_index = INVALID_INDEX;
+	for (uint16 i = start; i < route_count; i++)
+	{
+		if (current_route->at(i) == signal->get_pos())
+		{
+			signal_index = i;
+			break;
+		}
+	}
+	if (signal_index == INVALID_INDEX)
+	{
+		return false;
+	}
+
+	bool target_reservation_seen = false;
+	for (uint16 i = signal_index; i < route_count; i++)
+	{
+		const grund_t *const gr = welt->lookup(current_route->at(i));
+		schiene_t *const sch = gr ? (schiene_t*)gr->get_weg(get_waytype()) : NULL;
+		if (!sch)
+		{
+			return false;
+		}
+		const convoihandle_t holder = sch->get_reserved_convoi();
+		if (holder.is_bound() && holder != cnv->self)
+		{
+			if (holder != target)
+			{
+				// An unrelated reservation blocks the approach.
+				return false;
+			}
+			target_reservation_seen = true;
+		}
+		const vehicle_t *const vehicle_on_tile = dynamic_cast<const vehicle_t *>(gr->get_convoi_vehicle());
+		if (vehicle_on_tile && vehicle_on_tile->get_convoi() && vehicle_on_tile->get_convoi() != cnv && vehicle_on_tile->get_convoi() != target.get_rep())
+		{
+			// An unrelated train on the route is not covered by call-on.
+			return false;
+		}
+		if (current_route->at(i) == contact_tile)
+		{
+			break;
+		}
+	}
+	return target_reservation_seen;
+}
+
+
+bool rail_vehicle_t::try_choose_call_on(signal_t *signal)
+{
+	if (!cnv || !signal || !signal->get_desc()->is_choose_sign())
+	{
+		return false;
+	}
+	convoihandle_t target;
+	const halthandle_t halt = haltestelle_t::get_halt(cnv->get_schedule()->get_current_entry().pos, cnv->get_owner());
+	if (cnv->get_recombination_target_state(halt, target) != convoi_t::recombination_target_available)
+	{
+		return false;
+	}
+	if (!target_obstructs_route_only(signal, target))
+	{
+		return false;
+	}
+	signal->set_state(roadsign_t::call_on);
+	cnv->set_working_method(drive_by_sight);
+	cnv->set_call_on(true);
+	return true;
 }
 
 
@@ -631,8 +780,6 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			}
 		}
 	}
-
-	nonadjacent_one_train_staff_cabinet == false ? w_current->get_signal(ribi) : NULL;
 
 	if(cnv->get_state() == convoi_t::CAN_START)
 	{
@@ -813,6 +960,15 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 
 		if (allow_block_reserver && !block_reserver(cnv->get_route(), max(route_index, 1) - 1, welt->get_settings().get_sighting_distance_tiles(), next_signal, 0, true, false))
 		{
+			// A choose signal that has selected the target's platform admits the
+			// convoy under call-on once it is at a stand. Re-run the reserver in
+			// drive-by-sight mode so that it stops in front of the target.
+			if (starting_from_stand && signal_current && try_choose_call_on(signal_current)
+				&& block_reserver(cnv->get_route(), route_index, welt->get_settings().get_sighting_distance_tiles(), next_signal, 0, true, false, false, false, false, false, 1, INVALID_INDEX, true))
+			{
+				cnv->set_next_stop_index(next_signal);
+				return true;
+			}
 			restart_speed = 0;
 			return false;
 		}
@@ -1274,8 +1430,13 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 								// Permissive working allowed: call on.
 								signal->set_state(roadsign_t::call_on);
 								cnv->set_working_method(drive_by_sight);
+								cnv->set_call_on(true);
 								call_on = true;
 							}
+						}
+						if(starting_from_stand && !call_on)
+						{
+							call_on = try_choose_call_on(signal);
 						}
 						cnv->set_next_stop_index(next_signal == INVALID_INDEX ? next_block : next_signal);
 						if(signal->get_state() != roadsign_t::call_on)
@@ -1330,6 +1491,15 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		{
 			cnv->set_last_signal_pos(w_current->get_pos());
 		}
+	}
+
+	// A choose signal on the convoy's current tile issues call-on for an
+	// authorised coupling movement once the convoy is at a stand. The signal
+	// branch above only sees a signal on the next block tile, so handle the
+	// current tile explicitly.
+	if (starting_from_stand && !call_on && signal_current && signal_current->get_state() == roadsign_t::danger)
+	{
+		call_on = try_choose_call_on(signal_current);
 	}
 
 	// This is necessary if a convoy is passing through a passing loop without stopping so as to set token block working
@@ -2745,11 +2915,25 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 
 	bool choose_route_identical_to_main_route = false;
 
+	convoihandle_t choose_coupling_target;
+	convoi_t::recombination_target_state_t choose_coupling_state = convoi_t::recombination_target_none;
+	const bool ignore_choose = cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
+	if (last_choose_signal_index < INVALID_INDEX && !is_choosing && !is_from_token)
+	{
+		const halthandle_t choose_halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, cnv->get_owner());
+		choose_coupling_state = cnv->get_recombination_target_state(choose_halt, choose_coupling_target);
+	}
+	const bool choose_for_target = choose_coupling_state != convoi_t::recombination_target_none;
+	const bool choose_for_free_platform = not_entirely_free && !ignore_choose;
+	const bool choose_triggered = choose_for_target || choose_for_free_platform;
+	const bool will_choose = last_choose_signal_index < INVALID_INDEX && !is_choosing && !is_from_token && choose_triggered && (last_choose_signal_index == first_stop_signal_index);
+	bool target_hold = false;
+	bool target_route_selected = false;
+
 	// free, in case of un-reserve or no success in reservation
 	// or alternatively free that section reserved beyond the last signal to which reservation can take place
-	if(!success || !directional_reservation_succeeded || ((next_signal_index < INVALID_INDEX) && (next_signal_working_method == absolute_block || next_signal_working_method == token_block || next_signal_working_method == track_circuit_block || next_signal_working_method == cab_signalling || ((next_signal_working_method == time_interval || next_signal_working_method == time_interval_with_telegraph) && !next_signal_protects_no_junctions))))
+	if(!success || !directional_reservation_succeeded || will_choose || ((next_signal_index < INVALID_INDEX) && (next_signal_working_method == absolute_block || next_signal_working_method == token_block || next_signal_working_method == track_circuit_block || next_signal_working_method == cab_signalling || ((next_signal_working_method == time_interval || next_signal_working_method == time_interval_with_telegraph) && !next_signal_protects_no_junctions))))
 	{
-		const bool will_choose = (last_choose_signal_index < INVALID_INDEX) && !is_choosing && not_entirely_free && (last_choose_signal_index == first_stop_signal_index) && !is_from_token && !cnv->get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::ignore_choose);
 		// free reservation
 		uint16 curtailment_index;
 		bool do_not_increment_curtailment_index_directional = false;
@@ -2859,7 +3043,26 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			const koord3d check_tile_mid = route->at(route_count / 2u);
 			const koord3d check_tile_end = route->back();
 
-			choose_return = activate_choose_signal(last_choose_signal_index, next_signal_index, brake_steps, modified_sighting_distance_tiles, route, modified_route_index);
+			choose_return = activate_choose_signal(last_choose_signal_index, next_signal_index, brake_steps, modified_sighting_distance_tiles, route, modified_route_index, choose_coupling_state, choose_coupling_target);
+
+			target_hold = choose_coupling_state == convoi_t::recombination_target_committed;
+			target_route_selected = choose_coupling_state == convoi_t::recombination_target_available && choose_coupling_target.is_bound() && route->back() == choose_coupling_target->back()->get_pos();
+			if (target_hold || target_route_selected)
+			{
+				// The choose signal must stay at danger: either the target is
+				// committed to a platform and must not be blocked, or the target's
+				// occupied platform has been selected and call-on is granted only
+				// once the convoy is at a stand.
+				choose_return = 0;
+				success = false;
+				cnv->set_next_stop_index(last_choose_signal_index > 0 ? last_choose_signal_index - 1 : 0);
+				const grund_t *const signal_ground = welt->lookup(route->at(last_choose_signal_index));
+				signal_t *const choose_signal = signal_ground ? signal_ground->find<signal_t>() : NULL;
+				if (choose_signal)
+				{
+					choose_signal->set_state(roadsign_t::danger);
+				}
+			}
 
 			if (success && choose_return == 0)
 			{
@@ -2895,7 +3098,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		if(!success && !choose_return)
 		{
 			cnv->set_next_reservation_index(curtailment_index);
-			if (last_stop_signal_index > start_index && last_pre_signal_index < last_stop_signal_index)
+			if (!target_hold && !target_route_selected && last_stop_signal_index > start_index && last_pre_signal_index < last_stop_signal_index)
 			{
 				if (working_method != token_block && working_method != one_train_staff)
 				{
@@ -3138,16 +3341,23 @@ void rail_vehicle_t::clear_token_reservation(signal_t* sig, rail_vehicle_t* w, s
 		// The route has been recalculated since token block mode was entered, so delete all the reservations.
 		// Do not unreserve tiles ahead in the route (i.e., those not marked stale), however.
 		const waytype_t waytype = sch->get_waytype();
-		FOR(vector_tpl<weg_t*>, const way, weg_t::get_alle_wege())
+		const uint16 holder_id = cnv->self.get_id();
+		const vector_tpl<schiene_t *> &reservations = welt->get_reserved_ways(holder_id);
+		uint32 i = 0;
+		while (i < reservations.get_count())
 		{
-			if(way->get_waytype() == waytype)
+			schiene_t *const reserved_way = reservations[i];
+			if (reserved_way->get_reserved_convoi().get_id() == holder_id && reserved_way->get_waytype() == waytype && reserved_way->is_stale())
 			{
-				schiene_t* const sch = obj_cast<schiene_t>(way);
-				if(sch->get_reserved_convoi() == cnv->self && sch->is_stale())
+				const bool released = reserved_way->unreserve(w);
+				assert(released);
+				if (released)
 				{
-					sch->unreserve(w);
+					// Swap-removal moves the last entry into this position.
+					continue;
 				}
 			}
+			i++;
 		}
 		cnv->set_needs_full_route_flush(false);
 	}

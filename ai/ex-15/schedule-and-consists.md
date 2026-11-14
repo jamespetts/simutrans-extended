@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); discharge boundary and paired runtime 2026-11-13; choose-signal call-on core 2026-11-14; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -289,8 +289,9 @@ explorer's treatment of consist orders.
   implemented. There is still no deliberate transfer of cargo between portions, no re-routing
   correction for cargo on moved vehicles, and no through fare ("passengers stay on the through
   portion" is not modelled).
-- **Call-on-based coupling movements into occupied platforms** — call-on signalling exists for
-  other purposes but is not connected to coupling; SHUNTING is only a timed pause.
+- **Choose-signal call-on for coupling movements** — the choose-signal target decision, target-platform
+  route and call-on admission are implemented. The shared contact tile, exact stopping geometry and
+  approach-link persistence remain outstanding; SHUNTING is still only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Coupling semantics and reliability gaps

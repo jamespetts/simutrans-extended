@@ -66,9 +66,7 @@ codebase-specific structural patterns are recorded here.
   still an array-of-pointers to a heterogeneous `obj_t` hierarchy, i.e. packed AoS, not SoA.
 - **Global flat way registry.** `weg_t::get_alle_wege()` returns a static
   `vector_tpl<weg_t*> alle_wege` (boden/wege/weg.cc) covering every way in the world. It enables
-  index-range partitioning for parallel work — `convoi_t::unreserve_route_range` is handed a
-  `route_range_specification` computed by slicing this vector across worker threads
-  (simworld.cc, simconvoi.cc) — and linear sweeps elsewhere.
+  linear sweeps.
 - **Pooled A\* nodes.** `route_t` keeps a `thread_local ANode *_nodes[MAX_NODES_ARRAY]` pool and a
   flat `ANode**` with `MAX_STEP`/`max_used_steps`, and uses a `binary_heap_tpl<ANode*>` open list
   (dataobj/route.h, route.cc). This is a data-oriented structure inside an otherwise OOP subsystem.
@@ -129,7 +127,6 @@ threaded paths and [savegame-versioning](savegame-versioning.md) for persisted f
 | `karte_t::sync_list_t::sync_step` (simworld.cc) | one `vector_tpl<sync_steppable*>` walk calling a virtual per scattered heap object, then a `sync_result` switch | split the dominant homogeneous types (`private_car_t`, `pedestrian_t`, convoys) out of the generic list; iterate them from a contiguous pool with an active mask (the `freelist_iter_tpl` shape) | sync-sensitive; the self-time is itself an open question in [performance](performance.md) — confirm with a stack-resolved trace before acting |
 | `grund_t::get_weg_nr` / `get_weg` → `obj_bei` → `objlist_t::bei` (grund.h, objlist.h) | per lookup: flags test, tagged-pointer decode, **seqlock** (two atomic loads + fences), array load, `static_cast` | cache the decoded way pointers / waytypes directly in `grund_t`, beside the existing `has_way1`/`has_way2` flags; this potentially removes a seqlock-protected lookup and an indirection, though which component dominates the measured cost is not established | threaded readers vs builder/loading mutation; the seqlock exists for concurrent readers — verify safety before removing |
 | `convoi_t::sync_step` / `calc_move`, `vehicle_base_t::do_drive` (simconvoi.cc, convoy.h) | pointer-chase over individually allocated `vehicle_t` objects, each with a vtable and its own `float32e8_t` physics state | large architectural experiment rather than a local optimisation: keep a convoy-local struct-of-arrays of physics scalars (speed, remaining distance, position, length, weight) and batch the per-vehicle drive loop; leave `vehicle_t` as the identity/render/persistence object. Integer SIMD over the SoA physics scalars would be determinism-safe in principle (SSE2 `pmuludq` covers the `float32e8_t` multiply; there is no SIMD 64-bit divide) — → [simd-applicability](simd-applicability.md) | strongly sync- and physics-determinism-sensitive and save-order-sensitive; a subsystem redesign, not a local change |
-| `convoi_t::unreserve_route_range` / `unreserve_route` (simconvoi.cc) | linear sweep of the global `vector_tpl<weg_t*>` (`weg_t::get_alle_wege()`) with per-way type checks against scattered heap objects | contiguous mirror array (waytype + reserved-convoi id) indexed alongside `alle_wege`, so the sweep becomes a contiguous scan (then auto-vectorisable); or a sparse registry of reserved ways, iterating only reservations — → [simd-applicability](simd-applicability.md) | threaded unreserve workers vs main-thread reservation writes; the mirror/registry must be updated at every reserve/unreserve/way-destruction point |
 | `private_car_t::sync_step`, `pedestrian_t::sync_step` (vehicle/simroadtraffic.cc, pedestrian.cc) | same per-object pointer chase; already threaded and batched | contiguous pool + active-mask iteration | sync-sensitive, threading |
 | `karte_t::lookup` / `planquadrat_t::get_boden_in_hoehe` (simworld.h, simplan.h) | `grund_t*` walk on multi-ground tiles | single-ground union fast path already present; a contiguous per-column height array is the further step | low |
 
@@ -150,6 +147,6 @@ Not a target: `route_t` A\* is already the data-oriented part of routing (node p
 ## Provenance
 
 All structural claims and symbol anchors are `[CODE master @ fd4a025a2]`; the same structures are
-present on `mapgen-perf-fixes`. The SIMD annotations (convoy row, `unreserve_route_range` row) are
-`[CODE master @ 075d540f3]`. Measured costs are referenced from [performance](performance.md),
-not copied. The DOD directions are [UNVERIFIED] inference and require measurement before adoption.
+present on `mapgen-perf-fixes`. The SIMD annotation in the convoy row is `[CODE master @ 075d540f3]`.
+Measured costs are referenced from [performance](performance.md), not copied. The DOD directions are
+[UNVERIFIED] inference and require measurement before adoption.

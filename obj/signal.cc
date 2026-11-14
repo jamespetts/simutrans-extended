@@ -261,8 +261,9 @@ void signal_t::info(cbuffer_t & buf) const
 	buf.append("\n");
 
 	// Show the signal state in the info window // Ves
-	// Does this signal have any aspects to show?
-	if (desc->get_working_method() == drive_by_sight || desc->get_aspects() <= 1)
+	// Does this signal have any aspects to show? A choose signal always reports
+	// its state because call-on has no visible aspect on a moving-block beacon.
+	if ((desc->get_working_method() == drive_by_sight || desc->get_aspects() <= 1) && !desc->is_choose_sign())
 	{
 		buf.append("\n\n");
 	}
@@ -289,7 +290,7 @@ void signal_t::info(cbuffer_t & buf) const
 			}
 			else if (desc->is_choose_sign())
 			{
-				buf.append(translator::translate("alt_route"));
+				buf.append(translator::translate("alt_route_and_callon"));
 			}
 			else
 			{
@@ -398,6 +399,9 @@ void signal_t::info(cbuffer_t & buf) const
 							break;
 						case 5:
 							buf.append(translator::translate(get_5_choose_signal_aspects_name(get_state())));
+							break;
+						default:
+							buf.append(translator::translate(get_state() == call_on ? "Call on" : "danger"));
 							break;
 						};
 				}

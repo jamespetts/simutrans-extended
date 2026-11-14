@@ -48,7 +48,10 @@ not a style choice. Short-form reminders: [project-notes](project-notes.md).
    (`halthandle_t`, `convoihandle_t`, `linehandle_t`, etc., tpl/quickstone_tpl.h — whose
    allocation counters also feed the checklist) are the mandatory pattern for new code in the
    subsystems that use them; violating the idiom is a design error
-   [CODE master @ 78a4bb3b9; RECOLLECTION:2026-09-07].
+   [CODE master @ 78a4bb3b9; RECOLLECTION:2026-09-07]. `convoi_t` exposes its own handle as
+   `convoi_t::self`; compare a `convoihandle_t` with that handle (`candidate == self`) rather
+   than comparing the resolved pointer with `this` (`candidate.get_rep() == this`)
+   [RECOLLECTION:2026-11-14, user instruction].
 
 8. **Threading discipline.** Non-main threads mutate shared game state only inside explicitly
    bounded start→await (or lifecycle) windows, protected by a named mutex or by barrier

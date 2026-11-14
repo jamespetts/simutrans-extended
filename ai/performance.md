@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (comfort routing; 2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); rest @ ex-15-industry-growth-test @ 7c379b4
+verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (comfort routing; 2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index note (2026-11-14); rest @ ex-15-industry-growth-test @ 7c379b4
 ---
 # Performance & profiling
 
@@ -227,7 +227,7 @@ Measured 2026-09-10 on the canonical fixture via the -Trace pipeline (server-pac
 120 s window, threads=4, master @ d40847e90; 262,784 CPU samples, 57% in the game module)
 [EXECUTION-VERIFIED:2026-09-10]. Thread attribution (`hotspots-threads.csv`, root-most game
 frame per stack; second capture, same parameters, master @ 4b2b927a7): main thread 73.9%;
-workers: `unreserve_route_threaded` 11.8%, `step_passengers_and_mail_threaded` 4.6%,
+workers: `step_passengers_and_mail_threaded` 4.6%,
 `display_region_thread` 3.4%, `dr_flush_screen` 2.6%, `step_individual_convoy_threaded` 1.7%,
 `check_road_connexions_threaded` 1.5%; the `<no resolved game frame>` bucket (stack-truncated,
 unattributable time) is 0.001%. `pthreadvc2!?`/`msvcr100!?` frames are the nameless thread-start
@@ -242,8 +242,6 @@ data-oriented alternatives: [data-layout-and-design-style](data-layout-and-desig
 
 **ex-15 comparison** (first ex-15 capture, same fixture/window/threads, ex-15 @ 60228c088 with
 uncommitted haltlist guards; 358,011 samples, 47% in game module) [EXECUTION-VERIFIED:2026-09-11]:
-route-reservation clearing's share roughly DOUBLES versus master — `unreserve_route_range` 26.0%
-self (master ~12%), `unreserve_route_threaded` worker 26.8% (11.8%) — while
 `sync_list_t::sync_step` drops to 12.8% self (23.7%) and `private_car_t::sync_step` to 4.2%
 (9.0%). Single run each and the ex-15 world state differed (437 missing TimingPoint buildings
 removed at load) — repeat before acting on the deltas.
@@ -259,28 +257,25 @@ removed at load) — repeat before acting on the deltas.
    operators ~7% self combined (`operator*` 4.9%, `operator+` 1.2%, `operator/` 0.6%).
    Immediately after loading the fixture there is a mass reroute wave (the first step emits
    ~10⁵ route-search log lines at -debug ≥ 2 in DEBUG builds) [EXECUTION-VERIFIED:2026-09-09].
-3. **Route reservation clearing — `convoi_t::unreserve_route_range` +
-   `unreserve_route_threaded`.** 12.8% incl / 12.4% self — a first-class hotspot with thousands
-   of convoys running (→ [signals-and-blocks](signals-and-blocks.md)).
-4. **City traffic — `private_car_t::sync_step` 18.6% incl / 9.0% self (`hop_check` 7.4% incl);
+3. **City traffic — `private_car_t::sync_step` 18.6% incl / 9.0% self (`hop_check` 7.4% incl);
    `pedestrian_t::sync_step` 1.2% self.**
-5. **Passenger generation — `stadt_t` (simcity.cc) / `karte_t`.**
+4. **Passenger generation — `stadt_t` (simcity.cc) / `karte_t`.**
    `karte_t::generate_passengers_or_mail` 4.8% incl (`step_passengers_and_mail_threaded` 4.9%
    incl), `karte_t::find_destination` 3.0% incl. Monthly cadence; city *growth* is not hot
    [RECOLLECTION:2026-09-09, consistent with the measured absence of growth functions].
-6. **Map/ground access — `grund_t::get_weg` 3.4% self, `karte_t::lookup` 2.4% self,
+5. **Map/ground access — `grund_t::get_weg` 3.4% self, `karte_t::lookup` 2.4% self,
    `grund_t::get_neighbour` 2.6% incl, `planquadrat_t::get_boden_in_hoehe` 1.0% self.**
    Raw lookup cost over huge maps; parts of the tile walk are multi-threaded — machinery and its
    fragility: [threading](threading.md).
-7. **Halt cargo handling — `karte_t::check_transferring_cargoes` 2.6% incl / 2.6% self
+6. **Halt cargo handling — `karte_t::check_transferring_cargoes` 2.6% incl / 2.6% self
    (`haltestelle_t`, simhalt.cc).** Moderate, not dominant.
-8. **Route search (A\*) — `route_t::intern_calc_route` (dataobj/route.cc).** Minor in *steady
+7. **Route search (A\*) — `route_t::intern_calc_route` (dataobj/route.cc).** Minor in *steady
    state* on this fixture: `route_t::find_route` ~1.2% self in the measured window — the
    continuous heuristic-failure diagnostics (`heur` ~10× `cost`
    [EXECUTION-VERIFIED:2026-09-09]) do not translate into a top steady-state cost. Concentrated
    in the post-load reroute wave instead. `max_route_steps` (simuconf, default 1.5M) bounds
    search memory.
-9. **Path explorer — `path_explorer_t` (path_explorer.{h,cc}).** Centralised, steppable
+8. **Path explorer — `path_explorer_t` (path_explorer.{h,cc}).** Centralised, steppable
    routing database; budgeted per step via `limit_set_t`; runs concurrently and governs how
    quickly in-game routes update, not framerate [RECOLLECTION:2026-09-09]. The routing search is one
    Dijkstra per origin over an expanded `(halt, arriving transport)` state graph built from the
@@ -309,11 +304,11 @@ removed at load) — repeat before acting on the deltas.
    128 ms and 5.6 steps/s. Optimisation options →
    [path-explorer-optimisation](path-explorer-optimisation.md).
 
-10. **Display — simview/simgraph pipeline.** Secondary in server-paced running on this fixture
+9. **Display — simview/simgraph pipeline.** Secondary in server-paced running on this fixture
     (`main_view_t::display_region` 4.9% incl), but dominated a CaptureGui window on the small
     demo map (73% incl) — display share is workload-dependent; use CaptureGui + -Trace for
     graphics-code hotspots, `Times` mode for micro-benchmarks. Details: [rendering](rendering.md).
-11. **Savegame load — `karte_t::load` (simworld.cc) + loadsave/io layers.** ~78 s to the load
+10. **Savegame load — `karte_t::load` (simworld.cc) + loadsave/io layers.** ~78 s to the load
     plateau for this fixture [EXECUTION-VERIFIED:2026-09-10]; dominates server rotations and
     client joins. Profile with `-TracePhase Load`. Measured load-phase split on `bb6-apr-2010.sve`:
     zstd decompression ~61% incl (`ZSTD_decompressSequences_default` ~52%), main-thread world load

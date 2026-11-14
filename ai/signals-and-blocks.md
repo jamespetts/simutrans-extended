@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); gameplay model and reservation audit 2026-11-14
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); gameplay model and reservation audit 2026-11-14; call-on, reservation-index and signalling-refactor changes (2026-11-14)
 ---
 # Signals, signalboxes and block working
 
@@ -31,7 +31,10 @@ determinism.
   a signal's descriptor carries the method it imposes on a passing train. An **aspect** is the displayed signal state
   (`roadsign_t::signal_aspects`: `danger`, `clear`, `caution`, `preliminary_caution`, `advance_caution`, their `_no_choose` variants,
   `call_on`). In play `danger` means stop, `clear` means proceed, the caution aspects warn of the next signal's aspect, and
-  **call-on** is the permissive `roadsign_t::call_on` aspect admitting a train to an occupied block.
+  **call-on** is the `roadsign_t::call_on` aspect. It covers two distinct authorities: ordinary permissive working over plain track
+  to the next signal, and a choose signal's target-specific admission of a coupling approach to an occupied platform. The
+  choose-signal form does not require `get_permissive()` or `no_junctions_to_next_signal()` and always switches the train to
+  `drive_by_sight`; `get_has_call_on()` only selects the image.
 - **Signalbox, signal group, stale reservation.** A **signalbox** is a player-built building object (`signalbox_t`) that owns a
   list of signal positions and constrains where signals may be built. Its **signal group** support is the pakset cluster mask
   (`building_desc_t::get_clusters()`) that must intersect a signal type's own group (`roadsign_desc_t::get_signal_group()`);
@@ -53,7 +56,9 @@ directly. The code sections below describe the implementation.
 
 - **Signals and working methods.** The pakset authors signal types with a working method and optional
   roles: distant (pre-) signal, combined stop-and-distant signal, choose signal, longblock or station
-  signal. The player chooses the working method by choosing a signal type. The signal build tool can
+  signal. The player chooses the working method by choosing a signal type. A choose signal selects an
+  alternative route beyond itself; when the current schedule entry has a coupling target, it selects
+  the target's platform track and can issue target-specific call-on. The signal build tool can
   place one signal or a run of signals at a chosen spacing, with options to remove intermediate
   signals, replace other signals, or place the run backwards.
 - **Signalboxes.** A signal type whose descriptor declares a **signal group** can only be built while
@@ -180,15 +185,20 @@ covers only its reservation and platform consequences:
   `convoi_t::reserve_own_tiles()`. A new or re-formed portion acquires its own reservations the same
   way, and the retained portion releases the tiles it no longer occupies.
 - A train cannot reserve through a tile held by a standing convoy, so a joining portion can enter an
-  occupied block or platform only up to the standing train's tile, under permissive working with the
-  call-on aspect, and only from a stand.
-- Call-on is implemented as general permissive working: at a stand at a permissive signal under
-  absolute block, track circuit block or cab signalling with `no_junctions_to_next_signal`, a failed
+  occupied block or platform only up to the standing train's tile, under call-on and only from a stand.
+  The choose-signal coupling implementation stops the mover in the tile before the target's rear tile;
+  sharing the contact tile is part of the unimplemented shared-contact package.
+- Call-on has two forms. Ordinary permissive working applies at a stand at a permissive signal under
+  absolute block, track circuit block or cab signalling with `no_junctions_to_next_signal`: a failed
   reservation sets `roadsign_t::call_on`, switches the train to `drive_by_sight` and re-runs
   `rail_vehicle_t::block_reserver` with `from_call_on = true`, admitting it to the occupied block up
-  to the standing train's tile. The planned use of call-on for shunting into an occupied platform or
-  yard as part of recombination is not implemented: the runtime does not request it or move a convoy
-  into an occupied platform, and `SHUNTING` is only a timed pause.
+  to the standing train's tile. Choose-signal call-on is target-specific and intrinsic to every choose
+  signal: when the current entry has `couple` (or the reciprocal `uncouple`), the target is stationary
+  at the stop and only the target obstructs the route, the choose signal routes to the target's rear
+  tile and issues call-on. It does not require `get_permissive()` or `no_junctions_to_next_signal()`,
+  and `has_call_on` is display-only. Choose-signal call-on covers the choose-signal decision, the
+  target-platform route and admission; the shared-contact coupling, exact stop and approach-link
+  persistence remain outstanding.
 - A laid-over convoy keeps the reservations on its tiles; the halt-deletion path releases them with
   `convoi_t::reserve_own_tiles(true)`.
 - The platform a portion occupies must be long enough: `convoi_t::get_tile_length` is the station
@@ -196,14 +206,9 @@ covers only its reservation and platform consequences:
 
 ## Performance hotspots
 
-Measured on the gargantuan fixture (method and full inventory: [performance](performance.md)) [EXECUTION-VERIFIED:2026-09-10 /
-2026-09-11]: route reservation clearing (`convoi_t::unreserve_route_range` + `unreserve_route_threaded`) is a first-class hotspot with
-many convoys running — 12.4% self on master, roughly 26% self on ex-15 (single run; repeat before acting on the delta). It runs on its own
-worker thread (11.8% of in-game CPU on master, 26.8% on ex-15) → [threading](threading.md).
-
-The cost follows from the algorithm: each call scans the whole `weg_t::get_alle_wege()` vector, and the calls are inherently map-wide
-(destruction, depot entry, consist changes, failed token block or one train staff reservations, the clear-reservation tool, the
-station-release fallback).
+No current measured hotspot for this subsystem. The per-holder reservation index replaced the former
+map-wide clearing scan; the new clearing path and its ordinary reserve/unreserve bookkeeping have not been
+profiled.
 
 ## Open questions
 

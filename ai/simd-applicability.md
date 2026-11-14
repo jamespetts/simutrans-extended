@@ -41,7 +41,6 @@ backend options.
 |---|---|
 | `karte_t::sync_list_t::sync_step` | Not amenable — pointer walk + virtual dispatch; fix is pooling/partitioning |
 | Convoy physics + `float32e8_t` operators | Not amenable as code stands — scalar dependent chains; `operator*` is a 64-bit multiply + branchy normalisation (`pmuludq`-shaped), `operator/` has no SIMD 64-bit-divide equivalent. Only pays off inside the cross-convoy SoA restructuring (data-layout doc) |
-| `convoi_t::unreserve_route_range` | Not amenable as-is — pointer chase over scattered `weg_t*`. SIMD-adjacent: a contiguous mirror array (waytype + reserved-convoi id) beside `weg_t::get_alle_wege()` removes the cache misses (the real win) and the scan then vectorises; a sparse reserved-ways registry likely beats both |
 | Path explorer `phase_explore_paths` | Not applicable: the routing search is a scalar expanded-state graph search (per-origin Dijkstra), not a dense arithmetic kernel → [routing-search-kernel](path-explorer-optimisation/routing-search-kernel.md) |
 | `grund_t::get_weg`, `karte_t::lookup`, private cars, pedestrians | Memory-latency/pointer-chase bound — not amenable |
 | Passenger generation, `karte_t::find_destination`, `simrand` | RNG call order is sync/output-defining — untouchable |
