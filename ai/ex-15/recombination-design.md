@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 4bb425a4e plus paired reload fixture @ fa85a59b8 (2026-11-14); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment, choose-signal call-on core and general signalling API 2026-11-14
+verified: ex-15 @ c082c94ae plus paired reload fixture @ fa85a59b8 (2026-11-14); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment, choose-signal call-on core and general signalling API 2026-11-14
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -248,10 +248,11 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
    ownership/access decisions and the remaining authoring validation. The choose-signal call-on
    core (target resolution, committed-target hold, target-platform route and admission) is
    implemented; the shared contact tile, exact stop and approach-link persistence remain. The
-   general signalling Squirrel API's read-only object model and construction commands are
-   implemented (`signalbox_x`, the signal, signal-descriptor, convoy, way and vehicle-slot
-   getters, `command_x.build_signalbox` and the signalbox form of `command_x.build_sign_at`);
-   the site-validity and price queries (`can_build_signalbox_at`, `signalbox_get_price`) remain.
+   general signalling Squirrel API's read-only object model, construction commands and
+   site-validity and price queries are implemented (`signalbox_x`, the signal, signal-descriptor,
+   convoy, way and vehicle-slot getters, `command_x.build_signalbox`, the signalbox form of
+   `command_x.build_sign_at`, `command_x.can_build_signalbox_at` and
+   `command_x.signalbox_get_price`).
    Basic loose-pool storage and visibility already exist; do not recreate them as a prerequisite subsystem.
 
 ## Verification fixtures
