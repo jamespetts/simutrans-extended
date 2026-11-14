@@ -82,9 +82,6 @@ class schiene_t;
 #ifndef FORBID_MULTI_THREAD_PATH_EXPLORER
 #define MULTI_THREAD_PATH_EXPLORER
 #endif
-#ifndef FORBID_MULTI_THREAD_ROUTE_UNRESERVER
-#define MULTI_THREAD_ROUTE_UNRESERVER
-#endif
 #endif
 
 #ifndef FORBID_MULTI_THREAD_PASSENGER_GENERATION_IN_NETWORK_MODE
@@ -991,7 +988,6 @@ private:
 	bool private_car_threads_working;
 public:
 	static simthread_barrier_t step_convoys_barrier_external;
-	static simthread_barrier_t unreserve_route_barrier;
 	static pthread_mutex_t step_passengers_and_mail_mutex;
 	static bool private_car_route_mutex_initialised;
 	static pthread_mutex_t private_car_route_mutex;
@@ -1071,7 +1067,6 @@ private:
 	static sint32 cities_to_process;
 #ifdef MULTI_THREAD
 	friend void *check_road_connexions_threaded(void* args);
-	friend void *unreserve_route_threaded(void* args);
 	friend void *step_passengers_and_mail_threaded(void* args);
 	friend void *step_convoys_threaded(void* args);
 	friend void *path_explorer_threaded(void* args);

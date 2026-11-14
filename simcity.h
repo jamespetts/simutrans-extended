@@ -28,7 +28,6 @@ class karte_ptr_t;
 class player_t;
 class fabrik_t;
 class rule_t;
-struct route_range_specification;
 
 // For private subroutines
 class building_desc_t;

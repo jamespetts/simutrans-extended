@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 7655609c9; ex-15 path-explorer rows @ 6447a1d2e (2026-11-07); ex-15 comfort wait read @ c1e914343 plus working tree (2026-11-09); ex-15 reservation-index changes plus working tree (2026-11-14)
+verified: master @ 7655609c9; ex-15 path-explorer rows @ 6447a1d2e (2026-11-07); ex-15 comfort wait read @ c1e914343 plus working tree (2026-11-09); ex-15 reservation-index changes @ 23271d64e and working-tree route-unreserve removal (2026-11-14)
 ---
 # Threading
 
@@ -57,9 +57,9 @@ never duplicated here. Platform/build topics → [build-and-toolchain](build-and
   via per-configuration preprocessor definitions in Simutrans-Extended.vcxproj. All code guards
   are `#ifdef MULTI_THREAD` — no value-based `#if` anywhere.
 - Feature guards (simworld.h, active only under MULTI_THREAD): `MULTI_THREAD_PASSENGER_GENERATION`,
-  `MULTI_THREAD_CONVOYS`, `MULTI_THREAD_PATH_EXPLORER`, `MULTI_THREAD_ROUTE_UNRESERVER`; each can
-  be disabled by uncommenting its `FORBID_*` companion at the same place (several further
-  commented-out FORBID_* desync-testing switches live there).
+  `MULTI_THREAD_CONVOYS`, `MULTI_THREAD_PATH_EXPLORER`; each can be disabled by uncommenting its
+  `FORBID_*` companion at the same place (several further commented-out FORBID_* desync-testing
+  switches live there).
 - `env_t::num_threads`: simuconf.tab `threads` / command-line `-threads`, clamped 1..`MAX_THREADS`
   (12, simconst.h); default 4 in MT builds; forced 1 in non-MT builds. All peers must run the same
   `threads` value (checklist) → [sync-and-determinism](sync-and-determinism.md).
@@ -95,7 +95,6 @@ participant counts are set in `init_threads` (comments explain the +1/+2 variant
 | Worker fn | × | Work | Synchronisation |
 |---|---|---|---|
 | `check_road_connexions_threaded` | po | city private-car route checks (`stadt_t::check_all_private_car_routes`), dequeued from `cities_awaiting_private_car_route_check` | completion rendezvous under `private_car_route_mutex` (queue, city road connexions, suspend flag, counters below) + cond vars `private_car_start_cond`/`private_car_done_cond` |
-| `unreserve_route_threaded` | po+1 | retained worker pool; `convoi_t::unreserve_route_range` over slices of the global way list | `unreserve_route_barrier` (po+2) |
 | `step_passengers_and_mail_threaded` | po+1 | passenger/mail generation, quota-split; per-thread seed `setsimrand(325651 + random_counter·thread_number)`; thread numbers 1..po+1 (0 = main thread, which does not generate) | `step_passengers_and_mail_barrier` (po+2); `step_passengers_and_mail_mutex` |
 | `step_individual_convoy_threaded` | po | `convoi_t::threaded_step()` — route finding only, only in state `ROUTING_2` (set only by the single-threaded `convoi_t::step()`); strides over `convoys_next_step`; map reads protected by the map-reader mechanism (below) | `step_convoys_barrier_internal` (po+1) |
 | `step_convoys_threaded` (master) | 1 | fills `convoys_next_step` (backwards convoy order) | `step_convoys_barrier_external` (2: master+main), internal barrier |
@@ -180,7 +179,6 @@ GUI/events: main thread.
 What non-main threads write beyond per-thread buffers (rule 1); locks → Lock inventory, windows → Worker inventory [CODE master @ 78a4bb3b9, 2026-09-07 inventory]. ✗ = unprotected (barrier discipline only).
 
 - Private-car workers: `stadt_t::connected_cities/industries/attractions` (private_car_route_mutex; via `add_road_connexion` in `route_t::find_route` checker mode); `stadt_t::private_car_route_finding_in_progress` (✗; no reader found — Known problems); `weg_t::private_car_routes` writing element + backtrace statics (route_map_mtx); `karte_t::cities_to_process`/`cities_awaiting_private_car_route_check` (the workers under the mutex; the main thread's step-head queue bookkeeping — the refresh decision and the `cities_to_process` write — takes the same mutex). `connected_*` READERS (`stadt_t::check_road_connexion_to`, called from passenger generation) hold no lock — safety rests on the await placement before passenger generation plus the mid-search suspend mechanism, not on the mutex.
-- Route-unreservation workers: `schiene_t::reserved` cleared (✗; main thread blocked on the barrier meanwhile); `obj_t::dirty` when `show_reservations`.
 - Passenger/mail workers (under step_passengers_and_mail_mutex in `karte_t::generate_passengers_or_mail`): city history counters, gebaeude statistics, halt unhappy/no-route counters (`add_pax_unhappy` also books finance + `recalc_status` when not networked), fabrik mail-departed stats, checklist-fed `add_to_debug_sums`; `next_step_passenger/mail` after the barrier. `haltestelle_t::resort_freight_info` (`add_to_waiting_list`) is set from workers outside any mutex but is `std::atomic<bool>` — a result-benign latch (always set true; only ever reset by the main-thread re-sort).
 - Convoy workers (via `threaded_step`→`drive_to`; route finding only): convoy route/state fields (incl. `wait_lock_next_step`, `allow_clear_reservation`), schedule/line-entry reverse flags; `simlinemgmt_t::update_line` (under `step_convois_mutex`, after `await_path_explorer`); `simline_t::set_state`; plus `convoys_next_step` (master worker). Workers do NOT touch: (a) the message system — route-finding failures are recorded in the convoy via `convoi_t::defer_message` and posted by the main thread in `convoi_t::step`; (b) halt position and way reservations (`haltestelle_t` tile reservation slots, `schiene_t::reserved`) — a convoy's held reservations are released on the main thread by `vehicle_t::release_target_reservations()` from `convoi_t::prepare_for_routing()` (the single funnel for all ROUTING_2 entries) and from `convoi_t::finish_rd()` (convoys loaded in ROUTING_2), and the vehicle `calc_route` functions contain no reservation code; `convoi_t::unreserve_route()` is main-thread-only: it mutates the world reservation buckets and the ways in them without synchronisation [CODE master @ 79e91affc; reservation index 2026-11-14]. Their map READS (objlists, ways, signs, depots, ownership) are protected by the map-reader mechanism (below), not by a mutex.
 - Path-explorer worker (✗ throughout): halt cargo lists, connexion swaps + resort flags, schedule counts, reroute flags (`prepare_goods_list`/`swap_connexions`/`set_schedule_count`/`set_reroute_goods_next_step`); line/convoy average-journey-time entry removal; path_explorer_t statics incl. limit_set_t `local_*` copies (read by `process_network_commands` → `nwc_routesearch_t`). Routing-search pool helpers (ex-15 only) write only the working-matrix rows of the origins they claim (times, next transfers); the full candidate list and expanded state graph are read-only during a batch; the lead alone updates the origin index and iteration totals, so results and saved state do not depend on the number of threads [CODE ex-15 @ 6447a1d2e].
@@ -406,14 +404,14 @@ lifetime awaits, atomic `state`/flags/`disp_lane`/`path_explorer_working`, verif
 crash-free byte-identical network smoke runs on the demo fixture where the prior local crash rate
 was ~1 in 6; and the load-threading fix — workers created at
 the end of `karte_t::load`; atomic `terminating_threads`/`suspend_private_car_routing`;
-thread_local `async_rand_seed`; `unreserve_route` single-threaded fallback; stray-unlock removal;
+thread_local `async_rand_seed`; stray-unlock removal;
 the `book_way_length` `load_mutex` fix; the step-head city-queue mutex; atomic
 `resort_freight_info`). The load-time
 TSan race family recorded here before that fix is deleted per the known-bugs rule; history
-lives in git. Structurally identical on ex-15 @ 91d9b252e: same worker
-set, barrier counts, lifecycle calls, feature guards, primitives, thread_local declarations
-(ex-15's convoy/path-explorer internals differ heavily, but the
-threading model does not) — this doc applies to both branches [CODE ex-15 @ 91d9b252e].
+lives in git. On ex-15 @ 23271d64e plus the working-tree reservation-clearing change, the worker
+set, barrier counts, lifecycle calls, feature guards, primitives and thread_local declarations are
+structurally the same as recorded here; ex-15's convoy and path-explorer internals differ heavily,
+but the threading model does not [CODE ex-15 @ 23271d64e plus working tree].
 Simulation-worker threading is Extended-specific ([project-notes](project-notes.md));
 display/save-load/map-loop threading predates the fork [PRIOR — coarse; not verified against
 Standard sources]. Walkthrough 2026-09-07: rules 3–5, build configuration, primitives, worker

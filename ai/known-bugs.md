@@ -52,25 +52,6 @@ Rank on discovery; re-rank on triage.
 
 ## Detailed entries
 
-### Route unreservation reads beyond the way list on master — dormant
-
-- `unreserve_route_threaded` splits `weg_t::get_alle_wege()` between the route-unreserve workers.
-  When the way count is greater than zero and not greater than
-  `karte_t::get_parallel_operations()`, the per-worker slice size (`fraction`) is 0, so
-  `(thread_number + 1) * fraction - 1` underflows to 4294967295. `min` (simtypes.h) takes and
-  returns `int`, so that argument narrows to -1, wins the comparison and becomes
-  `range.end = 4294967295` [CODE master @ 87948985b].
-- `convoi_t::unreserve_route_range` indexes the way vector through that inclusive end without
-  bounding it by the live vector size. Before the per-holder reservation index, a call to
-  `convoi_t::unreserve_route()` under the condition above would abort on the first out-of-range
-  `vector_tpl<weg_t*>::operator[]` access. Depot entry, convoy destruction, route recalculation
-  and reserved-way removal could reach that path in any convoy state [CODE master @ 87948985b].
-- An empty way list also underflows at `get_all_ways_count() - 1` in `unreserve_route_threaded`.
-  The separate `threads = 1` division defect retains its own entry below.
-- The route-unreserve worker pool is no longer used by `convoi_t::unreserve_route()` (the per-holder
-  reservation index clears the convoy's bucket on the main thread). These defects therefore remain
-  in retained, currently unused code until the pool is removed; they are not fixed by the index.
-
 ### Await gaps around map operations — priority 2
 
 - `karte_t::enlarge_map`'s live path (gui/enlarge_map_frame_t.cc) disables interrupts and awaits
@@ -111,18 +92,10 @@ Rank on discovery; re-rank on triage.
 - With simuconf `threads = 1` on a MULTI_THREAD build, `karte_t::get_parallel_operations()`
   (simworld.cc) returns `env_t::num_threads - 1` = 0 (on a network server, load forces
   `parallel_operations` to 0, so the num_threads-derived value is used), but `init_threads()`
-  still creates `po + 1` = 1 worker per subsystem. Workers then divide by zero:
-  `step_passengers_and_mail_threaded` (`next_step_passenger / get_parallel_operations()`) and
-  `unreserve_route_threaded` (`max_count / get_parallel_operations()`) [CODE ex-15 @ 6a22b7388;
-  same sites present on master @ 87948985b].
-- Reproduced on ex-15 Profile|x64: process crash 0xC0000094 (integer divide by zero) in
-  `unreserve_route_threaded` during early simulation of the demo fixture as a loopback server
-  [EXECUTION-VERIFIED:2026-09-13 via crash-backtrace.log].
-- The identical division sites exist on master (simworld.cc) — presumably affected there too
-  [UNVERIFIED by execution on master].
-- The `unreserve_route_threaded` site is now reached only through the retained worker pool, which
-  `convoi_t::unreserve_route()` no longer uses. The `step_passengers_and_mail_threaded` site remains
-  active, so the `threads = 1` configuration defect is not resolved by the reservation index.
+  still creates workers. `step_passengers_and_mail_threaded` divides `next_step_passenger` by
+  `get_parallel_operations()` [CODE ex-15 @ 23271d64e].
+- The passenger-generation division runs every step, so a worker reaching it crashes with
+  0xC0000094 (integer divide by zero). Reproduce on the current build to confirm the failing line.
 - Ranked 2 rather than the scale default of 1 for crashes: the trigger requires the non-default
   `threads = 1` setting on a multi-threaded build (default 4; non-MT builds force 1 but take the
   `#ifndef MULTI_THREAD` path and are unaffected). Re-rank to 1 if threads=1 on MT builds is

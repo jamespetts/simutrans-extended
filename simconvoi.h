@@ -58,14 +58,6 @@ class departure_point_t;
 */
 typedef koordhashtable_tpl<id_pair, average_tpl<uint32>, N_BAGS_SMALL> journey_times_map;
 
-#ifdef MULTI_THREAD
-struct route_range_specification
-{
-	uint32 start;
-	uint32 end;
-};
-#endif
-
 /**
  * Base class for all vehicle consists. Convoys can be referenced by handles, see halthandle_t.
  */
@@ -854,15 +846,6 @@ public:
 	* Convoi haelt an Haltestelle und setzt quote fuer Fracht
 	*/
 	void hat_gehalten(halthandle_t halt);
-
-#ifdef MULTI_THREAD
-private:
-	static void unreserve_route_range(route_range_specification range);
-	friend void *unreserve_route_threaded(void* args);
-	static waytype_t current_waytype;
-	static uint16 current_unreserver;
-public:
-#endif
 
 	/**
 	 * remove all track reservations (trains only)

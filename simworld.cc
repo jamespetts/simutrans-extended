@@ -132,7 +132,6 @@
 #include "utils/simthread.h"
 
 static vector_tpl<pthread_t> private_car_route_threads;
-static vector_tpl<pthread_t> unreserve_route_threads;
 static vector_tpl<pthread_t> step_passengers_and_mail_threads;
 static vector_tpl<pthread_t> individual_convoy_step_threads;
 static vector_tpl<pthread_t> path_explorer_threads;
@@ -158,7 +157,6 @@ sint32 karte_t::private_car_cities_running = 0;
 sint32 karte_t::private_car_cities_suspended = 0;
 uint32 karte_t::private_car_generation = 0;
 sint32 karte_t::private_car_step_outstanding = 0;
-simthread_barrier_t karte_t::unreserve_route_barrier;
 static simthread_barrier_t step_passengers_and_mail_barrier;
 static simthread_barrier_t path_explorer_barrier;
 static simthread_barrier_t step_convoys_barrier_internal;
@@ -2316,58 +2314,6 @@ void karte_t::start_path_explorer()
 #endif
 }
 
-void* unreserve_route_threaded(void* args)
-{
-	const uint32* thread_number_ptr = (const uint32*)args;
-	const uint32 thread_number = *thread_number_ptr;
-	delete thread_number_ptr;
-
-	do
-	{
-		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
-
-		if (karte_t::world->is_terminating_threads())
-		{
-			break;
-		}
-		if (convoi_t::current_unreserver == 0)
-		{
-			continue;
-		}
-
-		const uint32 way_count = weg_t::get_all_ways_count();
-		if (way_count > 0)
-		{
-			const uint32 max_count = way_count - 1;
-			const uint32 fraction = max_count / karte_t::world->get_parallel_operations();
-
-			route_range_specification range;
-
-			range.start = thread_number * fraction;
-			if (thread_number == karte_t::world->get_parallel_operations() - 1)
-			{
-				range.end = max_count;
-			}
-			else
-			{
-				// With an empty slice (slice_end == 0, i.e. fraction == 0)
-				// slice_end - 1 would underflow to UINT32_MAX, so map it to
-				// max_count: this worker scans the whole list, bounded by
-				// max_count. Otherwise use slice_end - 1, capped at max_count.
-				const uint32 slice_end = (thread_number + 1) * fraction;
-				range.end = (slice_end == 0 || slice_end - 1 > max_count) ? max_count : slice_end - 1;
-			}
-
-			convoi_t::unreserve_route_range(range);
-		}
-
-		simthread_barrier_wait(&karte_t::unreserve_route_barrier);
-
-	} while (!karte_t::world->is_terminating_threads());
-
-	pthread_exit(NULL);
-	return args;
-}
 #endif
 
 void karte_t::await_all_threads()
@@ -2412,7 +2358,8 @@ void karte_t::init_threads()
 	private_car_cities_suspended = 0;
 	private_car_step_outstanding = 0;
 
-	simthread_barrier_init(&karte_t::unreserve_route_barrier, NULL, parallel_operations + 2); // This and the next does not run concurrently with anything significant on the main thread, so the number of parallel operations need to be +1 compared to the others.
+	// Passenger generation uses one more worker than the other subsystems
+	// because it does not run concurrently with significant main-thread work.
 	simthread_barrier_init(&step_passengers_and_mail_barrier, NULL, parallel_operations + 2);
 	simthread_barrier_init(&step_convoys_barrier_external, NULL, 2);
 	simthread_barrier_init(&step_convoys_barrier_internal, NULL, parallel_operations + 1);
@@ -2450,18 +2397,6 @@ void karte_t::init_threads()
 				private_car_route_threads.append(thread);
 			}
 			private_car_threads_working = false;
-		}
-		// The next two need an extra thread compared with the others, as they do not run concurrently with anything non-trivial on the main thread
-		sint32* thread_number_unres = new sint32;
-		*thread_number_unres = i;
-		rc = pthread_create(&thread, &thread_attributes, &unreserve_route_threaded, (void*)thread_number_unres);
-		if (rc)
-		{
-			dbg->fatal("void karte_t::init_threads()", "Failed to create private car thread, error %d. See here for a translation of the error numbers: http://epydoc.sourceforge.net/stdlib/errno-module.html", rc);
-		}
-		else
-		{
-			unreserve_route_threads.append(thread);
 		}
 
 #ifdef MULTI_THREAD_PASSENGER_GENERATION
@@ -2569,7 +2504,6 @@ void karte_t::destroy_threads()
 		assert(error == 0);
 		(void)error;
 
-		simthread_barrier_wait(&unreserve_route_barrier);
 #ifdef MULTI_THREAD_PATH_EXPLORER
 		path_explorer_t::shutdown_thread_pool();
 		simthread_barrier_wait(&path_explorer_barrier);
@@ -2590,8 +2524,6 @@ void karte_t::destroy_threads()
 		step_passengers_and_mail_threads.clear();
 #endif
 
-		clean_threads(&unreserve_route_threads);
-		unreserve_route_threads.clear();
 #ifdef MULTI_THREAD_CONVOYS
 		simthread_barrier_destroy(&step_convoys_barrier_external);
 		simthread_barrier_destroy(&step_convoys_barrier_internal);
@@ -2601,7 +2533,6 @@ void karte_t::destroy_threads()
 #endif
 		pthread_cond_destroy(&private_car_start_cond);
 		pthread_cond_destroy(&private_car_done_cond);
-		simthread_barrier_destroy(&unreserve_route_barrier);
 
 #ifdef MULTI_THREAD_PATH_EXPLORER
 		simthread_barrier_destroy(&path_explorer_barrier);

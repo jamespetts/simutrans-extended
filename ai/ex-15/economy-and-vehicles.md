@@ -95,7 +95,6 @@ value.
   `emergency_go_to_depot(false, true)` at the first stop after the threshold (`convoi_t::step`);
   the existing teleport/no-depot fallbacks apply. A maintain/overhaul visit keeps the line and
   resumes at the current schedule entry; only `store` visits detach it (`depot_t::convoi_arrived`).
-  No new serialised state.
 - Gaps: prioritise_for_maintenance / depriortise_for_maintenance have no callers — a depot
   queue-management GUI is planned for 15.x [RECOLLECTION:2026-09-07]; MAINTENANCE/OVERHAUL/REPLENISHING have no status strings in the convoy info
   window (fall through to the default speed display).

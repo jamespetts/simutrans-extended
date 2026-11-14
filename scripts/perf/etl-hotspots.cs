@@ -165,7 +165,7 @@ class Program
             foreach (var f in frames) if (seen.Add(f)) Add(incl, f, s.Metric);
             // Thread attribution: frames are leaf->root, so the last game-module frame in the
             // walk is the thread's entry function (main thread: simu_main/karte_t::interactive;
-            // workers: unreserve_route_threaded, path_explorer_threaded, ...).
+            // workers: step_passengers_and_mail_threaded, path_explorer_threaded, ...).
             string entry = null;
             foreach (var f in frames) if (IsGameFrame(f, filter)) entry = f;
             if (entry == null) entry = "<no resolved game frame>";

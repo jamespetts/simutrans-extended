@@ -76,9 +76,6 @@
 #ifdef MULTI_THREAD
 #include "utils/simthread.h"
 static pthread_mutex_t step_convois_mutex = PTHREAD_MUTEX_INITIALIZER;
-static vector_tpl<pthread_t> unreserve_threads;
-waytype_t convoi_t::current_waytype = road_wt;
-uint16 convoi_t::current_unreserver = 0;
 #endif
 
 //#if _MSC_VER
@@ -395,34 +392,6 @@ bool convoi_t::is_waypoint( koord3d ziel ) const
 	}
 	return !haltestelle_t::get_halt(ziel,get_owner()).is_bound();
 }
-
-#ifdef MULTI_THREAD
-
-void convoi_t::unreserve_route_range(route_range_specification range)
-{
-	const vector_tpl<weg_t *> &all_ways = weg_t::get_alle_wege();
-	const uint32 count = all_ways.get_count();
-	if (range.start >= count)
-	{
-		// Empty list, or a slice beyond the live list: nothing to scan.
-		return;
-	}
-	const uint32 end = range.end < count ? range.end : count - 1;
-	for (uint32 i = range.start; i <= end; i++)
-	{
-		weg_t* const way = all_ways[i];
-		//schiene_t* const sch = obj_cast<schiene_t>(way);
-		schiene_t* const sch = way->is_rail_type() || way->get_waytype() == air_wt ? (schiene_t*)way : NULL;
-		if (sch && sch->get_reserved_convoi().get_id() == convoi_t::current_unreserver)
-		{
-			convoihandle_t ch;
-			ch.set_id(convoi_t::current_unreserver);
-			sch->unreserve(ch);
-		}
-	}
-}
-
-#endif
 
 /**
  * Release all reservations held by this convoy through karte_t::reservation_buckets.
@@ -1541,24 +1510,6 @@ bool convoi_t::prepare_for_routing()
 				}
 			}
 		}
-		/*
-		const bool rail_type = front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt;
-
-		if (rail_type)
-		{
-			rail_vehicle_t* rail_vehicle = (rail_vehicle_t*)front();
-			// If this is token block working, the route must only be unreserved if the token is released.
-			if (rail_vehicle->get_working_method() != token_block && rail_vehicle->get_working_method() != one_train_staff)
-			{
-				unreserve_route();
-				reserve_own_tiles();
-			}
-		}
-		else if (front()->get_waytype() == air_wt)
-		{
-			// Sea and road waytypes do not have any sort of reserveation, and calls to unreserve_route() are expensive.
-			unreserve_route();
-		}*/
 
 		// Route finding runs on convoy worker threads (threaded_step), and
 		// halt position and way reservations are main-thread-only state (read

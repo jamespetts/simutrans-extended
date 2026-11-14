@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 1c8d9cadf; reservation-index clearing update plus working tree (2026-11-14)
+verified: ex-15 @ 1c8d9cadf; reservation-index clearing and route-unreserve removal plus working tree (2026-11-14)
 ---
 # Vehicles, consists & convoys
 

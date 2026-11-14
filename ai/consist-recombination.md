@@ -150,11 +150,10 @@ cycles are not detected.
 
 The executing convoy records the stop in both convoys' `convoi_t::last_stop_id` for a paired exchange;
 a promoted portion records it in its own. A later loading pass therefore computes `first_run == false`
-and does not execute the operation again. No new saved field is added by any recombination path: the
-consists, `last_stop_id`, `arrival_time`, `wait_lock`, `reverse_schedule` and vehicle positions are
-written by the existing `convoi_t` and `vehicle_t` save methods, and `AWAITING_RECOMBINATION` is
-written by `convoi_t::rdwr`. Savegame and network versioning are unchanged. Determinism follows the
-ordinary convoy rules; see [sync-and-determinism](sync-and-determinism.md) and
+and does not execute the operation again. The consists, `last_stop_id`, `arrival_time`, `wait_lock`,
+`reverse_schedule` and vehicle positions are written by the existing `convoi_t` and `vehicle_t` save
+methods, and `AWAITING_RECOMBINATION` is written by `convoi_t::rdwr`. Determinism follows the ordinary
+convoy rules; see [sync-and-determinism](sync-and-determinism.md) and
 [savegame-versioning](savegame-versioning.md).
 
 ## Platform, reservations and call-on

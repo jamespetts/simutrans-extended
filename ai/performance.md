@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (comfort routing; 2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index note (2026-11-14); rest @ ex-15-industry-growth-test @ 7c379b4
+verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (comfort routing; 2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index profiling and route-unreserve removal (2026-11-14); rest @ ex-15-industry-growth-test @ 7c379b4
 ---
 # Performance & profiling
 

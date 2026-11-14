@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation and call-on/refactor changes (2026-11-14)
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation, route-unreserve removal and call-on/refactor changes (2026-11-14)
 ---
 # Block reservations and reservation clearing
 
@@ -8,15 +8,15 @@ verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13)
 dataobj/crossing_logic.* and obj/crossing.* (level crossings), vehicle/rail_vehicle.* (`block_reserver`,
 per-vehicle releasing), vehicle/air_vehicle.cc (runway reservation), simconvoi.*
 (`convoi_t::reserve_own_tiles`, `convoi_t::unreserve_route`, `release_target_reservations`), simworld.*
-(the reservation buckets and the retained route-unreserve worker pool), simtool.cc (`tool_clear_reservation_t`), and old_blockmanager.*
+(the reservation buckets), simtool.cc (`tool_clear_reservation_t`), and old_blockmanager.*
 (legacy savegame conversion only). Parent article and player-facing model:
 [signals-and-blocks](../signals-and-blocks.md). Threading: [threading](../threading.md). Determinism:
 [sync-and-determinism](../sync-and-determinism.md).
 
-Sub-document: [per-holder reservation index](reservation-index.md) — the replacement
-for map-wide reservation clearing; its memory model, registration rules, call-on dependency, implementation
-sequence, tests, and requirement to fix incidental signalling defects found during subsequent refactoring.
-Read it before changing broad reservation clearing or its worker pool.
+Sub-document: [per-holder reservation index](reservation-index.md) — the index used by broad
+reservation clearing; its memory model, registration rules, call-on dependency, measured performance,
+tests, and requirement to fix incidental signalling defects found during subsequent refactoring.
+Read it before changing broad reservation clearing.
 
 ## Terms
 
@@ -131,42 +131,6 @@ block and one train staff), `rail_vehicle_t::unreserve_station` (fallback), `con
   the tile the last vehicle leaves, not reservations held ahead of the train or elsewhere on the convoy's route, so the broad release
   is required before the vehicles leave the map. The call is skipped while the world itself is being destroyed.
 
-## The threaded route unreserver (retained, unused)
-
-This is internal performance machinery, not a player-facing rule. The route-unreserve worker pool still exists, but
-`convoi_t::unreserve_route()` no longer uses it: the [per-holder reservation index](reservation-index.md) clears
-the convoy's bucket on the main thread. The worker pool is now unused by its only former consumer. Remove it
-only after the new clearing path has been profiled and shown to be a real saving; the description below records
-the retained code so that its removal can be verified. The measured cost and worker-thread attribution of the
-previous map-wide sweep are in the parent article's Performance hotspots section.
-
-- `karte_t::init_threads` creates `parallel_operations + 1` threads running `unreserve_route_threaded` and initialises
-  `karte_t::unreserve_route_barrier` with `parallel_operations + 2` participants (those workers plus the main thread). After a normal
-  release each worker waits at the top of its loop, scans its slice, then waits again. A worker that observes `current_unreserver == 0`
-  instead executes `continue`, skipping the scan and second wait before returning to the top-of-loop wait. Do not assume balanced wait
-  counts on that zero-target branch without re-auditing the complete barrier cycle.
-- With `MULTI_THREAD_ROUTE_UNRESERVER` defined (the default under `MULTI_THREAD` unless `FORBID_MULTI_THREAD_ROUTE_UNRESERVER` is
-  defined) and `karte_t::threads_initialised` true, `convoi_t::unreserve_route()` sets `convoi_t::current_unreserver` to its own handle
-  id, waits at the barrier, waits again, then sets `current_unreserver` to 0. The first wait releases the workers into the sweep; the
-  second returns only after every worker has finished.
-- `convoi_t::unreserve_route_range(route_range_specification)` scans a closed index range of `weg_t::get_alle_wege()`, releases
-  reservations whose `get_reserved_convoi().get_id()` equals `current_unreserver`, and returns immediately when `range.start` is at or
-  beyond the way count.
-- Slice bounds (`unreserve_route_threaded`, simworld.cc): with `P = get_parallel_operations()` and `max_count = way_count - 1`, `fraction
-  = max_count / P`; worker `t` starts at `t * fraction`; worker `P - 1` ends at `max_count`; every other worker ends at `min((t + 1) *
-  fraction - 1, max_count)`, with `(t + 1) * fraction == 0` mapped to `max_count`. Coverage is complete because worker `P - 1` always
-  reaches `max_count`. Worker `P` (the extra thread required by the `+2` count) scans a further slice that overlaps worker `P - 1`, and
-  when `fraction` is 0 every worker scans the whole list; overlap is harmless because releasing a matching reservation is idempotent.
-- `karte_t::threads_initialised` is set at the end of `karte_t::init_threads`, which `karte_t::load` calls only after all state the
-  workers read has been loaded, so loading uses the single-threaded fallback. `karte_t::destroy_threads` sets `terminating_threads` and
-  trips the barrier once more.
-
-Two observations on the retained worker path. It selects `way->is_rail_type() || way->get_waytype() == air_wt`, so it
-releases rail-family ways and runways; the old single-threaded fallback selected `way->get_waytype() == wt` (the waytype
-the release was requested for) and then required `way->is_rail_type()`, so for an aircraft (`wt == air_wt`) no runway
-reservation was released. `convoi_t::current_waytype` is assigned in the worker path but never read. Neither path is
-now used by `convoi_t::unreserve_route()`; both belong to the retained worker-pool code marked for removal.
-
 ## Threading and the single-threaded constraint
 
 None of this is visible in play; it explains why reservations may change only in the main simulation
@@ -195,7 +159,7 @@ handle id, type and reservation direction on rail-family ways), `convoi_t::rdwr`
 `needs_full_route_flush`), `rail_vehicle_t::rdwr_from_convoi` (`working_method`), `roadsign_t::rdwr` and `signal_t::rdwr_signal` (aspect,
 direction, signalbox position, `no_junctions_to_next_signal`, `train_last_passed`), `signalbox_t::rdwr` (signal list), and
 `runway_t::rdwr` (runway reservation holder id only). Not saved: `convoi_t::allow_clear_reservation` (set per step in
-`convoi_t::drive_to`), the derived reservation buckets and back-indices, the worker state, and runway reservation type and direction.
+`convoi_t::drive_to`), the derived reservation buckets and back-indices, and runway reservation type and direction.
 The index is rebuilt from the saved raw holder IDs on load.
 
 - Reservations decide whether `rail_vehicle_t::can_enter_tile` succeeds, so they change movement and therefore the synced simulation. A
@@ -211,13 +175,6 @@ The index is rebuilt from the saved raw holder IDs on load.
 
 ## Open questions
 
-- `convoi_t::current_waytype` is assigned in the retained worker path but never read. Was the sweep intended to be filtered by the
-  calling convoy's waytype, and is the broader filter (all rail-family ways plus runways) intended instead? The worker path is no longer
-  used by `convoi_t::unreserve_route()`.
-- The retained single-threaded fallback cannot release runway reservations while the worker path can. Is that asymmetry intended (runways
-  being re-acquired on demand) or an oversight?
-- Worker `P` in `unreserve_route_threaded` scans a slice overlapping worker `P - 1`, and when `fraction` is 0 every worker scans the
-  whole list. Is the duplicate work intended as a margin for the range arithmetic? The pool is retained but unused by its former consumer.
 - `schiene_t::reservation_type::priority` is displayed, saved and tested but never requested, and `schiene_t::can_reserve` lets a block
   reservation through a priority holder unconditionally. Is priority working planned, or is the type vestigial?
 - `rail_vehicle_t::unreserve_in_rear()` uses `schiene_t::unreserve(convoihandle_t)`, but `rail_vehicle_t::leave_tile()` uses
@@ -226,9 +183,7 @@ The index is rebuilt from the saved raw holder IDs on load.
 
 ## Provenance
 
-The base reservation reference was code-verified against ex-15 @ 684d570f9; the measured hotspot figures retain their own execution
-records and were not re-measured. Runway persistence, broad-clear callers, way destruction and the zero-target worker branch were checked
-against ex-15 @ ed1461fce plus the working-tree call-on, reservation-index and signalling-refactor changes on 2026-11-14. The
-[per-holder reservation index](reservation-index.md) records the clearing path; the retained worker pool is unused by
-`convoi_t::unreserve_route()` and its removal is conditional on profiling the new path. Block reservation and the route-unreserve worker pool are Extended-era developments on
-the Standard Simutrans way and signal base; coarse provenance only, per [conventions](../conventions.md).
+The base reservation reference was code-verified against ex-15 @ 684d570f9. Runway persistence, broad-clear callers and way destruction were checked against ex-15 @ 23271d64e plus the working-tree
+route-unreserve removal on 2026-11-14. The [per-holder reservation index](reservation-index.md) records the clearing path. Block
+reservation is an Extended-era development on the Standard Simutrans way and signal base; coarse provenance only, per
+[conventions](../conventions.md).

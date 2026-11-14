@@ -1,20 +1,19 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); gameplay model and reservation audit 2026-11-14; call-on, reservation-index and signalling-refactor changes (2026-11-14)
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); gameplay model and reservation audit 2026-11-14; call-on, reservation-index and route-unreserve-removal changes (2026-11-14)
 ---
 # Signals, signalboxes and block working
 
 **Covers:** obj/signal.* and obj/roadsign.* (signal objects, aspects), descriptor/roadsign_desc.*,
 simsignalbox.*, and the signal windows in gui/ (→ [gui](gui.md)). Consist recombination is in
-[consist-recombination](consist-recombination.md). Reservation state, the block reserver, releasing
-and the route-unreserve worker pool are in
-[block-reservations](signals-and-blocks/block-reservations.md). Signal objects are
+[consist-recombination](consist-recombination.md). Reservation state, the block reserver and releasing
+are in [block-reservations](signals-and-blocks/block-reservations.md). Signal objects are
 inventoried in [objects](objects.md); convoy movement in [vehicles-and-convoys](vehicles-and-convoys.md);
 routing in [routing-and-scheduling](routing-and-scheduling.md).
 
 Sub-document: [block-reservations](signals-and-blocks/block-reservations.md) — the per-tile
-reservation record, the block reserver, releasing, the threaded unreserver, threading and saved
-reservation state; read when touching reservation code, block-working implementation or reservation
+reservation record, the block reserver, releasing, per-holder clearing, threading and saved
+reservation state; read before touching reservation code, block-working implementation or reservation
 determinism.
 
 ## Terms
@@ -206,9 +205,11 @@ covers only its reservation and platform consequences:
 
 ## Performance hotspots
 
-No current measured hotspot for this subsystem. The per-holder reservation index replaced the former
-map-wide clearing scan; the new clearing path and its ordinary reserve/unreserve bookkeeping have not been
-profiled.
+Reservation clearing is not a measured hotspot. On the 803,565-way `bb-10-sep-2023.sve` fixture
+(2,645 holders, largest holder 433 reservations), `convoi_t::unreserve_route()` averages 0.47
+microseconds and at most 9.2 microseconds on the main thread; the per-holder index occupies 2.4 MiB.
+Index maintenance has not been isolated in a workload that performs no broad clearing. Measurement
+and limits: [reservation-index](signals-and-blocks/reservation-index.md).
 
 ## Open questions
 
@@ -216,8 +217,9 @@ profiled.
 
 ## Provenance
 
-Code-verified against ex-15 @ 684d570f9 for every claim above. Reservation mechanics, their determinism
-record and the reservation open questions are in
+Code-verified against ex-15 @ 23271d64e plus the working-tree route-unreserve removal on
+2026-11-14. The performance figures are execution measurements recorded in the reservation-index
+document. Reservation mechanics, their determinism record and the reservation open questions are in
 [block-reservations](signals-and-blocks/block-reservations.md). Signalboxes and the working-method
 system are Extended-era developments on the Standard Simutrans way and signal base; block reservation's
 provenance is in the nested document. Coarse provenance only, per [conventions](conventions.md).
