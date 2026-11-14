@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-14)
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes (2026-11-14)
 ---
 # Consist recombination
 
@@ -178,8 +178,9 @@ a timed pause. Call-on-based coupling movements remain part of the platform/call
 ## Tests
 
 `tests/pending-runtime` covers the runtime through the public script interface: the division
-baseline cases in `cases/`, the paired-exchange cases in `pair-cases/`, and the division
-save/network reload case in `reload/`. The harnesses and runners are described in
+baseline cases in `cases/`, the paired-exchange cases in `pair-cases/`, the division
+save/network reload case in `reload/`, and the paired-exchange save/network reload case in
+`pair-reload/`. The harnesses and runners are described in
 [scripting-and-tests](scripting-and-tests.md).
 
 ## Open questions
@@ -196,5 +197,5 @@ as the UI?
 
 ## Provenance
 
-Code-verified against ex-15 @ 684d570f9 plus the working-tree recombination runtime. The detailed
+Code-verified against ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes. The detailed
 design history and forum provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).

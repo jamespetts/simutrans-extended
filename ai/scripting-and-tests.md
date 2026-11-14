@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime and Squirrel restoration (2026-11-13); test-harness facts as cited
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); test-harness facts as cited
 ---
 # Scripting & tests
 
@@ -207,13 +207,22 @@ exchange). It is not part of the default passing suite.
 - `reload/scenario.nut` is deliberately outside `cases/`, so the baseline runner does not select
   it. It runs the forward division on a loopback server, holds after the split-off portion forms,
   re-asserts the divided state in `resume_game()` after the join's save/transfer/reload, and
-  advances the portion. Runners:
-  `scripts/run-pending-runtime-reload-tests.sh` (POSIX) and
+  advances the portion. `pair-reload/scenario.nut` does the same for the paired exchange's
+  one-way transfer case: it holds after the commit, re-asserts both final consists and the
+  laid-over vehicle from a string of each expected vehicle descriptor's scalar
+  `vehicle_desc_x` properties (`get_power()`, `get_topspeed()`, `get_weight()`, `get_length()` and
+  the coupling and electrification flags), because descriptor names are not reliable after a load,
+  and then observes both convoys advance.
+  Runners: `scripts/run-pending-runtime-reload-tests.sh` (POSIX) and
   `scripts/run-pending-runtime-reload-tests.ps1` (Windows). Both start a client to force the join,
   check for desync markers and parsed checklist-pair mismatches, require the joined peers to stay
   alive for an observation window, and then load the preserved join save in a fresh offline
-  process. The PowerShell runner stages the scenario through a directory junction and removes the
-  junction without following it. There is no reload fixture for a paired exchange.
+  process. Both default to the division reload and select the pair reload with
+  `-CaseName pair-reload -ScenarioName pending-runtime-pair-reload -Selector
+  tests\pending-runtime\pair-reload\scenario.nut -Harness tests\pending-runtime\pair-harness.nut
+  -HarnessName pair-harness` (PowerShell) or the corresponding `--case`, `--scenario`,
+  `--selector`, `--harness` and `--harness-name` options (POSIX). The PowerShell runner stages the
+  scenario through a directory junction and removes the junction without following it.
 - The fixture uses `is_equal` for vehicle-descriptor and loose-stock identity. Sampled
   `vehicle_desc_x` names are invalid immediately after map load (open bug in
   [known-bugs](known-bugs.md)), so name comparison is not used. Successful cases print convoy
@@ -236,9 +245,9 @@ exchange). It is not part of the default passing suite.
 - Is the `ai` host mode usable as-is? It has no caller and may depend on scenario-only state.
 - Which remaining Extended fields need script interfaces? A full gap analysis against the GUI is
   still needed; schedule and consist-order coverage does not make the rest of the API complete.
-- The pending-runtime reload runner exercises the Y-division schedule over loopback, including the
-  restored NWC_TOOL callback, but no fixture exercises a paired H exchange over loopback and no CI
-  job runs either pending-runtime fixture. Its map is an Extended 14 save loaded and re-saved by
+- The pending-runtime reload runner exercises the Y-division schedule and the paired-exchange
+  one-way transfer over loopback, including the restored NWC_TOOL callback, but no CI job runs
+  either pending-runtime fixture. The fixture map is an Extended 14 save loaded and re-saved by
   ex-15; whether that is an adequate substitute for an ex-15-native save remains open.
 - join-sync on ex-15: the fixture is a 14.x-era save; loading it with the ex-15 engine and the
   ex-15 pakset pin is unverified. If it fails, restrict `join-sync.yml` to master or host a

@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -50,9 +50,9 @@ explorer's treatment of consist orders.
   `schedule_t::sscanf_schedule` clears the copied schedule's old orders before rebuilding them and
   accepts multi-digit order keys; `schedule_t::parse_orders` keeps those keys at 16 bits. The
   schedule-string format is unchanged.
-- Scripted test setup for two portions, the division cases and the save/network reload is in
-  [scripting-and-tests](../scripting-and-tests.md); its outcomes are recorded in
-  [yh-path-explorer](yh-path-explorer.md).
+- Scripted test setup for two portions, the division and paired-exchange cases, and their
+  save/network reloads is in [scripting-and-tests](../scripting-and-tests.md); the outcomes are
+  recorded in [yh-path-explorer](yh-path-explorer.md).
 
 ## IMPLEMENTED features
 

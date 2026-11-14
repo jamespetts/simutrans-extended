@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14
+verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -265,10 +265,10 @@ UNVERIFIED fixture composition].
   capacity pressure): [cargo-continuity](recombination-design/cargo-continuity.md). Any persistent
   marking engages the savegame/network rules before implementation.
 - **Paired exchange:** the runtime validation, failure reporting, atomic commit, once-only stop record
-  and direct mutual-wait resolution are implemented. Remaining: wait-cycle detection longer than a
-  direct pair; the GUI authoring-time pre-check (designed but not brought into the knowledge base);
-  and save/network reload coverage of an exchange that has committed. The no-timeout decision for an
-  absent named target is settled.
+  and direct mutual-wait resolution are implemented, and a committed exchange survives the loopback
+  network join's save/transfer/reload and a fresh offline load (2026-11-14). Remaining: wait-cycle
+  detection longer than a direct pair, and the GUI authoring-time pre-check (designed but not
+  brought into the knowledge base). The no-timeout decision for an absent named target is settled.
 - **Loose-stock loading:** the recorded direction is preloading plus retrospective loading credit: a
   loose vehicle is treated as never having been unloaded, and its recorded arrival time supplies
   loading credit when a convoy collects it (see "Loading while stock is loose").

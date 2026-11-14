@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14
+verified: ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14; paired reload fixture @ fa85a59b8 (2026-11-14)
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -215,12 +215,16 @@ unsatisfiable pair refused all-or-nothing, and a receiver that must collect a co
 laid-over pool while the emptied donor is destroyed. Test layout and runners:
 [scripting-and-tests](../scripting-and-tests.md).
 
-The reload case runs the forward division on a loopback server, joins a client so that the server
-saves, transfers and reloads its state (`nwc_sync_t`), re-asserts the divided state from the loaded
-world and observes the split-off portion advance. It then loads the preserved join save in a fresh
-process and repeats the assertions. [EXECUTION-VERIFIED:2026-11-13, Debug|x64] Both reload paths
-pass, both peers stayed running through the observation window, and no parsed checklist pair
-mismatched.
+The reload cases run on a loopback server, join a client so that the server saves, transfers and
+reloads its state (`nwc_sync_t`), re-assert the restored state from the loaded world, and then
+load the preserved join save in a fresh offline process and repeat the assertions. The division
+case re-asserts the divided state and observes the split-off portion advance. The paired case
+runs the one-way transfer, re-asserts both final consists and the laid-over vehicle from a
+string of each expected vehicle descriptor's scalar properties (because descriptor names are not
+reliable after a load), and observes both convoys advance. [EXECUTION-VERIFIED:2026-11-14,
+Debug|x64] Both cases pass in the join phase and in the fresh offline load, both peers stayed running
+through the observation window, and no parsed checklist pair mismatched (12,108 pairs for the
+paired case).
 
 Neither fixture covers cargo or passenger continuity. A vehicle that becomes loose stock through the
 Y division's deferred discharge, or through a paired exchange, is force-unloaded at the stop
