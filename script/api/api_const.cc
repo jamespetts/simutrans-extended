@@ -9,6 +9,8 @@
 
 #include "../api_param.h"
 #include "../../obj/simobj.h"
+#include "../../obj/roadsign.h"
+#include "../../boden/wege/schiene.h"
 #include "../../simconvoi.h"
 #include "../../simmenu.h"
 #include "../../simunits.h"
@@ -185,6 +187,48 @@ void export_global_constants(HSQUIRRELVM vm)
 	enum_slot(vm, "st_tram", type_tram);
 	end_enum();
 
+	/**
+	 * Signal aspects, as returned by sign_x::get_state.
+	 */
+	begin_enum("signal_aspects");
+	enum_slot(vm, "danger", roadsign_t::danger);
+	enum_slot(vm, "clear", roadsign_t::clear);
+	enum_slot(vm, "caution", roadsign_t::caution);
+	enum_slot(vm, "preliminary_caution", roadsign_t::preliminary_caution);
+	enum_slot(vm, "advance_caution", roadsign_t::advance_caution);
+	enum_slot(vm, "clear_no_choose", roadsign_t::clear_no_choose);
+	enum_slot(vm, "caution_no_choose", roadsign_t::caution_no_choose);
+	enum_slot(vm, "preliminary_caution_no_choose", roadsign_t::preliminary_caution_no_choose);
+	enum_slot(vm, "advance_caution_no_choose", roadsign_t::advance_caution_no_choose);
+	enum_slot(vm, "call_on", roadsign_t::call_on);
+	end_enum();
+
+	/**
+	 * Signalling working methods. convoy_x::get_working_method returns -1 for a non-rail convoy.
+	 */
+	begin_enum("working_methods");
+	enum_slot(vm, "drive_by_sight", drive_by_sight);
+	enum_slot(vm, "time_interval", time_interval);
+	enum_slot(vm, "absolute_block", absolute_block);
+	enum_slot(vm, "token_block", token_block);
+	enum_slot(vm, "track_circuit_block", track_circuit_block);
+	enum_slot(vm, "cab_signalling", cab_signalling);
+	enum_slot(vm, "moving_block", moving_block);
+	enum_slot(vm, "one_train_staff", one_train_staff);
+	enum_slot(vm, "time_interval_with_telegraph", time_interval_with_telegraph);
+	end_enum();
+
+	/**
+	 * Reservation types, as returned by way_x::get_reservation_type.
+	 */
+	begin_enum("reservation_types");
+	enum_slot(vm, "block", schiene_t::block);
+	enum_slot(vm, "directional", schiene_t::directional);
+	enum_slot(vm, "priority", schiene_t::priority);
+	enum_slot(vm, "stale_block", schiene_t::stale_block);
+	enum_slot(vm, "end", schiene_t::end);
+	end_enum();
+
 	// players
 	begin_enum("");
 	/// constant to forbid/allow tools for all players (except public player)
@@ -203,6 +247,8 @@ void export_global_constants(HSQUIRRELVM vm)
 	enum_slot(vm, "mo_cloud", obj_t::wolke);
 	/// building (houses, halts, factories ...)
 	enum_slot(vm, "mo_building", obj_t::gebaeude);
+	/// signalbox
+	enum_slot(vm, "mo_signalbox", obj_t::signalbox);
 	/// signal
 	enum_slot(vm, "mo_signal", obj_t::signal);
 	/// bridge

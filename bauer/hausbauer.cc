@@ -1295,6 +1295,7 @@ const vector_tpl<const building_desc_t*>* hausbauer_t::get_list(const building_d
 		case building_desc_t::depot:
 		case building_desc_t::generic_stop:
 		case building_desc_t::generic_extension:
+		case building_desc_t::signalbox:
 		                                    return &station_building;
 		default:                            return NULL;
 	}

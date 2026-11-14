@@ -27,6 +27,9 @@
 #include "../../obj/signal.h"
 #include "../../obj/wayobj.h"
 #include "../../player/simplay.h"
+#include "../../simsignalbox.h"
+#include "../../boden/wege/schiene.h"
+#include "../../vehicle/rail_vehicle.h"
 
 // for depot tools
 #include "../../simconvoi.h"
@@ -55,7 +58,7 @@ template<class D> struct access_objs {
 	 */
 	static D* get_by_pos(HSQUIRRELVM vm, SQInteger index)
 	{
-		SQUserPointer tag = obj_t_tag + bind_code<D>::objtype;
+		SQUserPointer tag = obj_t_tag + (uint8)bind_code<D>::objtype;
 		SQUserPointer p = NULL;
 		if (SQ_SUCCEEDED(sq_getinstanceup(vm, index, &p, tag))  &&  p) {
 			D *obj = static_cast<D*>(p);
@@ -134,7 +137,7 @@ SQInteger exp_obj_pos_constructor(HSQUIRRELVM vm) // parameters: sint16 x, sint1
 		// correct z-coordinate
 		set_slot(vm, "z", gr->get_pos().z, 1);
 		// search for object
-		obj_t::typ type = (obj_t::typ)param<uint8>::get(vm, 5);
+		obj_t::typ type = (obj_t::typ)param<sint32>::get(vm, 5);
 		obj_t *obj = NULL;
 		if (type == obj_t::roadsign  ||  type == obj_t::signal) {
 			// special treatment of signals/roadsigns
@@ -163,7 +166,7 @@ SQInteger exp_obj_pos_constructor(HSQUIRRELVM vm) // parameters: sint16 x, sint1
 	return sq_raise_error(vm, "No object of requested type on tile (or no tile at this position)");
 }
 
-template<> struct bind_code<obj_t> { static const uint8 objtype = obj_t::obj; };
+template<> struct bind_code<obj_t> { static const obj_t::typ objtype = obj_t::obj; };
 
 // macro to implement get and push for obj_t's with position
 #define getpush_obj_pos(D, type) \
@@ -175,7 +178,7 @@ template<> struct bind_code<obj_t> { static const uint8 objtype = obj_t::obj; };
 	{ \
 		return access_objs<D>::push_with_pos(vm, obj); \
 	} \
-	template<> struct bind_code<D> { static const uint8 objtype = type; };
+	template<> struct bind_code<D> { static const obj_t::typ objtype = type; };
 
 // implementation of get and push by macros
 getpush_obj_pos(baum_t, obj_t::baum);
@@ -202,6 +205,9 @@ namespace script_api {
 	declare_specialized_param(roadsign_t*, "t|x|y", "sign_x");
 	declare_specialized_param(signal_t*, "t|x|y", "sign_x");
 
+	declare_enum_param(roadsign_t::signal_aspects, uint8, "signal_aspects");
+	declare_enum_param(schiene_t::reservation_type, uint8, "reservation_types");
+
 	//  map all to one transformer class
 	declare_specialized_param(pumpe_t*,  "t|x|y", "transformer_x");
 	declare_specialized_param(senke_t*,  "t|x|y", "transformer_x");
@@ -221,6 +227,8 @@ getpush_obj_pos(maglevdepot_t, obj_t::maglevdepot);
 // roadsigns/signals
 getpush_obj_pos(roadsign_t, obj_t::roadsign);
 getpush_obj_pos(signal_t, obj_t::signal);
+// signalboxes
+getpush_obj_pos(signalbox_t, obj_t::signalbox);
 //  powerlines
 getpush_obj_pos(pumpe_t, obj_t::pumpe);
 getpush_obj_pos(senke_t, obj_t::senke);
@@ -245,6 +253,7 @@ SQInteger script_api::param<obj_t*>::push(HSQUIRRELVM vm, obj_t* const& obj)
 		case_resolve_obj(weg_t);
 		case_resolve_obj(roadsign_t);
 		case_resolve_obj(signal_t);
+		case_resolve_obj(signalbox_t);
 		case_resolve_obj(field_t);
 
 		case_resolve_obj(airdepot_t);
@@ -292,11 +301,11 @@ void begin_obj_class(HSQUIRRELVM vm, const char* name, const char* base = NULL)
 		dbg->error( "begin_obj_class()", "Create class failed for %s. Base class %s missing. Please update simutrans (or just script/script_base.nut)!", name, base );
 		sq_raise_error(vm, "Create class failed for %s. Base class %s missing. Please update simutrans (or just script/script_base.nut)!", name, base);
 	}
-	uint8 objtype = bind_code<D>::objtype;
+	obj_t::typ objtype = bind_code<D>::objtype;
 	// store typetag to identify pointers
-	sq_settypetag(vm, -1, obj_t_tag + objtype);
+	sq_settypetag(vm, -1, obj_t_tag + (uint8)objtype);
 	// export constructor
-	register_function_fv(vm, exp_obj_pos_constructor, "constructor", 4, "xiiii", freevariable<uint8>(objtype));
+	register_function_fv(vm, exp_obj_pos_constructor, "constructor", 4, "xiiii", freevariable<sint32>((sint32)objtype));
 	// now functions can be registered
 }
 
@@ -453,6 +462,64 @@ vector_tpl<grund_t*> const& get_tile_list( gebaeude_t *gb )
 	return list;
 }
 
+const slist_tpl<koord3d>& signalbox_get_signal_list(signalbox_t* sb)
+{
+	static slist_tpl<koord3d> empty;
+	return sb ? sb->get_signal_list() : empty;
+}
+
+bool signalbox_can_add_signal(signalbox_t* sb, const roadsign_desc_t* desc)
+{
+	return sb && desc ? sb->can_add_signal(desc) : false;
+}
+
+koord3d sign_get_signalbox(roadsign_t* rs)
+{
+	signal_t* sig = dynamic_cast<signal_t*>(rs);
+	if (sig == NULL  ||  sig->get_desc()->get_signal_group() == 0) {
+		return koord3d::invalid;
+	}
+	return sig->get_signalbox();
+}
+
+bool sign_get_no_junctions_to_next_signal(roadsign_t* rs)
+{
+	signal_t* sig = dynamic_cast<signal_t*>(rs);
+	return sig ? sig->get_no_junctions_to_next_signal() : false;
+}
+
+convoihandle_t way_get_reserved_convoi(weg_t* w)
+{
+	schiene_t* sch = dynamic_cast<schiene_t*>(w);
+	return sch ? sch->get_reserved_convoi() : convoihandle_t();
+}
+
+bool way_can_reserve(weg_t* w, convoi_t* cnv, my_ribi_t dir)
+{
+	schiene_t* sch = dynamic_cast<schiene_t*>(w);
+	return sch && cnv ? sch->can_reserve(cnv->self, dir.data) : false;
+}
+
+SQInteger way_can_reserve_dispatch(HSQUIRRELVM vm)
+{
+	weg_t* w = param<weg_t*>::get(vm, 1);
+	convoi_t* cnv = param<convoi_t*>::get(vm, 2);
+	my_ribi_t dir = sq_gettop(vm) >= 3 ? param<my_ribi_t>::get(vm, 3) : my_ribi_t((ribi_t::ribi)ribi_t::all);
+	return param<bool>::push(vm, way_can_reserve(w, cnv, dir));
+}
+
+sint32 way_get_reservation_type(weg_t* w)
+{
+	schiene_t* sch = dynamic_cast<schiene_t*>(w);
+	return sch ? (sint32)sch->get_reservation_type() : -1;
+}
+
+my_ribi_t way_get_reserved_direction(weg_t* w)
+{
+	schiene_t* sch = dynamic_cast<schiene_t*>(w);
+	return my_ribi_t(sch ? sch->get_reserved_direction() : (ribi_t::ribi)ribi_t::none);
+}
+
 void export_map_objects(HSQUIRRELVM vm)
 {
 	/**
@@ -460,8 +527,8 @@ void export_map_objects(HSQUIRRELVM vm)
 	 * These classes cannot modify anything.
 	 */
 	begin_class(vm, "map_object_x", "extend_get,coord3d,ingame_object");
-	uint8 objtype = bind_code<obj_t>::objtype;
-	sq_settypetag(vm, -1, obj_t_tag + objtype);
+	obj_t::typ objtype = bind_code<obj_t>::objtype;
+	sq_settypetag(vm, -1, obj_t_tag + (uint8)objtype);
 	/**
 	 * Constructor. Implemented by derived classes.
 	 * Fails if no object of precisely the requested type is on the tile.
@@ -582,6 +649,35 @@ void export_map_objects(HSQUIRRELVM vm)
 	end_class(vm);
 
 	/**
+	 * Signalboxes.
+	 */
+	begin_obj_class<signalbox_t>(vm, "signalbox_x", "building_x");
+	/**
+	 * @returns the number of signals this signalbox can control
+	 */
+	register_method(vm, &signalbox_t::get_capacity, "get_capacity");
+	/**
+	 * @returns the number of signals currently controlled by this signalbox
+	 */
+	register_method(vm, &signalbox_t::get_number_of_signals_controlled_from_this_box, "get_signal_count");
+	/**
+	 * @returns array of signal positions controlled by this signalbox
+	 * @typemask array<coord3d>()
+	 */
+	register_method(vm, &signalbox_get_signal_list, "get_signal_list", true);
+	/**
+	 * @returns true if this signalbox can accept another signal
+	 */
+	register_method(vm, &signalbox_t::can_add_more_signals, "can_add_more_signals");
+	/**
+	 * @param desc signal descriptor
+	 * @returns true if this signalbox can accept the given signal
+	 */
+	register_method(vm, &signalbox_can_add_signal, "can_add_signal", true);
+
+	end_class(vm);
+
+	/**
 	 * Class to access depots.
 	 * Main purpose is the manipulation of convoys in depots.
 	 */
@@ -677,6 +773,24 @@ void export_map_objects(HSQUIRRELVM vm)
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_way_stat, "get_convoys_passed",    freevariable<sint32>(WAY_STAT_CONVOIS), true);
+	/**
+	 * @returns the convoy holding the reservation on this way, or null
+	 */
+	register_method(vm, &way_get_reserved_convoi, "get_reserved_convoi", true);
+	/**
+	 * @param cnv convoy to test
+	 * @param dir optional direction of travel
+	 * @returns true if the convoy could reserve this way
+	 */
+	register_function(vm, way_can_reserve_dispatch, "can_reserve", -2, "x o|i");
+	/**
+	 * @returns reservation type as a value of the reservation_types enum, or -1 for a non-rail way
+	 */
+	register_method(vm, &way_get_reservation_type, "get_reservation_type", true);
+	/**
+	 * @returns reserved direction as a value of the dir enum
+	 */
+	register_method(vm, &way_get_reserved_direction, "get_reserved_direction", true);
 	end_class(vm);
 
 
@@ -721,6 +835,18 @@ void export_map_objects(HSQUIRRELVM vm)
 	 * @param player
 	 */
 	register_method(vm, &roadsign_can_pass, "can_pass", true);
+	/**
+	 * @returns current signal aspect as a value of the signal_aspects enum
+	 */
+	register_method(vm, &roadsign_t::get_state, "get_state");
+	/**
+	 * @returns position of the controlling signalbox, or an invalid coordinate for a signal not controlled by a box
+	 */
+	register_method(vm, &sign_get_signalbox, "get_signalbox_pos", true);
+	/**
+	 * @returns whether there is no junction between this signal and the next signal
+	 */
+	register_method(vm, &sign_get_no_junctions_to_next_signal, "get_no_junctions_to_next_signal", true);
 	end_class(vm);
 
 	/**

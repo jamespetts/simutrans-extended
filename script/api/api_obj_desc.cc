@@ -560,6 +560,18 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 */
 	register_method(vm, &building_desc_t::get_capacity, "get_capacity");
 	/**
+	 * @return radius in metres in which this building has effect
+	 */
+	register_method(vm, &building_desc_t::get_radius, "get_radius");
+	/**
+	 * @return number of clusters (only meaningful for city buildings and signalboxes)
+	 */
+	register_method(vm, &building_desc_t::get_clusters, "get_clusters");
+	/**
+	 * @return true if this building is a signalbox
+	 */
+	register_method(vm, &building_desc_t::is_signalbox, "is_signalbox");
+	/**
 	 * @return whether building can be built underground
 	 */
 	register_method(vm, &building_desc_t::can_be_built_underground, "can_be_built_underground");
@@ -603,6 +615,8 @@ void export_goods_desc(HSQUIRRELVM vm)
 	enum_slot(vm, "station", (uint8)building_desc_t::generic_stop, true);
 	/// station extension
 	enum_slot(vm, "station_extension", (uint8)building_desc_t::generic_extension, true);
+	/// signalbox
+	enum_slot(vm, "signalbox", (uint8)building_desc_t::signalbox, true);
 	end_enum();
 	/**
 	 * @returns building type
@@ -621,7 +635,7 @@ void export_goods_desc(HSQUIRRELVM vm)
 
 	/**
 	 * Returns an array with all buildings of the given type.
-	 * @warning If @p type is one of building_desc_x::harbour, building_desc_x::depot, building_desc_x::station, building_desc_x::station_extension then always the same list is generated.
+	 * @warning If @p type is one of building_desc_x::harbour, building_desc_x::depot, building_desc_x::station, building_desc_x::station_extension, building_desc_x::signalbox then always the same list is generated.
 	 *          You have to filter out e.g. station buildings yourself.
 	 */
 	STATIC register_method(vm, &get_building_list, "get_building_list", false, true);
@@ -855,6 +869,50 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns true if sign is end-of-choose sign
 	 */
 	register_method(vm, &roadsign_desc_t::is_end_choose_signal, "is_end_choose_signal");
+	/**
+	 * @returns 0 if above ground only, 1 if underground only, 2 if both
+	 */
+	register_method(vm, &roadsign_desc_t::get_allow_underground, "get_allow_underground");
+	/**
+	 * @returns true if this signal works permissively
+	 */
+	register_method(vm, &roadsign_desc_t::get_permissive, "get_permissive");
+	/**
+	 * @returns whether the signal's artwork includes a call-on aspect (presentation only)
+	 */
+	register_method(vm, &roadsign_desc_t::get_has_call_on, "get_has_call_on");
+	/**
+	 * @returns whether the signal's artwork includes selective choose aspects (presentation only)
+	 */
+	register_method(vm, &roadsign_desc_t::get_has_selective_choose, "get_has_selective_choose");
+	/**
+	 * @returns working method as a value of the working_methods enum
+	 */
+	register_method(vm, &roadsign_desc_t::get_working_method, "get_working_method");
+	/**
+	 * @returns number of aspects
+	 */
+	register_method(vm, &roadsign_desc_t::get_aspects, "get_aspects");
+	/**
+	 * @returns true if the signal shows danger at rest
+	 */
+	register_method(vm, &roadsign_desc_t::get_normal_danger, "get_normal_danger");
+	/**
+	 * @returns true if this is a double-block signal
+	 */
+	register_method(vm, &roadsign_desc_t::get_double_block, "get_double_block");
+	/**
+	 * @returns true if this is a station signal
+	 */
+	register_method(vm, &roadsign_desc_t::is_station_signal, "is_station_signal");
+	/**
+	 * @returns maximum distance in metres from a signalbox
+	 */
+	register_method(vm, &roadsign_desc_t::get_max_distance_to_signalbox, "get_max_distance_to_signalbox");
+	/**
+	 * @returns signal group
+	 */
+	register_method(vm, &roadsign_desc_t::get_signal_group, "get_signal_group");
 	/**
 	 * Returns a list with available sign types.
 	 * @param wt waytype

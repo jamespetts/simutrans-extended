@@ -22,6 +22,7 @@
 #include "../../descriptor/building_desc.h"
 #include "../../descriptor/roadsign_desc.h"
 #include "../../descriptor/way_obj_desc.h"
+#include "../../simsignalbox.h"
 
 #include <memory> // auto_ptr
 
@@ -365,6 +366,32 @@ call_tool_work build_depot(player_t* pl, koord3d pos, const building_desc_t* bui
 	return call_tool_work(TOOL_BUILD_DEPOT | GENERAL_TOOL, building->get_name(), 0, pl, pos);
 }
 
+call_tool_work build_signalbox(player_t* pl, koord3d pos, const building_desc_t* building, sint8 rotation)
+{
+	if (building == NULL  ||  !building->is_signalbox()) {
+		return call_tool_work(translator::translate("No signalbox provided"));
+	}
+	if (rotation < -1  ||  rotation > 15) {
+		return call_tool_work(translator::translate("Invalid rotation"));
+	}
+	if (const char* err = is_available(building)) {
+		return call_tool_work(err);
+	}
+	static cbuffer_t buf;
+	buf.clear();
+	buf.printf("%s,%i", building->get_name(), rotation);
+	return call_tool_work(TOOL_BUILD_SIGNALBOX | GENERAL_TOOL, buf, 0, pl, pos);
+}
+
+SQInteger command_build_signalbox(HSQUIRRELVM vm)
+{
+	player_t* pl = param<player_t*>::get(vm, 2);
+	koord3d pos = param<koord3d>::get(vm, 3);
+	const building_desc_t* building = param<const building_desc_t*>::get(vm, 4);
+	sint8 rotation = sq_gettop(vm) >= 5 ? param<sint8>::get(vm, 5) : -1;
+	return param<call_tool_work>::push(vm, build_signalbox(pl, pos, building, rotation));
+}
+
 call_tool_work build_bridge(player_t* pl, koord3d start, koord3d end, const bridge_desc_t* bridge)
 {
 	if (bridge == NULL) {
@@ -423,6 +450,38 @@ call_tool_work build_sign_at(player_t* pl, koord3d start, const roadsign_desc_t*
 		return call_tool_work(err);
 	}
 	return call_tool_work(TOOL_BUILD_ROADSIGN | GENERAL_TOOL, sign->get_name(), 0, pl, start);
+}
+
+call_tool_work build_sign_at_box(player_t* pl, koord3d start, const roadsign_desc_t* sign, signalbox_t* box)
+{
+	if (sign == NULL) {
+		return call_tool_work("No sign provided");
+	}
+	if (box == NULL) {
+		return call_tool_work(translator::translate("No signalbox provided"));
+	}
+	if (sign->get_signal_group() == 0) {
+		return call_tool_work(translator::translate("This signal does not use a signalbox"));
+	}
+	if (const char* err = is_available(sign)) {
+		return call_tool_work(err);
+	}
+	static cbuffer_t buf;
+	buf.clear();
+	buf.printf("%s,%u,%i,%i,%i,%i,%i,%i", sign->get_name(), tool_build_roadsign_t::signal_info::spacing, 1, 1, 0, box->get_pos().x, box->get_pos().y, box->get_pos().z);
+	return call_tool_work(TOOL_BUILD_ROADSIGN | GENERAL_TOOL, buf, 0, pl, start);
+}
+
+SQInteger command_build_sign_at(HSQUIRRELVM vm)
+{
+	player_t* pl = param<player_t*>::get(vm, 2);
+	koord3d pos = param<koord3d>::get(vm, 3);
+	const roadsign_desc_t* sign = param<const roadsign_desc_t*>::get(vm, 4);
+	if (sq_gettop(vm) >= 5) {
+		signalbox_t* box = param<signalbox_t*>::get(vm, 5);
+		return param<call_tool_work>::push(vm, build_sign_at_box(pl, pos, sign, box));
+	}
+	return param<call_tool_work>::push(vm, build_sign_at(pl, pos, sign));
 }
 
 call_tool_work change_climate_at(player_t* pl, koord3d start, int climate)
@@ -546,6 +605,14 @@ void export_commands(HSQUIRRELVM vm)
 	 */
 	STATIC register_method(vm, build_depot, "build_depot", false, true);
 	/**
+	 * Build a signalbox.
+	 * @param pl player to pay for the work
+	 * @param pos position to place the signalbox
+	 * @param building type of signalbox to be built
+	 * @param rotation rotation of the building, or -1 to let the tool choose
+	 */
+	STATIC register_function(vm, command_build_signalbox, "build_signalbox", -4, ".t|x|yt|x|yt|x|yt|i", true);
+	/**
 	 * Build a station or station extension building.
 	 * @param pl player to pay for the work
 	 * @param pos position to place the depot
@@ -604,8 +671,9 @@ void export_commands(HSQUIRRELVM vm)
 	 * @param pl player to pay for the work
 	 * @param pos position of tile
 	 * @param sign type of road-sign or signal to be built
+	 * @param signalbox optional signalbox to control the signal
 	 */
-	STATIC register_method(vm, build_sign_at, "build_sign_at", false, true);
+	STATIC register_function(vm, command_build_sign_at, "build_sign_at", -4, ".t|x|yt|x|yt|x|yt|x|y", true);
 	/**
 	 * Build way-object.
 	 * @param pl player to pay for the work

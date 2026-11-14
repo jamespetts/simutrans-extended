@@ -682,6 +682,14 @@ class vehicle_slot_x {
 	cargo = 0
 	/// maximum cargo units
 	capacity = 0
+	/// current position
+	pos = null
+	/// index into the convoy's saved route
+	route_index = 0
+	/// progress through the current tile
+	steps = 0
+	/// total steps through the current tile
+	steps_next = 0
 }
 
 class dir {

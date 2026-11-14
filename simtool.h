@@ -670,7 +670,8 @@ class tool_signalbox_t : public tool_t
 {
 private:
 	static char toolstring[256];
-	const char* tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint64 cost);
+	const building_desc_t* get_desc(sint8 &rotation) const;
+	const char* tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint64 cost, sint8 rotation);
 public:
 	tool_signalbox_t() : tool_t(TOOL_BUILD_SIGNALBOX | GENERAL_TOOL) {}
 	const char *check_pos(player_t *, koord3d pos) OVERRIDE;

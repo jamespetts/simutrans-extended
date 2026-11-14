@@ -918,6 +918,126 @@ function test_sign_replace_signal()
 }
 
 
+function test_sign_signalbox()
+{
+	local pl = player_x(0)
+	local rail = way_desc_x.get_available_ways(wt_rail, st_flat)[0]
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+
+	local boxes = building_desc_x.get_building_list(building_desc_x.signalbox).filter(
+		@(idx, b) b.is_signalbox() && b.is_available(world.get_time()) && b.get_capacity() > 0)
+	ASSERT_TRUE(boxes.len() > 0)
+
+	local signals = sign_desc_x.get_available_signs(wt_rail).filter(
+		@(idx, s) s.get_allow_underground() != 1)
+	ASSERT_TRUE(signals.len() > 0)
+	local signal_desc = signals.filter(@(idx, s) s.is_choose_sign())[0]
+	if (signal_desc == null) {
+		signal_desc = signals[0]
+	}
+	ASSERT_TRUE(signal_desc != null)
+	ASSERT_TRUE(signal_desc.get_aspects() > 0)
+
+	// Find a signalbox and a signal that belong to the same group, if the
+	// pakset defines signal groups.
+	local box_desc = null
+	local grouped_signal_desc = null
+	foreach (b in boxes) {
+		foreach (s in signals) {
+			if (s.get_signal_group() > 0 && (b.get_clusters() & s.get_signal_group()) != 0) {
+				box_desc = b
+				grouped_signal_desc = s
+				break
+			}
+		}
+		if (box_desc != null) {
+			break
+		}
+	}
+	if (box_desc == null) {
+		box_desc = boxes[0]
+	}
+
+	ASSERT_EQUAL(command_x.build_way(pl, coord3d(20, 10, 0), coord3d(24, 10, 0), rail, true), null)
+	ASSERT_EQUAL(command_x.build_signalbox(pl, coord3d(22, 11, 0), box_desc, 0), null)
+
+	local box = tile_x(22, 11, 0).find_object(mo_signalbox)
+	ASSERT_TRUE(box != null)
+	ASSERT_TRUE(box.is_valid())
+	ASSERT_EQUAL(box.get_capacity(), box_desc.get_capacity())
+	ASSERT_EQUAL(box.get_signal_count(), 0)
+	ASSERT_EQUAL(box.get_signal_list().len(), 0)
+	ASSERT_TRUE(box.can_add_more_signals())
+
+	if (grouped_signal_desc != null) {
+		ASSERT_TRUE(box.can_add_signal(grouped_signal_desc))
+		ASSERT_EQUAL(command_x.build_sign_at(pl, coord3d(22, 10, 0), grouped_signal_desc, box), null)
+
+		local sig = tile_x(22, 10, 0).find_object(mo_signal)
+		ASSERT_TRUE(sig != null)
+		local sigbox_pos = sig.get_signalbox_pos()
+		ASSERT_EQUAL(sigbox_pos.x, 22)
+		ASSERT_EQUAL(sigbox_pos.y, 11)
+		ASSERT_EQUAL(sigbox_pos.z, 0)
+		ASSERT_EQUAL(sig.get_state(), danger)
+		ASSERT_EQUAL(sig.get_desc().get_working_method(), grouped_signal_desc.get_working_method())
+		ASSERT_EQUAL(sig.get_desc().get_signal_group(), grouped_signal_desc.get_signal_group())
+		ASSERT_FALSE(sig.get_no_junctions_to_next_signal())
+		ASSERT_EQUAL(box.get_signal_count(), 1)
+		ASSERT_EQUAL(box.get_signal_list().len(), 1)
+		local listed_pos = box.get_signal_list()[0]
+		ASSERT_EQUAL(listed_pos.x, 22)
+		ASSERT_EQUAL(listed_pos.y, 10)
+		ASSERT_EQUAL(listed_pos.z, 0)
+	}
+	else {
+		// A pakset without signal groups cannot attach a signal to a signalbox.
+		// The typed overload must refuse it, and the existing form must still
+		// build the signal.
+		ASSERT_FALSE(box.can_add_signal(signal_desc))
+
+		local error_caught = false
+		try {
+			command_x.build_sign_at(pl, coord3d(22, 10, 0), signal_desc, box)
+		}
+		catch (e) {
+			ASSERT_EQUAL(e, "This signal does not use a signalbox")
+			error_caught = true
+		}
+		ASSERT_TRUE(error_caught)
+
+		ASSERT_EQUAL(command_x.build_sign_at(pl, coord3d(22, 10, 0), signal_desc), null)
+
+		local sig = tile_x(22, 10, 0).find_object(mo_signal)
+		ASSERT_TRUE(sig != null)
+		ASSERT_TRUE(sig.get_signalbox_pos().x < 0)
+		ASSERT_EQUAL(sig.get_state(), danger)
+		ASSERT_EQUAL(sig.get_desc().get_working_method(), signal_desc.get_working_method())
+		ASSERT_FALSE(sig.get_no_junctions_to_next_signal())
+		ASSERT_EQUAL(box.get_signal_count(), 0)
+		ASSERT_EQUAL(box.get_signal_list().len(), 0)
+	}
+
+	local rail_way = tile_x(22, 10, 0).find_object(mo_way)
+	ASSERT_TRUE(rail_way != null)
+	ASSERT_EQUAL(rail_way.get_reserved_convoi(), null)
+	ASSERT_EQUAL(rail_way.get_reservation_type(), block)
+	ASSERT_EQUAL(rail_way.get_reserved_direction(), dir.none)
+
+	ASSERT_EQUAL(command_x.build_way(pl, coord3d(20, 14, 0), coord3d(24, 14, 0), road, true), null)
+	local road_way = tile_x(22, 14, 0).find_object(mo_way)
+	ASSERT_TRUE(road_way != null)
+	ASSERT_EQUAL(road_way.get_reserved_convoi(), null)
+	ASSERT_EQUAL(road_way.get_reservation_type(), -1)
+
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(20, 10, 0), coord3d(24, 10, 0), "" + wt_rail), null)
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(20, 14, 0), coord3d(24, 14, 0), "" + wt_road), null)
+	ASSERT_EQUAL(command_x(tool_remover).work(pl, coord3d(22, 11, 0)), null)
+
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
 function test_sign_signal_when_player_removed()
 {
 	local pl = player_x(0)

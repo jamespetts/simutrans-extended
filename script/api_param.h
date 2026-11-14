@@ -39,6 +39,7 @@ class plainstring;
 class scenario_t;
 class schedule_t;
 class settings_t;
+class signalbox_t;
 class simline_t;
 class player_t;
 class stadt_t;
@@ -362,8 +363,10 @@ namespace script_api {
 	declare_specialized_param(sint64, "i", "integer");
 	declare_enum_param(waytype_t, sint16, "way_types");
 	declare_enum_param(systemtype_t, uint8, "way_system_types");
-	declare_enum_param(obj_t::typ, uint8, "map_objects");
+	// Signed, because Extended-specific object types (for example obj_t::signalbox) are negative.
+	declare_enum_param(obj_t::typ, sint32, "map_objects");
 	declare_enum_param(climate, uint8, "climates");
+	declare_enum_param(working_method_t, uint8, "working_methods");
 	declare_specialized_param(my_ribi_t, "i", "dir");
 	declare_specialized_param(my_slope_t, "i", "slope");
 
@@ -405,6 +408,7 @@ namespace script_api {
 	declare_specialized_param(obj_t*, "t|x|y", "map_object_x");
 	declare_specialized_param(baum_t*, "t|x|y", "tree_x");
 	declare_specialized_param(gebaeude_t*, "t|x|y", "building_x");
+	declare_specialized_param(signalbox_t*, "t|x|y", "signalbox_x");
 	declare_specialized_param(label_t*, "t|x|y", "label_x");
 	declare_specialized_param(leitung_t*, "t|x|y", "powerline_x");
 	declare_specialized_param(weg_t*, "t|x|y", "way_x");

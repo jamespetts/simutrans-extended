@@ -7079,6 +7079,11 @@ void tool_build_roadsign_t::read_default_param(player_t * player)
 		s.signalbox.y = i_y;
 		s.signalbox.z = i_z;
 	}
+	else if (is_scripted()) {
+		// A scripted call without explicit signalbox coordinates must not reuse
+		// the box selected by an earlier tool call.
+		signal[player->get_player_nr()].signalbox = koord3d::invalid;
+	}
 	if (default_param==toolstring) {
 		default_param = desc->get_name();
 	}
@@ -7089,7 +7094,7 @@ bool tool_build_roadsign_t::init( player_t *player)
 	// read data from string
 	read_default_param(player);
 
-	if(is_local_execution())
+	if(is_local_execution()  &&  !is_scripted())
 	{
 		signal[player->get_player_nr()].signalbox = player->get_selected_signalbox() ? player->get_selected_signalbox()->get_pos() : koord3d::invalid;
 	}
@@ -7527,7 +7532,33 @@ built_sign:
 }
 
 // Build signalboxes
-const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint64 cost)
+const building_desc_t* tool_signalbox_t::get_desc(sint8 &rotation) const
+{
+	rotation = -1;
+	if (strempty(default_param)) {
+		return NULL;
+	}
+
+	char *building = strdup(default_param);
+	const building_tile_desc_t *tdsc = NULL;
+
+	if (building) {
+		char *p = strrchr(building, ',');
+		if (p) {
+			*p++ = 0;
+			if (sscanf(p, "%hhd", &rotation) != 1 || rotation < -1 || rotation > 15) {
+				free(building);
+				return NULL;
+			}
+		}
+		tdsc = hausbauer_t::find_tile(building, 0);
+		free(building);
+	}
+
+	return tdsc ? tdsc->get_desc() : NULL;
+}
+
+const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint64 cost, sint8 rotation)
 {
 
 	karte_t::runway_info ri = welt->check_nearby_runways(pos.get_2d());
@@ -7551,14 +7582,20 @@ const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, 
 
 	grund_t *gr = welt->lookup_kartenboden(pos.get_2d());
 
-	int rotation = (default_param  &&  default_param[1]!='#') ? (default_param[1]-'0') % desc->get_all_layouts() : simrand(desc->get_all_layouts(), "const char *tool_build_factory_t::work");
+	const bool explicit_rotation = rotation >= 0;
+	if (!explicit_rotation) {
+		rotation = simrand(desc->get_all_layouts(), "const char *tool_build_factory_t::work");
+	}
+	else {
+		rotation %= desc->get_all_layouts();
+	}
 	koord size = desc->get_size(rotation);
 
 	const climate_bits cl = desc->get_allowed_climate_bits();
 	const uint16 regions_allowed = desc->get_allowed_region_bits();
 	bool can_be_placed = welt->square_is_free( pos.get_2d(), desc->get_x(rotation), desc->get_y(rotation), NULL, cl, regions_allowed, pos.z );
 
-	if(!can_be_placed  &&  size.y!=size.x  &&  desc->get_all_layouts()>1  &&  (default_param==NULL  ||  default_param[1]=='#'))
+	if(!can_be_placed  &&  size.y!=size.x  &&  desc->get_all_layouts()>1  &&  !explicit_rotation)
 	{
 		// try other rotation too ...
 		rotation = (rotation+1) % desc->get_all_layouts();
@@ -7665,11 +7702,10 @@ const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, 
 			}
 			layout = building_layout[trackdir];
 
-			uint8 rotation = desc->get_all_layouts();
 			koord size = desc->get_size(rotation);
 
 			bool hat_platz = welt->square_is_free( k, desc->get_x(rotation), desc->get_y(rotation), NULL, desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), pos.z);
-			if(!hat_platz  &&  size.y!=size.x  &&  desc->get_all_layouts()>1  &&  (default_param==NULL  ||  default_param[1]=='#'  ||  default_param[1]=='A')) {
+			if(!hat_platz  &&  size.y!=size.x  &&  desc->get_all_layouts()>1  &&  !explicit_rotation) {
 				// try other rotation too ...
 				rotation = (rotation+1) % desc->get_all_layouts();
 				hat_platz = welt->square_is_free( k, desc->get_x(rotation), desc->get_y(rotation), NULL, desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), pos.z);
@@ -7679,7 +7715,7 @@ const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, 
 			{
 				gebaeude_t* gb = hausbauer_t::build(player, gr->get_pos(), layout, desc);
 				player_t::book_construction_costs(player, -cost, pos.get_2d(), desc->get_finance_waytype());
-				if (is_local_execution() && player == welt->get_active_player())
+				if (is_local_execution()  &&  !is_scripted()  &&  player == welt->get_active_player())
 				{
 					player->set_selected_signalbox((signalbox_t*)gb);
 					welt->set_tool(general_tool[TOOL_QUERY], player);
@@ -7695,7 +7731,8 @@ const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, 
 
 image_id tool_signalbox_t::get_icon(player_t *) const
 {
-	const building_desc_t *desc = hausbauer_t::find_tile(default_param,0)->get_desc();
+	sint8 rotation = -1;
+	const building_desc_t *desc = get_desc(rotation);
 	const uint16 time = welt->get_timeline_year_month();
 	if( desc && desc->is_available(time) )
 	{
@@ -7706,7 +7743,8 @@ image_id tool_signalbox_t::get_icon(player_t *) const
 
 char const* tool_signalbox_t::get_tooltip(player_t const*) const
 {
-	building_desc_t const* desc = hausbauer_t::find_tile(default_param, 0)->get_desc();
+	sint8 rotation = -1;
+	building_desc_t const* desc = get_desc(rotation);
 	if (desc == NULL)
 	{
 		return NULL;
@@ -7753,7 +7791,8 @@ const char* tool_signalbox_t::check_pos(player_t *, koord3d pos)
 
 bool tool_signalbox_t::init(player_t *)
 {
-	building_desc_t const* desc = hausbauer_t::find_tile(default_param, 0)->get_desc();
+	sint8 rotation = -1;
+	building_desc_t const* desc = get_desc(rotation);
 	if (desc == NULL)
 	{
 		return false;
@@ -7765,9 +7804,14 @@ bool tool_signalbox_t::init(player_t *)
 
 const char *tool_signalbox_t::work( player_t *player, koord3d pos )
 {
-	building_desc_t const* const desc = hausbauer_t::find_tile(default_param,0)->get_desc();
+	sint8 rotation = -1;
+	building_desc_t const* const desc = get_desc(rotation);
+	if (desc == NULL)
+	{
+		return translator::translate("Invalid signalbox type.");
+	}
 
-	return tool_signalbox_t::tool_signalbox_aux(player, pos, desc, desc->get_price());
+	return tool_signalbox_t::tool_signalbox_aux(player, pos, desc, desc->get_price(), rotation);
 }
 
 // build all types of depots

@@ -17,6 +17,7 @@
 #include "../../simtool.h"
 #include "../../simworld.h"
 #include "../../vehicle/vehicle.h"
+#include "../../vehicle/rail_vehicle.h"
 #include "../../display/viewport.h"
 
 // for convoy tools
@@ -211,6 +212,15 @@ sint32 convoy_get_current_entry_id(convoi_t *cnv)
 }
 
 /**
+ * Working method of a rail-family convoy, or -1 for a convoy without a rail vehicle at the front.
+ */
+sint32 convoy_get_working_method(convoi_t *cnv)
+{
+	rail_vehicle_t *rv = cnv ? dynamic_cast<rail_vehicle_t *>(cnv->front()) : NULL;
+	return rv ? (sint32)rv->get_working_method() : -1;
+}
+
+/**
  * Snapshot of the convoy's vehicles in running order. Each entry is a
  * vehicle_slot_x value object, so no vehicle pointer outlives the call.
  */
@@ -254,6 +264,10 @@ SQInteger convoy_get_vehicle_snapshot(HSQUIRRELVM vm)
 		set_slot(vm, "reversed", v->is_reversed());
 		set_slot(vm, "cargo", (SQInteger)v->get_total_cargo());
 		set_slot(vm, "capacity", (SQInteger)v->get_cargo_max());
+		set_slot(vm, "pos", v->get_pos());
+		set_slot(vm, "route_index", (SQInteger)v->get_route_index());
+		set_slot(vm, "steps", (SQInteger)v->get_steps());
+		set_slot(vm, "steps_next", (SQInteger)v->get_steps_next());
 		sq_arrayappend(vm, -2);
 	}
 	return 1;
@@ -480,6 +494,10 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns unique_entry_id of the current schedule entry, or 0
 	 */
 	register_method(vm, convoy_get_current_entry_id, "get_current_entry_id", true);
+	/**
+	 * @returns the working method of a rail-family convoy, or -1 for a non-rail convoy
+	 */
+	register_method(vm, convoy_get_working_method, "get_working_method", true);
 	/**
 	 * @returns true if the convoy is running its schedule backwards
 	 */

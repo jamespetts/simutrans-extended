@@ -125,6 +125,7 @@ all_tests <- [
 // 	test_sign_build_signal_multiple,
 // 	test_sign_replace_signal,
 // 	test_sign_signal_when_player_removed,
+	test_sign_signalbox,
 	test_slope_to_dir,
 // 	test_slope_can_set,
 	test_slope_set_and_restore,

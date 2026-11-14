@@ -12,6 +12,13 @@
  * - Added @ref change_climate_at
  * - Added @ref convoy_x::change_schedule
  * - Changed building_desc_x::get_available_stations to accept wt_all
+ * - Added @ref signalbox_x, @ref command_x::build_signalbox and the signalbox form of @ref command_x::build_sign_at
+ * - Added @ref sign_x::get_state, @ref sign_x::get_signalbox_pos, @ref sign_x::get_no_junctions_to_next_signal
+ * - Added signalling getters to @ref sign_desc_x, including working method and signal group
+ * - Added @ref convoy_x::get_working_method
+ * - Added reservation getters to @ref way_x
+ * - Added geometry fields to @ref vehicle_slot_x
+ * - Added the @ref signal_aspects, @ref working_methods and @ref reservation_types groups
  *
  * @section api-123 Release 123.0
  *
