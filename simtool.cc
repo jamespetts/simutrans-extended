@@ -7558,9 +7558,23 @@ const building_desc_t* tool_signalbox_t::get_desc(sint8 &rotation) const
 	return tdsc ? tdsc->get_desc() : NULL;
 }
 
-const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint64 cost, sint8 rotation)
+sint64 tool_signalbox_t::get_tooltip_price(const building_desc_t* desc)
 {
+	sint64 cost = desc->get_price();
+	if (cost == PRICE_MAGIC)
+	{
+		return desc->get_level() * welt->get_settings().get_cost_multiply_station();
+	}
+	return -cost;
+}
 
+sint64 tool_signalbox_t::get_price(const building_desc_t* desc, koord3d pos)
+{
+	return welt->get_land_value(pos) - get_tooltip_price(desc);
+}
+
+const char* tool_signalbox_t::check_placement(player_t* player, koord3d pos, const building_desc_t* desc, sint8 &rotation, bool explicit_rotation, sint64 price, placement_t &placement)
+{
 	karte_t::runway_info ri = welt->check_nearby_runways(pos.get_2d());
 	const uint8 height = welt->lookup_hgt(pos.get_2d());
 	if (pos.z >= height && ri.pos != koord::invalid && desc->get_allow_underground() != 1)
@@ -7568,38 +7582,36 @@ const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, 
 		return "This cannot be built next to a runway.";
 	}
 
-	if (cost == PRICE_MAGIC)
-	{
-		cost = -welt->get_settings().get_cost_multiply_station() * desc->get_level();
-	}
-
-	cost += welt->get_land_value(pos);
-
-	if ( !player_t::can_afford(player, -cost) )
+	if (!player_t::can_afford(player, price))
 	{
 		return NOTICE_INSUFFICIENT_FUNDS;
 	}
 
-	grund_t *gr = welt->lookup_kartenboden(pos.get_2d());
-
-	const bool explicit_rotation = rotation >= 0;
-	if (!explicit_rotation) {
+	if (!explicit_rotation)
+	{
 		rotation = simrand(desc->get_all_layouts(), "const char *tool_build_factory_t::work");
 	}
-	else {
+	else
+	{
 		rotation %= desc->get_all_layouts();
 	}
 	koord size = desc->get_size(rotation);
 
+	grund_t *gr = welt->lookup_kartenboden(pos.get_2d());
+	if (gr == NULL  ||  !welt->is_within_limits(pos.get_2d()))
+	{
+		return "A signalbox cannot be built here.";
+	}
+
 	const climate_bits cl = desc->get_allowed_climate_bits();
 	const uint16 regions_allowed = desc->get_allowed_region_bits();
-	bool can_be_placed = welt->square_is_free( pos.get_2d(), desc->get_x(rotation), desc->get_y(rotation), NULL, cl, regions_allowed, pos.z );
+	bool can_be_placed = welt->square_is_free(pos.get_2d(), desc->get_x(rotation), desc->get_y(rotation), NULL, cl, regions_allowed, pos.z);
 
-	if(!can_be_placed  &&  size.y!=size.x  &&  desc->get_all_layouts()>1  &&  !explicit_rotation)
+	if (!can_be_placed  &&  size.y != size.x  &&  desc->get_all_layouts() > 1  &&  !explicit_rotation)
 	{
 		// try other rotation too ...
-		rotation = (rotation+1) % desc->get_all_layouts();
-		can_be_placed = welt->square_is_free( pos.get_2d(), desc->get_x(rotation), desc->get_y(rotation), NULL, cl, regions_allowed, pos.z );
+		rotation = (rotation + 1) % desc->get_all_layouts();
+		can_be_placed = welt->square_is_free(pos.get_2d(), desc->get_x(rotation), desc->get_y(rotation), NULL, cl, regions_allowed, pos.z);
 	}
 
 	if (!can_be_placed)
@@ -7607,126 +7619,150 @@ const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, 
 		return "A signalbox cannot be built here.";
 	}
 
-	if(welt->is_within_limits(pos.get_2d()))
+	// full underground mode: coordinate is on ground, adjust it to one level below ground
+	// not possible in network mode!
+	if (!env_t::networkmode  &&  grund_t::underground_mode == grund_t::ugm_all)
 	{
-		// full underground mode: coordinate is on ground, adjust it to one level below ground
-		// not possible in network mode!
-		if (!env_t::networkmode  &&  grund_t::underground_mode == grund_t::ugm_all)
+		pos = gr->get_pos() - koord3d(0, 0, 1);
+	}
+
+	if (gr->get_hoehe() != pos.z)
+	{
+		// Do not build above ground only signals underground
+		if (desc->get_allow_underground() == 0)
 		{
-			pos = gr->get_pos() - koord3d(0,0,1);
+			return "Cannot built this station/building\nin underground mode here.";
+		}
+	}
+
+	if (desc->get_allow_underground() == 1  &&  gr->get_hoehe() <= pos.z)
+	{
+		// Do not build underground only signalboxes above ground.
+		if (env_t::networkmode)
+		{
+			return "Cannot built this station/building\nin underground mode here.";
+		}
+		else
+		{
+			return "This can only be built underground.";
+		}
+	}
+
+	if (gr->is_water()  ||  (gr->get_weg_nr(0)  &&  gr->get_weg_nr(0)->get_pos().z == pos.z)  ||  (gr->get_building()  &&  gr->get_building()->get_pos().z == pos.z)  ||  gr->is_halt())
+	{
+		// No ground, water, or the ground has a way or building on it.
+		// TODO: Consider allowing special gantry signalboxes
+		// that can be built upon ways.
+		return "A signalbox cannot be built here.";
+	}
+
+	const bool underground = gr->get_pos().z == pos.z + 1;
+
+	if (underground)
+	{
+		if (gr->is_water())
+		{
+			return "Cannot build signalbox underwater.";
 		}
 
-		if(gr->get_hoehe() != pos.z)
+		if (welt->lookup(pos))
 		{
-			// Do not build above ground only signals underground
-			if(desc->get_allow_underground() == 0)
-			{
-				return "Cannot built this station/building\nin underground mode here.";
-			}
+			return NOTICE_TILE_FULL;
 		}
 
-		if(desc->get_allow_underground() == 1 && gr->get_hoehe() <= pos.z)
+		if (tunnel_builder_t::get_tunnel_desc(track_wt, 0, 0) == NULL)
 		{
-			// Do not build underground only signalboxes above ground.
-			if(env_t::networkmode)
-			{
-				return "Cannot built this station/building\nin underground mode here.";
-			}
-			else
-			{
-				return "This can only be built underground.";
-			}
+			return "Cannot built this station/building\nin underground mode here.";
 		}
-
-		if(!gr || gr->is_water() || (gr->get_weg_nr(0) && gr->get_weg_nr(0)->get_pos().z == pos.z) || (gr->get_building() && gr->get_building()->get_pos().z == pos.z) || gr->is_halt())
-		{
-			// No ground, water, or the ground has a way or building on it.
-			// TODO: Consider allowing special gantry signalboxes
-			// that can be built upon ways.
-			return "A signalbox cannot be built here.";
-		}
-
-		bool underground = gr->get_pos().z == pos.z+1;
-
-		// underground: first build tunnel tile	at coordinate pos
-		if(underground)
-		{
-			if(gr->is_water())
-			{
-				return "Cannot build signalbox underwater.";
-			}
-
-			if(welt->lookup(pos))
-			{
-				return NOTICE_TILE_FULL;
-			}
-
-			const tunnel_desc_t *tunnel_desc = tunnel_builder_t::get_tunnel_desc(track_wt, 0, 0);
-			if(tunnel_desc == NULL)
-			{
-				return "Cannot built this station/building\nin underground mode here.";
-			}
-
-			tunnelboden_t* tunnel = new tunnelboden_t(pos, 0);
-			welt->access(pos.get_2d())->boden_hinzufuegen(tunnel);
-			tunnel_t* tunnel_obj = new tunnel_t(pos, player, tunnel_desc);
-			tunnel->obj_add(tunnel_obj);
-			player_t::add_maintenance( player, tunnel_obj->get_maintenance_amount(), tunnel_desc->get_finance_waytype() );
-			gr = tunnel;
-		}
-
+	}
+	else
+	{
 		const char *error = gr->kann_alle_obj_entfernen(player);
-		if(error)
+		if (error)
 		{
 			return error;
 		}
+	}
 
-		if(gr->get_grund_hang() == 0)
+	if (underground  ||  gr->get_grund_hang() == 0)
+	{
+		int layout = 0;
+		koord k(pos.get_2d());
+		int trackdir = 0;
+		for (int i = 1; i < 8; i += 2)
 		{
-			int layout = 0;
-			koord k(pos.get_2d());
-			int trackdir = 0;
-			for(  int i = 1;  i < 8;  i+=2  )
+			grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
+			if (gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  (gr2->get_weg(track_wt) != NULL || gr2->get_weg(monorail_wt) != NULL || gr2->get_weg(maglev_wt) != NULL || gr2->get_weg(narrowgauge_wt) != NULL))
 			{
-				grund_t *gr2 = welt->lookup_kartenboden(k + koord::neighbours[i]);
-				if(  gr2  &&  gr2->get_weg_hang() == gr2->get_grund_hang()  &&  (gr2->get_weg(track_wt) != NULL || gr2->get_weg(monorail_wt) != NULL || gr2->get_weg(maglev_wt) != NULL || gr2->get_weg(narrowgauge_wt) != NULL))
-				{
-					// update directions - note this is SENW, conversion from neighbours to SENW is
-					// neighbours SENW
-					// 3          0
-					// 5          1
-					// 7          2
-					// 1          3
-					trackdir += (1 << (((i-3)/2)&3));
-				}
-			}
-			layout = building_layout[trackdir];
-
-			koord size = desc->get_size(rotation);
-
-			bool hat_platz = welt->square_is_free( k, desc->get_x(rotation), desc->get_y(rotation), NULL, desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), pos.z);
-			if(!hat_platz  &&  size.y!=size.x  &&  desc->get_all_layouts()>1  &&  !explicit_rotation) {
-				// try other rotation too ...
-				rotation = (rotation+1) % desc->get_all_layouts();
-				hat_platz = welt->square_is_free( k, desc->get_x(rotation), desc->get_y(rotation), NULL, desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), pos.z);
-			}
-
-			if(hat_platz)
-			{
-				gebaeude_t* gb = hausbauer_t::build(player, gr->get_pos(), layout, desc);
-				player_t::book_construction_costs(player, -cost, pos.get_2d(), desc->get_finance_waytype());
-				if (is_local_execution()  &&  !is_scripted()  &&  player == welt->get_active_player())
-				{
-					player->set_selected_signalbox((signalbox_t*)gb);
-					welt->set_tool(general_tool[TOOL_QUERY], player);
-				}
-
-				return NULL;
+				// update directions - note this is SENW, conversion from neighbours to SENW is
+				// neighbours SENW
+				// 3          0
+				// 5          1
+				// 7          2
+				// 1          3
+				trackdir += (1 << (((i - 3) / 2) & 3));
 			}
 		}
-		return "A signalbox cannot be built here.";
+		layout = building_layout[trackdir];
+
+		size = desc->get_size(rotation);
+
+		bool hat_platz = welt->square_is_free(k, desc->get_x(rotation), desc->get_y(rotation), NULL, desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), pos.z);
+		if (!hat_platz  &&  size.y != size.x  &&  desc->get_all_layouts() > 1  &&  !explicit_rotation)
+		{
+			// try other rotation too ...
+			rotation = (rotation + 1) % desc->get_all_layouts();
+			hat_platz = welt->square_is_free(k, desc->get_x(rotation), desc->get_y(rotation), NULL, desc->get_allowed_climate_bits(), desc->get_allowed_region_bits(), pos.z);
+		}
+
+		if (hat_platz)
+		{
+			placement.build_pos = underground ? pos : gr->get_pos();
+			placement.rotation = rotation;
+			placement.layout = layout;
+			placement.underground = underground;
+			return NULL;
+		}
 	}
-	return "";
+	return "A signalbox cannot be built here.";
+}
+
+const char* tool_signalbox_t::can_build_at(player_t* player, koord3d pos, const building_desc_t* desc, sint8 rotation)
+{
+	const sint64 price = get_price(desc, pos);
+	placement_t placement;
+	return check_placement(player, pos, desc, rotation, true, price, placement);
+}
+
+const char* tool_signalbox_t::tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint8 rotation)
+{
+	const sint64 price = get_price(desc, pos);
+	placement_t placement;
+	const char* error = check_placement(player, pos, desc, rotation, rotation >= 0, price, placement);
+	if (error)
+	{
+		return error;
+	}
+
+	if (placement.underground)
+	{
+		const tunnel_desc_t *tunnel_desc = tunnel_builder_t::get_tunnel_desc(track_wt, 0, 0);
+		tunnelboden_t* tunnel = new tunnelboden_t(placement.build_pos, 0);
+		welt->access(placement.build_pos.get_2d())->boden_hinzufuegen(tunnel);
+		tunnel_t* tunnel_obj = new tunnel_t(placement.build_pos, player, tunnel_desc);
+		tunnel->obj_add(tunnel_obj);
+		player_t::add_maintenance(player, tunnel_obj->get_maintenance_amount(), tunnel_desc->get_finance_waytype());
+	}
+
+	gebaeude_t* gb = hausbauer_t::build(player, placement.build_pos, placement.layout, desc);
+	player_t::book_construction_costs(player, -price, pos.get_2d(), desc->get_finance_waytype());
+	if (is_local_execution()  &&  !is_scripted()  &&  player == welt->get_active_player())
+	{
+		player->set_selected_signalbox((signalbox_t*)gb);
+		welt->set_tool(general_tool[TOOL_QUERY], player);
+	}
+
+	return NULL;
 }
 
 image_id tool_signalbox_t::get_icon(player_t *) const
@@ -7752,17 +7788,8 @@ char const* tool_signalbox_t::get_tooltip(player_t const*) const
 	char tip[256];
 	sprintf(tip, "%s, %s: %i%s, %s: %i", translator::translate(desc->get_name()), translator::translate("Radius"), desc->get_radius(), translator::translate("m"), translator::translate("Max. signals"), desc->get_capacity());
 
-	sint64 price = desc->get_price();
+	const sint64 price = get_tooltip_price(desc);
 	sint64 maintenance = desc->get_maintenance();
-
-	if (price == PRICE_MAGIC)
-	{
-		price = desc->get_level() * world()->get_settings().get_cost_multiply_station();
-	}
-	else
-	{
-		price = -price;
-	}
 
 	if (maintenance == PRICE_MAGIC)
 	{
@@ -7811,7 +7838,7 @@ const char *tool_signalbox_t::work( player_t *player, koord3d pos )
 		return translator::translate("Invalid signalbox type.");
 	}
 
-	return tool_signalbox_t::tool_signalbox_aux(player, pos, desc, desc->get_price(), rotation);
+	return tool_signalbox_t::tool_signalbox_aux(player, pos, desc, rotation);
 }
 
 // build all types of depots

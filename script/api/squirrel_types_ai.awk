@@ -431,6 +431,9 @@ BEGIN {
 	export_types_ai["command_x::build_way"] = "string(player_x, coord3d, coord3d, way_desc_x, bool)"
 	export_types_ai["command_x::build_road"] = "string(player_x, coord3d, coord3d, way_desc_x, bool, bool)"
 	export_types_ai["command_x::build_depot"] = "string(player_x, coord3d, building_desc_x)"
+	export_types_ai["command_x::build_signalbox"] = "string(player_x, coord3d, building_desc_x, integer)"
+	export_types_ai["command_x::can_build_signalbox_at"] = "string(player_x, coord3d, building_desc_x, integer)"
+	export_types_ai["command_x::signalbox_get_price"] = "integer(player_x, coord3d, building_desc_x, integer)"
 	export_types_ai["command_x::build_station"] = "string(player_x, coord3d, building_desc_x, dir)"
 	export_types_ai["command_x::build_bridge"] = "string(player_x, coord3d, coord3d, bridge_desc_x)"
 	export_types_ai["command_x::build_bridge_at"] = "string(player_x, coord3d, bridge_desc_x)"
@@ -438,7 +441,7 @@ BEGIN {
 	export_types_ai["command_x::restore_slope"] = "string(player_x, coord3d)"
 	export_types_ai["command_x::can_set_slope"] = "string(player_x, coord3d, slope)"
 	export_types_ai["command_x::slope_get_price"] = "integer(slope)"
-	export_types_ai["command_x::build_sign_at"] = "string(player_x, coord3d, sign_desc_x)"
+	export_types_ai["command_x::build_sign_at"] = "string(player_x, coord3d, sign_desc_x, signalbox_x)"
 	export_types_ai["command_x::build_wayobj"] = "string(player_x, coord3d, coord3d, wayobj_desc_x)"
 	export_types_ai["command_x::change_climate_at"] = "string(player_x, coord3d, integer)"
 }

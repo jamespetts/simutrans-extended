@@ -13,6 +13,7 @@
  * - Added @ref convoy_x::change_schedule
  * - Changed building_desc_x::get_available_stations to accept wt_all
  * - Added @ref signalbox_x, @ref command_x::build_signalbox and the signalbox form of @ref command_x::build_sign_at
+ * - Added @ref command_x::can_build_signalbox_at and @ref command_x::signalbox_get_price
  * - Added @ref sign_x::get_state, @ref sign_x::get_signalbox_pos, @ref sign_x::get_no_junctions_to_next_signal
  * - Added signalling getters to @ref sign_desc_x, including working method and signal group
  * - Added @ref convoy_x::get_working_method

@@ -392,6 +392,28 @@ SQInteger command_build_signalbox(HSQUIRRELVM vm)
 	return param<call_tool_work>::push(vm, build_signalbox(pl, pos, building, rotation));
 }
 
+const char* can_build_signalbox_at(player_t* pl, koord3d pos, const building_desc_t* building, sint8 rotation)
+{
+	if (building == NULL  ||  !building->is_signalbox()) {
+		return translator::translate("No signalbox provided");
+	}
+	if (rotation < 0  ||  rotation > 15) {
+		return translator::translate("Invalid rotation");
+	}
+	if (const char* err = is_available(building)) {
+		return err;
+	}
+	return tool_signalbox_t::can_build_at(pl, pos, building, rotation);
+}
+
+sint64 signalbox_get_price(player_t*, koord3d pos, const building_desc_t* building, sint8 rotation)
+{
+	if (building == NULL  ||  !building->is_signalbox()  ||  rotation < 0  ||  rotation > 15) {
+		return 0;
+	}
+	return tool_signalbox_t::get_price(building, pos);
+}
+
 call_tool_work build_bridge(player_t* pl, koord3d start, koord3d end, const bridge_desc_t* bridge)
 {
 	if (bridge == NULL) {
@@ -612,6 +634,24 @@ void export_commands(HSQUIRRELVM vm)
 	 * @param rotation rotation of the building, or -1 to let the tool choose
 	 */
 	STATIC register_function(vm, command_build_signalbox, "build_signalbox", -4, ".t|x|yt|x|yt|x|yt|i", true);
+	/**
+	 * Checks whether a signalbox can be built at a position.
+	 * @param pl player to pay for the work
+	 * @param pos position to place the signalbox
+	 * @param building type of signalbox to be built
+	 * @param rotation rotation of the building
+	 * @returns null if allowed, an error message otherwise
+	 */
+	STATIC register_method(vm, can_build_signalbox_at, "can_build_signalbox_at", false, true);
+	/**
+	 * Costs of building a signalbox at a position.
+	 * @param pl player
+	 * @param pos position to place the signalbox
+	 * @param building type of signalbox to be built
+	 * @param rotation rotation of the building
+	 * @returns positive amount in 1/100 credits, including land value
+	 */
+	STATIC register_method(vm, signalbox_get_price, "signalbox_get_price", false, true);
 	/**
 	 * Build a station or station extension building.
 	 * @param pl player to pay for the work

@@ -959,10 +959,24 @@ function test_sign_signalbox()
 	}
 
 	ASSERT_EQUAL(command_x.build_way(pl, coord3d(20, 10, 0), coord3d(24, 10, 0), rail, true), null)
+
+	local price = command_x.signalbox_get_price(pl, coord3d(22, 11, 0), box_desc, 0)
+	ASSERT_TRUE(price > 0)
+	ASSERT_EQUAL(command_x.can_build_signalbox_at(pl, coord3d(22, 11, 0), box_desc, 0), null)
+	ASSERT_TRUE(tile_x(22, 11, 0).find_object(mo_signalbox) == null)
+	ASSERT_EQUAL(command_x.signalbox_get_price(pl, coord3d(22, 11, 0), box_desc, 0), price)
+	ASSERT_TRUE(command_x.can_build_signalbox_at(pl, coord3d(22, 10, 0), box_desc, 0) != null)
+
+	local cash_before = pl.get_cash()[0]
 	ASSERT_EQUAL(command_x.build_signalbox(pl, coord3d(22, 11, 0), box_desc, 0), null)
+	local cash_paid = (cash_before - pl.get_cash()[0]) * 100
+	ASSERT_TRUE(cash_paid >= price - 100)
+	ASSERT_TRUE(cash_paid <= price + 100)
 
 	local box = tile_x(22, 11, 0).find_object(mo_signalbox)
 	ASSERT_TRUE(box != null)
+	ASSERT_TRUE(command_x.can_build_signalbox_at(pl, coord3d(22, 11, 0), box_desc, 0) != null)
+	ASSERT_EQUAL(command_x.signalbox_get_price(pl, coord3d(22, 11, 0), box_desc, 0), price)
 	ASSERT_TRUE(box.is_valid())
 	ASSERT_EQUAL(box.get_capacity(), box_desc.get_capacity())
 	ASSERT_EQUAL(box.get_signal_count(), 0)

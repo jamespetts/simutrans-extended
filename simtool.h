@@ -669,11 +669,26 @@ public:
 class tool_signalbox_t : public tool_t
 {
 private:
+	struct placement_t
+	{
+		koord3d build_pos;
+		sint8 rotation;
+		int layout;
+		bool underground;
+	};
 	static char toolstring[256];
 	const building_desc_t* get_desc(sint8 &rotation) const;
-	const char* tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint64 cost, sint8 rotation);
+	// Price in the sign convention expected by tooltip_with_price_maintenance.
+	static sint64 get_tooltip_price(const building_desc_t* desc);
+	// Non-mutating placement calculation shared by the tool and the query.
+	static const char* check_placement(player_t* player, koord3d pos, const building_desc_t* desc, sint8 &rotation, bool explicit_rotation, sint64 price, placement_t &placement);
+	const char* tool_signalbox_aux(player_t* player, koord3d pos, const building_desc_t* desc, sint8 rotation);
 public:
 	tool_signalbox_t() : tool_t(TOOL_BUILD_SIGNALBOX | GENERAL_TOOL) {}
+	// Positive amount in 1/100 credits that the player pays at pos, including land value.
+	static sint64 get_price(const building_desc_t* desc, koord3d pos);
+	// Null if the site is valid, otherwise the tool's error message.
+	static const char* can_build_at(player_t* player, koord3d pos, const building_desc_t* desc, sint8 rotation);
 	const char *check_pos(player_t *, koord3d pos) OVERRIDE;
 	image_id get_icon(player_t*) const OVERRIDE;
 	char const* get_tooltip(player_t const*) const OVERRIDE;
