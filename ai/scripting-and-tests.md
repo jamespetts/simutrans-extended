@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); test-harness facts as cited; suite count 80/80 (2026-11-14)
+verified: ex-15 @ 4bb425a4e (2026-11-14); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -37,8 +37,8 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
 - The scenario host executes read-only queries and tool calls. A suspended tool call is resumed
   with its result by `nwc_tool_t::do_command` as described below.
 - The active Squirrel suite completes under `Debug|x64` with `pak128.Britain-Ex`, including the
-  schedule, consist-order and convoy-observation tests.
-  [EXECUTION-VERIFIED:2026-11-14, 80 of 80 tests, run with `-nomidi`].
+  schedule, consist-order, convoy-observation and signalling API tests.
+  [EXECUTION-VERIFIED:2026-11-14, 81 of 81 tests, run with `-nomidi`].
 - The API was ported from Standard. Extended schedule entries and complete consist orders are
   script-accessible, but other Extended fields remain incomplete, including parts of the
   line/convoy/replacement read model. Use the exported declarations in `script/api/` as the
@@ -100,14 +100,30 @@ not a safe model for multiplayer-synchronised scripted actions. Network mechanic
 - Convoy: name, position, owner, waytype, schedule and current entry, state, reversal, capacity,
   revenue, cost, profit, distance, tolls, line, speed, loading level, home depot, obsolete vehicles,
   withdrawal, depot state, waiting state and tile length. `get_vehicle_snapshot` returns value
-  objects containing each slot's descriptor, owner, reversal, cargo quantity and capacity;
-  `get_vehicles` separately retains the Standard descriptor-list interface.
+  objects containing each slot's descriptor, owner, reversal, cargo quantity, capacity, `pos`,
+  `route_index`, `steps` and `steps_next`; `get_vehicles` separately retains the Standard
+  descriptor-list interface. `get_working_method` returns the working method of a convoy whose
+  front vehicle derives from `rail_vehicle_t`, or -1 for any other convoy.
 - Player: construction, vehicle maintenance, new vehicles, income, infrastructure maintenance,
   assets, cash, net wealth, profit, operating profit, margin, powerline revenue, transported
   passengers/mail/goods, convoy count, way tolls, line list.
-- Tiles: ground, slope, way, depot, halt, objects, neighbours, climate, height.
+- Tiles: ground, slope, way, depot, halt, objects, neighbours, climate, height. For rail ways,
+  `way_x` exposes `get_reserved_convoi`, `get_reservation_type`, `get_reserved_direction` and
+  `can_reserve`, which accepts a convoy and an optional direction.
 - Descriptors: vehicles, buildings, ways, bridges, tunnels, goods, signals, way objects; costs,
-  capacities, availability, intro/retire dates.
+  capacities, availability, intro/retire dates. Signal descriptors expose `get_permissive`,
+  `get_has_call_on`, `get_has_selective_choose`, `get_working_method`, `get_aspects`,
+  `get_normal_danger`, `get_double_block`, `is_station_signal`, `get_max_distance_to_signalbox`,
+  `get_signal_group` and `get_allow_underground` (0 = above ground only, 1 = underground only,
+  2 = both); the existing `is_choose_sign` and `is_end_choose_signal` identify choose and
+  end-of-choose signs. Building descriptors expose `is_signalbox`, `get_radius` and
+  `get_clusters`.
+- Signalboxes and signalling commands: `signalbox_x` exposes `get_capacity`, `get_signal_count`,
+  `get_signal_list`, `can_add_more_signals` and `can_add_signal`. `command_x.build_signalbox`
+  builds a signalbox with an optional rotation; the signalbox form of
+  `command_x.build_sign_at` attaches a signal to an explicit `signalbox_x`, and the
+  three-argument form remains for signals that need no box. Scripted builds do not use the
+  player's selected signalbox.
 - Pathfinding: `way_planner_x` exposes `set_build_types` and `is_allowed_step`, plus a binary
   heap. It does not expose `way_builder_t::calc_route`, `get_route`, `calc_costs` or `build`.
   The engine's full route planner is therefore unavailable to scripts. Planning implications:
@@ -257,11 +273,14 @@ exchange). It is not part of the default passing suite.
 
 ## Provenance
 
-Scripting findings at ex-15 @ 684d570f9 plus working-tree changes: `script/script.cc`,
-`script/script_loader.cc`, `script/export_objs.cc`, `script/api/*`, `script/api_param.cc`,
+Scripting findings at ex-15 @ 4bb425a4e: `script/script.cc`, `script/script_loader.cc`,
+`script/export_objs.cc`, `script/api/*`, `script/api_param.cc`,
 `simutrans/script/script_base.nut`, `dataobj/scenario.cc`, `dataobj/schedule.cc`,
 `dataobj/consist_order_t.h`, `network/network_cmd_ingame.cc`, `player/simplay.cc`,
-`player/simplay.h`, `simmenu.h`, `simmain.cc` and the build source lists. The API breadth is a
-code inventory; only the explicitly marked tests and fixture outcomes are execution-verified.
+`player/simplay.h`, `simmenu.h`, `simmain.cc`, `simtool.cc`, `simtool.h`, `bauer/hausbauer.cc`
+and the build source lists. The signalling API additions are `signalbox_x`, the signal,
+signal-descriptor, convoy, way and vehicle-slot getters, the signal-construction commands and
+the signed object-type parameter handling. The API breadth is a code inventory; only the
+explicitly marked tests and fixture outcomes are execution-verified.
 Other test-harness and CI facts retain their cited provenance (master @ 78a4bb3b9 / ex-15 @
 91d9b252e; mapgen @ 0954e8c3c; smoke/join facts as cited there).
