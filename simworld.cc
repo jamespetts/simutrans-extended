@@ -6599,15 +6599,13 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 		* by hand, the deliverer has a tolerance, but if it is sent through the postal system,
 		* the mail packet itself does not have a tolerance.
 		*
-		* In addition, walking tolerance for very long distance journeys (with a journey time greater than
-		* the maximum journey time for commuting passengers, as defined by threshold_tolerance, is divided
-		* by two because passengers prefer not to walk for extremely long distances, as it is tiring,
-		* especially with luggage. Formerly, this was applied to all walking journeys and termed,
-		* "quasi_tolerance", but this did not balance well, especially for commuting trips in early years,
-		* when workers did in reality walk long distances to work.
+		* Passengers will not make a journey on foot longer than their journey
+		* time tolerance, nor longer than the maximum tolerable walk
+		* (settings_t::max_tolerable_walk), above which passengers will not
+		* walk. That limit allows the long journeys on foot that were common
+		* before public transport.
 		*/
 		uint32 walking_tolerance = tolerance;
-		const uint32 threshold_tolerance = range_commuting_tolerance + min_commuting_tolerance;
 
 		// Above this journey time, passengers will prefer not to walk even if walking is the quickest way
 		// of getting to their destination, provided that another means of transport is within their journey
@@ -6623,10 +6621,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 		else
 		{
 			// Passengers
-			if (tolerance > threshold_tolerance)
-			{
-				walking_tolerance = max(tolerance / 2, min(tolerance, threshold_tolerance));
-			}
+			walking_tolerance = min(tolerance, (uint32)get_maximum_tolerable_walk_tenths());
 			walking_time_preference_threshold = simrand(walking_tolerance > min_commuting_tolerance ? walking_tolerance - min_commuting_tolerance : min_commuting_tolerance, "karte_t::generate_passengers_and_mail (walking walking_time_preference_threshold)") + min_commuting_tolerance;
 		}
 
