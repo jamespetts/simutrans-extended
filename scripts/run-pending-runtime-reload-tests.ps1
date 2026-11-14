@@ -1,11 +1,20 @@
 <#
 Simutrans-Extended pending-runtime reload fixture runner (Windows).
 
-Purpose: run one forward Y division across a genuine save/reload, matching
-scripts/run-pending-runtime-reload-tests.sh. The staged scenario
-tests/pending-runtime/reload/scenario.nut runs the forward division case from
-tests/pending-runtime/harness.nut on a loopback server. Once the split-off
-portion has formed at target entry 21, the case prints
+Purpose: run one pending-runtime reload case across a genuine save/reload,
+matching scripts/run-pending-runtime-reload-tests.sh. The default case is the
+forward Y division: the staged scenario tests/pending-runtime/reload/scenario.nut
+runs the forward division case from tests/pending-runtime/harness.nut on a
+loopback server. The paired H exchange reload is selected with
+
+  -CaseName pair-reload
+  -ScenarioName pending-runtime-pair-reload
+  -Selector tests\pending-runtime\pair-reload\scenario.nut
+  -Harness tests\pending-runtime\pair-harness.nut
+  -HarnessName pair-harness
+
+The rest of this comment describes the default division case. In that case,
+once the split-off portion has formed at target entry 21, the case prints
 "RUNTIME CASE reload READY" and holds before PASS. The runner then starts a
 second process as a client (-load net:127.0.0.1:<port>). The join makes the
 server save, transfer and reload its state (nwc_sync_t in
@@ -14,7 +23,9 @@ the fixture from the loaded world. The case must print
 "RUNTIME CASE reload RESTORED" and then "RUNTIME CASE reload PASS" when the
 existing split-off portion advances from target entry 21 to entry 22. The
 server's save written by the join (server<port>-network.sve) is then loaded by
-a fresh offline process, which must print RESTORED and PASS again.
+a fresh offline process, which must print RESTORED and PASS again. The pair
+reload case uses the same phases with its own case name and asserts the
+committed final consists and the laid-over vehicle.
 
 Oracles (all must hold for PASS):
  1. the server prints READY, RESTORED and PASS, in that order, and the joined
@@ -23,14 +34,14 @@ Oracles (all must hold for PASS):
     server "kicking client"/"disconnect client" due to a checklist mismatch;
  3. at least one checklist pair is parsed from the client's
     "server=[...] client=[...]" lines and none of the parsed pairs mismatches;
- 4. neither peer log holds a script error, RUNTIME CASE reload FAIL, or the
+ 4. neither peer log holds a script error, the case's FAIL marker, or the
     configured failure markers (FATAL ERROR, sanitizer reports);
  5. both peers stay alive for ObserveSeconds beyond the server's PASS;
  6. the preserved join save loads offline and prints RESTORED then PASS, with
     no failure marker.
 
 shunting_time_seconds is set in the user-directory simuconf.tab of each role's
-work directory so that the split-off portion stays at target entry 21 while the
+work directory so that the case has not advanced past its reload point while the
 client starts. This is a real settings value, not an artificial state:
 settings_t::rdwr only reads shunting_time_seconds for Extended 15 and later
 saves (dataobj/settings.cc), the fixture map
@@ -66,7 +77,14 @@ param(
   [string]$Pakset = "pak128.Britain-Ex",
   [string]$ObjectsName = "pak128.Britain-Ex",
   [int]$ServerPort = 13357,
-  # Seconds allowed for server setup up to RUNTIME CASE reload READY.
+  # Reload case selection. The defaults run the forward Y division reload; the
+  # paired-exchange reload is selected with the values documented at the top.
+  [string]$CaseName = "reload",
+  [string]$ScenarioName = "pending-runtime-reload",
+  [string]$Selector = "tests\pending-runtime\reload\scenario.nut",
+  [string]$Harness = "tests\pending-runtime\harness.nut",
+  [string]$HarnessName = "harness",
+  # Seconds allowed for server setup up to the case's READY marker.
   [int]$ServerReadyTimeout = 900,
   # Seconds allowed for the whole client phase, from READY to ObserveSeconds
   # beyond the server's PASS.
@@ -86,9 +104,6 @@ $ErrorActionPreference = "Stop"
 if (-not $PSScriptRoot) { Write-Output "FAIL: run via powershell -File"; exit 1 }
 $repo = Split-Path -Parent $PSScriptRoot
 
-$CaseName = "reload"
-$ScenarioName = "pending-runtime-reload"
-
 function Resolve-RepoPath {
   param([string]$Path)
   if ([System.IO.Path]::IsPathRooted($Path)) { return [System.IO.Path]::GetFullPath($Path) }
@@ -96,7 +111,7 @@ function Resolve-RepoPath {
 }
 
 if (-not $Exe)     { $Exe = Join-Path $repo "simutrans\Simutrans-Extended-debug.exe" }
-if (-not $WorkDir) { $WorkDir = Join-Path $repo "ai\temp\pending-runtime-reload" }
+if (-not $WorkDir) { $WorkDir = Join-Path $repo "ai\temp\pending-runtime-$CaseName" }
 $Exe = Resolve-RepoPath $Exe
 $WorkDir = Resolve-RepoPath $WorkDir
 
@@ -110,8 +125,8 @@ $PaksetScenarioDir = Join-Path $PaksetDir "scenario"
 $ScenarioLink = Join-Path $PaksetScenarioDir $ScenarioName
 $PreservedSave = Join-Path $LogsDir "server$ServerPort-network.sve"
 
-$HarnessFile = Join-Path $repo "tests\pending-runtime\harness.nut"
-$SelectorFile = Join-Path $repo "tests\pending-runtime\reload\scenario.nut"
+$HarnessFile = Resolve-RepoPath $Harness
+$SelectorFile = Resolve-RepoPath $Selector
 $MapFile = Join-Path $repo "tests\pending-runtime\empty-16x16.sve"
 
 $ReadyMarker = "RUNTIME CASE $CaseName READY"
@@ -464,7 +479,7 @@ function Set-PaksetScenarioLink {
 function Stage-Scenario {
   Remove-Tree $StagingDir
   New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
-  Copy-Item -LiteralPath $HarnessFile -Destination (Join-Path $StagingDir "harness.nut") -Force
+  Copy-Item -LiteralPath $HarnessFile -Destination (Join-Path $StagingDir "$HarnessName.nut") -Force
   Copy-Item -LiteralPath $MapFile -Destination (Join-Path $StagingDir "empty-16x16.sve") -Force
   Copy-Item -LiteralPath $SelectorFile -Destination (Join-Path $StagingDir "scenario.nut") -Force
 }
@@ -665,10 +680,10 @@ try {
       $failures.Add("join-sync : client never joined and unpaused within ${ClientTimeout}s (no 'network_game_set_pause ... pause=0' in the client log)")
     }
     if (-not $restoredSeen) {
-      $failures.Add("server : no $RestoredMarker after the join (the save was not reloaded or the divided state was not re-asserted)")
+      $failures.Add("server : no $RestoredMarker after the join (the save was not reloaded or the restored state was not re-asserted)")
     }
     if ($passSeconds -lt 0) {
-      $failures.Add("server : no $PassMarker (the restored split-off portion did not advance from target entry 21 to entry 22)")
+      $failures.Add("server : no $PassMarker (the restored state did not advance as the case requires)")
     }
     $readyLine = Get-LogLineNumber $serverErr $ReadyMarker
     $restoredLine = Get-LogLineNumber $serverErr $RestoredMarker
@@ -768,7 +783,7 @@ try {
           $failures.Add("offline : no $RestoredMarker after loading the join save")
         }
         if (-not $offlinePass) {
-          $failures.Add("offline : no $PassMarker (the restored split-off portion did not advance from target entry 21 to entry 22)")
+          $failures.Add("offline : no $PassMarker (the restored state did not advance as the case requires)")
         }
         $offlineRestoredLine = Get-LogLineNumber $offlineErr $RestoredMarker
         $offlinePassLine = Get-LogLineNumber $offlineErr $PassMarker

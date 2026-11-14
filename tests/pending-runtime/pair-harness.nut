@@ -55,6 +55,10 @@ local DONOR_EAST_ENTRY_ID = 32
 local TRAVEL_STEP_LIMIT = 6000
 local EXCHANGE_STEP_LIMIT = 1000
 local DEPARTURE_STEP_LIMIT = 3000
+// The reload runner sets shunting_time_seconds to 600 so that the case has not
+// advanced while the client joins; the post-reload departure limit must cover
+// that delay.
+local RELOAD_DEPARTURE_STEP_LIMIT = 16000
 local PREPARATION_STEP_LIMIT = 3000
 
 local fixture = {
@@ -81,7 +85,9 @@ local fixture = {
 	travel_steps = 0,
 	exchange_steps = 0,
 	departure_steps = 0,
-	preparation_steps = 0
+	preparation_steps = 0,
+	after_reload = false,
+	reload_expected = null
 }
 
 
@@ -448,7 +454,7 @@ function receiver_order()
 	{
 		return [[fixture.loco_b], [fixture.coach_a]]
 	}
-	if (case_name == "one-way-to-receiver")
+	if (is_one_way_transfer_case())
 	{
 		return [[fixture.loco_a], [fixture.coach_b]]
 	}
@@ -481,7 +487,7 @@ function target_order()
 	{
 		return [[fixture.loco_a], [fixture.coach_b]]
 	}
-	if (case_name == "one-way-to-receiver")
+	if (is_one_way_transfer_case())
 	{
 		return [[fixture.loco_b]]
 	}
@@ -512,7 +518,7 @@ function receiver_final()
 	{
 		return [fixture.loco_b, fixture.coach_a]
 	}
-	if (case_name == "one-way-to-receiver")
+	if (is_one_way_transfer_case())
 	{
 		return [fixture.loco_a, fixture.coach_b]
 	}
@@ -538,7 +544,7 @@ function target_final()
 	{
 		return [fixture.loco_a, fixture.coach_b]
 	}
-	if (case_name == "one-way-to-receiver")
+	if (is_one_way_transfer_case())
 	{
 		return [fixture.loco_b]
 	}
@@ -562,7 +568,7 @@ function target_final()
 // exchange, in the order they are recorded in the new laid-over convoy.
 function expected_leftovers()
 {
-	if (case_name == "one-way-to-receiver")
+	if (is_one_way_transfer_case())
 	{
 		return [fixture.coach_a]
 	}
@@ -571,6 +577,136 @@ function expected_leftovers()
 		return [fixture.loco_a]
 	}
 	return []
+}
+
+
+// The reload case uses the same one-way transfer as one-way-to-receiver: the
+// receiver takes the target's coach and the receiver's own coach becomes loose
+// stock at the junction. Both cases share the same orders, final consists and
+// expected leftovers.
+function is_one_way_transfer_case()
+{
+	return case_name == "one-way-to-receiver" || case_name == "pair-reload"
+}
+
+
+// A vehicle descriptor's script identity is not stable across a savegame load:
+// vehicle_desc_x.get_name() is unreliable on ex-15 (see ai/known-bugs.md), and
+// descriptors are reconstructed from the loaded pakset. The reload case
+// therefore identifies the expected final consists by a fingerprint of scalar
+// descriptor properties. The pre-reload phase asserts the exact descriptors
+// with is_equal(); the post-reload phase asserts that the same fingerprints
+// survived the load.
+function descriptor_fingerprint(desc)
+{
+	if (desc == null)
+	{
+		return "<null>"
+	}
+	return desc.get_power() + ":"
+		+ desc.get_topspeed() + ":"
+		+ desc.get_weight() + ":"
+		+ desc.get_length() + ":"
+		+ (desc.needs_electrification() ? 1 : 0) + ":"
+		+ (desc.can_be_first() ? 1 : 0) + ":"
+		+ (desc.can_be_last() ? 1 : 0)
+}
+
+
+function fingerprint_sequence(descriptors)
+{
+	local result = []
+	foreach (desc in descriptors)
+	{
+		result.append(descriptor_fingerprint(desc))
+	}
+	return result
+}
+
+
+function consist_matches_fingerprints(cnv, expected)
+{
+	if (!cnv.is_valid())
+	{
+		return false
+	}
+	local vehicles = cnv.get_vehicles()
+	if (vehicles.len() != expected.len())
+	{
+		return false
+	}
+	for (local i = 0; i < expected.len(); i++)
+	{
+		if (descriptor_fingerprint(vehicles[i]) != expected[i])
+		{
+			return false
+		}
+	}
+	return true
+}
+
+
+// Stores the identifiers and expected final consists of the committed
+// exchange. Only scalars, strings and arrays are stored: the base scenario
+// save() serialises the persistent table and evaluates it again on load, so
+// descriptor handles cannot be persisted. The identifiers locate the convoys
+// after the load; the fingerprints re-assert their final consists.
+function remember_pair_reload_state()
+{
+	local receiver_final_fingerprints = fingerprint_sequence(receiver_final())
+	local target_final_fingerprints = fingerprint_sequence(target_final())
+	local leftover_fingerprints = fingerprint_sequence(expected_leftovers())
+	fixture.reload_expected = {
+		receiver = receiver_final_fingerprints,
+		target = target_final_fingerprints,
+		leftovers = leftover_fingerprints
+	}
+	persistent.reload <- {
+		kind = case_name,
+		receiver_id = fixture.receiver_id,
+		target_id = fixture.target_id,
+		receiver_final = receiver_final_fingerprints,
+		target_final = target_final_fingerprints,
+		leftovers = leftover_fingerprints
+	}
+}
+
+
+function exchange_applied_reload()
+{
+	local receiver = receiver_convoy()
+	local target = target_convoy()
+	if (!receiver.is_valid() || !target.is_valid())
+	{
+		return false
+	}
+	if (receiver.get_state() == convoy_state_awaiting_recombination || target.get_state() == convoy_state_awaiting_recombination)
+	{
+		return false
+	}
+	if (!consist_matches_fingerprints(receiver, fixture.reload_expected.receiver))
+	{
+		return false
+	}
+	if (!consist_matches_fingerprints(target, fixture.reload_expected.target))
+	{
+		return false
+	}
+	return true
+}
+
+
+function check_leftovers_reload()
+{
+	local expected = fixture.reload_expected.leftovers
+	local loose = laid_over_consist()
+	if (expected.len() == 0)
+	{
+		return check(loose.len() == 0, "the junction holds " + loose.len() + " non-empty laid-over convoys after the reload, expected none: " + (loose.len() > 0 ? convoy_name(loose[0]) : ""))
+	}
+	if (!check(loose.len() == 1, "the junction holds " + loose.len() + " non-empty laid-over convoys after the reload, expected the one holding the released vehicles")) { return false }
+	if (!check(consist_matches_fingerprints(loose[0], expected), "the laid-over convoy after the reload holds " + convoy_name(loose[0]) + ", which does not match the persisted released vehicles")) { return false }
+	return check(loose[0].get_state() == convoy_state_layover, "the laid-over convoy is in " + depict_state(loose[0].get_state()) + " after the reload, expected the layover state")
 }
 
 
@@ -681,7 +817,7 @@ function setup()
 	if (!commit_receiver_schedule(pl, receiver, target)) { return false }
 	if (!commit_target_schedule(pl, receiver, target)) { return false }
 
-	if (case_name == "symmetric-swap" || case_name == "one-way-to-receiver" || case_name == "already-at-end-state" || case_name == "conflict-backtrack" || case_name == "unsatisfiable" || case_name == "pool-fallback")
+	if (case_name == "symmetric-swap" || case_name == "one-way-to-receiver" || case_name == "pair-reload" || case_name == "already-at-end-state" || case_name == "conflict-backtrack" || case_name == "unsatisfiable" || case_name == "pool-fallback")
 	{
 		fixture.first_kind = "receiver"
 	}
@@ -928,6 +1064,17 @@ function detect_exchange()
 			if (!check(receiver.get_state() != convoy_state_shunting && target.get_state() != convoy_state_shunting, "an already-satisfied pair entered the shunting state; an unchanged consist must not take the shunting delay")) { return }
 		}
 
+		// The reload case stops here, after the commit has been asserted and
+		// before the shunting delay expires, so that the runner can join a
+		// network client and the saved state can be loaded again.
+		if (case_name == "pair-reload")
+		{
+			remember_pair_reload_state()
+			fixture.phase = "awaiting-reload"
+			print("RUNTIME CASE " + case_name + " READY")
+			return
+		}
+
 		fixture.phase = "detect-advance"
 		fixture.exchange_steps = 0
 		return
@@ -960,13 +1107,15 @@ function detect_advance()
 	local target_entry = target.get_current_entry_id()
 	if (!fixture.receiver_advanced && receiver_entry == RECEIVER_NEXT_ENTRY_ID)
 	{
-		if (!check(consist_matches(receiver, receiver_final()), "the receiver consist changed at its next entry: " + convoy_name(receiver))) { return }
+		local receiver_ok = fixture.after_reload ? consist_matches_fingerprints(receiver, fixture.reload_expected.receiver) : consist_matches(receiver, receiver_final())
+		if (!check(receiver_ok, "the receiver consist changed at its next entry: " + convoy_name(receiver))) { return }
 		fixture.receiver_advanced = true
 		print("RUNTIME CASE " + case_name + ": receiver advanced to entry " + RECEIVER_NEXT_ENTRY_ID)
 	}
 	if (!fixture.target_advanced && target_entry == TARGET_NEXT_ENTRY_ID)
 	{
-		if (!check(consist_matches(target, target_final()), "the target consist changed at its next entry: " + convoy_name(target))) { return }
+		local target_ok = fixture.after_reload ? consist_matches_fingerprints(target, fixture.reload_expected.target) : consist_matches(target, target_final())
+		if (!check(target_ok, "the target consist changed at its next entry: " + convoy_name(target))) { return }
 		fixture.target_advanced = true
 		print("RUNTIME CASE " + case_name + ": target advanced to entry " + TARGET_NEXT_ENTRY_ID)
 	}
@@ -976,9 +1125,10 @@ function detect_advance()
 		return
 	}
 	++fixture.exchange_steps
-	if (fixture.exchange_steps > DEPARTURE_STEP_LIMIT)
+	local departure_limit = fixture.after_reload ? RELOAD_DEPARTURE_STEP_LIMIT : DEPARTURE_STEP_LIMIT
+	if (fixture.exchange_steps > departure_limit)
 	{
-		fail("the convoys did not both advance past the pair entries within " + DEPARTURE_STEP_LIMIT + " observations (receiver entry " + receiver_entry + " " + depict_state(receiver.get_state()) + ", target entry " + target_entry + " " + depict_state(target.get_state()) + ")")
+		fail("the convoys did not both advance past the pair entries within " + departure_limit + " observations (receiver entry " + receiver_entry + " " + depict_state(receiver.get_state()) + ", target entry " + target_entry + " " + depict_state(target.get_state()) + ")")
 	}
 }
 
@@ -1037,6 +1187,29 @@ function observe()
 	if (fixture.phase == "waiting-for-pool" || fixture.phase == "removing-donor" || fixture.phase == "waiting-for-donor-removal")
 	{
 		observe_pool_preparation()
+		return
+	}
+
+	if (fixture.phase == "awaiting-reload")
+	{
+		local receiver = receiver_convoy()
+		local target = target_convoy()
+		if (!check(receiver.is_valid() && target.is_valid(), "a convoy disappeared before the saved exchange state was reloaded")) { return }
+		if (!check(exchange_applied_reload(), "the exchanged state changed before the saved state was reloaded")) { return }
+		if (!check(receiver.get_current_entry_id() == RECEIVER_ENTRY_ID && target.get_current_entry_id() == TARGET_ENTRY_ID, "a convoy advanced past its pair entry before the saved state was reloaded; shunting_time_seconds must outlast the client join")) { return }
+		return
+	}
+
+	if (fixture.phase == "restored-pending")
+	{
+		if (!check(exchange_applied_reload(), "the restored convoys do not carry the persisted final consists")) { return }
+		if (!check_leftovers_reload()) { return }
+		local total = world_vehicle_total()
+		local expected_total = fixture.reload_expected.receiver.len() + fixture.reload_expected.target.len() + fixture.reload_expected.leftovers.len()
+		if (!check(total == expected_total, "the restored map holds " + total + " vehicles, expected " + expected_total)) { return }
+		print("RUNTIME CASE " + case_name + " RESTORED")
+		fixture.phase = "detect-advance"
+		fixture.exchange_steps = 0
 		return
 	}
 
@@ -1100,6 +1273,47 @@ function get_info_text(pl)
 function get_result_text(pl)
 {
 	return get_info_text(pl)
+}
+
+
+// Called by scenario_t::rdwr after the script has been loaded again and the
+// saved persistent table has been evaluated. The pair reload case reconstructs
+// the fixture identifiers from the persisted state; setup() must not run again,
+// because the infrastructure, schedules and vehicles are all in the savegame.
+// Observation then re-asserts the committed exchange from the loaded world.
+function resume_game()
+{
+	if (case_name != "pair-reload")
+	{
+		return
+	}
+	if (!("reload" in persistent) || typeof(persistent.reload) != "table")
+	{
+		fail("the savegame holds no persisted pair reload state; it must be saved after the paired exchange has committed")
+		return
+	}
+
+	local state = persistent.reload
+	// Drop the state so that a later save cannot restore a stale pre-departure
+	// state.
+	delete persistent.reload
+
+	fixture.setup_started = true
+	fixture.after_reload = true
+	fixture.receiver_id = state.receiver_id
+	fixture.target_id = state.target_id
+	fixture.reload_expected = {
+		receiver = state.receiver_final,
+		target = state.target_final,
+		leftovers = state.leftovers
+	}
+
+	if (!check(state.kind == case_name, "the persisted state belongs to case " + state.kind + ", not " + case_name)) { return }
+	if (!check(receiver_convoy().is_valid(), "the receiver convoy " + fixture.receiver_id + " named by the persisted state is not in the loaded world")) { return }
+	if (!check(target_convoy().is_valid(), "the target convoy " + fixture.target_id + " named by the persisted state is not in the loaded world")) { return }
+
+	fixture.phase = "restored-pending"
+	print("RUNTIME CASE " + case_name + ": saved paired exchange state restored from the savegame")
 }
 
 

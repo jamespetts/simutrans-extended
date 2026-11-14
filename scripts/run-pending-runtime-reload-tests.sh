@@ -2,19 +2,27 @@
 #
 # Simutrans-Extended pending-runtime reload fixture runner (Linux/POSIX).
 #
-# Purpose: exercise one forward Y division across a genuine save/reload. The
-# staged scenario tests/pending-runtime/reload/scenario.nut runs the forward
-# division case from tests/pending-runtime/harness.nut on a loopback server.
-# Once the split-off portion has formed at target entry 21, the case prints
-# "RUNTIME CASE reload READY" and holds before PASS. The runner then starts a
-# second process as a client (-load net:127.0.0.1:<port>). The join makes the
-# server save, transfer and reload its state (nwc_sync_t in
-# network/network_cmd_ingame.cc), and the server script's resume_game rebuilds
-# the fixture from the loaded world. The case must print
+# Purpose: exercise one pending-runtime reload case across a genuine
+# save/reload. The default case is the forward Y division: the staged scenario
+# tests/pending-runtime/reload/scenario.nut runs the forward division case from
+# tests/pending-runtime/harness.nut on a loopback server. The paired H exchange
+# reload is selected with --case pair-reload --scenario
+# pending-runtime-pair-reload --selector
+# tests/pending-runtime/pair-reload/scenario.nut --harness
+# tests/pending-runtime/pair-harness.nut --harness-name pair-harness.
+#
+# In the default case, once the split-off portion has formed at target entry
+# 21, the case prints "RUNTIME CASE reload READY" and holds before PASS. The
+# runner then starts a second process as a client (-load
+# net:127.0.0.1:<port>). The join makes the server save, transfer and reload its
+# state (nwc_sync_t in network/network_cmd_ingame.cc), and the server script's
+# resume_game rebuilds the fixture from the loaded world. The case must print
 # "RUNTIME CASE reload RESTORED" and then "RUNTIME CASE reload PASS" when the
 # existing split-off portion advances from target entry 21 to entry 22. The
 # server's save written by the join (server<port>-network.sve) is then loaded
-# by a fresh offline process, which must print RESTORED and PASS again.
+# by a fresh offline process, which must print RESTORED and PASS again. The
+# pair reload case uses the same phases with its own case name and asserts the
+# committed final consists and the laid-over vehicle.
 #
 # The scenario is NOT part of scripts/run-pending-runtime-tests.sh: that runner
 # iterates a fixed case list plus tests/pending-runtime/cases/*, so this
@@ -27,15 +35,15 @@
 #     server "kicking client"/"disconnect client" due to a checklist mismatch;
 #  3. the checklist pairs the client prints for every received nwc_check_t
 #     contain no mismatch;
-#  4. neither peer log holds a script error, RUNTIME CASE reload FAIL, or the
+#  4. neither peer log holds a script error, the case's FAIL marker, or the
 #     configured failure markers (FATAL ERROR, sanitizer reports);
 #  5. both peers survive for OBSERVE_S seconds beyond the server's PASS;
 #  6. the preserved join save loads offline and prints RESTORED then PASS, with
 #     no failure marker.
 #
 # shunting_time_seconds is set to 600 in the user-directory simuconf.tab of
-# each role's work directory so that the split-off portion stays at target
-# entry 21 while the client starts. This is a real settings value, not an
+# each role's work directory so that the case has not advanced past its reload
+# point while the client starts. This is a real settings value, not an
 # artificial state: settings_t::rdwr only reads shunting_time_seconds for
 # Extended 15 and later saves (dataobj/settings.cc), the fixture map
 # (tests/pending-runtime/empty-16x16.sve) is an Extended 14 save, and both the
@@ -68,7 +76,19 @@ SHUNTING_SECONDS=600
 DEBUG_LEVEL=2
 SAVE_FORMAT="bzip2"
 MARKERS="FATAL ERROR|AddressSanitizer|ThreadSanitizer|runtime error|rendezvous released with work outstanding"
-SCENARIO_NAME="pending-runtime-reload"
+# Reload case selection. The defaults run the forward Y division reload; the
+# paired-exchange reload is selected with
+#   --case pair-reload
+#   --scenario pending-runtime-pair-reload
+#   --selector tests/pending-runtime/pair-reload/scenario.nut
+#   --harness tests/pending-runtime/pair-harness.nut
+#   --harness-name pair-harness
+# or the matching PENDING_RUNTIME_RELOAD_* environment variables.
+CASE_NAME="${PENDING_RUNTIME_RELOAD_CASE:-reload}"
+SCENARIO_NAME="${PENDING_RUNTIME_RELOAD_SCENARIO:-pending-runtime-reload}"
+SELECTOR="${PENDING_RUNTIME_RELOAD_SELECTOR:-tests/pending-runtime/reload/scenario.nut}"
+HARNESS="${PENDING_RUNTIME_RELOAD_HARNESS:-tests/pending-runtime/harness.nut}"
+HARNESS_NAME="${PENDING_RUNTIME_RELOAD_HARNESS_NAME:-harness}"
 CLEAN=0
 
 usage() {
@@ -78,14 +98,24 @@ Usage: run-pending-runtime-reload-tests.sh [options]
                              (default: <repo>/simutrans-extended;
                              env PENDING_RUNTIME_RELOAD_EXE overrides)
   --workdir DIR              transient work directory
-                             (default: <repo>/ai/temp/pending-runtime-reload)
+                             (default: <repo>/ai/temp/pending-runtime-<case>)
   --pakset NAME              pakset dir name under <repo>/simutrans/
                              (default: $PAKSET)
   --objects NAME             -objects name / pakset link name in workdirs
                              (default: $OBJECTS)
   --server-port PORT         loopback server port (default: $SERVER_PORT)
-  --server-ready-timeout S   watchdog for server setup up to RUNTIME CASE
-                             reload READY (default: $SERVER_READY_TIMEOUT_S)
+  --case NAME                reload case name for the READY/RESTORED/PASS
+                             markers (default: $CASE_NAME)
+  --scenario NAME            staged scenario directory name (default:
+                             $SCENARIO_NAME)
+  --selector PATH            reload selector script, relative to the repo root
+                             (default: $SELECTOR)
+  --harness PATH             shared harness script, relative to the repo root
+                             (default: $HARNESS)
+  --harness-name NAME        file name the harness is staged under, without
+                             .nut (default: $HARNESS_NAME)
+  --server-ready-timeout S   watchdog for server setup up to the case's READY
+                             marker (default: $SERVER_READY_TIMEOUT_S)
   --client-timeout S         watchdog for the whole client phase, from READY to
                              OBSERVE_S beyond the server's PASS (default:
                              $CLIENT_TIMEOUT_S)
@@ -102,8 +132,9 @@ Usage: run-pending-runtime-reload-tests.sh [options]
                              (default: "$MARKERS")
   --clean                    remove the workdir and staging directory, then exit
 
-  PENDING_RUNTIME_RELOAD_EXE, _WORKDIR, _PAKSET, _OBJECTS and _PORT supply the
-  defaults for --exe, --workdir, --pakset, --objects and --server-port.
+  PENDING_RUNTIME_RELOAD_EXE, _WORKDIR, _PAKSET, _OBJECTS, _PORT, _CASE,
+  _SCENARIO, _SELECTOR, _HARNESS and _HARNESS_NAME supply the defaults for the
+  corresponding options.
 EOF
 }
 
@@ -114,6 +145,11 @@ while [[ $# -gt 0 ]]; do
 		--pakset) PAKSET="$2"; shift 2 ;;
 		--objects) OBJECTS="$2"; shift 2 ;;
 		--server-port) SERVER_PORT="$2"; shift 2 ;;
+		--case) CASE_NAME="$2"; shift 2 ;;
+		--scenario) SCENARIO_NAME="$2"; shift 2 ;;
+		--selector) SELECTOR="$2"; shift 2 ;;
+		--harness) HARNESS="$2"; shift 2 ;;
+		--harness-name) HARNESS_NAME="$2"; shift 2 ;;
 		--server-ready-timeout) SERVER_READY_TIMEOUT_S="$2"; shift 2 ;;
 		--client-timeout) CLIENT_TIMEOUT_S="$2"; shift 2 ;;
 		--offline-timeout) OFFLINE_TIMEOUT_S="$2"; shift 2 ;;
@@ -128,7 +164,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$EXE" ]]     || EXE="$repo/simutrans-extended"
-[[ -n "$WORKDIR" ]] || WORKDIR="$repo/ai/temp/pending-runtime-reload"
+[[ -n "$WORKDIR" ]] || WORKDIR="$repo/ai/temp/pending-runtime-$CASE_NAME"
 
 SRV_DIR="$WORKDIR/server"
 CLI_DIR="$WORKDIR/client"
@@ -150,8 +186,8 @@ if [[ "$DEBUG_LEVEL" -lt 2 ]]; then
 	exit 1
 fi
 
-for p in "$EXE" "$repo/tests/pending-runtime/harness.nut" \
-	"$repo/tests/pending-runtime/reload/scenario.nut" \
+for p in "$EXE" "$repo/$HARNESS" \
+	"$repo/$SELECTOR" \
 	"$repo/tests/pending-runtime/empty-16x16.sve"; do
 	[[ -f "$p" ]] || { echo "FAIL: missing $p"; exit 1; }
 done
@@ -273,9 +309,9 @@ setup_role() {
 stage_scenario() {
 	rm -rf -- "$STAGE"
 	mkdir -p -- "$STAGE" || return 1
-	cp -- "$repo/tests/pending-runtime/harness.nut" "$STAGE/" || return 1
+	cp -- "$repo/$HARNESS" "$STAGE/$HARNESS_NAME.nut" || return 1
 	cp -- "$repo/tests/pending-runtime/empty-16x16.sve" "$STAGE/" || return 1
-	cp -- "$repo/tests/pending-runtime/reload/scenario.nut" "$STAGE/scenario.nut" || return 1
+	cp -- "$repo/$SELECTOR" "$STAGE/scenario.nut" || return 1
 }
 
 mkdir -p "$LOGS"
@@ -316,18 +352,18 @@ for ((i=0; i<SERVER_READY_TIMEOUT_S; i++)); do
 	if has "Script: Error|</error>|Could not load scenario|Loading scenario script failed|No scenario map specified|Could not load scenario map" "$s_err" "$s_out"; then
 		fail_now "server : scenario loading or script failure before READY -> $(first_match_any 'Could not load scenario|Loading scenario script failed|No scenario map specified|Could not load scenario map|Script: Error|</error>' "$s_err" "$s_out")"
 	fi
-	if has "RUNTIME CASE reload FAIL" "$s_err" "$s_out"; then
-		fail_now "server : division case failed before READY -> $(first_match_any 'RUNTIME CASE reload FAIL' "$s_err" "$s_out")"
+	if has "RUNTIME CASE $CASE_NAME FAIL" "$s_err" "$s_out"; then
+		fail_now "server : case failed before READY -> $(first_match_any "RUNTIME CASE $CASE_NAME FAIL" "$s_err" "$s_out")"
 	fi
 	if [[ -z "$srv_code" ]] && ! kill -0 "$server_pid" 2>/dev/null; then
 		wait "$server_pid"; srv_code=$?
 	fi
 	if [[ -n "$srv_code" ]]; then
 		bad=$(log_markers "$s_out" "$s_err")
-		fail_now "server : exited with code $srv_code before RUNTIME CASE reload READY" \
+		fail_now "server : exited with code $srv_code before RUNTIME CASE $CASE_NAME READY" \
 			${bad:+"log markers -> $(printf '%s' "$bad" | tr '\n' '|' | sed 's/|$//')"}
 	fi
-	if has "RUNTIME CASE reload READY" "$s_err" "$s_out"; then
+	if has "RUNTIME CASE $CASE_NAME READY" "$s_err" "$s_out"; then
 		ready=1
 		ready_seconds=$i
 		break
@@ -335,10 +371,10 @@ for ((i=0; i<SERVER_READY_TIMEOUT_S; i++)); do
 done
 if [[ "$ready" -ne 1 ]]; then
 	bad=$(log_markers "$s_out" "$s_err")
-	fail_now "server : did not reach RUNTIME CASE reload READY within ${SERVER_READY_TIMEOUT_S}s" \
+	fail_now "server : did not reach RUNTIME CASE $CASE_NAME READY within ${SERVER_READY_TIMEOUT_S}s" \
 		${bad:+"log markers -> $(printf '%s' "$bad" | tr '\n' '|' | sed 's/|$//')"}
 fi
-echo "Server reached RUNTIME CASE reload READY after ~${ready_seconds}s; starting client"
+echo "Server reached RUNTIME CASE $CASE_NAME READY after ~${ready_seconds}s; starting client"
 
 echo "Starting client: $EXE (net:127.0.0.1:$SERVER_PORT)"
 timeout -k 5 "$CLIENT_TIMEOUT_S" "$EXE" \
@@ -365,7 +401,7 @@ while (( SECONDS - cli_started < CLIENT_TIMEOUT_S )); do
 		sleep 5
 		break
 	fi
-	if has "RUNTIME CASE reload FAIL" "$s_err" "$s_out"; then
+	if has "RUNTIME CASE $CASE_NAME FAIL" "$s_err" "$s_out"; then
 		break
 	fi
 	if [[ -z "$cli_code" ]] && ! kill -0 "$client_pid" 2>/dev/null; then
@@ -382,12 +418,12 @@ while (( SECONDS - cli_started < CLIENT_TIMEOUT_S )); do
 		joined_seconds=$((SECONDS - cli_started))
 		echo "Client joined and unpaused after ~${joined_seconds}s"
 	fi
-	if has "RUNTIME CASE reload RESTORED" "$s_err" "$s_out"; then
+	if has "RUNTIME CASE $CASE_NAME RESTORED" "$s_err" "$s_out"; then
 		restored_seen=1
 	fi
-	if [[ "$pass_seconds" -lt 0 ]] && has "RUNTIME CASE reload PASS" "$s_err" "$s_out"; then
+	if [[ "$pass_seconds" -lt 0 ]] && has "RUNTIME CASE $CASE_NAME PASS" "$s_err" "$s_out"; then
 		pass_seconds=$((SECONDS - cli_started))
-		echo "Server printed RUNTIME CASE reload PASS after ~${pass_seconds}s; observing for ${OBSERVE_S}s beyond PASS"
+		echo "Server printed RUNTIME CASE $CASE_NAME PASS after ~${pass_seconds}s; observing for ${OBSERVE_S}s beyond PASS"
 	fi
 	if [[ "$pass_seconds" -ge 0 ]] && (( SECONDS - cli_started - pass_seconds >= OBSERVE_S )); then
 		break
@@ -414,7 +450,7 @@ fi
 
 echo "---- analysis: server and client ----"
 
-server_fail_msg=$(first_match_any "RUNTIME CASE reload FAIL" "$s_err" "$s_out")
+server_fail_msg=$(first_match_any "RUNTIME CASE $CASE_NAME FAIL" "$s_err" "$s_out")
 if [[ -n "$server_fail_msg" ]]; then
 	failures+=("server : $server_fail_msg")
 fi
@@ -425,19 +461,19 @@ if [[ "$joined_seconds" -lt 0 && "$desynced" -eq 0 ]]; then
 	failures+=("join-sync : client never joined and unpaused within ${CLIENT_TIMEOUT_S}s (no 'network_game_set_pause ... pause=0' in the client log)")
 fi
 if [[ "$restored_seen" -ne 1 ]]; then
-	failures+=("server : no RUNTIME CASE reload RESTORED after the join (the save was not reloaded or the divided state was not re-asserted)")
+	failures+=("server : no RUNTIME CASE $CASE_NAME RESTORED after the join (the save was not reloaded or the restored state was not re-asserted)")
 fi
 if [[ "$pass_seconds" -lt 0 ]]; then
-	failures+=("server : no RUNTIME CASE reload PASS (the restored split-off portion did not advance from target entry 21 to entry 22)")
+	failures+=("server : no RUNTIME CASE $CASE_NAME PASS (the restored state did not advance as the case requires)")
 fi
-ready_line=$(marker_line "RUNTIME CASE reload READY" "$s_err")
-restored_line=$(marker_line "RUNTIME CASE reload RESTORED" "$s_err")
-pass_line=$(marker_line "RUNTIME CASE reload PASS" "$s_err")
+ready_line=$(marker_line "RUNTIME CASE $CASE_NAME READY" "$s_err")
+restored_line=$(marker_line "RUNTIME CASE $CASE_NAME RESTORED" "$s_err")
+pass_line=$(marker_line "RUNTIME CASE $CASE_NAME PASS" "$s_err")
 if [[ -n "$restored_line" && -n "$pass_line" ]] && (( restored_line > pass_line )); then
-	failures+=("server : RUNTIME CASE reload PASS appears before RUNTIME CASE reload RESTORED")
+	failures+=("server : RUNTIME CASE $CASE_NAME PASS appears before RUNTIME CASE $CASE_NAME RESTORED")
 fi
 if [[ -n "$ready_line" && -n "$restored_line" ]] && (( ready_line > restored_line )); then
-	failures+=("server : RUNTIME CASE reload RESTORED appears before RUNTIME CASE reload READY")
+	failures+=("server : RUNTIME CASE $CASE_NAME RESTORED appears before RUNTIME CASE $CASE_NAME READY")
 fi
 if [[ -n "$cli_code" ]]; then
 	if [[ "$cli_code" -eq 124 || "$cli_code" -eq 137 ]]; then
@@ -532,7 +568,7 @@ while (( SECONDS - off_started < OFFLINE_TIMEOUT_S )); do
 	if has "Script: Error|</error>|Could not load scenario|Loading scenario script failed|No scenario map specified|Could not load scenario map" "$o_err" "$o_out"; then
 		break
 	fi
-	if has "RUNTIME CASE reload FAIL" "$o_err" "$o_out"; then
+	if has "RUNTIME CASE $CASE_NAME FAIL" "$o_err" "$o_out"; then
 		break
 	fi
 	if [[ -z "$off_code" ]] && ! kill -0 "$offline_pid" 2>/dev/null; then
@@ -540,10 +576,10 @@ while (( SECONDS - off_started < OFFLINE_TIMEOUT_S )); do
 		echo "[offline] exited (code $off_code)"
 		break
 	fi
-	if has "RUNTIME CASE reload RESTORED" "$o_err" "$o_out"; then
+	if has "RUNTIME CASE $CASE_NAME RESTORED" "$o_err" "$o_out"; then
 		offline_restored=1
 	fi
-	if has "RUNTIME CASE reload PASS" "$o_err" "$o_out"; then
+	if has "RUNTIME CASE $CASE_NAME PASS" "$o_err" "$o_out"; then
 		offline_pass=1
 		offline_pass_seconds=$((SECONDS - off_started))
 		break
@@ -559,20 +595,20 @@ offline_pid=""
 echo "---- analysis: offline reload ----"
 
 off_failures=()
-offline_fail_msg=$(first_match_any "RUNTIME CASE reload FAIL" "$o_err" "$o_out")
+offline_fail_msg=$(first_match_any "RUNTIME CASE $CASE_NAME FAIL" "$o_err" "$o_out")
 if [[ -n "$offline_fail_msg" ]]; then
 	off_failures+=("offline : $offline_fail_msg")
 fi
 if [[ "$offline_restored" -ne 1 ]]; then
-	off_failures+=("offline : no RUNTIME CASE reload RESTORED after loading the join save")
+	off_failures+=("offline : no RUNTIME CASE $CASE_NAME RESTORED after loading the join save")
 fi
 if [[ "$offline_pass" -ne 1 ]]; then
-	off_failures+=("offline : no RUNTIME CASE reload PASS (the restored split-off portion did not advance from target entry 21 to entry 22)")
+	off_failures+=("offline : no RUNTIME CASE $CASE_NAME PASS (the restored state did not advance as the case requires)")
 fi
-off_restored_line=$(marker_line "RUNTIME CASE reload RESTORED" "$o_err")
-off_pass_line=$(marker_line "RUNTIME CASE reload PASS" "$o_err")
+off_restored_line=$(marker_line "RUNTIME CASE $CASE_NAME RESTORED" "$o_err")
+off_pass_line=$(marker_line "RUNTIME CASE $CASE_NAME PASS" "$o_err")
 if [[ -n "$off_restored_line" && -n "$off_pass_line" ]] && (( off_restored_line > off_pass_line )); then
-	off_failures+=("offline : RUNTIME CASE reload PASS appears before RUNTIME CASE reload RESTORED")
+	off_failures+=("offline : RUNTIME CASE $CASE_NAME PASS appears before RUNTIME CASE $CASE_NAME RESTORED")
 fi
 if [[ -n "$off_code" ]]; then
 	if [[ "$off_code" -eq 124 || "$off_code" -eq 137 ]]; then
