@@ -6609,7 +6609,8 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 
 		// Above this journey time, passengers will prefer not to walk even if walking is the quickest way
 		// of getting to their destination, provided that another means of transport is within their journey
-		// time tolerance. This simulates laziness.
+		// time tolerance. This simulates laziness. For passengers, the threshold is drawn at random
+		// between the maximum comfortable walking time and the walking tolerance.
 		uint32 walking_time_preference_threshold;
 
 		if(wtyp == goods_manager_t::mail)
@@ -6622,7 +6623,8 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 		{
 			// Passengers
 			walking_tolerance = min(tolerance, (uint32)get_maximum_tolerable_walk_tenths());
-			walking_time_preference_threshold = simrand(walking_tolerance > min_commuting_tolerance ? walking_tolerance - min_commuting_tolerance : min_commuting_tolerance, "karte_t::generate_passengers_and_mail (walking walking_time_preference_threshold)") + min_commuting_tolerance;
+			const uint32 minimum_walk_preference = get_settings().max_comfortable_walk;
+			walking_time_preference_threshold = simrand(walking_tolerance > minimum_walk_preference ? walking_tolerance - minimum_walk_preference : minimum_walk_preference, "karte_t::generate_passengers_and_mail (walking walking_time_preference_threshold)") + minimum_walk_preference;
 		}
 
 		uint32 car_minutes = UINT32_MAX_VALUE;

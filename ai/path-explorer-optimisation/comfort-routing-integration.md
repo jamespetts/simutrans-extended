@@ -212,17 +212,30 @@ max_comfortable_journey_overcrowded = 5
 # Overcrowding never changes maximum_tolerable_wait.
 max_comfortable_wait_overcrowded = 15
 
-# Maximum comfortable walking time in minutes. A walk of up to this time
-# counts as its actual time; the curve adds perceived time up to the maximum
-# tolerable walking time. The default of 10 is how long people readily walk:
-# surveys find that most will walk 5-10 minutes to a stop and few will walk
-# more than 15-20 minutes when another means of travel is available.
+# Walking comfort uses the same penalty curve as vehicle and waiting comfort.
+# A walk of up to the maximum comfortable walking time counts as its actual
+# time. Between the comfortable and the tolerable time, the curve adds extra
+# perceived time. Above the maximum tolerable walking time, passengers will
+# not walk: a walking link between stops whose walk exceeds it is not
+# available, and passengers will not choose a whole journey on foot longer
+# than it. Passengers also have a laziness threshold drawn at random between
+# the maximum comfortable walking time and the shorter of the maximum
+# tolerable walking time and the passenger's journey time tolerance: below the
+# threshold, a passenger walks whenever walking is the quickest way to the
+# destination; above it, the passenger prefers public transport or their
+# private car even when walking would be quicker, unless that alternative is
+# outside their journey time tolerance.
+#
+# Maximum comfortable walking time in minutes. The default of 10 is how long
+# people readily walk: surveys find that most will walk 5-10 minutes to a stop
+# and few will walk more than 15-20 minutes when another means of travel is
+# available. It is also the lower end of the laziness threshold range.
 max_comfortable_walk_minutes = 10
 
-# Maximum tolerable walking time in minutes. Above it passengers will not
-# walk. The default of 210 (3.5 hours) allows the long journeys on foot that
+# Maximum tolerable walking time in minutes. This is the hard limit described
+# above. The default of 210 (3.5 hours) allows the long journeys on foot that
 # were common before public transport, such as walking several miles to market
-# and back in a day.
+# and back in a day. It also caps the laziness threshold range.
 max_tolerable_walk_minutes = 210
 ```
 
