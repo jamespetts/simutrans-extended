@@ -128,10 +128,11 @@ void line_management_gui_t::rdwr(loadsave_t *file)
 			win_set_magic(this, (ptrdiff_t)line.get_rep());
 		}
 		else {
+			const uint16 line_id = line.get_id();
 			line = linehandle_t();
 			player = NULL; // prevent destructor from updating
 			destroy_win( this );
-			dbg->error( "line_management_gui_t::rdwr", "Could not restore schedule window for line id %i", line.get_id() );
+			dbg->error( "line_management_gui_t::rdwr", "Could not restore schedule window for line id %i", line_id );
 		}
 	}
 }
