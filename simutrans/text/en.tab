@@ -5464,6 +5464,8 @@ max_comfortable_wait_overcrowded
 Max. comfortable wait when overcrowded (minutes)
 max_comfortable_walk_minutes
 Max. comfortable walking time (minutes)
+max_tolerable_walk_minutes
+Max. tolerable walking time (minutes)
 comfort_penalty_at_25_percent
 Comfort penalty at 25% of the comfortable-to-tolerable range
 comfort_penalty_at_50_percent

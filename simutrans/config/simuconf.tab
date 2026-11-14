@@ -364,13 +364,25 @@ max_comfortable_journey_overcrowded = 5
 # minutes. Overcrowding never changes the maximum tolerable waiting time.
 max_comfortable_wait_overcrowded = 15
 
-# Maximum comfortable walking time in minutes. A walk longer than this is
-# charged extra perceived time by the same curve as vehicle and waiting
-# comfort. The maximum tolerable walking time is derived from the greatest
-# distance at which two stops can be within walking distance of each other
-# (twice the station coverage on each axis), converted to time at the walking
-# speed; there is no separate tolerable setting.
-max_comfortable_walk_minutes = 30
+# Walking comfort uses the same penalty curve as vehicle and waiting comfort.
+# A walk of up to the maximum comfortable walking time counts as its actual
+# time. Between the comfortable and the tolerable time, the curve adds extra
+# perceived time. Above the maximum tolerable walking time, passengers will
+# not walk: a walking link between stops whose walk exceeds it is not
+# available, and passengers will not choose a whole journey on foot longer
+# than it.
+#
+# Maximum comfortable walking time in minutes. The default of 10 is how long
+# people readily walk: surveys find that most will walk 5-10 minutes to a stop
+# and few will walk more than 15-20 minutes when another means of travel is
+# available.
+max_comfortable_walk_minutes = 10
+
+# Maximum tolerable walking time in minutes. This is the hard limit described
+# above. The default of 210 (3.5 hours) allows the long journeys on foot that
+# were common before public transport, such as walking several miles to market
+# and back in a day.
+max_tolerable_walk_minutes = 210
 
 ################################## Industry settings #################################
 

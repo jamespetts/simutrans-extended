@@ -84,6 +84,7 @@ struct comfort_routing_settings_t
 	uint16 max_comfortable_journey_overcrowded;
 	uint16 max_comfortable_wait_overcrowded;
 	uint16 max_comfortable_walk;
+	uint16 max_tolerable_walk;
 	uint16 comfort_penalty_at_25_percent;
 	uint16 comfort_penalty_at_50_percent;
 	uint16 comfort_penalty_at_75_percent;
@@ -844,6 +845,7 @@ public:
 	uint16 max_comfortable_journey_overcrowded; // tenths of minutes
 	uint16 max_comfortable_wait_overcrowded;    // tenths of minutes
 	uint16 max_comfortable_walk;                // tenths of minutes
+	uint16 max_tolerable_walk;                  // tenths of minutes
 	uint16 comfort_penalty_at_25_percent;
 	uint16 comfort_penalty_at_50_percent;
 	uint16 comfort_penalty_at_75_percent;

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 3abf55259 plus working-tree walking comfort changes (2026-11-12)
+verified: ex-15 @ 684d570f9 plus working-tree max_tolerable_walk changes (2026-11-14)
 ---
 # Comfort influenced routing (design)
 
@@ -47,8 +47,8 @@ The design uses:
 - **Comfort is measured as time, not as points.** A vehicle has a maximum
   comfortable journey time and a maximum tolerable journey time. A halt has a
   maximum comfortable waiting time and a maximum tolerable waiting time. A walk
-  has a global maximum comfortable time; its maximum tolerable time is derived
-  from the walking distance bound. At or below the comfortable time, actual time
+  has a global maximum comfortable time and a global maximum tolerable time,
+  both settings. At or below the comfortable time, actual time
   is used. Between the comfortable and tolerable times, a scaled increase factor
   applies; it is small for short durations or a small shortfall, and grows,
   possibly in an S-curve, as either increases. Above the tolerable time, the leg

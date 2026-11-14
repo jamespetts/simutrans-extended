@@ -515,6 +515,7 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 	INIT_NUM("max_comfortable_journey_overcrowded", sets->max_comfortable_journey_overcrowded / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("max_comfortable_wait_overcrowded", sets->max_comfortable_wait_overcrowded / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("max_comfortable_walk_minutes", sets->max_comfortable_walk / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
+	INIT_NUM("max_tolerable_walk_minutes", sets->max_tolerable_walk / 10, 0, 6553, gui_numberinput_t::AUTOLINEAR, false);
 	SEPERATOR;
 	INIT_NUM("comfort_penalty_at_25_percent", sets->comfort_penalty_at_25_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
 	INIT_NUM("comfort_penalty_at_50_percent", sets->comfort_penalty_at_50_percent, 0, 1000, gui_numberinput_t::AUTOLINEAR, false);
@@ -594,6 +595,7 @@ void settings_extended_revenue_stats_t::read(settings_t *sets)
 	READ_NUM_VALUE_TENTHS(sets->max_comfortable_journey_overcrowded);
 	READ_NUM_VALUE_TENTHS(sets->max_comfortable_wait_overcrowded);
 	READ_NUM_VALUE_TENTHS(sets->max_comfortable_walk);
+	READ_NUM_VALUE_TENTHS(sets->max_tolerable_walk);
 	READ_NUM_VALUE(sets->comfort_penalty_at_25_percent);
 	READ_NUM_VALUE(sets->comfort_penalty_at_50_percent);
 	READ_NUM_VALUE(sets->comfort_penalty_at_75_percent);

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 3abf55259 plus working-tree walking comfort changes (2026-11-12)
+verified: ex-15 @ 684d570f9 plus working-tree max_tolerable_walk changes (2026-11-14)
 ---
 # Comfort influenced routing: integration
 
@@ -33,11 +33,9 @@ waiting(h) comfort cost
   `vehicle_comfort_weighting` is on; otherwise the actual ride time is used and
   the ride hard limit is not applied.
 - Walking uses the global `(maximum_comfortable_walk, maximum_tolerable_walk)`
-  and the actual walk time when `walking_comfort_weighting` is on; otherwise
-  the actual walk time is used and the walking hard limit is not applied.
-  `maximum_tolerable_walk` is not a separate setting: it is the walking time
-  of the greatest distance at which two stops can be within walking distance
-  of each other, as defined in
+  settings and the actual walk time when `walking_comfort_weighting` is on;
+  otherwise the actual walk time is used and the walking hard limit is not
+  applied. The two settings are defined in
   [comfort-routing-model](comfort-routing-model.md).
 - Within a convoy, the vehicle mean is capacity-weighted. The mean across a line's
   convoys is unweighted.
@@ -127,7 +125,7 @@ The following changes are implemented under the AGENTS.md rule-5 review (see
 - new city-car fields for `maximum_comfortable_journey` and
   `maximum_tolerable_journey`;
 - new settings, including the walking comfort weighting and the maximum
-  comfortable walk;
+  comfortable and tolerable walk times;
 - the extra `connexion` field.
 
 The route tables do not store a route-cost model marker. Instead,
@@ -137,9 +135,10 @@ override passes. A difference sets
 `path_explorer_t::set_comfort_settings_overridden_on_loading()`, and
 `karte_t::load` rebuilds the saved tables after `path_explorer_t::rdwr(file)`. The
 settings window's "Simuconf.tab" and "Default.sve" reset buttons perform the same
-comparison. Saves created before walking comfort was part of the cost model force
-a route-table rebuild on load when `comfort_routing` is on, because their stored
-tables have no walking surcharge. A saved marker remains unimplemented; the
+comparison. Saves created before the current walking comfort settings force
+a route-table rebuild on load when `comfort_routing` is on, because their
+stored tables have no walking surcharge or were built with the previous
+walking comfort settings. A saved marker remains unimplemented; the
 comparison and the version check cover the known cases.
 
 The walking comfort settings are part of the saved settings, so the savegame
@@ -213,11 +212,18 @@ max_comfortable_journey_overcrowded = 5
 # Overcrowding never changes maximum_tolerable_wait.
 max_comfortable_wait_overcrowded = 15
 
-# Maximum comfortable walking time in minutes. The maximum tolerable walking
-# time is derived from the greatest distance at which two stops can be within
-# walking distance of each other, converted to time at the walking speed, so
-# there is no separate tolerable setting.
-max_comfortable_walk_minutes = 30
+# Maximum comfortable walking time in minutes. A walk of up to this time
+# counts as its actual time; the curve adds perceived time up to the maximum
+# tolerable walking time. The default of 10 is how long people readily walk:
+# surveys find that most will walk 5-10 minutes to a stop and few will walk
+# more than 15-20 minutes when another means of travel is available.
+max_comfortable_walk_minutes = 10
+
+# Maximum tolerable walking time in minutes. Above it passengers will not
+# walk. The default of 210 (3.5 hours) allows the long journeys on foot that
+# were common before public transport, such as walking several miles to market
+# and back in a day.
+max_tolerable_walk_minutes = 210
 ```
 
 `comfort_routing` is Extended-specific; its advanced-settings toggle is in the
@@ -237,10 +243,8 @@ are the tunable points. The default per-object times are:
 neither comfort points nor explicit time fields are given;
 `maximum_tolerable_journey` = `maximum_comfortable_journey * 3`;
 `maximum_comfortable_wait` 180 minutes; `maximum_tolerable_wait` = 540 minutes.
-The global walking times are `maximum_comfortable_walk` 30 minutes and a
-`maximum_tolerable_walk` derived as the walking time of the greatest distance at
-which two stops can be within walking distance of each other; the derivation is
-in [comfort-routing-model](comfort-routing-model.md).
+The global walking times are `maximum_comfortable_walk` 10 minutes and
+`maximum_tolerable_walk` 210 minutes.
 
 The reboarding rule is part of the route search, not a setting. The
 `tolerable_comfort_*` curve is used only to convert comfort points and for the
@@ -343,8 +347,7 @@ assets exist; it would be unplanned provision without them.
   and walking) and the savegame/version changes, including the comfort-history
   migration, are implemented.
 - The walking comfort cost covers the stored walking edges, the choice of start
-  and destination halt and the all-walking mode comparison. The maximum tolerable
-  walk is derived from the station coverage and the walking speed.
+  and destination halt and the all-walking mode comparison.
 - Boarding, rerouting and the runtime give-up are updated.
 - The stop tooltip and comfort-capacity display, the pair of line/consist charts
   and the dark-blue adjusted times are implemented; comfort is removed from fares.

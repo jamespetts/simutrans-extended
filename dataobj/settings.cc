@@ -347,7 +347,8 @@ settings_t::settings_t() :
 	walking_comfort_weighting = true;
 	max_comfortable_journey_overcrowded = 50;
 	max_comfortable_wait_overcrowded = 150;
-	max_comfortable_walk = 300;
+	max_comfortable_walk = 100;
+	max_tolerable_walk = 2100;
 	comfort_penalty_at_25_percent = 15;
 	comfort_penalty_at_50_percent = 50;
 	comfort_penalty_at_75_percent = 85;
@@ -1186,6 +1187,11 @@ void settings_t::rdwr(loadsave_t *file)
 				{
 					file->rdwr_bool(walking_comfort_weighting);
 					file->rdwr_short(max_comfortable_walk);
+				}
+
+				if (file->is_version_ex_atleast(15, 12))
+				{
+					file->rdwr_short(max_tolerable_walk);
 				}
 
 				if ( file->is_loading() ) {
@@ -2773,6 +2779,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	max_comfortable_journey_overcrowded = contents.get_int("max_comfortable_journey_overcrowded", max_comfortable_journey_overcrowded / 10) * 10;
 	max_comfortable_wait_overcrowded = contents.get_int("max_comfortable_wait_overcrowded", max_comfortable_wait_overcrowded / 10) * 10;
 	max_comfortable_walk = contents.get_int("max_comfortable_walk_minutes", max_comfortable_walk / 10) * 10;
+	max_tolerable_walk = contents.get_int("max_tolerable_walk_minutes", max_tolerable_walk / 10) * 10;
 	comfort_penalty_at_25_percent = contents.get_int("comfort_penalty_at_25_percent", comfort_penalty_at_25_percent);
 	comfort_penalty_at_50_percent = contents.get_int("comfort_penalty_at_50_percent", comfort_penalty_at_50_percent);
 	comfort_penalty_at_75_percent = contents.get_int("comfort_penalty_at_75_percent", comfort_penalty_at_75_percent);
@@ -3821,6 +3828,7 @@ comfort_routing_settings_t settings_t::get_comfort_routing_settings() const
 	result.max_comfortable_journey_overcrowded = max_comfortable_journey_overcrowded;
 	result.max_comfortable_wait_overcrowded = max_comfortable_wait_overcrowded;
 	result.max_comfortable_walk = max_comfortable_walk;
+	result.max_tolerable_walk = max_tolerable_walk;
 	result.comfort_penalty_at_25_percent = comfort_penalty_at_25_percent;
 	result.comfort_penalty_at_50_percent = comfort_penalty_at_50_percent;
 	result.comfort_penalty_at_75_percent = comfort_penalty_at_75_percent;
@@ -3848,6 +3856,7 @@ bool settings_t::comfort_routing_settings_changed(const comfort_routing_settings
 		|| current.max_comfortable_journey_overcrowded != other.max_comfortable_journey_overcrowded
 		|| current.max_comfortable_wait_overcrowded != other.max_comfortable_wait_overcrowded
 		|| current.max_comfortable_walk != other.max_comfortable_walk
+		|| current.max_tolerable_walk != other.max_tolerable_walk
 		|| current.comfort_penalty_at_25_percent != other.comfort_penalty_at_25_percent
 		|| current.comfort_penalty_at_50_percent != other.comfort_penalty_at_50_percent
 		|| current.comfort_penalty_at_75_percent != other.comfort_penalty_at_75_percent

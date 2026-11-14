@@ -1796,32 +1796,15 @@ public:
 	}
 
 	/**
-	 * The greatest distance in tiles at which two stops can be within walking
-	 * distance of each other. A stop covers every tile within station_coverage
-	 * of its position, so two stops are within walking distance when their
-	 * coverage squares share a tile. The greatest separation is therefore
-	 * between opposite corners of the two squares, twice the coverage away on
-	 * each axis. The result uses shortest_distance, as the connexion rebuild
-	 * does.
-	 */
-	uint32 get_maximum_walk_distance() const
-	{
-		const uint32 offset = 2u * get_settings().get_station_coverage();
-		// shortest_distance for equal x and y offsets.
-		return (offset * 181u + 64u) >> 7;
-	}
-
-	/**
-	 * The maximum tolerable walking time in tenths of minutes, derived from
-	 * get_maximum_walk_distance() at the walking speed. This is the upper end
-	 * of the walking comfort penalty curve. It is never less than the maximum
-	 * comfortable walking time.
+	 * The maximum tolerable walking time in tenths of minutes, from the
+	 * max_tolerable_walk_minutes setting. This is the upper end of the walking
+	 * comfort penalty curve and the time above which passengers will not walk.
+	 * It is never less than the maximum comfortable walking time, so that the
+	 * penalty curve is always defined.
 	 */
 	uint16 get_maximum_tolerable_walk_tenths() const
 	{
-		const uint32 tenths = walking_time_tenths_from_distance(get_maximum_walk_distance());
-		const uint16 bounded = (uint16)min(65535, (int)tenths);
-		return (uint16)max((int)get_settings().max_comfortable_walk, (int)bounded);
+		return (uint16)max((int)get_settings().max_comfortable_walk, (int)get_settings().max_tolerable_walk);
 	}
 
 	/**

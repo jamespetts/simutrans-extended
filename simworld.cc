@@ -8855,10 +8855,13 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 		// simuconf overrides below can replace it.
 		const comfort_routing_settings_t saved_comfort_settings = settings.get_comfort_routing_settings();
 
-		if (settings.comfort_routing && !file->is_version_ex_atleast(15, 11))
+		if (settings.comfort_routing && !file->is_version_ex_atleast(15, 12))
 		{
 			// Saves from before walking comfort was part of the cost model
-			// have route tables without the walking surcharge.
+			// have route tables without the walking surcharge. Saves from
+			// before the max_tolerable_walk_minutes setting have tables built
+			// with the old coverage-derived walking limit. Either way, the
+			// route tables must be rebuilt when comfort routing is on.
 			path_explorer_t::set_must_refresh_on_loading();
 		}
 

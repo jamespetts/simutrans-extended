@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 3abf55259 plus working-tree walking comfort changes (2026-11-12)
+verified: ex-15 @ 684d570f9 plus working-tree max_tolerable_walk changes (2026-11-14)
 ---
 # Comfort influenced routing: time-based model
 
@@ -33,17 +33,20 @@ For each passenger class:
   to wait and the packet is discarded or walks.
 - `maximum_comfortable_walk`: maximum comfortable walking time. The setting is
   `settings_t::max_comfortable_walk`, held in tenths of minutes and read from the
-  `max_comfortable_walk_minutes` key in `simuconf.tab` (default 30 minutes).
-- `maximum_tolerable_walk`: maximum tolerable walking time. This is derived,
-  not set: `karte_t::get_maximum_tolerable_walk_tenths()` returns the walking
-  time of `karte_t::get_maximum_walk_distance()`. A stop covers every tile
-  within `station_coverage` of its position, so two stops are within walking
-  distance when their coverage squares share a tile. The greatest separation is
-  between opposite corners of the two squares, twice the coverage away on each
-  axis, measured with `shortest_distance` (the distance function that the
-  connexion rebuild uses). The result is never less than
-  `max_comfortable_walk`. Above `maximum_tolerable_walk`, a walking edge is
-  removed. `karte_t::get_walking_perceived_time()` applies the curve: it returns
+  `max_comfortable_walk_minutes` key in `simuconf.tab` (default 10 minutes).
+- `maximum_tolerable_walk`: maximum tolerable walking time. The setting is
+  `settings_t::max_tolerable_walk`, held in tenths of minutes and read from the
+  `max_tolerable_walk_minutes` key in `simuconf.tab` (default 210 minutes). The
+  long default allows the long journeys on foot that were common before public
+  transport. Above `maximum_tolerable_walk`, passengers will not walk: a
+  walking edge whose walk exceeds it is removed, and passengers will not choose
+  a whole journey on foot longer than it. The forced walks made when no route
+  exists are exempt; whether they should also be refused above
+  `maximum_tolerable_walk` is an open question in
+  [comfort-routing-integration](comfort-routing-integration.md).
+  `karte_t::get_maximum_tolerable_walk_tenths()` returns the greater of the two
+  walking settings, so the comfortable time never exceeds the tolerable time.
+  `karte_t::get_walking_perceived_time()` applies the curve: it returns
   the actual time when `comfort_routing` or `walking_comfort_weighting` is off,
   the actual time plus the surcharge up to `maximum_tolerable_walk`, and
   `UINT32_MAX_VALUE` above it.
@@ -139,9 +142,8 @@ present and the converted value otherwise.
 
 The default tolerable wait is therefore 9 hours.
 
-`maximum_comfortable_walk` defaults to 30 minutes. There is no separate
-setting for the maximum tolerable walk: it changes with the station coverage
-and the walking speed.
+`maximum_comfortable_walk` defaults to 10 minutes and `maximum_tolerable_walk`
+to 210 minutes.
 
 ## Cost curve
 
