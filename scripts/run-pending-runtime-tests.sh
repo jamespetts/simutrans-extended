@@ -26,6 +26,8 @@
 #   PENDING_RUNTIME_BINARY         game binary, relative to simutrans/
 #                                  (default ../simutrans-extended)
 #   PENDING_RUNTIME_OBJECTS        pakset directory (default pak128.britain-ex-nightly)
+#   PENDING_RUNTIME_CASES          space-separated subset of case names to run
+#                                  (default: every case)
 set -u
 
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
@@ -58,6 +60,32 @@ do
 	choose_case_names+=("$(basename "$(dirname "$case_file")")")
 	case_names+=("$(basename "$(dirname "$case_file")")")
 done
+
+# Optional subset. Reject unknown names so that a renamed case cannot make a
+# targeted run silently do nothing.
+if [ -n "${PENDING_RUNTIME_CASES:-}" ]
+then
+	selected_cases=()
+	for selected_case in $PENDING_RUNTIME_CASES
+	do
+		known=0
+		for known_case in "${case_names[@]}"
+		do
+			if [ "$selected_case" = "$known_case" ]
+			then
+				known=1
+				break
+			fi
+		done
+		if [ "$known" -eq 0 ]
+		then
+			echo "Unknown case in PENDING_RUNTIME_CASES: $selected_case" >&2
+			exit 2
+		fi
+		selected_cases+=("$selected_case")
+	done
+	case_names=("${selected_cases[@]}")
+fi
 
 stage_dir=""
 game_pid=""
@@ -157,10 +185,10 @@ run_case()
 		then
 			if [ "$case_name" = "target-unreachable" ] && ! grep -qF "check station geometry and one-way signs" "$log_file"
 			then
-				echo "Case $case_name: FAILED (missing unusable-geometry warning)"
+				echo "Case $case_name: FAILED (missing unusable-geometry warning) ($((SECONDS - start_time))s)"
 				result=1
 			else
-				echo "Case $case_name: PASS"
+				echo "Case $case_name: PASS ($((SECONDS - start_time))s)"
 				result=0
 			fi
 			break
@@ -168,7 +196,7 @@ run_case()
 
 		if grep -qF "RUNTIME CASE $case_name FAIL" "$log_file" 2>/dev/null
 		then
-			echo "Case $case_name: FAILED"
+			echo "Case $case_name: FAILED ($((SECONDS - start_time))s)"
 			grep -m 1 -F "RUNTIME CASE $case_name FAIL" "$log_file" || true
 			result=1
 			break
@@ -179,7 +207,7 @@ run_case()
 		# this check. Real script errors are logged as "Script: Error:" lines.
 		if grep -q -e 'Script: Error' -e '</error>' "$log_file" 2>/dev/null
 		then
-			echo "Case $case_name: FAILED (script error)"
+			echo "Case $case_name: FAILED (script error) ($((SECONDS - start_time))s)"
 			grep -m 1 -e 'Script: Error' -e '</error>' "$log_file" || true
 			result=1
 			break
@@ -187,7 +215,7 @@ run_case()
 
 		if ! kill -0 "$game_pid" 2>/dev/null
 		then
-			echo "Case $case_name: FAILED (process exited before printing a result)"
+			echo "Case $case_name: FAILED (process exited before printing a result) ($((SECONDS - start_time))s)"
 			result=1
 			break
 		fi
@@ -201,14 +229,14 @@ run_case()
 			last_progress=$SECONDS
 		elif (( SECONDS - last_progress >= stall_seconds ))
 		then
-			echo "Case $case_name: FAILED (no output progress for ${stall_seconds} seconds)"
+			echo "Case $case_name: FAILED (no output progress for ${stall_seconds} seconds) ($((SECONDS - start_time))s)"
 			result=1
 			break
 		fi
 
 		if (( SECONDS - start_time >= timeout_seconds ))
 		then
-			echo "Case $case_name: FAILED (timed out after ${timeout_seconds} seconds)"
+			echo "Case $case_name: FAILED (timed out after ${timeout_seconds} seconds) ($((SECONDS - start_time))s)"
 			result=1
 			break
 		fi
