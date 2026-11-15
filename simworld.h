@@ -861,17 +861,20 @@ private:
 	uint16 base_pathing_counter;
 
 	sint32 citycar_speed_average;
+	// Distribution-weighted mean top speed of the cars available to each
+	// passenger wealth class in the current era, in km/h.
+	sint32 citycar_speed_average_by_class[MAX_PASSENGER_CLASSES];
 
 	void set_citycar_speed_average();
 
 	bool recheck_road_connexions;
 
 	/**
-	 * Speed per tile in *tenths* of
-	 * minutes.
+	 * Journey time per tile in hundredths of a minute, for each passenger
+	 * wealth class.
 	 */
-	uint32 generic_road_time_per_tile_city;
-	uint32 generic_road_time_per_tile_intercity;
+	uint32 generic_road_time_per_tile_city[MAX_PASSENGER_CLASSES];
+	uint32 generic_road_time_per_tile_intercity[MAX_PASSENGER_CLASSES];
 
 	uint32 max_road_check_depth;
 
@@ -2664,6 +2667,8 @@ public:
 	void network_disconnect();
 
 	sint32 get_citycar_speed_average() const { return citycar_speed_average; }
+	/// The average car speed for this passenger wealth class, in km/h.
+	sint32 get_citycar_speed_average(uint8 g_class) const { return citycar_speed_average_by_class[g_class]; }
 
 	void set_recheck_road_connexions() { recheck_road_connexions = true; }
 
@@ -2675,10 +2680,10 @@ public:
 	 * of road. This is measured in 100ths
 	 * of a minute per tile.
 	 */
-	uint32 get_generic_road_time_per_tile_city() const { return generic_road_time_per_tile_city; }
-	uint32 get_generic_road_time_per_tile_intercity() const { return generic_road_time_per_tile_intercity; };
+	uint32 get_generic_road_time_per_tile_city(uint8 g_class) const { return generic_road_time_per_tile_city[g_class]; }
+	uint32 get_generic_road_time_per_tile_intercity(uint8 g_class) const { return generic_road_time_per_tile_intercity[g_class]; };
 
-	sint32 calc_generic_road_time_per_tile(const way_desc_t* desc);
+	sint32 calc_generic_road_time_per_tile(const way_desc_t* desc, uint8 g_class);
 
 	uint32 get_max_road_check_depth() const { return max_road_check_depth; }
 
@@ -2758,7 +2763,7 @@ public:
 
 private:
 
-	void calc_generic_road_time_per_tile_city() { generic_road_time_per_tile_city = calc_generic_road_time_per_tile(NULL); }
+	void calc_generic_road_time_per_tile_city();
 	void calc_generic_road_time_per_tile_intercity();
 	void calc_max_road_check_depth();
 

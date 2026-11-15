@@ -4,6 +4,7 @@
  */
 
 #include "../simdebug.h"
+#include "../simconst.h"
 #include "../descriptor/goods_desc.h"
 #include "../descriptor/spezial_obj_tpl.h"
 #include "../simware.h"
@@ -93,6 +94,13 @@ bool goods_manager_t::successfully_loaded()
 	for(  uint8 i=3;  i<goods.get_count();  i++  ) {
 		goods[i]->goods_index = i;
 		goods[i]->fix_number_of_classes();
+	}
+
+	// The saved private car journey times store one entry for each passenger
+	// wealth class, so the number of classes is bounded.
+	if (goods[INDEX_PAS]->get_number_of_classes() > MAX_PASSENGER_CLASSES)
+	{
+		dbg->fatal("goods_manager_t::successfully_loaded()", "This pakset defines %u passenger classes; at most %u are supported, because the saved private car journey times hold one entry for each class.", goods[INDEX_PAS]->get_number_of_classes(), MAX_PASSENGER_CLASSES);
 	}
 
 	// now assign unique category indices for unique categories

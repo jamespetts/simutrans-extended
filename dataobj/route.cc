@@ -399,6 +399,40 @@ void route_t::RELEASE_NODES(uint8 nodes_index)
 }
 
 /**
+ * Returns the estimated private car journey time per straight-line tile for
+ * each passenger wealth class, in hundredths of a minute, along the path from
+ * the search's origin to @p node. A tile's cost is the time taken at the
+ * minimum of the class's average car speed and the road speed limit, so the
+ * path is summed at each class's own speed rather than scaled from one value.
+ *
+ * The node's g value is the sum of the same per-tile costs at the search's
+ * reference speed plus the speed-independent turn penalties; the penalties are
+ * recovered as the difference between the two, so that every class receives the
+ * same turn penalties as the search itself.
+ */
+static void calc_private_car_class_times(karte_t *welt, const route_t::ANode *node, test_driver_t *tdriver, const uint32 max_khm, const koord origin, uint32 *times)
+{
+	uint32 reference_sum = 0;
+	uint32 class_sums[MAX_PASSENGER_CLASSES] = { 0 };
+	for (const route_t::ANode *n = node; n != NULL && n->parent != NULL; n = n->parent)
+	{
+		reference_sum += tdriver->get_cost(n->gr, max_khm, ribi_t::all);
+		for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+		{
+			class_sums[g_class] += tdriver->get_cost(n->gr, welt->get_citycar_speed_average(g_class), ribi_t::all);
+		}
+	}
+	const uint32 turn_penalties = node->g > reference_sum ? node->g - reference_sum : 0;
+	const uint16 straight_line_distance = shortest_distance(origin, node->gr->get_pos().get_2d());
+	const uint32 divisor = straight_line_distance == 0 ? 1 : straight_line_distance;
+	for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+	{
+		times[g_class] = straight_line_distance == 0 ? 10 : (class_sums[g_class] + turn_penalties) / divisor;
+	}
+}
+
+
+/**
  * find the route to an unknown location
  */
 bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdriver, const uint32 max_khm, uint8 start_dir, uint32 axle_load, sint32 max_tile_len, uint32 total_weight, uint32 max_depth, bool is_tall, find_route_flags flags)
@@ -524,35 +558,28 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 				reached_target = true;
 				const koord3d k = gr->get_pos();
 				current_city = welt->access(k.get_2d())->get_city();
+				// Journey times per passenger wealth class to this tile. These are
+				// needed only when a connexion is actually recorded, so they are
+				// computed lazily at the first such point.
+				uint32 class_times[MAX_PASSENGER_CLASSES];
+				bool class_times_computed = false;
 				if(current_city && current_city->get_townhall_road() == k.get_2d())
 				{
 					destination_city = current_city;
 					// This is a city destination.
-					if(origin_city && start.get_2d() == k.get_2d())
+					if(origin_city)
 					{
-						// Very rare, but happens occasionally - two cities share a townhall road tile.
-						// Must treat specially in order to avoid a division by zero error
+						// If two cities share a townhall road tile, the origin and
+						// destination can be the same tile; the helper then uses the
+						// minimum journey time of 10 to avoid a division by zero.
+						calc_private_car_class_times(welt, tmp, tdriver, max_khm, origin_city->get_townhall_road(), class_times);
+						class_times_computed = true;
 #ifdef MULTI_THREAD
 						int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
 						assert(error == 0);
 						(void)error;
 #endif
-						origin_city->add_road_connexion(10, destination_city);
-#ifdef MULTI_THREAD
-						error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
-						assert(error == 0);
-						(void)error;
-#endif
-					}
-					else if(origin_city)
-					{
-						const uint16 straight_line_distance = shortest_distance(origin_city->get_townhall_road(), k.get_2d());
-#ifdef MULTI_THREAD
-						int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
-						assert(error == 0);
-						(void)error;
-#endif
-						origin_city->add_road_connexion(tmp->g / straight_line_distance, welt->access(k.get_2d())->get_city());
+						origin_city->add_road_connexion(class_times, destination_city);
 #ifdef MULTI_THREAD
 						error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
 						assert(error == 0);
@@ -579,25 +606,13 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							continue;
 						}
 
-						uint16 straight_line_distance;
-						if (origin_city)
-						{
-							straight_line_distance = shortest_distance(origin_city->get_townhall_road(), k.get_2d());
-						}
-						else
-						{
-							straight_line_distance = shortest_distance(start.get_2d(), k.get_2d());
-						}
-						uint16 journey_time_per_tile;
-						if(straight_line_distance == 0)
-						{
-							journey_time_per_tile = 10;
-						}
-						else
-						{
-							journey_time_per_tile = tmp->g / straight_line_distance;
-						}
 						destination_industry = gb->get_fabrik();
+						const bool is_attraction = gb->is_attraction();
+						if (origin_city && (destination_industry != NULL || is_attraction) && !class_times_computed)
+						{
+							calc_private_car_class_times(welt, tmp, tdriver, max_khm, origin_city->get_townhall_road(), class_times);
+							class_times_computed = true;
+						}
 						if(destination_industry && origin_city)
 						{
 							// This is an industry
@@ -606,7 +621,7 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							assert(error == 0);
 							(void)error;
 #endif
-							origin_city->add_road_connexion(journey_time_per_tile, destination_industry);
+							origin_city->add_road_connexion(class_times, destination_industry);
 #ifdef MULTI_THREAD
 							error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
 							assert(error == 0);
@@ -620,14 +635,14 @@ bool route_t::find_route(karte_t *welt, const koord3d start, test_driver_t *tdri
 							}
 #endif
 						}
-						else if (origin_city && gb && gb->is_attraction())
+						else if (origin_city && is_attraction)
 						{
 #ifdef MULTI_THREAD
 							int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
 							assert(error == 0);
 							(void)error;
 #endif
-							origin_city->add_road_connexion(journey_time_per_tile, gb);
+							origin_city->add_road_connexion(class_times, gb);
 #ifdef MULTI_THREAD
 							error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
 							assert(error == 0);

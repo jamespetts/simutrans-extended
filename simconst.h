@@ -58,6 +58,12 @@
 // Maximum number of threads
 #define MAX_THREADS (12)
 
+// The maximum number of passenger wealth classes for which per-class private
+// car data is stored. A pakset which defines more passenger classes than this
+// is refused at load, because the saved road connexion times hold one entry per
+// class in a fixed-size array.
+#define MAX_PASSENGER_CLASSES (8)
+
 /*********************** Useful things for debugging ... ********************/
 
 /* will highlight marked areas and convoi will leave traces */

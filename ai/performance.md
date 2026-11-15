@@ -368,6 +368,13 @@ used. Full assessment: [path-explorer-optimisation](path-explorer-optimisation.m
   -debug ≥ 2): artefact or improvable? Steady-state route search is only ~1% self, so this is a
   post-load-wave problem, not a steady-state one; investigate with a Load-phase or
   immediate-post-load trace before touching the heuristic.
+- How much of the `check_road_connexions_threaded` cost is the private-car route
+  recording's per-class path walk? For every recorded destination the search walks
+  the path once and sums the journey time at each passenger class's average car
+  speed as well as at the global average speed used by the search; the route-map
+  backtrace is a separate walk. The recorded 1.5% thread-attribution figure does
+  not separate the per-class walk; measure with the canonical suite before
+  treating it as a small part of the route-check cost.
 - The ~30 startup tunnel-builder menu errors with pak128.Britain-Ex-0.9.4 on current master:
   possibly pakset/menuconf mismatch; worth investigating later
   [RECOLLECTION:2026-09-09 user: not now].

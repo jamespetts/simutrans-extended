@@ -166,7 +166,21 @@ public:
 	 */
 	static void build_timeline_list(karte_t *welt);
 	static bool list_empty();
-	static const citycar_desc_t *pick_citycar_desc();
+	/// Whether any car available in the current era is available to this
+	/// passenger wealth class. Consumes no random numbers.
+	static bool class_list_empty(uint8 g_class);
+	/// Picks a car type for this passenger wealth class from the era-filtered
+	/// pool of cars available to that class. Null if the class has no cars.
+	static const citycar_desc_t *pick_citycar_desc(uint8 g_class);
+	/// Picks a car type from the union of every class's pool, for callers
+	/// which have no passenger class (the map editor tool and the fallback
+	/// when a saved car's descriptor is no longer in the pakset).
+	static const citycar_desc_t *pick_any_citycar_desc();
+	/// Distribution-weighted mean top speed in km/h of the era-filtered cars
+	/// available to this class, or 0 if the class has none.
+	static sint32 get_average_speed(uint8 g_class);
+	/// Distribution-weighted mean top speed in km/h of every era-filtered car.
+	static sint32 get_average_speed();
 
 	static bool register_desc(const citycar_desc_t *desc);
 	static bool successfully_loaded();

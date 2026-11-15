@@ -6,6 +6,7 @@
 #include <string>
 #include "../../dataobj/tabfile.h"
 #include "../../simdebug.h"
+#include "../../tpl/vector_tpl.h"
 #include "obj_node.h"
 #include "text_writer.h"
 #include "imagelist_writer.h"
@@ -43,7 +44,39 @@ void citycar_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 {
 	int i;
 
-	obj_node_t node(this, 14, &parent);
+	// The passenger wealth classes for which this car is available, as a
+	// comma-separated list of integer class indices (0 is the lowest class).
+	// If the key is absent, the car is available to every class.
+	vector_tpl<uint8> available_classes(2);
+	{
+		const char *const class_list = obj.get_string("class", NULL);
+		if (class_list != NULL && *class_list != 0)
+		{
+			int *const classes = obj.get_ints("class");
+			const uint32 count = classes[0];
+			if (count > 255)
+			{
+				dbg->fatal(obj_writer_t::last_name, "class= lists %u classes; at most 255 are allowed", count);
+			}
+			for (uint32 c = 0; c < count; c++)
+			{
+				if (classes[c + 1] < 0 || classes[c + 1] > 255)
+				{
+					dbg->fatal(obj_writer_t::last_name, "class index %i is not a valid passenger class", classes[c + 1]);
+				}
+				available_classes.append((uint8)classes[c + 1]);
+			}
+			delete [] classes;
+		}
+		else if (class_list != NULL)
+		{
+			dbg->fatal(obj_writer_t::last_name, "class= is empty; omit the key to make the car available to all classes");
+		}
+	}
+
+	const uint32 class_count = available_classes.get_count();
+
+	obj_node_t node(this, 14 + 1 + class_count, &parent);
 
 	uint16 const dist_weight = obj.get_int("distributionweight", 1);
 
@@ -57,14 +90,20 @@ void citycar_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 
 	uint16 const topspeed = obj.get_int("speed", 80) * 16;
 
-	// new version with intro, obsolete dates and time-based comfort
-	node.write_uint16(fp, 0x8003,        0); // version information
+	// new version with intro, obsolete dates, time-based comfort and the
+	// passenger classes for which the car is available
+	node.write_uint16(fp, 0x8004,        0); // version information
 	node.write_uint16(fp, dist_weight,    2);
 	node.write_uint16(fp, topspeed,        4);
 	node.write_uint16(fp, intro_date,    6);
 	node.write_uint16(fp, retire_date, 8);
 	node.write_uint16(fp, read_citycar_time(obj, "maximum_comfortable_journey"), 10);
 	node.write_uint16(fp, read_citycar_time(obj, "maximum_tolerable_journey"), 12);
+	node.write_uint8(fp, (uint8)class_count, 14);
+	for (uint32 c = 0; c < class_count; c++)
+	{
+		node.write_uint8(fp, available_classes[c], 15 + c);
+	}
 
 	write_head(fp, node, obj);
 

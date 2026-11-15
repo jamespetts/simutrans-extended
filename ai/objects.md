@@ -9,6 +9,7 @@ verified: none
 ## Initial facts
 
 - `obj/simobj.h` is the widely-included tile-object base class [CODE].
+- City cars are `private_car_t` (vehicle/simroadtraffic.*), described by `citycar_desc_t` (descriptor/citycar_desc.h). The era-filtered, distribution-weighted type pools are built by `private_car_t::build_timeline_list`: one for each passenger wealth class, plus a union for callers with no class. A descriptor's classes come from the `class` key of its city-car `.dat` file; absent means every class. [CODE ex-15 @ 422122533 plus working-tree private-car class changes]
 - Pier descriptors/writers exist (`descriptor/pier_desc.*`, root `pier_writer.obj` artefact) — piers appear to be an Extended-specific object family [UNVERIFIED — verify inventory].
 
 ## Planned sections

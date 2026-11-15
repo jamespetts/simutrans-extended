@@ -1683,6 +1683,7 @@ DBG_DEBUG("karte_t::init()","built timeline");
 	recalc_average_speed(true);
 
 	// @author: jamespetts
+	set_citycar_speed_average();
 	calc_generic_road_time_per_tile_city();
 	calc_generic_road_time_per_tile_intercity();
 	calc_max_road_check_depth();
@@ -3417,6 +3418,12 @@ karte_t::karte_t() :
 	base_pathing_counter = 0;
 
 	citycar_speed_average = 50;
+	for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+	{
+		citycar_speed_average_by_class[g_class] = 50;
+		generic_road_time_per_tile_city[g_class] = UINT32_MAX_VALUE;
+		generic_road_time_per_tile_intercity[g_class] = UINT32_MAX_VALUE;
+	}
 
 	city_road = NULL;
 
@@ -6334,7 +6341,12 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 	const sint16 private_car_percent = wtyp == goods_manager_t::passengers ? get_private_car_ownership(get_timeline_year_month(), g_class) : 0;
 	// Only passengers have private cars
 	// QUERY: Should people be taken to be able to deliver mail packets in their own cars?
-	bool has_private_car = private_car_percent > 0 ? simrand(100, "karte_t::generate_passengers_and_mail() (has private car?)") <= (uint16)private_car_percent : false;
+	const bool car_ownership_draw = private_car_percent > 0 ? simrand(100, "karte_t::generate_passengers_and_mail() (has private car?)") <= (uint16)private_car_percent : false;
+	// A class with no car available in the current era cannot drive, however high
+	// the ownership percentage from privatecar.tab. The ownership draw above is
+	// still made whenever the percentage is non-zero, so the random sequence does
+	// not depend on which cars the pakset makes available.
+	bool has_private_car = car_ownership_draw && !private_car_t::class_list_empty(g_class);
 
 	// Pick the car type once for the whole packet, and only when the packet
 	// actually has access to a private car. The draw happens before the mode
@@ -6343,10 +6355,7 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 	const citycar_desc_t *packet_car_type = NULL;
 	if (has_private_car)
 	{
-		packet_car_type = private_car_t::pick_citycar_desc();
-		// TODO: Make the private car type choice class-based (by passenger wealth)
-		// rather than one type for the whole packet. This needs separate car-type
-		// pools per class in the pakset before it is viable.
+		packet_car_type = private_car_t::pick_citycar_desc(g_class);
 	}
 
 	// Record the most useful set of information about why passengers cannot reach their chosen destination:
@@ -7025,31 +7034,31 @@ sint32 karte_t::generate_passengers_or_mail(const goods_desc_t * wtyp)
 					//Town
 					if(city)
 					{
-						time_per_tile = city->check_road_connexion_to(current_destination.building->get_stadt());
+						time_per_tile = city->check_road_connexion_to(current_destination.building->get_stadt(), g_class);
 					}
 					else
 					{
 						// Going onward from an out of town attraction or industry to a city building - get route backwards.
 						if(current_destination.type == attraction)
 						{
-							time_per_tile = current_destination.building->get_stadt()->check_road_connexion_to(current_destination.building);
+							time_per_tile = current_destination.building->get_stadt()->check_road_connexion_to(current_destination.building, g_class);
 						}
 						else if(current_destination.type == factory)
 						{
-							time_per_tile = current_destination.building->get_stadt()->check_road_connexion_to(current_destination.building->get_fabrik());
+							time_per_tile = current_destination.building->get_stadt()->check_road_connexion_to(current_destination.building->get_fabrik(), g_class);
 						}
 					}
 					break;
 				case factory:
 					if(city) // Previous time per tile value used as default if the city is not available.
 					{
-						time_per_tile = city->check_road_connexion_to(current_destination.building->get_fabrik());
+						time_per_tile = city->check_road_connexion_to(current_destination.building->get_fabrik(), g_class);
 					}
 					break;
 				case attraction:
 					if(city) // Previous time per tile value used as default if the city is not available.
 					{
-						time_per_tile = city->check_road_connexion_to(current_destination.building);
+						time_per_tile = city->check_road_connexion_to(current_destination.building, g_class);
 					}
 					break;
 				default:
@@ -8620,27 +8629,30 @@ DBG_MESSAGE("karte_t::save(loadsave_t *file)", "saved messages");
 		// Existing values now saved in order to prevent network desyncs
 		file->rdwr_long(citycar_speed_average);
 		file->rdwr_bool(recheck_road_connexions);
+		// The single values are still written so that a save targeting an older
+		// revision stays loadable by it; class 0's values are used for them.
+		uint32 single_city_road_time = generic_road_time_per_tile_city[0];
+		uint32 single_intercity_road_time = generic_road_time_per_tile_intercity[0];
 		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
 		{
-			file->rdwr_long(generic_road_time_per_tile_city);
-			file->rdwr_long(generic_road_time_per_tile_intercity);
+			file->rdwr_long(single_city_road_time);
+			file->rdwr_long(single_intercity_road_time);
 		}
 		else
 		{
-			uint16 tmp = generic_road_time_per_tile_city < UINT32_MAX_VALUE ? (uint16)generic_road_time_per_tile_city : 65535;
+			uint16 tmp = single_city_road_time < UINT32_MAX_VALUE ? (uint16)single_city_road_time : 65535;
 			file->rdwr_short(tmp);
-			if (tmp == 65535)
-			{
-				generic_road_time_per_tile_city = UINT32_MAX_VALUE;
-			}
-			else
-			{
-				generic_road_time_per_tile_city = (uint32)tmp;
-			}
-
-			tmp = (uint16)generic_road_time_per_tile_intercity;
+			tmp = (uint16)single_intercity_road_time;
 			file->rdwr_short(tmp);
-			generic_road_time_per_tile_intercity = (uint32)tmp;
+		}
+		if (file->is_version_ex_atleast(15, 14))
+		{
+			for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+			{
+				file->rdwr_long(citycar_speed_average_by_class[g_class]);
+				file->rdwr_long(generic_road_time_per_tile_city[g_class]);
+				file->rdwr_long(generic_road_time_per_tile_intercity[g_class]);
+			}
 		}
 
 		file->rdwr_long(max_road_check_depth);
@@ -9748,6 +9760,10 @@ bool karte_t::load(const char *filename)
 
 		reset_timer();
 		recalc_average_speed(true);
+		// The average car speeds are derived from the pakset and the current
+		// timeline month, so recompute them from the timeline-filtered pools
+		// rather than keeping values computed by an older build.
+		set_citycar_speed_average();
 		mute_sound(false);
 
 		tool_t::update_toolbars();
@@ -10286,33 +10302,39 @@ DBG_MESSAGE("karte_t::load()", "%d factories loaded", fab_list.get_count());
 		// Existing values now saved in order to prevent network desyncs
 		file->rdwr_long(citycar_speed_average);
 		file->rdwr_bool(recheck_road_connexions);
+		uint32 single_city_road_time = UINT32_MAX_VALUE;
+		uint32 single_intercity_road_time = UINT32_MAX_VALUE;
 		if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
 		{
-			file->rdwr_long(generic_road_time_per_tile_city);
-			file->rdwr_long(generic_road_time_per_tile_intercity);
+			file->rdwr_long(single_city_road_time);
+			file->rdwr_long(single_intercity_road_time);
 		}
 		else
 		{
-			uint16 tmp = generic_road_time_per_tile_city < UINT32_MAX_VALUE ? (uint16)generic_road_time_per_tile_city : 65535;
+			uint16 tmp = 0;
 			file->rdwr_short(tmp);
-			if (tmp == 65535)
-			{
-				generic_road_time_per_tile_city = UINT32_MAX_VALUE;
-			}
-			else
-			{
-				generic_road_time_per_tile_city = (uint32)tmp;
-			}
-
-			tmp = generic_road_time_per_tile_intercity < UINT32_MAX_VALUE ? (uint16)generic_road_time_per_tile_intercity : 65535;
+			single_city_road_time = tmp == 65535 ? UINT32_MAX_VALUE : (uint32)tmp;
 			file->rdwr_short(tmp);
-			if (tmp == 65535)
+			single_intercity_road_time = tmp == 65535 ? UINT32_MAX_VALUE : (uint32)tmp;
+		}
+		if (file->is_version_ex_atleast(15, 14))
+		{
+			for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
 			{
-				generic_road_time_per_tile_intercity = UINT32_MAX_VALUE;
+				file->rdwr_long(citycar_speed_average_by_class[g_class]);
+				file->rdwr_long(generic_road_time_per_tile_city[g_class]);
+				file->rdwr_long(generic_road_time_per_tile_intercity[g_class]);
 			}
-			else
+		}
+		else
+		{
+			// Saves before revision 14 store one value per datum: apply it to
+			// every passenger class.
+			for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
 			{
-				generic_road_time_per_tile_intercity = (uint32)tmp;
+				citycar_speed_average_by_class[g_class] = citycar_speed_average;
+				generic_road_time_per_tile_city[g_class] = single_city_road_time;
+				generic_road_time_per_tile_intercity[g_class] = single_intercity_road_time;
 			}
 		}
 		file->rdwr_long(max_road_check_depth);
@@ -12173,21 +12195,25 @@ void karte_t::network_disconnect()
 
 void karte_t::set_citycar_speed_average()
 {
-	if(private_car_t::table.empty())
+	const uint8 class_count = min(MAX_PASSENGER_CLASSES, goods_manager_t::passengers->get_number_of_classes());
+
+	// A distribution-weighted mean over the cars available in the current
+	// timeline month, not over every car in the pakset.
+	citycar_speed_average = private_car_t::get_average_speed();
+	if (citycar_speed_average == 0)
 	{
 		// No city cars - use default speed.
 		citycar_speed_average = 50;
-		return;
 	}
-	sint32 vehicle_speed_sum = 0;
-	sint32 count = 0;
-	for(auto const& iter : private_car_t::table)
+
+	for (uint8 g_class = 0; g_class < class_count; g_class++)
 	{
-		// Take into account the *distribution_weight* of vehicles, too: fewer people have sports cars than Minis.
-		vehicle_speed_sum += (speed_to_kmh(iter.value->get_topspeed())) * iter.value->get_distribution_weight();
-		count += iter.value->get_distribution_weight();
+		const sint32 class_average = private_car_t::get_average_speed(g_class);
+		// A class with no car of its own has no private car journeys at all, so
+		// this value is only a placeholder; the global average keeps the
+		// arithmetic well defined.
+		citycar_speed_average_by_class[g_class] = class_average > 0 ? class_average : citycar_speed_average;
 	}
-	citycar_speed_average = vehicle_speed_sum / count;
 }
 
 void karte_t::calc_generic_road_time_per_tile_intercity()
@@ -12202,12 +12228,25 @@ void karte_t::calc_generic_road_time_per_tile_intercity()
 		// Hajo: try some default (might happen with timeline ... )
 		desc = way_builder_t::weg_search(road_wt, get_timeline_year_month(), 5, get_timeline_year_month(),type_flat, 25000000);
 	}
-	generic_road_time_per_tile_intercity = (uint16)calc_generic_road_time_per_tile(desc);
+	const uint8 class_count = min(MAX_PASSENGER_CLASSES, goods_manager_t::passengers->get_number_of_classes());
+	for (uint8 g_class = 0; g_class < class_count; g_class++)
+	{
+		generic_road_time_per_tile_intercity[g_class] = (uint16)calc_generic_road_time_per_tile(desc, g_class);
+	}
 }
 
-sint32 karte_t::calc_generic_road_time_per_tile(const way_desc_t* desc)
+void karte_t::calc_generic_road_time_per_tile_city()
 {
-	sint32 speed_average = citycar_speed_average;
+	const uint8 class_count = min(MAX_PASSENGER_CLASSES, goods_manager_t::passengers->get_number_of_classes());
+	for (uint8 g_class = 0; g_class < class_count; g_class++)
+	{
+		generic_road_time_per_tile_city[g_class] = calc_generic_road_time_per_tile(NULL, g_class);
+	}
+}
+
+sint32 karte_t::calc_generic_road_time_per_tile(const way_desc_t* desc, uint8 g_class)
+{
+	sint32 speed_average = g_class < MAX_PASSENGER_CLASSES ? citycar_speed_average_by_class[g_class] : citycar_speed_average;
 	if(desc)
 	{
 		const sint32 road_speed_limit = desc->get_topspeed();

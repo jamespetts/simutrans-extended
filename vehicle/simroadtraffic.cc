@@ -29,6 +29,7 @@
 #include "../boden/grund.h"
 #include "../boden/wege/weg.h"
 #include "../boden/wege/strasse.h"
+#include "../bauer/goods_manager.h"
 #include "../descriptor/citycar_desc.h"
 #include "../descriptor/roadsign_desc.h"
 
@@ -335,6 +336,11 @@ void road_user_t::finish_rd()
 /* private_car_t (city cars) from here on */
 
 
+// The era-filtered car-type pools, rebuilt by private_car_t::build_timeline_list():
+// one for each passenger wealth class, plus the union of all of them for callers
+// which have no passenger class.
+static weighted_vector_tpl<const citycar_desc_t*> *liste_timeline_by_class = NULL;
+static uint8 liste_timeline_class_count = 0;
 static weighted_vector_tpl<const citycar_desc_t*> liste_timeline;
 stringhashtable_tpl<const citycar_desc_t *, N_BAGS_MEDIUM> private_car_t::table;
 
@@ -375,8 +381,44 @@ static bool compare_stadtauto_desc(const citycar_desc_t* a, const citycar_desc_t
 
 void private_car_t::build_timeline_list(karte_t *welt)
 {
-	// this list will contain all citycars
 	liste_timeline.clear();
+
+	const uint8 class_count = goods_manager_t::passengers->get_number_of_classes();
+
+	// Check once, after the pakset has loaded, that every class index named by a
+	// citycar descriptor exists in the pakset: a typo would otherwise make the
+	// car available to no class at all.
+	static bool class_data_checked = false;
+	if (!class_data_checked)
+	{
+		class_data_checked = true;
+		for (auto const& i : table)
+		{
+			for (auto const g_class : i.value->get_available_classes())
+			{
+				if (g_class >= class_count)
+				{
+					dbg->warning("private_car_t::build_timeline_list", "%s is available to passenger class %u, but this pakset defines only %u passenger classes; the car will not be available to any class", i.value->get_name(), g_class, class_count);
+				}
+			}
+		}
+	}
+
+	if (liste_timeline_by_class == NULL || class_count != liste_timeline_class_count)
+	{
+		delete [] liste_timeline_by_class;
+		liste_timeline_by_class = new weighted_vector_tpl<const citycar_desc_t*>[class_count];
+		liste_timeline_class_count = class_count;
+	}
+	else
+	{
+		for (uint8 g_class = 0; g_class < class_count; g_class++)
+		{
+			liste_timeline_by_class[g_class].clear();
+		}
+	}
+
+	// this list will contain all citycars
 	vector_tpl<const citycar_desc_t*> temp_liste(0);
 	if(  !table.empty()  ) {
 		const int month_now = welt->get_current_month();
@@ -396,6 +438,13 @@ void private_car_t::build_timeline_list(karte_t *welt)
 	liste_timeline.resize( temp_liste.get_count() );
 	for(citycar_desc_t const* const i : temp_liste) {
 		liste_timeline.append(i, i->get_distribution_weight());
+		for (uint8 g_class = 0; g_class < class_count; g_class++)
+		{
+			if (i->is_available_to_class(g_class))
+			{
+				liste_timeline_by_class[g_class].append(i, i->get_distribution_weight());
+			}
+		}
 	}
 }
 
@@ -407,9 +456,61 @@ bool private_car_t::list_empty()
 }
 
 
-const citycar_desc_t *private_car_t::pick_citycar_desc()
+bool private_car_t::class_list_empty(uint8 g_class)
+{
+	return liste_timeline_by_class == NULL || g_class >= liste_timeline_class_count || liste_timeline_by_class[g_class].empty();
+}
+
+
+const citycar_desc_t *private_car_t::pick_citycar_desc(uint8 g_class)
+{
+	if (class_list_empty(g_class))
+	{
+		return NULL;
+	}
+	return pick_any_weighted(liste_timeline_by_class[g_class]);
+}
+
+
+const citycar_desc_t *private_car_t::pick_any_citycar_desc()
 {
 	return liste_timeline.empty() ? NULL : pick_any_weighted(liste_timeline);
+}
+
+
+// A weighted_vector_tpl stores the weight of each element as the length of the
+// half-open interval between its cumulative weight and the next entry's.
+static sint32 get_weighted_average_speed(const weighted_vector_tpl<const citycar_desc_t*> &list)
+{
+	if (list.empty())
+	{
+		return 0;
+	}
+	sint64 speed_sum = 0;
+	uint32 weight_sum = 0;
+	for (uint32 i = 0; i < list.get_count(); i++)
+	{
+		const uint32 weight = (i + 1 < list.get_count() ? list.weight_at(i + 1) : list.get_sum_weight()) - list.weight_at(i);
+		if (weight == 0)
+		{
+			continue;
+		}
+		speed_sum += (sint64)speed_to_kmh(list[i]->get_topspeed()) * (sint64)weight;
+		weight_sum += weight;
+	}
+	return weight_sum == 0 ? 0 : (sint32)(speed_sum / (sint64)weight_sum);
+}
+
+
+sint32 private_car_t::get_average_speed(uint8 g_class)
+{
+	return class_list_empty(g_class) ? 0 : get_weighted_average_speed(liste_timeline_by_class[g_class]);
+}
+
+
+sint32 private_car_t::get_average_speed()
+{
+	return get_weighted_average_speed(liste_timeline);
 }
 
 

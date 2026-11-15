@@ -34,6 +34,13 @@ verified: none
   unchanged `rule_t::rdwr`/`stadt_t::cityrules_rdwr` path.
   [CODE master @ 206db8379; EXECUTION-VERIFIED:2026-09-18]
 
+## Private cars
+
+- Car ownership is per passenger wealth class: `karte_t::get_private_car_ownership(monthyear, g_class)` interpolates that class's series from `config/privatecar.tab` (`car_ownership[class]`), falling back to the single untagged `car_ownership` series; with no data, the highest class of a multi-class pakset has 100% ownership and the others use `default_car_ownership_percent`. [CODE ex-15 @ 422122533]
+- `karte_t::generate_passengers_or_mail` draws one car type per packet that has access to a private car, before the mode choice, from the era-filtered, distribution-weighted pool for the packet's class (`private_car_t::pick_citycar_desc(g_class)`). A class whose pool is empty makes no private car journeys, whatever its ownership percentage. [CODE ex-15 @ 422122533 plus working-tree private-car class changes]
+- The pools are rebuilt monthly by `private_car_t::build_timeline_list` from the city-car descriptors the timeline makes available. Each descriptor's available classes come from the `class` key of its `.dat` file (comma-separated integer class indices, 0 lowest); a descriptor without the key is available to every class. [CODE ex-15 @ 422122533 plus working-tree private-car class changes]
+- Private car journey times are per class: a journey whose destination is the origin city uses the generic road time per tile at that class's average speed, and a routed journey to another city or to an industry or attraction uses the time recorded for each class along the actual road route. The model and its storage: [comfort-routing-integration](path-explorer-optimisation/comfort-routing-integration.md).
+
 ## Performance hotspots
 
 Measured on the gargantuan fixture (method and full inventory: [performance](performance.md))

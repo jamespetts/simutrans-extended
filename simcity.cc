@@ -1917,6 +1917,55 @@ stadt_t::stadt_t(loadsave_t* file) :
 }
 
 
+// Reads or writes one road connexion's journey time per straight-line tile, in
+// hundredths of a minute, for every passenger wealth class. Saves from before
+// extended revision 14 store a single value, which then applies to every class.
+static void rdwr_connexion_times(loadsave_t *file, uint32 *times, uint8 stored_classes)
+{
+	if (file->is_version_ex_atleast(15, 14))
+	{
+		for (uint16 g_class = 0; g_class < stored_classes; g_class++)
+		{
+			uint32 time = g_class < MAX_PASSENGER_CLASSES ? times[g_class] : 0;
+			file->rdwr_long(time);
+			if (g_class < MAX_PASSENGER_CLASSES)
+			{
+				times[g_class] = time;
+			}
+		}
+		if (file->is_loading() && stored_classes < MAX_PASSENGER_CLASSES)
+		{
+			// A save written with a pakset that defines fewer classes than the
+			// current one gives the classes it does not store the last value.
+			const uint32 last_time = stored_classes > 0 ? times[stored_classes - 1] : UINT32_MAX_VALUE;
+			for (uint8 g_class = stored_classes; g_class < MAX_PASSENGER_CLASSES; g_class++)
+			{
+				times[g_class] = last_time;
+			}
+		}
+	}
+	else if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
+	{
+		uint32 time = times[0];
+		file->rdwr_long(time);
+		for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+		{
+			times[g_class] = time;
+		}
+	}
+	else
+	{
+		uint16 time = file->is_saving() ? (times[0] < UINT32_MAX_VALUE ? (uint16)times[0] : 65535) : 0;
+		file->rdwr_short(time);
+		const uint32 single_time = time == 65535 ? UINT32_MAX_VALUE : (uint32)time;
+		for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+		{
+			times[g_class] = single_time;
+		}
+	}
+}
+
+
 void stadt_t::rdwr(loadsave_t* file)
 {
 	sint32 owner_n;
@@ -2348,32 +2397,23 @@ void stadt_t::rdwr(loadsave_t* file)
 
 	if(file->is_saving() && file->get_extended_version() >=9 && file->is_version_atleast(110, 0))
 	{
-		uint32 time;
 		koord k;
 		uint32 count;
+		uint8 stored_classes = 0;
+		if (file->is_version_ex_atleast(15, 14))
+		{
+			// The number of per-class journey times stored for each connexion;
+			// the same for every entry, so written once for the city.
+			stored_classes = min(MAX_PASSENGER_CLASSES, goods_manager_t::passengers->get_number_of_classes());
+			file->rdwr_byte(stored_classes);
+		}
 
 		count = connected_cities.get_count();
 		file->rdwr_long(count);
 		for(auto const city_iter : connected_cities)
 		{
-			time = city_iter.value;
-			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
-			{
-				file->rdwr_long(time);
-			}
-			else
-			{
-				uint16 t;
-				if (time == UINT32_MAX_VALUE)
-				{
-					t = 65535;
-				}
-				else
-				{
-					t = (uint16)time;
-				}
-				file->rdwr_short(t);
-			}
+			connexion_time_t time = city_iter.value;
+			rdwr_connexion_times(file, time.per_class, stored_classes);
 			k = city_iter.key;
 			k.rdwr(file);
 		}
@@ -2383,24 +2423,8 @@ void stadt_t::rdwr(loadsave_t* file)
 
 		for(auto const industry_iter : connected_industries)
 		{
-			time = industry_iter.value;
-			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
-			{
-				file->rdwr_long(time);
-			}
-			else
-			{
-				uint16 t;
-				if (time == UINT32_MAX_VALUE)
-				{
-					t = 65535;
-				}
-				else
-				{
-					t = (uint16)time;
-				}
-				file->rdwr_short(t);
-			}
+			connexion_time_t time = industry_iter.value;
+			rdwr_connexion_times(file, time.per_class, stored_classes);
 			k = industry_iter.key;
 			k.rdwr(file);
 		}
@@ -2409,24 +2433,8 @@ void stadt_t::rdwr(loadsave_t* file)
 		file->rdwr_long(count);
 		for(auto attraction_iter : connected_attractions)
 		{
-			time = attraction_iter.value;
-			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
-			{
-				file->rdwr_long(time);
-			}
-			else
-			{
-				uint16 t;
-				if (time == UINT32_MAX_VALUE)
-				{
-					t = 65535;
-				}
-				else
-				{
-					t = (uint16)time;
-				}
-				file->rdwr_short(t);
-			}
+			connexion_time_t time = attraction_iter.value;
+			rdwr_connexion_times(file, time.per_class, stored_classes);
 			k = attraction_iter.key;
 			k.rdwr(file);
 		}
@@ -2453,32 +2461,22 @@ void stadt_t::rdwr(loadsave_t* file)
 		connected_attractions.clear();
 		if(file->get_extended_version() >=9 && file->is_version_atleast(110, 0) )
 		{
-			uint32 time;
 			koord k;
 			uint32 count;
+			uint8 stored_classes = 0;
+			if (file->is_version_ex_atleast(15, 14))
+			{
+				// The number of per-class journey times stored for each connexion;
+				// the same for every entry, so stored once for the city.
+				file->rdwr_byte(stored_classes);
+			}
 
 			// Cities
 			file->rdwr_long(count);
 			for(uint32 x = 0; x < count; x ++)
 			{
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
-				{
-					file->rdwr_long(time);
-				}
-				else
-				{
-					uint16 t;
-					file->rdwr_short(t);
-					if (t == 65535)
-					{
-						time = UINT32_MAX_VALUE;
-					}
-					else
-					{
-						time = (uint32)t;
-					}
-				}
-
+				connexion_time_t time;
+				rdwr_connexion_times(file, time.per_class, stored_classes);
 				k.rdwr(file);
 				connected_cities.put(k, time);
 			}
@@ -2488,23 +2486,8 @@ void stadt_t::rdwr(loadsave_t* file)
 			file->rdwr_long(count);
 			for(uint32 x = 0; x < count; x ++)
 			{
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
-				{
-					file->rdwr_long(time);
-				}
-				else
-				{
-					uint16 t;
-					file->rdwr_short(t);
-					if (t == 65535)
-					{
-						time = UINT32_MAX_VALUE;
-					}
-					else
-					{
-						time = (uint32)t;
-					}
-				}
+				connexion_time_t time;
+				rdwr_connexion_times(file, time.per_class, stored_classes);
 				k.rdwr(file);
 				connected_industries.put(k, time);
 			}
@@ -2514,23 +2497,8 @@ void stadt_t::rdwr(loadsave_t* file)
 			file->rdwr_long(count);
 			for(uint32 x = 0; x < count; x ++)
 			{
-				if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
-				{
-					file->rdwr_long(time);
-				}
-				else
-				{
-					uint16 t;
-					file->rdwr_short(t);
-					if (t == 65535)
-					{
-						time = UINT32_MAX_VALUE;
-					}
-					else
-					{
-						time = (uint32)t;
-					}
-				}
+				connexion_time_t time;
+				rdwr_connexion_times(file, time.per_class, stored_classes);
 				k.rdwr(file);
 				connected_attractions.put(k, time);
 			}
@@ -2662,12 +2630,12 @@ void stadt_t::rotate90( const sint16 y_size )
 	swap<PIXVAL>( pax_destinations_temp, pax_destinations_old );
 
 	vector_tpl<koord> k_list(connected_cities.get_count());
-	vector_tpl<uint32> f_list(connected_cities.get_count());
+	vector_tpl<connexion_time_t> f_list(connected_cities.get_count());
 
 	for (connexion_map::iterator iter = connected_cities.begin(); iter != connected_cities.end(); )
 	{
 		koord k = iter->key;
-		uint32 f = iter->value;
+		connexion_time_t f = iter->value;
 		iter = connected_cities.erase(iter);
 		k.rotate90(y_size);
 		k_list.append(k);
@@ -2685,7 +2653,7 @@ void stadt_t::rotate90( const sint16 y_size )
 	for (connexion_map::iterator iter = connected_industries.begin(); iter != connected_industries.end(); )
 	{
 		koord k = iter->key;
-		uint32 f = iter->value;
+		connexion_time_t f = iter->value;
 		iter = connected_industries.erase(iter);
 		k.rotate90(y_size);
 		k_list.append(k);
@@ -2703,7 +2671,7 @@ void stadt_t::rotate90( const sint16 y_size )
 	for (connexion_map::iterator iter = connected_attractions.begin(); iter != connected_attractions.end(); )
 	{
 		koord k = iter->key;
-		uint32 f = iter->value;
+		connexion_time_t f = iter->value;
 		iter = connected_attractions.erase(iter);
 		k.rotate90(y_size);
 		k_list.append(k);
@@ -3292,18 +3260,18 @@ void stadt_t::step_grow_city(bool new_town, bool map_generation)
 }
 
 
-uint32 stadt_t::check_road_connexion_to(stadt_t* city) const
+uint32 stadt_t::check_road_connexion_to(stadt_t* city, uint8 g_class) const
 {
 	if(welt->get_settings().get_assume_everywhere_connected_by_road())
 	{
-		const uint32 journey_time_per_tile = city == this ? welt->get_generic_road_time_per_tile_city() : welt->get_generic_road_time_per_tile_intercity();
+		const uint32 journey_time_per_tile = city == this ? welt->get_generic_road_time_per_tile_city(g_class) : welt->get_generic_road_time_per_tile_intercity(g_class);
 		// With this setting, we add congestion factoring at a later stage.
 		return journey_time_per_tile;
 	}
 
 	if(connected_cities.is_contained(city->get_pos()))
 	{
-		const uint32 journey_time_per_tile = connected_cities.get(city->get_pos());
+		const uint32 journey_time_per_tile = connected_cities.get(city->get_pos()).per_class[g_class];
 		if(city != this || journey_time_per_tile < UINT32_MAX_VALUE)
 		{
 			return journey_time_per_tile;
@@ -3315,7 +3283,7 @@ uint32 stadt_t::check_road_connexion_to(stadt_t* city) const
 		// Should always be possible to travel within the city.
 		const grund_t* gr = welt->lookup_kartenboden(townhall_road);
 		const weg_t* road = gr ? gr->get_weg(road_wt) : NULL;
-		const uint32 journey_time_per_tile = road ? road->get_desc() == welt->get_city_road() ? welt->get_generic_road_time_per_tile_city() : welt->calc_generic_road_time_per_tile(road->get_desc()) : welt->get_generic_road_time_per_tile_city();
+		const uint32 journey_time_per_tile = road ? road->get_desc() == welt->get_city_road() ? welt->get_generic_road_time_per_tile_city(g_class) : welt->calc_generic_road_time_per_tile(road->get_desc(), g_class) : welt->get_generic_road_time_per_tile_city(g_class);
 		// The below is not network safe.
 		//connected_cities.put(pos, journey_time_per_tile);
 		return journey_time_per_tile;
@@ -3326,26 +3294,26 @@ uint32 stadt_t::check_road_connexion_to(stadt_t* city) const
 	}
 }
 
-uint32 stadt_t::check_road_connexion_to(const fabrik_t* industry) const
+uint32 stadt_t::check_road_connexion_to(const fabrik_t* industry, uint8 g_class) const
 {
 	stadt_t* city = industry->get_city();
 
 	if(welt->get_settings().get_assume_everywhere_connected_by_road())
 	{
 		// With this setting, we add congestion factoring at a later stage.
-		return city && city == this ? welt->get_generic_road_time_per_tile_city() : welt->get_generic_road_time_per_tile_intercity();
+		return city && city == this ? welt->get_generic_road_time_per_tile_city(g_class) : welt->get_generic_road_time_per_tile_intercity(g_class);
 	}
 
 	if(connected_industries.is_contained(industry->get_pos().get_2d()))
 	{
-		return connected_industries.get(industry->get_pos().get_2d());
+		return connected_industries.get(industry->get_pos().get_2d()).per_class[g_class];
 	}
 
 	if(city)
 	{
 		// If an industry is in a city, presume that it is connected
 		// if the city is connected. Do not presume the converse.
-		const uint32 time_to_city = check_road_connexion_to(city);
+		const uint32 time_to_city = check_road_connexion_to(city, g_class);
 		if(time_to_city < UINT32_MAX_VALUE)
 		{
 			return time_to_city;
@@ -3356,24 +3324,24 @@ uint32 stadt_t::check_road_connexion_to(const fabrik_t* industry) const
 }
 
 
-uint32 stadt_t::check_road_connexion_to(const gebaeude_t* attraction) const
+uint32 stadt_t::check_road_connexion_to(const gebaeude_t* attraction, uint8 g_class) const
 {
 	if(welt->get_settings().get_assume_everywhere_connected_by_road())
 	{
 		// 1km/h = 0.06 minutes per meter. To get 100ths of minutes per meter, therefore, multiply the speed by 6.
 		// With this setting, we add congestion factoring at a later stage.
-		return welt->get_generic_road_time_per_tile_intercity() * 6;
+		return welt->get_generic_road_time_per_tile_intercity(g_class) * 6;
 	}
 
 	const koord pos = attraction->get_pos().get_2d();
 	if(connected_attractions.is_contained(pos))
 	{
-		return connected_attractions.get(pos);
+		return connected_attractions.get(pos).per_class[g_class];
 	}
 	// If this attraction is in a city, assume it to be connected to the same extent as the rest of the city.
 	else if (attraction->get_stadt())
 	{
-		return check_road_connexion_to(attraction->get_stadt());
+		return check_road_connexion_to(attraction->get_stadt(), g_class);
 	}
 	/*else
 	{
@@ -3381,27 +3349,42 @@ uint32 stadt_t::check_road_connexion_to(const gebaeude_t* attraction) const
 		stadt_t* city = welt->get_city(pos);
 		if (city)
 		{
-			return check_road_connexion_to(city);
+			return check_road_connexion_to(city, g_class);
 		}
 	}*/
 
 	return UINT32_MAX_VALUE;
 }
 
-void stadt_t::add_road_connexion(uint32 journey_time_per_tile, const stadt_t* city)
+void stadt_t::add_road_connexion(const uint32 (&journey_time_per_tile)[MAX_PASSENGER_CLASSES], const stadt_t* city)
 {
-	connected_cities.set(city->get_pos(), journey_time_per_tile);
+	connexion_time_t times;
+	for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+	{
+		times.per_class[g_class] = journey_time_per_tile[g_class];
+	}
+	connected_cities.set(city->get_pos(), times);
 }
 
-void stadt_t::add_road_connexion(uint32 journey_time_per_tile, const fabrik_t* industry)
+void stadt_t::add_road_connexion(const uint32 (&journey_time_per_tile)[MAX_PASSENGER_CLASSES], const fabrik_t* industry)
 {
-	connected_industries.set(industry->get_pos().get_2d(), journey_time_per_tile);
+	connexion_time_t times;
+	for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+	{
+		times.per_class[g_class] = journey_time_per_tile[g_class];
+	}
+	connected_industries.set(industry->get_pos().get_2d(), times);
 }
 
-void stadt_t::add_road_connexion(uint32 journey_time_per_tile, const gebaeude_t* attraction)
+void stadt_t::add_road_connexion(const uint32 (&journey_time_per_tile)[MAX_PASSENGER_CLASSES], const gebaeude_t* attraction)
 {
+	connexion_time_t times;
+	for (uint8 g_class = 0; g_class < MAX_PASSENGER_CLASSES; g_class++)
+	{
+		times.per_class[g_class] = journey_time_per_tile[g_class];
+	}
 	const koord3d attraction_pos = attraction->get_pos();
-	connected_attractions.set(attraction_pos.get_2d(), journey_time_per_tile);
+	connected_attractions.set(attraction_pos.get_2d(), times);
 
 	// Add all tiles of an attraction here.
 	if(!attraction->get_tile() || attraction_pos == koord3d::invalid)
@@ -3424,7 +3407,7 @@ void stadt_t::add_road_connexion(uint32 journey_time_per_tile, const gebaeude_t*
 				// there may be buildings with holes
 				if(gb_part && gb_part->get_tile()->get_desc() == bdsc)
 				{
-					connected_attractions.set(gb_part->get_pos().get_2d(), journey_time_per_tile);
+					connected_attractions.set(gb_part->get_pos().get_2d(), times);
 				}
 			}
 		}

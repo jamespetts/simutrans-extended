@@ -227,7 +227,7 @@ Consideration would have to be given to which industries get access to private v
 
 One imagines that the individual vans would be defined in similar ways to individual private cars (there are already some horse drawn cart graphics for private cars that would be more appropriately used as vans), although care would have to be taken to ensure that each category of goods has its own appropriate private van type, which might involve quite a lot of additional work.
 
-## Different private cars for different levels of passenger wealth
+## Different private cars for different levels of passenger wealth <15>
 
 Currently, although the rate of private car ownership varies with wealth, the actual private car graphics (and their speed, which affects the speed at which passengers can travel by private car) does not.
 
@@ -235,7 +235,7 @@ It would be good if there could be different sets of private cars separate by we
 
 Because this would involve a considerable amount of pakset work to implement, and would mostly be of cosmetic significance, this is currently a very low priority task; but anyone who has a passion for motor cars and a willingness to model (or import) a large number of motor car graphics for all levels of wealth through all time periods would be welcome to work on this.
 
-Car comfort ratings and per-packet car-type selection, which wealth-specific pools would extend: → [comfort-routing](path-explorer-optimisation/comfort-routing.md).
+On the ex-15 branch, each city-car descriptor lists the wealth classes for which it is available in its `class` key (absent means every class), the car type is drawn from the pool of cars available to the packet's passenger wealth class, and private car journey times are computed with each class's own average speed: → [comfort-routing](path-explorer-optimisation/comfort-routing.md).
 
 ## Route explorer UI
 

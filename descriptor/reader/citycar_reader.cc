@@ -70,6 +70,15 @@ obj_desc_t * citycar_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 			desc->maximum_comfortable_journey = decode_uint16(p);
 			desc->maximum_tolerable_journey = decode_uint16(p);
 		}
+		if(version >= 4) {
+			// Version 4 appended the passenger wealth classes for which the car
+			// is available: an 8-bit count followed by that many class indices.
+			const uint8 class_count = decode_uint8(p);
+			for (uint8 i = 0; i < class_count; i++)
+			{
+				desc->available_classes.append(decode_uint8(p));
+			}
+		}
 	}
 	else {
 		// Unversioned node: the first value is the distribution weight.

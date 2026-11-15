@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree max_tolerable_walk changes (2026-11-14)
+verified: ex-15 @ 422122533 plus working-tree private-car class changes (2026-11-15)
 ---
 # Comfort influenced routing: integration
 
@@ -335,16 +335,57 @@ Private cars have `maximum_comfortable_journey` and
 `maximum_tolerable_journey`. Where neither is specified, they default to 180
 minutes comfortable and `maximum_comfortable_journey * 3` tolerable. The car
 journey uses the same curve; a journey above `maximum_tolerable_journey` makes the
-car unavailable. The car type is drawn exactly once per packet that has access to
-a private car (`has_private_car` in
-`karte_t::generate_passengers_and_mail`), before the mode choice, from the
-era-constrained pool. The draw must not depend on the mode outcome, so every peer
-consumes the same random values. The chosen type is passed to every spawned car
-and to the return trip. A packet without access does not draw a type.
+car unavailable.
 
-Future work: separate car-type pools by wealth class, when the graphics and
-pakset data exist. A TODO at the draw site records this. Do not add it until those
-assets exist; it would be unplanned provision without them.
+Each city-car descriptor (`citycar_desc_t`) may list the passenger wealth classes
+for which it is available, as integer class indices in the `class` key of its
+`.dat` file (0 is the lowest class; for example `class=0,1,2`). A descriptor
+without the key is available to every class. `private_car_t::build_timeline_list`
+builds one distribution-weighted pool for each class from the cars the timeline
+makes available, plus a union pool for callers that have no class (the map
+editor's add-citycar tool and the fallback when a saved car's descriptor has left
+the pakset). A class with an empty pool has no private car journeys, whatever its
+ownership percentage in `config/privatecar.tab`.
+
+The car type is drawn exactly once per packet that has access to a private car
+(`has_private_car` in `karte_t::generate_passengers_or_mail`), from the pool for
+the packet's class, before the mode choice. The draw does not depend on the mode
+outcome, so every peer consumes the same random values. The chosen type is passed
+to every spawned car and to the return trip. A packet without access does not
+draw a type.
+
+Private car journey times are also per class, and come from one of two estimates.
+
+A journey whose destination is the origin city itself is not routed:
+`karte_t::calc_generic_road_time_per_tile` supplies a time per tile at the class's
+average car speed, capped by the city road or town road speed limit and then
+reduced by one third, because a car journey does not follow a straight line and a
+car does not maintain its top speed. Every journey uses the same generic estimate
+when `assume_everywhere_connected_by_road` is enabled: the city value within a
+city, the intercity value between cities, and six times the intercity value for
+an attraction.
+
+Journeys to another city, and to an industry or attraction, use the private car
+route search (`stadt_t::check_all_private_car_routes`) when it recorded a route.
+The search follows the actual road route and records, for each destination it
+reaches, the route's time divided by the straight-line distance to the
+destination, so the stored value is a time per straight-line tile;
+`karte_t::generate_passengers_or_mail` multiplies it by the straight-line distance
+to obtain the journey time. On each tile of the route the cost is the tile
+distance divided by the minimum of the class's average speed and the road speed
+limit, with that minimum reduced by congestion, and the search's
+speed-independent turn penalties are added to every class's total. The recorded
+route itself is chosen using the single global average speed, so every class
+shares one turn-by-turn route map. The recorded times are stored per class in the
+origin city's road connexion tables (`connected_cities`, `connected_industries`
+and `connected_attractions`), keyed by destination, and are saved with the game.
+An industry or attraction in a city for which no route was recorded falls back to
+the value for that city.
+
+In both estimates the class average speed is distribution-weighted over the cars
+the timeline makes available to that class. The per-class times are saved with
+the city's connexion data; a save that does not contain them gives every class
+the single stored value until the city's routes are next recorded.
 
 ## Implementation status
 
@@ -362,6 +403,9 @@ assets exist; it would be unplanned provision without them.
 - The walking comfort cost covers the stored walking edges, the choice of start
   and destination halt and the all-walking mode comparison.
 - Boarding, rerouting and the runtime give-up are updated.
+- The city-car `class` key, the era-filtered per-class car-type pools, the
+  per-class average speeds and the per-class road connexion times are implemented,
+  with the per-class savegame data.
 - The stop tooltip and comfort-capacity display, the pair of line/consist charts
   and the dark-blue adjusted times are implemented; comfort is removed from fares.
 - Test: unit and Squirrel scripting checks for the curve, conversion, capacity

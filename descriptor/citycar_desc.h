@@ -12,6 +12,7 @@
 #include "../dataobj/ribi.h"
 #include "../simtypes.h"
 #include "../network/checksum.h"
+#include "../tpl/vector_tpl.h"
 
 
 /**
@@ -36,6 +37,10 @@ class citycar_desc_t : public obj_desc_timelined_t {
 	uint16 maximum_comfortable_journey = 0;
 	uint16 maximum_tolerable_journey = 0;
 
+	// The passenger wealth classes for which this car is available, as integer
+	// class indices (0 is the lowest class). Empty means all classes.
+	vector_tpl<uint8> available_classes;
+
 public:
 	image_id get_image_id(ribi_t::dir dir) const
 	{
@@ -47,6 +52,16 @@ public:
 
 	/// topspeed in internal speed units !!! not km/h!!!
 	uint16 get_topspeed() const { return topspeed; }
+
+	/// Whether passengers of this wealth class can travel in this car.
+	bool is_available_to_class(uint8 g_class) const
+	{
+		return available_classes.empty() || available_classes.is_contained(g_class);
+	}
+
+	/// The passenger wealth classes for which this car is available; empty
+	/// means every class.
+	const vector_tpl<uint8> &get_available_classes() const { return available_classes; }
 
 	uint16 get_maximum_comfortable_journey() const
 	{
@@ -65,6 +80,12 @@ public:
 		chk->input(topspeed);
 		chk->input(maximum_comfortable_journey);
 		chk->input(maximum_tolerable_journey);
+		const uint32 class_count = available_classes.get_count();
+		chk->input(class_count);
+		for (auto const g_class : available_classes)
+		{
+			chk->input(g_class);
+		}
 	}
 };
 

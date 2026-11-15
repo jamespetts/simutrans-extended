@@ -262,8 +262,13 @@ private:
 	// Hashtable of all cities/attractions/industries connected by road from this city.
 	// Key: city (etc.) location
 	// Value: journey time per tile (equiv. straight line distance)
-	// (in 10ths of minutes); UINT32_MAX_VALUE = unreachable.
-	typedef koordhashtable_tpl<koord, uint32, N_BAGS_MEDIUM> connexion_map;
+	// (in 100ths of minutes) for each passenger wealth class;
+	// UINT32_MAX_VALUE = unreachable.
+	struct connexion_time_t
+	{
+		uint32 per_class[MAX_PASSENGER_CLASSES];
+	};
+	typedef koordhashtable_tpl<koord, connexion_time_t, N_BAGS_MEDIUM> connexion_map;
 	connexion_map connected_cities;
 	connexion_map connected_industries;
 	connexion_map connected_attractions;
@@ -636,18 +641,18 @@ public:
 
 	void new_month();
 
-	void add_road_connexion(uint32 journey_time_per_tile, const stadt_t* city);
-	void add_road_connexion(uint32 journey_time_per_tile, const fabrik_t* industry);
-	void add_road_connexion(uint32 journey_time_per_tile, const gebaeude_t* attraction);
+	void add_road_connexion(const uint32 (&journey_time_per_tile)[MAX_PASSENGER_CLASSES], const stadt_t* city);
+	void add_road_connexion(const uint32 (&journey_time_per_tile)[MAX_PASSENGER_CLASSES], const fabrik_t* industry);
+	void add_road_connexion(const uint32 (&journey_time_per_tile)[MAX_PASSENGER_CLASSES], const gebaeude_t* attraction);
 
 	void check_all_private_car_routes();
 
 	// Checks to see whether this town is connected
 	// by road to each other town.
 	// @author: jamespetts, April 2010
-	uint32 check_road_connexion_to(stadt_t* city) const;
-	uint32 check_road_connexion_to(const fabrik_t* industry) const;
-	uint32 check_road_connexion_to(const gebaeude_t* attraction) const;
+	uint32 check_road_connexion_to(stadt_t* city, uint8 g_class) const;
+	uint32 check_road_connexion_to(const fabrik_t* industry, uint8 g_class) const;
+	uint32 check_road_connexion_to(const gebaeude_t* attraction, uint8 g_class) const;
 
 	void generate_private_cars(koord pos, uint32 journey_tenths_of_minutes, koord target, uint8 number_of_passengers, const citycar_desc_t *car_type);
 

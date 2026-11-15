@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree max_tolerable_walk changes (2026-11-14)
+verified: ex-15 @ 422122533 plus working-tree private-car class changes (2026-11-15)
 ---
 # Comfort influenced routing (design)
 
@@ -102,9 +102,10 @@ The design uses:
 - **Related behaviour changes.** Comfort is removed from fares directly.
   Passengers are discarded on the maximum tolerable waiting time. Private cars use
   the two time values, not comfort points. The car type is drawn once per packet that has
-  access to a private car, before the mode choice, and the same type is used for
-  the packet's return trip [RECOLLECTION:2026-11-08]. Separate private-car pools
-  by wealth class are future work requiring more graphics and pakset data.
+  access to a private car, before the mode choice, from the era-filtered pool of
+  cars available to the packet's passenger wealth class, and the same type is used
+  for the packet's return trip [RECOLLECTION:2026-11-08]. A class with no car in
+  the current era has no private car journeys.
 
 ## Implementation status
 
@@ -150,8 +151,20 @@ Implemented:
   times;
 - private-car mode choice uses the drawn car type's comfortable and tolerable
   journey times; the type is drawn once per packet that has access to a private
-  car, before the mode choice, and the same type is used for the packet's cars
-  and return trip;
+  car, before the mode choice, from the pool of cars available to that packet's
+  passenger wealth class, and the same type is used for the packet's cars and
+  return trip;
+- private-car journey times are per passenger wealth class, from two estimates.
+  A journey whose destination is the origin city itself, and every journey when
+  `assume_everywhere_connected_by_road` is enabled, uses
+  `karte_t::calc_generic_road_time_per_tile`: a time per tile at the class's
+  average car speed capped by the city road or town road speed limit and then
+  reduced by one third, because journeys do not follow straight lines and cars do
+  not maintain top speed. Journeys to another city, or to an industry or
+  attraction, use the private car route search's recorded time per straight-line
+  tile, summed along the actual road route with each tile's cost at the minimum
+  of the class's average car speed and the road speed limit. The class average is
+  distribution-weighted over the cars the timeline makes available to that class;
 - the comfort cost curve is a `settings_t` method shared by the path explorer and
   the private-car mode choice;
 - comfort-point times derived on demand from the current settings, so the depot
@@ -260,12 +273,6 @@ Remaining:
 - Squirrel scripting tests and pakset calibration (checking the shipped time
   values against realistic journeys);
 - preventing a save to the older 15.10 format while comfort routing is on.
-
-Future work:
-
-- class-based private-car type selection, recorded as a TODO in
-  `karte_t::generate_passengers_and_mail`; it needs separate car-type pools per
-  class in the pakset before it is viable.
 
 ## Open questions
 
