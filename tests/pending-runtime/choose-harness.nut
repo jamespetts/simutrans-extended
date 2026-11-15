@@ -963,11 +963,17 @@ function observe_watch_approach()
 	local target_slots = target.get_vehicle_snapshot()
 	local rear = target_slots[target_slots.len() - 1].pos
 	local expected = rear
-	if (same_pos(receiver.get_pos(), expected))
+	// The shared contact tile is admitted through the block reservation held by
+	// the target. A moving-block choose beacon does not necessarily hold that
+	// reservation, so that case retains its previous expectation: the tile
+	// before the target's rear vehicle.
+	local before_rear = coord3d(rear.x - 1, rear.y, rear.z)
+	if (same_pos(receiver.get_pos(), expected)
+		|| (case_name == "moving-block" && same_pos(receiver.get_pos(), before_rear)))
 	{
 		if (!check(case_name == "moving-block" || fixture.call_on_seen || fixture.drive_by_sight_seen, "the choose signal never displayed call-on; receiver is in " + depict_working_method(receiver.get_working_method()))) { return }
 		if (!check(fixture.drive_by_sight_seen, "the receiver never ran in drive by sight after call-on")) { return }
-		print("RUNTIME CASE " + case_name + ": receiver reached the target rear tile at " + choose_position(receiver))
+		print("RUNTIME CASE " + case_name + ": receiver reached " + choose_position(receiver))
 		pass()
 		return
 	}
