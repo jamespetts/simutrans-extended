@@ -89,6 +89,8 @@ local fixture = {
 	target_rear_steps = 0,
 	contact_pos = null,
 	layout_steps = 0,
+	last_target_rear_steps = -1,
+	target_settle_count = 0,
 	loco_a = null,
 	loco_b = null,
 	loco_c = null,
@@ -636,6 +638,68 @@ function commit_occupier_schedule(pl, occupier, pos, entry_id, next_entry_id, ho
 }
 
 
+// The receiver's order cannot be completed from the two consists: the named
+// vehicle is in neither and the pool is not available to a named one-sided
+// receive. The choose signal must hold the receiver at the signal.
+function commit_receiver_unresolvable_schedule(pl, receiver, target_id)
+{
+	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
+	entries[0].couple = true
+	entries[0].couple_target_is_line_or_cnv = true
+	entries[0].target_id_couple = target_id
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order([[fixture.loco_c]]))
+	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the unresolvable receiver schedule")) { return false }
+	return true
+}
+
+
+// A paired counterpart: the target's loop entry uncouples to the receiver and
+// names the receiver's entry in return. It therefore waits in
+// AWAITING_RECOMBINATION instead of running a division.
+function commit_pair_target_schedule(pl, target, receiver_id, order)
+{
+	local entries = [make_entry(LOOP_POS, TARGET_ENTRY_ID), make_entry(EAST_POS, TARGET_NEXT_ENTRY_ID)]
+	entries[0].uncouple = true
+	entries[0].uncouple_target_is_line_or_cnv = true
+	entries[0].target_id_uncouple = receiver_id
+	entries[0].target_unique_entry_uncouple = RECEIVER_ENTRY_ID
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(TARGET_ENTRY_ID, order)
+	if (!check_tool(target.change_schedule(pl, schedule), "commit the paired target schedule")) { return false }
+
+	local back = target.get_schedule()
+	if (!check(back != null && back.entries.len() == 2, "the paired target schedule has " + (back == null ? 0 : back.entries.len()) + " entries, expected 2")) { return false }
+	if (!check(back.entries[0].uncouple == true, "paired target schedule read-back: the uncouple flag is not set")) { return false }
+	if (!check(back.entries[0].target_id_uncouple == receiver_id, "paired target schedule read-back: target id is " + back.entries[0].target_id_uncouple + ", expected " + receiver_id)) { return false }
+	return true
+}
+
+
+// The receiver side of a pair: its entry couples to the target and names the
+// target's entry in return.
+function commit_pair_receiver_schedule(pl, receiver, target_id, order)
+{
+	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
+	entries[0].couple = true
+	entries[0].couple_target_is_line_or_cnv = true
+	entries[0].target_id_couple = target_id
+	entries[0].target_unique_entry_couple = TARGET_ENTRY_ID
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, order)
+	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the paired receiver schedule")) { return false }
+
+	local back = receiver.get_schedule()
+	if (!check(back != null && back.entries.len() == 2, "the paired receiver schedule has " + (back == null ? 0 : back.entries.len()) + " entries, expected 2")) { return false }
+	if (!check(back.entries[0].couple == true, "paired receiver schedule read-back: the couple flag is not set")) { return false }
+	if (!check(back.entries[0].target_id_couple == target_id, "paired receiver schedule read-back: target id is " + back.entries[0].target_id_couple + ", expected " + target_id)) { return false }
+	return true
+}
+
+
 function commit_receiver_schedule(pl, receiver, target_id, ignore_choose)
 {
 	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
@@ -648,10 +712,10 @@ function commit_receiver_schedule(pl, receiver, target_id, ignore_choose)
 	}
 
 	local schedule = schedule_x(wt_rail, entries)
-	// The order names a vehicle that is in neither consist. The receive must
-	// therefore leave both consists unchanged, so the signalling assertions are
-	// not obscured by the recombination commit.
-	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order([[fixture.loco_c]]))
+	// The order restates the receiver's own two vehicles, so it is satisfiable
+	// from the two consists and changes nothing. An unsatisfiable order is a
+	// separate case (unresolvable-order), which must hold at the signal.
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order([[fixture.loco_b], [fixture.coach_b]]))
 	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the receiver convoy schedule")) { return false }
 
 	local back = receiver.get_schedule()
@@ -810,18 +874,36 @@ function setup()
 		return false
 	}
 
-	if (case_name == "target-present" || case_name == "target-present-ignore-choose" || case_name == "moving-block" || case_name == "multiple-choose-signals" || case_name == "target-unreachable" || case_name == "one-sided-layout")
+	if (case_name == "target-present" || case_name == "target-present-ignore-choose" || case_name == "moving-block" || case_name == "multiple-choose-signals" || case_name == "target-unreachable" || case_name == "one-sided-layout" || case_name == "unresolvable-order")
 	{
 		if (case_name == "one-sided-layout")
 		{
 			if (!commit_layout_target_schedule(pl, target)) { return false }
 			if (!commit_receiver_take_all_schedule(pl, receiver, target.id)) { return false }
 		}
+		else if (case_name == "unresolvable-order")
+		{
+			if (!commit_target_schedule(pl, target, hold.id)) { return false }
+			if (!commit_receiver_unresolvable_schedule(pl, receiver, target.id)) { return false }
+		}
 		else
 		{
 			if (!commit_target_schedule(pl, target, hold.id)) { return false }
 			if (!commit_receiver_schedule(pl, receiver, target.id, case_name == "target-present-ignore-choose")) { return false }
 		}
+		if (!start_convoy(pl, target, "target convoy")) { return false }
+		fixture.phase = "wait-target"
+		return true
+	}
+
+	if (case_name == "pair-layout" || case_name == "pair-unresolvable")
+	{
+		local target_order = case_name == "pair-layout" ? make_order([[fixture.loco_b]]) : make_order([[fixture.loco_a]])
+		local receiver_order = case_name == "pair-layout"
+			? make_order([[fixture.loco_a], [fixture.coach_a]])
+			: make_order([[fixture.loco_c]])
+		if (!commit_pair_target_schedule(pl, target, receiver.id, target_order)) { return false }
+		if (!commit_pair_receiver_schedule(pl, receiver, target.id, receiver_order)) { return false }
 		if (!start_convoy(pl, target, "target convoy")) { return false }
 		fixture.phase = "wait-target"
 		return true
@@ -887,8 +969,23 @@ function observe_wait_target()
 	observe_signal()
 	if (wait_for_entry(target, TARGET_ENTRY_ID, "target convoy"))
 	{
-		print("RUNTIME CASE " + case_name + ": target is loading at its scheduled platform")
 		local target_slots = target.get_vehicle_snapshot()
+		local rear_steps = target_slots[target_slots.len() - 1].steps
+		// Let the standing target settle before the receiver starts: the
+		// coupling point is computed from the target's rear position, so a
+		// target that is still braking would record a stale point.
+		if (target.get_speed() != 0 || rear_steps != fixture.last_target_rear_steps)
+		{
+			fixture.last_target_rear_steps = rear_steps
+			fixture.target_settle_count = 0
+			return
+		}
+		++fixture.target_settle_count
+		if (fixture.target_settle_count < 10)
+		{
+			return
+		}
+		print("RUNTIME CASE " + case_name + ": target is loading at its scheduled platform")
 		fixture.target_front_pos = target_slots[0].pos
 		fixture.target_front_steps = target_slots[0].steps
 		fixture.target_rear_pos = target_slots[target_slots.len() - 1].pos
@@ -912,7 +1009,22 @@ function observe_wait_target()
 			if (!check_tool(command_x.build_sign_at(player_x(0), UNREACHABLE_SIGN_POS, one_way), "turn the one-way rail sign east")) { return }
 		}
 		if (!start_convoy(player_x(0), receiver_convoy(), "receiver convoy")) { return }
-		fixture.phase = case_name == "target-unreachable" ? "watch-unreachable" : "watch-approach"
+		if (case_name == "target-unreachable")
+		{
+			fixture.phase = "watch-unreachable"
+		}
+		else if (case_name == "unresolvable-order" || case_name == "pair-unresolvable")
+		{
+			fixture.phase = "watch-unresolvable"
+		}
+		else if (case_name == "pair-layout")
+		{
+			fixture.phase = "watch-pair-layout"
+		}
+		else
+		{
+			fixture.phase = "watch-approach"
+		}
 	}
 }
 
@@ -1162,6 +1274,123 @@ function observe_watch_layout()
 }
 
 
+// The receiver's order cannot be completed from the two consists. The choose
+// signal must keep the receiver at the signal, at danger, with no call-on and
+// no entry into the target's platform.
+function observe_watch_unresolvable()
+{
+	local receiver = receiver_convoy()
+	local target = target_convoy()
+	if (!receiver.is_valid() || !target.is_valid())
+	{
+		fail("a convoy disappeared while the coupling pre-check refused the approach")
+		return
+	}
+	observe_signal()
+	if (fixture.signal_state == call_on)
+	{
+		fail("the choose signal issued call-on for an unsatisfiable coupling")
+		return
+	}
+	if (receiver.get_pos().y == LOOP_POS.y)
+	{
+		fail("the receiver entered the target platform despite an unsatisfiable coupling: " + choose_position(receiver))
+		return
+	}
+	if (receiver_held_at_signal())
+	{
+		print("RUNTIME CASE " + case_name + ": receiver is held at the choose signal because the coupling cannot be completed")
+		pass()
+		return
+	}
+	++fixture.approach_steps
+	if (fixture.approach_steps > APPROACH_STEP_LIMIT)
+	{
+		fail("the receiver did not settle at the choose signal with an unsatisfiable coupling: " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", signal " + depict_aspect(fixture.signal_state))
+	}
+}
+
+
+// A solvable paired exchange reaches contact. The commit then lays out the
+// target's final consist on the front slots, the receiver's final consist on
+// the slots behind it, and the loose stock on the remaining slots.
+function observe_watch_pair_layout()
+{
+	local receiver = receiver_convoy()
+	local target = target_convoy()
+	if (!receiver.is_valid() || !target.is_valid())
+	{
+		fail("a convoy disappeared during the paired layout observation")
+		return
+	}
+	observe_signal()
+
+	if (fixture.contact_pos == null)
+	{
+		local target_slots = target.get_vehicle_snapshot()
+		local rear = target_slots[target_slots.len() - 1].pos
+		if (!same_pos(receiver.get_pos(), rear))
+		{
+			++fixture.approach_steps
+			if (fixture.approach_steps > APPROACH_STEP_LIMIT)
+			{
+				fail("the receiver did not reach the paired target's rear tile: " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", target rear (" + rear.x + "," + rear.y + ")")
+			}
+			return
+		}
+		if (receiver.get_speed() != 0)
+		{
+			return
+		}
+		// The commit can run in the same step as the arrival, so the contact
+		// position is not asserted here; the layout assertions below cover the
+		// result. Record that contact happened and wait for both final consists.
+		fixture.contact_pos = rear
+		fixture.layout_steps = 0
+		return
+	}
+
+	++fixture.layout_steps
+	if (fixture.layout_steps > LAYOUT_STEP_LIMIT)
+	{
+		fail("timed out waiting for the paired exchange to commit: receiver has " + receiver.get_vehicle_snapshot().len() + " vehicles, target has " + target.get_vehicle_snapshot().len() + " vehicles")
+		return
+	}
+	local receiver_slots = receiver.get_vehicle_snapshot()
+	local target_slots = target.get_vehicle_snapshot()
+	if (target_slots.len() != 1 || receiver_slots.len() != 2)
+	{
+		return
+	}
+	if (!check(slot_matches(target_slots[0], fixture.loco_b), "the target's final consist does not hold the receiver's locomotive")) { return }
+	if (!check(same_pos(target_slots[0].pos, fixture.target_front_pos) && target_slots[0].steps == fixture.target_front_steps,
+		"the target's final locomotive is at " + pos_text(target_slots[0].pos) + " steps " + target_slots[0].steps
+		+ ", expected the target's former front slot " + pos_text(fixture.target_front_pos) + " steps " + fixture.target_front_steps)) { return }
+	if (!check(slot_matches(receiver_slots[0], fixture.loco_a), "the receiver's first vehicle is not the target's locomotive")) { return }
+	if (!check(same_pos(receiver_slots[0].pos, fixture.target_rear_pos) && receiver_slots[0].steps == fixture.target_rear_steps,
+		"the receiver's front is at " + pos_text(receiver_slots[0].pos) + " steps " + receiver_slots[0].steps
+		+ ", expected the target's former rear slot " + pos_text(fixture.target_rear_pos) + " steps " + fixture.target_rear_steps)) { return }
+	if (!check(slot_matches(receiver_slots[1], fixture.coach_a), "the receiver's second vehicle is not the target's coach")) { return }
+	if (!check(slot_is_behind(receiver_slots[1], receiver_slots[0]), "the receiver's second vehicle is not behind its first")) { return }
+
+	local loose = null
+	foreach (cnv in world.get_convoy_list())
+	{
+		if (cnv.is_valid() && cnv.get_state() == convoy_state_layover && cnv.get_vehicle_snapshot().len() == 1)
+		{
+			loose = cnv
+			break
+		}
+	}
+	if (!check(loose != null, "no one-vehicle laid-over convoy found after the paired exchange")) { return }
+	local loose_slots = loose.get_vehicle_snapshot()
+	if (!check(slot_matches(loose_slots[0], fixture.coach_b), "the loose convoy does not hold the receiver's former coach")) { return }
+	if (!check(slot_is_behind(loose_slots[0], receiver_slots[1]), "the loose stock is not behind the receiver's rear vehicle")) { return }
+	print("RUNTIME CASE " + case_name + ": paired exchange laid out with the loose stock behind the receiver")
+	pass()
+}
+
+
 function observe_watch_unreachable()
 {
 	local receiver = receiver_convoy()
@@ -1339,6 +1568,8 @@ function observe()
 	if (fixture.phase == "wait-occupier-main") { observe_wait_occupier_main(); return }
 	if (fixture.phase == "watch-approach") { observe_watch_approach(); return }
 	if (fixture.phase == "watch-layout") { observe_watch_layout(); return }
+	if (fixture.phase == "watch-unresolvable") { observe_watch_unresolvable(); return }
+	if (fixture.phase == "watch-pair-layout") { observe_watch_pair_layout(); return }
 	if (fixture.phase == "watch-unreachable") { observe_watch_unreachable(); return }
 	if (fixture.phase == "watch-free-platform") { observe_watch_free_platform(); return }
 	if (fixture.phase == "watch-ignore-choose-absent") { observe_watch_ignore_choose_absent(); return }

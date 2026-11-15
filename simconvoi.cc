@@ -220,6 +220,9 @@ void convoi_t::init(player_t *player)
 	recombination_approach_partner = convoihandle_t();
 	recombination_approach_is_mover = false;
 	recombination_contact_steps = -1;
+	recombination_precheck_partner = convoihandle_t();
+	recombination_precheck_signature = 0;
+	recombination_precheck_passed = false;
 
 	yielding_quit_index = -1;
 	lane_affinity = 0;
@@ -10206,73 +10209,17 @@ struct paired_exchange_solver_t
 convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate)
 
 {
-	convoi_t::consist_order_process_result success = fail;
-
 	// Overall scheme: assemble a vector of vehicles based on the priority of slots and whether it is driveable,
 	// then if, and only if driveable and complete, commit the result.
 
 	vector_tpl<vehicle_t*> final_consist;
 	vector_tpl<vehicle_t*> available_vehicles;
 
-	// First, produce a vector of vehicles available for recombination.
-	// The vehicles of the current consist are always available.
-
-	for (uint8 i = 0; i < vehicle_count; i++)
-	{
-		available_vehicles.append(vehicle[i]);
-	}
-
-	if (joining_convoy.is_bound())
-	{
-		// If joining a consist, only vehicles of this and the joining consist are available.
-		// To use laid over vehicles also, multiple consist orders are required.
-		const uint8 joining_vehicle_count = joining_convoy->get_vehicle_count();
-		for (uint8 i = 0; i < joining_vehicle_count; i++)
-		{
-			available_vehicles.append(joining_convoy->get_vehicle(i));
-		}
-	}
-	else if (!halt.is_bound() && !dep)
+	if (!get_recombination_available_vehicles(halt, dep, joining_convoy, available_vehicles))
 	{
 		dbg->warning("void convoi_t::process_consist_order()", "Deleted halt or depot on processing a consist order.");
 		return fail;
 	}
-	else
-	{
-		slist_tpl<convoihandle_t> &available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
-		const waytype_t waytype = get_schedule()->get_waytype();
-
-		for (auto cnv : available_convoys)
-		{
-			if (cnv.is_bound())
-			{
-				const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
-				for (uint8 i = 0; i < cnv_vehicle_count; i++)
-				{
-					if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !cnv->get_vehicle(i)->get_is_mothballed()
-						&& cnv->get_vehicle(i)->get_desc()->get_waytype() == waytype)
-					{
-						available_vehicles.append(cnv->get_vehicle(i));
-					}
-				}
-			}
-		}
-
-		if (dep)
-		{
-			slist_tpl<vehicle_t*>& depot_vehicles = dep->get_vehicle_list();
-			for (auto v : depot_vehicles)
-			{
-				if (!v->get_is_mothballed())
-				{
-					available_vehicles.append(v);
-				}
-			}
-		}
-	}
-
-	const uint32 element_count = order.get_count();
-	uint32 existing_vehicle_count = 0;
 
 	// This consist may be reversed - so we have to create a shadow un-reversed version to compare
 	// and then re-reverse the re-arranged consist at the end.
@@ -10283,15 +10230,180 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	// reversing algorithm.
 
 	vector_tpl<vehicle_t*> shadow_consist;
-	for(uint8 i = 0; i < vehicle_count; i ++)
+	get_forward_consist(shadow_consist);
+
+	convoi_t::consist_order_process_result success = match_consist_order(order, available_vehicles, shadow_consist, final_consist);
+
+	if (success == succeed)
 	{
-		shadow_consist.append(vehicle[i]);
+		// Now re-reverse the consist if it had been un-reversed for matching
+		if (reversed)
+		{
+			execute_reverse_order(final_consist, final_consist.get_count(), true, true);
+		}
+
+		// Resolve the recipient of any vehicles that this order releases:
+		// "same" means this convoy's line if it has one, else this convoy;
+		// "any" leaves no named recipient; otherwise the order's stored line
+		// or convoy is used.
+		uint16 recipient_id = 0;
+		bool recipient_is_convoy = false;
+		if (order.is_available_to_same())
+		{
+			if (get_line().is_bound())
+			{
+				recipient_id = get_line().get_id();
+				recipient_is_convoy = false;
+			}
+			else
+			{
+				recipient_id = self.get_id();
+				recipient_is_convoy = true;
+			}
+		}
+		else if (!order.is_available_to_any())
+		{
+			recipient_id = order.get_available_to_id();
+			recipient_is_convoy = order.get_available_to_is_convoy();
+		}
+
+		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy);
+
+		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
+		{
+			// An emptied convoy has no position left for destroy() to find the stop
+			// by: deregister from the layover pool here (no-op when not registered),
+			// and destroy promptly rather than waiting out the shunting delay.
+			if (halt.is_bound())
+			{
+				halt->remove_laid_over(joining_convoy);
+			}
+			joining_convoy->self_destruct();
+		}
+		if (!joining_convoy.is_bound() && halt.is_bound())
+		{
+			// A pool assembly can take the last vehicle of a laid-over convoy. An
+			// emptied donor has no position left for destroy() to find the stop by,
+			// so deregister and destroy it now rather than at the monthly sweep.
+			vector_tpl<convoihandle_t> emptied;
+			for (auto cnv : halt->get_laid_over())
+			{
+				if (cnv.is_bound() && cnv->get_vehicle_count() == 0)
+				{
+					emptied.append(cnv);
+				}
+			}
+			for (const convoihandle_t cnv : emptied)
+			{
+				halt->remove_laid_over(cnv);
+				cnv->self_destruct();
+			}
+		}
+	}
+
+	return success;
+}
+
+
+bool convoi_t::get_recombination_available_vehicles(halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, vector_tpl<vehicle_t*> &available) const
+{
+	const uint8 own_vehicle_count = get_vehicle_count();
+	for (uint8 i = 0; i < own_vehicle_count; i++)
+	{
+		available.append(get_vehicle(i));
+	}
+
+	if (joining_convoy.is_bound())
+	{
+		// If joining a consist, only vehicles of this and the joining consist are available.
+		// To use laid over vehicles also, multiple consist orders are required.
+		const uint8 joining_vehicle_count = joining_convoy->get_vehicle_count();
+		for (uint8 i = 0; i < joining_vehicle_count; i++)
+		{
+			available.append(joining_convoy->get_vehicle(i));
+		}
+		return true;
+	}
+
+	if (!halt.is_bound() && !dep)
+	{
+		return false;
+	}
+
+	slist_tpl<convoihandle_t> &available_convoys = halt.is_bound() ? halt->get_laid_over() : dep->access_convoy_list();
+	const waytype_t waytype = get_schedule()->get_waytype();
+
+	for (auto cnv : available_convoys)
+	{
+		if (cnv.is_bound())
+		{
+			const uint8 cnv_vehicle_count = cnv->get_vehicle_count();
+			for (uint8 i = 0; i < cnv_vehicle_count; i++)
+			{
+				vehicle_t *const v = cnv->get_vehicle(i);
+				if (cnv->get_state() != MAINTENANCE && cnv->get_state() != OVERHAUL && cnv->get_state() != REPLENISHING && cnv->get_state() != SHUNTING && !v->get_is_mothballed()
+					&& v->get_desc()->get_waytype() == waytype)
+				{
+					// A released vehicle may name the line or convoy that is
+					// allowed to collect it. Zero means any recipient.
+					const uint16 recipient_id = v->get_loose_recipient_id();
+					if (recipient_id != 0)
+					{
+						if (v->get_loose_recipient_is_convoy())
+						{
+							if (recipient_id != self.get_id())
+							{
+								continue;
+							}
+						}
+						else if (!get_line().is_bound() || get_line().get_id() != recipient_id)
+						{
+							continue;
+						}
+					}
+					available.append(v);
+				}
+			}
+		}
+	}
+
+	if (dep)
+	{
+		slist_tpl<vehicle_t*>& depot_vehicles = dep->get_vehicle_list();
+		for (auto v : depot_vehicles)
+		{
+			if (!v->get_is_mothballed())
+			{
+				available.append(v);
+			}
+		}
+	}
+
+	return true;
+}
+
+
+void convoi_t::get_forward_consist(vector_tpl<vehicle_t*> &consist) const
+{
+	const uint8 own_vehicle_count = get_vehicle_count();
+	for (uint8 i = 0; i < own_vehicle_count; i++)
+	{
+		consist.append(get_vehicle(i));
 	}
 
 	if (reversed)
 	{
-		execute_reverse_order(shadow_consist, shadow_consist.get_count(), false, true);
+		execute_reverse_order(consist, consist.get_count(), false, true);
 	}
+}
+
+
+convoi_t::consist_order_process_result convoi_t::match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available_vehicles, const vector_tpl<vehicle_t*> &shadow_consist, vector_tpl<vehicle_t*> &final_consist) const
+{
+	convoi_t::consist_order_process_result success = fail;
+
+	const uint32 element_count = order.get_count();
+	uint32 existing_vehicle_count = 0;
 
 	for (uint32 k = 0; k < element_count && (k == 0 || k < element_count - 1u) && final_consist.get_count() < element_count; k++)
 	{
@@ -10354,7 +10466,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 
 	if (final_consist.get_count() == element_count)
 	{
-		if (existing_vehicle_count == element_count && element_count == vehicle_count)
+		if (existing_vehicle_count == element_count && element_count == shadow_consist.get_count())
 		{
 			success = no_change_needed;
 		}
@@ -10376,54 +10488,6 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			{
 				success = succeed;
 			}
-		}
-	}
-
-	if (success == succeed)
-	{
-		// Now re-reverse the consist if it had been un-reversed for matching
-		if (reversed)
-		{
-			execute_reverse_order(final_consist, final_consist.get_count(), true, true);
-		}
-
-		// Resolve the recipient of any vehicles that this order releases:
-		// "same" means this convoy's line if it has one, else this convoy;
-		// "any" leaves no named recipient; otherwise the order's stored line
-		// or convoy is used.
-		uint16 recipient_id = 0;
-		bool recipient_is_convoy = false;
-		if (order.is_available_to_same())
-		{
-			if (get_line().is_bound())
-			{
-				recipient_id = get_line().get_id();
-				recipient_is_convoy = false;
-			}
-			else
-			{
-				recipient_id = self.get_id();
-				recipient_is_convoy = true;
-			}
-		}
-		else if (!order.is_available_to_any())
-		{
-			recipient_id = order.get_available_to_id();
-			recipient_is_convoy = order.get_available_to_is_convoy();
-		}
-
-		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy);
-
-		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
-		{
-			// An emptied convoy has no position left for destroy() to find the stop
-			// by: deregister from the layover pool here (no-op when not registered),
-			// and destroy promptly rather than waiting out the shunting delay.
-			if (halt.is_bound())
-			{
-				halt->remove_laid_over(joining_convoy);
-			}
-			joining_convoy->self_destruct();
 		}
 	}
 
@@ -10659,6 +10723,8 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 				cnv->add_vehicle(v);
 			}
 		}
+		cnv->front()->set_leading(true);
+		cnv->back()->set_last(true);
 
 		// The nearest depot suitable for the displaced vehicles is the useful home
 		// depot here; the receiving convoy's home depot is likely to be remote.
@@ -11184,6 +11250,119 @@ bool convoi_t::is_waiting_pair_counterpart(const convoihandle_t &candidate, cons
 }
 
 
+// A cheap hash of the state that the choose-signal coupling pre-check depends
+// on: both consists in order and the stop's laid-over vehicles. It is not a
+// game quantity; it only avoids repeating the solver while nothing relevant has
+// changed.
+static uint32 hash_consist_for_precheck(const convoi_t *cnv, uint32 signature)
+{
+	signature = (signature ^ (uint32)cnv->get_vehicle_count()) * 16777619u;
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		const vehicle_t *const v = cnv->get_vehicle(i);
+		signature = (signature ^ (uint32)(uintptr_t)v->get_desc()) * 16777619u;
+		signature = (signature ^ (uint32)(uintptr_t)v->get_owner()) * 16777619u;
+	}
+	return signature;
+}
+
+
+static uint32 make_recombination_precheck_signature(const convoi_t *receiver, const convoi_t *target, halthandle_t halt)
+{
+	uint32 signature = 2166136261u;
+	signature = (signature ^ (uint32)receiver->self.get_id()) * 16777619u;
+	signature = (signature ^ (uint32)target->self.get_id()) * 16777619u;
+	signature = hash_consist_for_precheck(receiver, signature);
+	signature = hash_consist_for_precheck(target, signature);
+	if (halt.is_bound())
+	{
+		for (auto cnv : halt->get_laid_over())
+		{
+			if (cnv.is_bound())
+			{
+				signature = (signature ^ (uint32)cnv->self.get_id()) * 16777619u;
+				signature = hash_consist_for_precheck(cnv.get_rep(), signature);
+			}
+		}
+	}
+	return signature;
+}
+
+
+bool convoi_t::can_approach_coupling_target(halthandle_t halt, const convoihandle_t &target)
+{
+	if (!target.is_bound() || target == self || !schedule)
+	{
+		return false;
+	}
+
+	const uint32 signature = make_recombination_precheck_signature(this, target.get_rep(), halt);
+	if (recombination_precheck_signature == signature && recombination_precheck_partner == target)
+	{
+		return recombination_precheck_passed;
+	}
+	recombination_precheck_signature = signature;
+	recombination_precheck_partner = target;
+	recombination_precheck_passed = true;
+
+	paired_exchange_t pair;
+	const paired_exchange_state_t pair_state = resolve_paired_exchange(halt, pair);
+	if (pair_state == paired_invalid)
+	{
+		const char *const reason = paired_failure_reason(pair.failure);
+		report_coupling_hold(halt, target, reason ? reason : translator::translate("the coupling target no longer exists"));
+		recombination_precheck_passed = false;
+	}
+	else if (pair_state == paired_ready || pair_state == paired_partner_absent)
+	{
+		convoi_t *const convoys[2] = {
+			pair.own_is_receiver ? this : target.get_rep(),
+			pair.own_is_receiver ? target.get_rep() : this
+		};
+		const consist_order_t *const orders[2] = {
+			pair.own_is_receiver ? pair.own_order : pair.counterpart_order,
+			pair.own_is_receiver ? pair.counterpart_order : pair.own_order
+		};
+		vector_tpl<vehicle_t*> finals[2];
+		bool changed[2];
+		pair_failure_t failure = pair_failure_none;
+		if (!solve_paired_exchange(convoys, orders, halt, finals, changed, failure))
+		{
+			const char *const reason = paired_failure_reason(failure);
+			report_coupling_hold(halt, target, reason ? reason : translator::translate("no arrangement of the two consists satisfies both consist orders"));
+			recombination_precheck_passed = false;
+		}
+	}
+	else if (schedule->get_current_entry().is_flag_set(schedule_entry_t::couple))
+	{
+		// One-sided receive: the target supplies vehicles to this convoy's order,
+		// and the result must be complete and powered.
+		const uint16 unique_id = schedule->get_current_entry().unique_entry_id;
+		if (!schedule->entry_has_consist_order(unique_id))
+		{
+			report_coupling_hold(halt, target, translator::translate("this schedule entry has no consist order"));
+			recombination_precheck_passed = false;
+		}
+		else
+		{
+			const consist_order_t &order = schedule->get_consist_order(unique_id);
+			vector_tpl<vehicle_t*> available;
+			get_recombination_available_vehicles(halt, nullptr, target, available);
+			vector_tpl<vehicle_t*> shadow;
+			get_forward_consist(shadow);
+			vector_tpl<vehicle_t*> final_consist;
+			if (match_consist_order(order, available, shadow, final_consist) == fail)
+			{
+				report_coupling_hold(halt, target, translator::translate("the consist order cannot be completed into a powered consist from the two consists"));
+				recombination_precheck_passed = false;
+			}
+		}
+	}
+
+	return recombination_precheck_passed;
+}
+
+
 convoi_t::paired_exchange_state_t convoi_t::resolve_paired_exchange(halthandle_t halt, paired_exchange_t &pair) const
 {
 	pair = paired_exchange_t();
@@ -11393,56 +11572,75 @@ convoi_t::paired_exchange_state_t convoi_t::resolve_paired_exchange(halthandle_t
 }
 
 
+const char *convoi_t::paired_failure_reason(pair_failure_t failure) const
+{
+	switch (failure)
+	{
+		case pair_failure_both_flags:
+			return translator::translate("the schedule entry sets both coupling and division");
+		case pair_failure_missing_order:
+			return translator::translate("one of the two schedule entries has no consist order");
+		case pair_failure_invalid_counterpart:
+			return translator::translate("the counterpart schedule entry does not name this convoy in return at this stop");
+		case pair_failure_waytype:
+			return translator::translate("the two schedules serve different waytypes");
+		case pair_failure_self_target:
+			return translator::translate("the entry targets its own line or convoy");
+		case pair_failure_lay_over:
+			return translator::translate("one of the entries also sets a layover");
+		case pair_failure_unsatisfiable:
+			return translator::translate("no arrangement of the two consists and the stop's loose vehicles satisfies both consist orders");
+		case pair_failure_access:
+			return translator::translate("the resulting consist would combine vehicles whose owners do not grant access to the owner of the leading powered vehicle");
+		case pair_failure_budget:
+			return translator::translate("the search for an arrangement reached its computation limit");
+		default:
+			return nullptr;
+	}
+}
+
+
 void convoi_t::report_paired_exchange_failure(halthandle_t halt, convoihandle_t counterpart, pair_failure_t failure) const
 {
 	if (failure == pair_failure_none)
 	{
 		return;
 	}
+	const char *const reason = paired_failure_reason(failure);
+	if (!reason)
+	{
+		// The broken-target reason uses report_broken_couple_target, which names
+		// the convoy and the stop.
+		return;
+	}
 	cbuffer_t buf;
 	const char *const halt_name = halt.is_bound() ? halt->get_name() : get_pos().get_str();
 	const char *const counterpart_name = counterpart.is_bound() ? counterpart->get_name() : translator::translate("the other convoy");
-	switch (failure)
-	{
-		case pair_failure_target_missing:
-			// This reason uses the existing broken-target report, which names the
-			// convoy and the stop. The caller does that for a receiver.
-			return;
-		case pair_failure_both_flags:
-			buf.printf(translator::translate("Convoy %s: the schedule entry at %s sets both coupling and division, so no exchange is carried out."), get_name(), halt_name);
-			break;
-		case pair_failure_missing_order:
-			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because one of the two schedule entries has no consist order."), get_name(), counterpart_name, halt_name);
-			break;
-		case pair_failure_invalid_counterpart:
-			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the counterpart schedule entry does not name this convoy in return at this stop."), get_name(), counterpart_name, halt_name);
-			break;
-		case pair_failure_waytype:
-			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the two schedules serve different waytypes."), get_name(), counterpart_name, halt_name);
-			break;
-		case pair_failure_self_target:
-			buf.printf(translator::translate("Convoy %s: the schedule entry at %s targets its own line or convoy, so no exchange is carried out."), get_name(), halt_name);
-			break;
-		case pair_failure_lay_over:
-			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because one of the entries also sets a layover."), get_name(), counterpart_name, halt_name);
-			break;
-		case pair_failure_unsatisfiable:
-			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because no arrangement of the two consists and the stop's loose vehicles satisfies both consist orders."), get_name(), counterpart_name, halt_name);
-			break;
-		case pair_failure_access:
-			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the resulting consist would combine vehicles whose owners do not grant access to the owner of the leading powered vehicle."), get_name(), counterpart_name, halt_name);
-			break;
-		case pair_failure_budget:
-			buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because the search for an arrangement reached its computation limit."), get_name(), counterpart_name, halt_name);
-			break;
-		default:
-			return;
-	}
+	buf.printf(translator::translate("Convoy %s: the paired exchange with %s at %s is not carried out because %s."), get_name(), counterpart_name, halt_name, reason);
 
 	welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
 	if (counterpart.is_bound() && counterpart->get_owner() != get_owner())
 	{
 		welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | counterpart->get_owner()->get_player_nr(), IMG_EMPTY);
+	}
+}
+
+
+void convoi_t::report_coupling_hold(halthandle_t halt, convoihandle_t target, const char *reason) const
+{
+	if (!reason || !get_owner())
+	{
+		return;
+	}
+	cbuffer_t buf;
+	const char *const halt_name = halt.is_bound() ? halt->get_name() : get_pos().get_str();
+	const char *const target_name = target.is_bound() ? target->get_name() : translator::translate("the other convoy");
+	buf.printf(translator::translate("Convoy %s: the convoy is waiting at the choose signal because the coupling with %s at %s cannot be completed: %s."), get_name(), target_name, halt_name, reason);
+
+	welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
+	if (target.is_bound() && target->get_owner() && target->get_owner() != get_owner())
+	{
+		welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | target->get_owner()->get_player_nr(), IMG_EMPTY);
 	}
 }
 
@@ -11458,9 +11656,37 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 		pair.own_is_receiver ? pair.counterpart_order : pair.own_order
 	};
 
+	vector_tpl<vehicle_t*> finals[2];
+	bool changed[2];
+	pair_failure_t failure = pair_failure_none;
+	if (!solve_paired_exchange(convoys, orders, halt, finals, changed, failure))
+	{
+		report_paired_exchange_failure(halt, pair.counterpart, failure);
+		// All-or-nothing: neither consist changes. Release the waiting counterpart
+		// so both convoys continue on their own schedules after this stop.
+		if (pair.counterpart.is_bound() && pair.counterpart->get_state() == AWAITING_RECOMBINATION)
+		{
+			pair.counterpart->state = LOADING;
+			pair.counterpart->wait_lock = 0;
+		}
+		if (state == AWAITING_RECOMBINATION)
+		{
+			state = LOADING;
+		}
+		return false;
+	}
+
+	commit_paired_exchange(convoys, orders, finals, changed, halt);
+	return true;
+}
+
+
+bool convoi_t::solve_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], halthandle_t halt, vector_tpl<vehicle_t*> finals[2], bool changed[2], pair_failure_t &failure) const
+{
+	failure = pair_failure_none;
 	if (!convoys[0] || !convoys[1] || convoys[0] == convoys[1] || !orders[0] || !orders[1])
 	{
-		report_paired_exchange_failure(halt, pair.counterpart, pair_failure_invalid_counterpart);
+		failure = pair_failure_invalid_counterpart;
 		return false;
 	}
 
@@ -11469,14 +11695,7 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 	bool reversed[2] = { convoys[0]->is_reversed(), convoys[1]->is_reversed() };
 	for (uint8 side = 0; side < 2; side++)
 	{
-		for (uint8 i = 0; i < convoys[side]->get_vehicle_count(); i++)
-		{
-			shadow[side].append(convoys[side]->get_vehicle(i));
-		}
-		if (reversed[side])
-		{
-			execute_reverse_order(shadow[side], shadow[side].get_count(), false, true);
-		}
+		convoys[side]->get_forward_consist(shadow[side]);
 	}
 
 	// Only the receiver may draw on the stop's laid-over vehicles, and only
@@ -11523,26 +11742,12 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 
 	if (solver_result != paired_solver_solved)
 	{
-		const pair_failure_t failure = solver_result == paired_solver_budget_exceeded
+		failure = solver_result == paired_solver_budget_exceeded
 			? pair_failure_budget
 			: (solver.access_pruned ? pair_failure_access : pair_failure_unsatisfiable);
-		report_paired_exchange_failure(halt, pair.counterpart, failure);
-		// All-or-nothing: neither consist changes. Release the waiting counterpart
-		// so both convoys continue on their own schedules after this stop.
-		if (pair.counterpart.is_bound() && pair.counterpart->get_state() == AWAITING_RECOMBINATION)
-		{
-			pair.counterpart->state = LOADING;
-			pair.counterpart->wait_lock = 0;
-		}
-		if (state == AWAITING_RECOMBINATION)
-		{
-			state = LOADING;
-		}
 		return false;
 	}
 
-	vector_tpl<vehicle_t*> finals[2];
-	bool changed[2];
 	for (uint8 side = 0; side < 2; side++)
 	{
 		for (uint32 i = 0; i < solver.final[side].get_count(); i++)
@@ -11559,8 +11764,6 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 			execute_reverse_order(finals[side], finals[side].get_count(), true, true);
 		}
 	}
-
-	commit_paired_exchange(convoys, orders, finals, changed, halt);
 	return true;
 }
 
@@ -11730,6 +11933,13 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		previous_lead[side] = convoys[side]->front();
 		while (convoys[side]->get_vehicle_count() > 0)
 		{
+			// Clear the end flags before detaching: a vehicle that becomes loose
+			// stock is laid out before it is attached to its new convoy, and a
+			// leading flag would make enter_tile() use the detached vehicle's null
+			// convoy.
+			vehicle_t *const v = convoys[side]->front();
+			v->set_leading(false);
+			v->set_last(false);
 			convoys[side]->remove_vehicle_at(0);
 		}
 	}
@@ -11750,6 +11960,11 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 				v->reposition_vehicle(rear_gr[side]);
 			}
 			v->clear_loose_recipient();
+		}
+		if (cnv->get_vehicle_count() > 0)
+		{
+			cnv->front()->set_leading(true);
+			cnv->back()->set_last(true);
 		}
 		cnv->update_default_name(previous_lead[side]);
 		cnv->recalc_metrics();
@@ -11845,6 +12060,8 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 			loose->add_vehicle(v);
 			v->set_loose_recipient(recipient_id[side], recipient_is_convoy[side]);
 		}
+		loose->front()->set_leading(true);
+		loose->back()->set_last(true);
 		depot_t *const home_depot = depot_t::find_nearest_depot(leftovers[side].front()->get_pos(), leftovers[side].front());
 		loose->set_home_depot(home_depot ? home_depot->get_pos() : koord3d::invalid);
 		loose->set_name(leftovers[side].front()->get_desc()->get_name());

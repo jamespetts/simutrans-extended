@@ -600,7 +600,11 @@ function create_pool_donor(pl)
 	fixture.release_convoy_id = cnv.id
 
 	local schedule = schedule_x(wt_rail, [make_entry(JUNCTION_LOOP_POS, POOL_RELEASE_ENTRY_ID), make_entry(EAST_POS, POOL_EAST_ENTRY_ID)])
-	schedule.orders.rawset(POOL_RELEASE_ENTRY_ID, make_order([fixture.retained]))
+	local order = make_order([fixture.retained])
+	// The released vehicle must be available to the source's split-off portion,
+	// which is neither the releasing convoy nor its line.
+	order.available_to_flags = 0
+	schedule.orders.rawset(POOL_RELEASE_ENTRY_ID, order)
 	if (!check_tool(cnv.change_schedule(pl, schedule), "commit the pool release convoy schedule")) { return false }
 
 	local back = cnv.get_schedule()
@@ -851,8 +855,8 @@ function world_vehicle_total()
 
 
 // Returns the first convoy that carries vehicles and is not named in
-// allowed_ids. Empty convoys are ignored: an emptied pool donor is left at the
-// stop by the existing commit code and is not part of this case's assertion.
+// allowed_ids. Empty convoys are ignored: an emptied pool donor is destroyed
+// promptly by the commit, which check_pool_formation asserts separately.
 function find_populated_convoy_other_than(allowed_ids)
 {
 	foreach (cnv in world.get_convoy_list())
@@ -1369,6 +1373,16 @@ function check_pool_formation(portion)
 	if (!check(fixture.pool_prepared, "the target order collected no laid-over vehicle: the pool vehicle was never laid over at the junction")) { return false }
 	if (!check(fixture.release_convoy_removed, "the pool release convoy was not removed before the source reached the junction")) { return false }
 	if (!check(portion.id != fixture.pool_donor_id, "the promoted portion has the pool donor convoy's identity")) { return false }
+
+	// The assembly took the donor's only vehicle. The donor must be deregistered
+	// and destroyed now, not left in the laid-over list until the monthly sweep.
+	local halt = halt_x.get_halt(JUNCTION_POS, player_x(0))
+	if (!check(halt != null, "the junction halt disappeared")) { return false }
+	foreach (loose in halt.get_laid_over_list())
+	{
+		if (!check(loose.is_valid(), "the junction laid-over list holds an invalid convoy")) { return false }
+		if (!check(loose.get_vehicles().len() > 0, "an emptied laid-over convoy remains in the junction laid-over list")) { return false }
+	}
 
 	local source_vehicles = src.get_vehicles()
 	if (!check(source_vehicles.len() == 1, "the source convoy has " + source_vehicles.len() + " vehicles, expected 1")) { return false }

@@ -467,6 +467,14 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 
 	if (coupling_state == convoi_t::recombination_target_available && coupling_target.is_bound())
 	{
+		// Never route the mover to the target unless the two consists can be
+		// rearranged into valid powered consists. The pre-check reports the reason
+		// and the signal holds the mover here.
+		const halthandle_t coupling_halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, cnv->get_owner());
+		if (!cnv->can_approach_coupling_target(coupling_halt, coupling_target))
+		{
+			return 0;
+		}
 		// Route to the target's rear tile, not to the halt: the halt route
 		// deliberately seeks a free platform. Pass zero as the convoy tile
 		// length so that the platform extension code does not move the goal.
@@ -766,6 +774,12 @@ bool rail_vehicle_t::try_choose_call_on(signal_t *signal)
 	const halthandle_t halt = haltestelle_t::get_halt(cnv->get_schedule()->get_current_entry().pos, cnv->get_owner());
 	if (cnv->get_recombination_target_state(halt, target) != convoi_t::recombination_target_available)
 	{
+		return false;
+	}
+	if (!cnv->can_approach_coupling_target(halt, target))
+	{
+		// The two consists cannot be rearranged as the orders require; do not
+		// admit the mover towards the target.
 		return false;
 	}
 	if (!target_obstructs_route_only(signal, target))
@@ -3605,6 +3619,59 @@ void rail_vehicle_t::unreserve_station()
 
 
 /* beware: we must un-reserve rail blocks... */
+static bool convoy_occupies_tile(const convoihandle_t &cnv, const koord3d &pos)
+{
+	if (!cnv.is_bound())
+	{
+		return false;
+	}
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		if (cnv->get_vehicle(i)->get_pos() == pos)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
+bool rail_vehicle_t::hand_over_contact_reservation(schiene_t *way, const grund_t *gr)
+{
+	if (!way || !gr || !cnv)
+	{
+		return false;
+	}
+
+	const koord3d pos = gr->get_pos();
+	const convoihandle_t holder = way->get_reserved_convoi();
+
+	// A tile reserved by another convoy must not be released because this
+	// convoy's last vehicle leaves it while that convoy still occupies it. This
+	// covers the mover leaving the shared contact tile, which it entered under
+	// call-on without reserving: the target remains the holder.
+	if (holder.is_bound() && holder != cnv->self)
+	{
+		return convoy_occupies_tile(holder, pos);
+	}
+
+	// The holder is this convoy. Under a committed coupling approach the tile
+	// passes to the reciprocal mover, which remains on it, so the tile keeps a
+	// single holder throughout.
+	const convoihandle_t mover = cnv->get_recombination_approach_partner();
+	if (!mover.is_bound() || mover == cnv->self || cnv->is_recombination_approach_mover())
+	{
+		return false;
+	}
+	if (!mover->is_recombination_contact_tile(cnv->self, pos) || !convoy_occupies_tile(mover, pos))
+	{
+		return false;
+	}
+	way->change_reservation_holder(mover);
+	return true;
+}
+
+
 void rail_vehicle_t::leave_tile()
 {
 	grund_t *gr = get_grund();
@@ -3662,7 +3729,7 @@ void rail_vehicle_t::leave_tile()
 						// We mark these for later unreservation.
 						sch0->set_stale();
 					}
-					else
+					else if (!hand_over_contact_reservation(sch0, gr))
 					{
 						sch0->unreserve(this);
 					}

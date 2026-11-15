@@ -592,6 +592,18 @@ private:
 	 */
 	sint16 recombination_contact_steps;
 
+	/**
+	 * The cached result of the choose-signal coupling pre-check. The choose
+	 * signal re-tests the target on every step until it can route to it, and
+	 * the joint solver is much more expensive than the fallback route search,
+	 * so the verdict is reused until either consist or the stop's laid-over
+	 * pool changes. Transient: it is a function of live state and is not
+	 * saved.
+	 */
+	convoihandle_t recombination_precheck_partner;
+	uint32 recombination_precheck_signature;
+	bool recombination_precheck_passed;
+
 	// Helper function: used in init and replacing
 	void reset();
 
@@ -1729,6 +1741,17 @@ public:
 	// the earliest arrival_time wins, then the lowest convoy id.
 	recombination_target_state_t get_recombination_target_state(halthandle_t halt, convoihandle_t &target) const;
 
+	// Test, without changing any state, whether the coupling that the current
+	// entry configures can be completed with the given target at the stop: a
+	// paired exchange must solve both end-state orders jointly, and a one-sided
+	// receive must complete this convoy's order into a powered consist. The
+	// choose signal calls this before routing the mover to the target's rear
+	// tile, so that a convoy is never routed to couple when the orders cannot
+	// produce valid powered consists. On failure the reason is reported once
+	// for the examined situation; the verdict is cached until either consist or
+	// the stop's laid-over pool changes.
+	bool can_approach_coupling_target(halthandle_t halt, const convoihandle_t &target);
+
 	// The convoy this convoy is approaching to couple with, or an unbound
 	// handle when there is no committed approach.
 	convoihandle_t get_recombination_approach_partner() const { return recombination_approach_partner; }
@@ -1854,6 +1877,35 @@ public:
 		// out; in that case neither consist is changed and both convoys return to
 		// loading.
 		bool execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair);
+
+		// The convoy's vehicles in forward order: a reversed consist is
+		// de-reversed for matching against a consist order. Does not change state.
+		void get_forward_consist(vector_tpl<vehicle_t*> &consist) const;
+
+		// The vehicles an order may draw on: this convoy's own, plus the joining
+		// convoy's, or, with no joining convoy, the stop's laid-over pool (or the
+		// depot's list). Returns false when neither a stop nor a depot was given
+		// for a pool assembly.
+		bool get_recombination_available_vehicles(halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, vector_tpl<vehicle_t*> &available) const;
+
+		// Match one order against the available vehicles. Does not change any
+		// state. On success, final_consist holds the forward-oriented result
+		// before any re-reversal.
+		consist_order_process_result match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available, const vector_tpl<vehicle_t*> &shadow, vector_tpl<vehicle_t*> &final_consist) const;
+
+		// Solve a pair without changing any state: search for a disjoint pair of
+		// coupling-valid powered final consists satisfying both orders. Returns
+		// false and sets failure when no arrangement exists or the search reaches
+		// its computation limit.
+		bool solve_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], halthandle_t halt, vector_tpl<vehicle_t*> finals[2], bool changed[2], pair_failure_t &failure) const;
+
+		// A translated phrase completing "because ..."; nullptr when the reason
+		// has no shared phrasing (none, or the broken-target report).
+		const char *paired_failure_reason(pair_failure_t failure) const;
+
+		// Report that a coupling approach is held at a choose signal because
+		// the two consists cannot be rearranged as required. Names both owners.
+		void report_coupling_hold(halthandle_t halt, convoihandle_t target, const char *reason) const;
 
 		// Replace the two consists with the solved forward-oriented final consists.
 		// Only vehicles that become loose stock are discharged at the stop.

@@ -145,6 +145,10 @@ run_case()
 		then
 			debug_level=3
 		fi
+		if [ "$case_name" = "unresolvable-order" ] || [ "$case_name" = "pair-unresolvable" ]
+		then
+			debug_level=3
+		fi
 	else
 		echo "Case $case_name: scenario file not found"
 		return 1
@@ -186,6 +190,14 @@ run_case()
 			if [ "$case_name" = "target-unreachable" ] && ! grep -qF "check station geometry and one-way signs" "$log_file"
 			then
 				echo "Case $case_name: FAILED (missing unusable-geometry warning) ($((SECONDS - start_time))s)"
+				result=1
+			elif [ "$case_name" = "unresolvable-order" ] && ! grep -qF "cannot be completed into a powered consist from the two consists" "$log_file"
+			then
+				echo "Case $case_name: FAILED (missing unsatisfiable-order warning) ($((SECONDS - start_time))s)"
+				result=1
+			elif [ "$case_name" = "pair-unresolvable" ] && ! grep -qF "no arrangement of the two consists and the stop's loose vehicles satisfies both consist orders" "$log_file"
+			then
+				echo "Case $case_name: FAILED (missing unsatisfiable-pair warning) ($((SECONDS - start_time))s)"
 				result=1
 			else
 				echo "Case $case_name: PASS ($((SECONDS - start_time))s)"

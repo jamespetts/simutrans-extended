@@ -86,6 +86,12 @@ public:
 
 	void leave_tile() OVERRIDE;
 
+	/// Transfer this convoy's reservation of the tile it is leaving to the
+	/// convoy that remains on it under a committed coupling approach. Returns
+	/// true when the holder was transferred and the ordinary release must be
+	/// skipped.
+	bool hand_over_contact_reservation(schiene_t *way, const grund_t *gr);
+
 	/// Unreserve behind the train using the current route
 	void unreserve_in_rear();
 
