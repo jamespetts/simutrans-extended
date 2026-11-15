@@ -1130,7 +1130,10 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 
 	const koord3d dir = gr->get_pos() - get_pos();
 	ribi = ribi_type(dir);
-	if(!w->can_reserve(cnv->self, ribi))
+	// The claimed approach partner keeps the reservation on its rear tile;
+	// the mover may enter that shared contact tile without reserving it.
+	const bool shared_contact_tile = cnv->is_recombination_contact_tile(w->get_reserved_convoi(), gr->get_pos());
+	if(!shared_contact_tile && !w->can_reserve(cnv->self, ribi))
 	{
 		restart_speed = 0;
 		if(((working_method == time_interval || working_method == time_interval_with_telegraph) && cnv->get_state() == convoi_t::DRIVING && !(signal_current && signal_current->get_state() == roadsign_t::danger)))
@@ -1773,6 +1776,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 	sint32 remaining_aspects = -1;
 	sint32 choose_return = 0;
 	bool reached_end_of_loop = false;
+	bool contact_tile_reached = false;
 	bool no_junctions_to_next_signal = true;
 	signal_t* previous_signal = NULL;
 	bool end_of_block = false;
@@ -1829,6 +1833,22 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 				cnv->suche_neue_route();
 			}
 			break;
+		}
+		if (reserve && sch1 && !reserving_beyond_a_train)
+		{
+			const convoihandle_t reserved_by = sch1->get_reserved_convoi();
+			if (reserved_by.is_bound() && reserved_by != cnv->self
+				&& cnv->is_recombination_contact_tile(reserved_by, pos))
+			{
+				// The claimed approach partner holds its rear tile. That tile is
+				// the coupling point: admit the mover to it, but leave the
+				// reservation with the partner.
+				next_signal_index = i;
+				success = true;
+				contact_tile_reached = true;
+				reached_end_of_loop = true;
+				break;
+			}
 		}
 		// we un-reserve also nonexistent tiles! (may happen during deletion)
 
@@ -3005,7 +3025,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 		}
 	}
 
-	if(last_stop_signal_index < INVALID_INDEX && last_bidirectional_signal_index < INVALID_INDEX && first_oneway_sign_index >= INVALID_INDEX && directional_reservation_succeeded && end_of_block)
+	if(last_stop_signal_index < INVALID_INDEX && last_bidirectional_signal_index < INVALID_INDEX && first_oneway_sign_index >= INVALID_INDEX && directional_reservation_succeeded && end_of_block && !contact_tile_reached)
 	{
 		 //TODO: Consider whether last_stop_signal_index should be assigned to last_bidirectional_signal_index
 		 next_signal_index = last_stop_signal_index;
