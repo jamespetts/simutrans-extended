@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -147,7 +147,10 @@ explorer's treatment of consist orders.
   re-reserving. A changed convoy waits out `shunting_time_seconds`; the counterpart waits in
   `LOADING` under the same lock so that its new consist loads after the delay. Failure is
   all-or-nothing: neither consist changes, one warning is posted, the counterpart is released from
-  `AWAITING_RECOMBINATION`, and both convoys continue on their own schedules.
+  `AWAITING_RECOMBINATION`, and both convoys continue on their own schedules. Before a choose signal
+  routes the receiver to the target, `convoi_t::can_approach_coupling_target` runs the same joint
+  solver without committing; a failure holds the receiver at the signal, posts
+  `convoi_t::report_coupling_hold` and never reaches contact.
 
 ## PARTIAL features
 
@@ -164,7 +167,10 @@ explorer's treatment of consist orders.
   Missing: the one-sided receive is the fallback only when the counterpart entry does not carry
   `uncouple`, which selects the paired exchange instead (see IMPLEMENTED features); an entry carrying
   both flags is refused. A one-sided receive whose consist order fails with a present target remains
-  unexecuted and is not reported. Detection of wait cycles longer than a direct pair is absent.
+  unexecuted and is not reported on the ordinary arrival path; a target that is stationary when the
+  convoy is at a choose signal is tested by the resolvability pre-check, which holds the convoy and
+  reports the reason instead of routing it to the target. Detection of wait cycles longer than a
+  direct pair is absent.
 - **Consist orders** — data model: `consist_order_t` (end-state for one entry, keyed by
   unique_entry_id; exactly one order per entry
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202940.html]) →
@@ -300,11 +306,18 @@ explorer's treatment of consist orders.
   that arrives after the receiver has passed the signal, an unrelated convoy blocking the target
   platform approach, moving-block call-on, two consecutive choose signals, and a direction-restricted
   target platform that must produce a warning and a stable hold. The present-target cases assert
-  that the receiver reaches the target's rear tile (the coupling tile); the exact intra-tile offset
-  is not script-visible. A committed target beyond the final signal has no deterministic fixture.
-  The shared contact tile and the coupling-point calculation are implemented; the reservation
-  handoff, the one-sided receive's physical layout and exact offset verification remain
-  outstanding. SHUNTING is still only a timed pause.
+  that the receiver reaches the target's rear tile (the coupling tile) and stops at the coupling
+  point. Before the signal routes to a stationary target it calls
+  `convoi_t::can_approach_coupling_target`, which solves the configured operation without changing
+  state: the joint paired solver or the single-order matcher. A failure keeps the signal at danger,
+  posts one warning through `convoi_t::report_coupling_hold` and holds the receiver; the verdict is
+  cached until either consist or the stop's laid-over pool changes. `unresolvable-order` and
+  `pair-unresolvable` assert that hold and its warning. The shared contact tile, the coupling-point
+  calculation, the reservation handoff (`rail_vehicle_t::hand_over_contact_reservation`), the
+  one-sided receive's layout (`one-sided-layout`), the paired layout (`pair-layout`) and a
+  coupling point in the tile behind the rear vehicle's front tile (`straddling-contact`) are
+  implemented. A committed target beyond the final signal has no deterministic fixture and the
+  handoff has no scripted case. SHUNTING is still only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Coupling semantics and reliability gaps
@@ -326,11 +339,9 @@ default being only the same convoy/line that loaded them"
 release time (the releasing convoy's line, else the convoy), so it remains correct if a schedule
 is copied between a line and a convoy; the resolved id/kind is copied to each released vehicle's
 `loose_recipient_id`/`loose_recipient_flags` (zero means no named recipient) [CODE]. The
-eligibility check that reads it at pickup is not written for `process_consist_order`: it still draws
-on the halt's laid-over pool without consulting the recipient, so the setting has no gameplay effect
-on that path yet [CODE]. The paired exchange is the exception: `convoi_t::execute_paired_exchange`
-admits a laid-over vehicle to the receiver's pool only when its recorded recipient is unset ("Any")
-or names the receiver's line, or the receiver itself when the receiver is lineless [CODE]. One
+eligibility check at pickup is implemented for `process_consist_order`: a laid-over vehicle is
+available only when its recorded recipient is unset ("Any"), names this convoy, or names this
+convoy's line. The paired exchange applies the same rule to the receiver's pool draw. One
 recipient may be specified, not a list. The
 consist-order window lists the Same/Any entries plus the halt's lines or consists, with a
 Line/Consist filter; a specific recipient not registered at the halt (or hidden by a filter

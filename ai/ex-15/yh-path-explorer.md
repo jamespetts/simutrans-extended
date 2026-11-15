@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14; paired reload fixture @ fa85a59b8 (2026-11-14)
+verified: ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14; loose-stock recipient at pickup @ b501f13f3 (2026-11-15); paired reload fixture @ fa85a59b8 (2026-11-14)
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -352,6 +352,12 @@ status at ex-15 @ a203862c1]
   in [cargo-continuity](recombination-design/cargo-continuity.md)), a through edge's effective
   capacity is the split-off portion's capacity per category/class, not the whole consist's; whether
   recorded edges should carry that, and how it interacts with waiting-time-based routing, is open.
+- Loose-stock recipient: the runtime now refuses to let a convoy collect a laid-over vehicle whose
+  recorded recipient is neither it nor its line (see
+  [schedule-and-consists](schedule-and-consists.md)). The explorer does not read the recipient when
+  it generates a through connexion, so it can offer a journey through a later service that the
+  runtime will not allow to collect the vehicle. Whether the explorer should exclude such
+  connexions, or the recipient should be ignored for path-explorer purposes, is open.
 
 ## Provenance
 

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ bf620c45c (2026-11-15, pending-runtime case filter and durations); ex-15 @ ed6d940be (2026-11-15, contact-tile assertions in the present-target cases); ex-15 @ 0692167b6 (2026-11-15, scripted choose-signal cases); ex-15 @ 97029f453 (2026-11-14, scripting remainder); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
+verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, resolvability hold cases, paired layout case and 32-case run); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ bf620c45c (2026-11-15, pending-runtime case filter and durations); ex-15 @ ed6d940be (2026-11-15, contact-tile assertions in the present-target cases); ex-15 @ 0692167b6 (2026-11-15, scripted choose-signal cases); ex-15 @ 97029f453 (2026-11-14, scripting remainder); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -227,25 +227,37 @@ paired H exchange and choose-signal call-on. It is not part of the default passi
   approach (`target-platform-blocked`); a moving-block choose beacon using the 1992 fixture map and
   retaining `drive_by_sight` after call-on (`moving-block`); two consecutive choose signals with the
   first selecting the target platform (`multiple-choose-signals`); a target platform whose usable
-  approach is rejected for its direction restrictions (`target-unreachable`); and a one-sided
+  approach is rejected for its direction restrictions (`target-unreachable`); a one-sided
   receive that takes both target vehicles, so the emptied target is destroyed and the receiver's
-  former vehicles must be laid out behind it as loose stock (`one-sided-layout`); the case asserts
-  the final consist's exact positions and `steps` in the target's former slots and that the loose
-  convoy is behind the receiver. The
+  former vehicles must be laid out behind it as loose stock (`one-sided-layout`); a paired exchange
+  reached through the choose signal, whose joint commit must lay out the target's final consist on
+  the target's former front slot, the receiver's final consist from the target's former rear slot,
+  and the loose stock behind it (`pair-layout`); a receiver whose order cannot be completed from the
+  two consists, which must be held at the signal with no call-on (`unresolvable-order`); a
+  paired exchange whose two orders cannot be solved jointly, which must be held in the same way
+  (`pair-unresolvable`); and a target whose long rear vehicle's rear end lies in the tile behind its
+  front tile, so the receiver must stop at the coupling point in that behind tile
+  (`straddling-contact`). The `one-sided-layout` case asserts the final consist's exact positions and
+  `steps` in the target's former slots and that the loose convoy is behind the receiver. The
   `target-unreachable` case asserts no call-on, no entry onto the third platform and a stable
   `WAITING_FOR_CLEARANCE` hold;
-  its runner also requires the unusable-geometry warning in the game log. The present-target cases
+  its runner also requires the unusable-geometry warning in the game log. The two hold cases'
+  runner also requires their hold warning. The present-target cases
   assert that the receiver reaches the target's rear tile (the coupling tile) and stops at the
   coupling point. `steps` is a vehicle front's position within its tile, in vehicle steps. The
   mover's leading vehicle's `steps` must equal the standing rear vehicle's `steps` minus its length
   in vehicle steps; `vehicle_desc_x.get_length()` reports car units, with 16 vehicle steps per car
   unit. `target-arrives-after` asserts the same for the later target. `moving-block` keeps its
   earlier tile expectation because the moving-block beacon does not hold the target's reservation.
-  A committed target beyond the final signal has no deterministic fixture.
+  The signalling cases use a satisfiable receiver order that restates the receiver's own consist, so
+  the receive changes nothing; the two hold cases use an order that cannot be completed. A committed
+  target beyond the final signal has no deterministic fixture, and the shared-contact reservation
+  handoff has no scripted case.
 - `scripts/run-pending-runtime-tests.sh` stages the selected case in the pakset scenario directory
   with its harness and all fixture maps, runs one process per case with `-nomidi`, and requires a printed
   PASS marker plus any case-specific log assertion. The `target-unreachable` assertion requires the
-  unusable-geometry warning. A script error, a process exit before a marker, no log progress
+  unusable-geometry warning, and `unresolvable-order` and `pair-unresolvable` require their hold
+  warnings. A script error, a process exit before a marker, no log progress
   for the stall timeout, the overall timeout and a crash all fail the case. It selects
   `harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/` and `choose-harness.nut` for
   `choose-cases/`. Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
@@ -289,7 +301,9 @@ edit loop. Run only the cases that can observe the change:
 - **Iteration.** Run the case or cases that exercise the changed branch. A change to
   `choose-harness.nut` can affect every choose case, but only `target-present`,
   `target-present-ignore-choose`, `multiple-choose-signals` and `target-arrives-after` execute the
-  coupling-point assertion described above; `one-sided-layout` checks the post-commit layout, and
+  coupling-point assertion described above; `one-sided-layout` and `pair-layout` check the
+  post-commit layouts, `unresolvable-order` and `pair-unresolvable` check the hold,
+  `straddling-contact` checks the contact point in the tile behind a long rear vehicle, and
   `target-absent` is enough as a load smoke test. A change confined to one case's `scenario.nut`
   needs that case only.
 - **Package.** Run the whole group once the package's behaviour is complete and before committing
@@ -301,11 +315,10 @@ edit loop. Run only the cases that can observe the change:
   convoy state transitions, the paired-exchange solver or the network protocol. The reload cases
   use their own runners and are not part of the pending-runtime set.
 
-Do not run the fixture for documentation, comments, translation strings or help text. A 27-case run
-took 23 minutes 19 seconds on 2026-11-15; a choose case took 44-45 seconds and `target-absent` took
-24 seconds on the same machine [EXECUTION-VERIFIED:2026-11-15]. The full run therefore averaged
-about 52 seconds per case, and the choose cases measured 44-45 seconds, so the cost scales with the
-number of cases rather than with one slow case.
+Do not run the fixture for documentation, comments, translation strings or help text. A 32-case run
+took 22 minutes on 2026-11-15; a choose case took 33-54 seconds and `target-absent` took 13 seconds
+on the same machine [EXECUTION-VERIFIED:2026-11-15]. The full run therefore averaged about 41
+seconds per case, so the cost scales with the number of cases rather than with one slow case.
 
 `PENDING_RUNTIME_CASES` selects a subset, for example:
 

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation, route-unreserve removal and call-on/refactor changes (2026-11-14)
+verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle and handoff independent of call_on); ex-15 @ b501f13f3 (2026-11-15, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation, route-unreserve removal and call-on/refactor changes (2026-11-14)
 ---
 # Block reservations and reservation clearing
 
@@ -99,10 +99,12 @@ signalling, the signal is permissive (`get_permissive()`) and `signal_t::no_junc
 reservation under `from_call_on` keeps the rest of the walk in `drive_by_sight` instead of stopping the train.
 
 The choose-signal coupling approach adds one admission case. When `convoi_t::is_recombination_contact_tile` identifies the claimed
-approach partner's rear tile, the mover's `call_on` flag is set and the mover's route ends at that tile, `block_reserver` treats the
+approach partner's contact tile, the mover's `call_on` flag is set and the mover's route ends at that tile, `block_reserver` treats the
 tile as the walk's limit without reserving it, and `rail_vehicle_t::can_enter_tile` skips the failed-reservation path for it. The
-partner keeps the reservation, so the tile has one holder while both convoys occupy it. The reservation handoff when the partner
-leaves a tile that the mover still occupies is not implemented.
+partner keeps the reservation, so the tile has one holder while both convoys occupy it. When the holder's last vehicle leaves while
+the other convoy remains, `rail_vehicle_t::hand_over_contact_reservation` transfers the holder to the remaining convoy; the transfer
+tests the reciprocal approach link and the mover's route rather than `call_on`, which is cleared when the mover stops. When another
+convoy still holds the tile, the ordinary release is suppressed rather than clearing that convoy's reservation.
 
 Under `token_block` and `one_train_staff`, `rail_vehicle_t::leave_tile` calls `schiene_t::set_stale()` instead of `schiene_t::unreserve`,
 and `rail_vehicle_t::clear_token_reservation` releases the stale tiles when the train passes the exit signal, walking the route backwards

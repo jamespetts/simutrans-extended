@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on and scripted cases); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13, remainder); gameplay model and reservation audit 2026-11-14; call-on, reservation-index and route-unreserve-removal changes (2026-11-14)
+verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle and handoff independent of call_on); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check and shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on and scripted cases); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13, remainder); gameplay model and reservation audit 2026-11-14; call-on, reservation-index and route-unreserve-removal changes (2026-11-14)
 ---
 # Signals, signalboxes and block working
 
@@ -34,7 +34,7 @@ determinism.
   to the next signal, and a choose signal's target-specific admission of a coupling approach to an occupied platform. The
   choose-signal form does not require `get_permissive()` or `no_junctions_to_next_signal()` and always switches the train to
   `drive_by_sight`; `get_has_call_on()` only selects the image. The **coupling point** is the position at which a moving convoy's
-  front meets the target convoy's rear vehicle, measured in vehicle steps within the target's rear tile.
+  front meets the target convoy's rear vehicle's rear end, measured in vehicle steps within the tile that contains it.
 - **Signalbox, signal group, stale reservation.** A **signalbox** is a player-built building object (`signalbox_t`) that owns a
   list of signal positions and constrains where signals may be built. Its **signal group** support is the pakset cluster mask
   (`building_desc_t::get_clusters()`) that must intersect a signal type's own group (`roadsign_desc_t::get_signal_group()`);
@@ -186,12 +186,14 @@ covers only its reservation and platform consequences:
   way, and the retained portion releases the tiles it does not occupy.
 - A train cannot reserve through a tile held by a standing convoy, so a joining portion can enter an
   occupied block or platform only up to the standing train's tile, under call-on and only from a stand.
-  A convoy making a committed choose-signal approach enters the target's rear tile under call-on
+  A convoy making a committed choose-signal approach enters the target's contact tile under call-on
   while the target keeps the reservation on that tile (`convoi_t::is_recombination_contact_tile`,
   `rail_vehicle_t::block_reserver`, `rail_vehicle_t::can_enter_tile`, `vehicle_t::hop`). The
   coupling-point offset is computed from the target's rear vehicle position and length. The
-  scripted cases assert the coupling tile, not the intra-tile offset. The reservation handoff when
-  the holder leaves a shared tile is not implemented.
+  scripted cases assert the coupling tile and the intra-tile offset. When the holder's last vehicle
+  leaves the shared tile while the other convoy remains on it, `rail_vehicle_t::hand_over_contact_reservation`
+  transfers the single reservation holder; a convoy never releases a tile that another convoy still
+  occupies. The handoff has no scripted case.
 - Call-on has two forms. Ordinary permissive working applies at a stand at a permissive signal under
   absolute block, track circuit block or cab signalling with `no_junctions_to_next_signal`: a failed
   reservation sets `roadsign_t::call_on`, switches the train to `drive_by_sight` and re-runs
@@ -200,13 +202,17 @@ covers only its reservation and platform consequences:
   signal: when the current entry has `couple` (or the reciprocal `uncouple`), the target is stationary
   at the stop and only the target obstructs the route, the choose signal routes to the target's rear
   tile and issues call-on. It does not require `get_permissive()` or `no_junctions_to_next_signal()`,
-  and `has_call_on` is display-only. With consecutive choose signals, the first signal selects the
+  and `has_call_on` is display-only. Before routing to a stationary target the signal calls
+  `convoi_t::can_approach_coupling_target`, which solves the configured operation without changing
+  state; a failure keeps the signal at danger, holds the convoy and posts
+  `convoi_t::report_coupling_hold`. With consecutive choose signals, the first signal selects the
   coupling-target route and later signals retain an already selected route. If no route can approach
   the target platform in a usable direction, the approaching convoy stays at the choose signal and gets a
   warning about the station geometry and one-way signs. Choose-signal call-on covers the choose-signal
   decision, the target-platform route, admission and the shared contact tile; the present-target and
-  late-target cases assert the coupling point, and `one-sided-layout` asserts the receive's layout.
-  The reservation handoff remains outstanding.
+  late-target cases assert the coupling point, `one-sided-layout` asserts the receive's layout,
+  `pair-layout` asserts the paired layout, and `unresolvable-order` and `pair-unresolvable` assert
+  the hold and its warning.
 - A laid-over convoy keeps the reservations on its tiles; the halt-deletion path releases them with
   `convoi_t::reserve_own_tiles(true)`.
 - The platform a portion occupies must be long enough: `convoi_t::get_tile_length` is the station

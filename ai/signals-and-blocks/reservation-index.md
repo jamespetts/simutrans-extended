@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 23271d64e plus working-tree route-unreserve removal and profiling (2026-11-14)
+verified: ex-15 @ 71f192a65 (2026-11-15, handoff independent of call_on and the contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, shared-contact reservation handoff); ex-15 @ 23271d64e plus working-tree route-unreserve removal and profiling (2026-11-14)
 ---
 # Per-holder reservation index
 
@@ -167,9 +167,11 @@ index drift.
 The per-tile `rail_vehicle_t::leave_tile` and `convoi_t::reserve_own_tiles` operations use the same
 registration methods and need no additional route bookkeeping.
 
-The shared-contact coupling handoff will transfer the single holder through the same central
-ownership-change operation: unregister the old holder and register the authorised remaining holder. Never place
-the same way in two buckets. Physical occupancy by two convoys does not itself imply two reservation holders.
+The shared-contact coupling handoff transfers the single holder through the same central
+ownership-change operation: `rail_vehicle_t::hand_over_contact_reservation` calls
+`schiene_t::change_reservation_holder` to unregister the old holder and register the authorised
+remaining holder. The same way is never placed in two buckets. Physical occupancy by two convoys does
+not itself imply two reservation holders.
 
 ## Measured performance
 
@@ -220,8 +222,6 @@ and per-holder buckets without measured justification.
 
 ## Outstanding work
 
-- The shared-contact coupling handoff is not implemented. `schiene_t::change_reservation_holder()`
-  supplies the single-holder operation it will use.
 - Extend validation to world teardown under every destructor order and every supported thread configuration.
 
 ## Signalling refactoring and incidental bug fixes

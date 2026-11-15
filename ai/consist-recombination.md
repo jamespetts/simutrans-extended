@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8
+verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8
 ---
 # Consist recombination
 
@@ -8,8 +8,10 @@ verified: ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided
 unique entry ids), dataobj/consist_order_t.* (consist orders and slot matching), simconvoi.* (the
 runtime: `convoi_t::hat_gehalten`, `process_consist_order`, `commit_recombined_consist`,
 `resolve_uncouple_target`, `form_divided_portion`, `resolve_paired_exchange`,
-`execute_paired_exchange`, `commit_paired_exchange`), simhalt.* (laid-over pool and loading convoys),
-vehicle/vehicle.* (slot matching and loose recipients), and tests/pending-runtime. Signalling and
+`execute_paired_exchange`, `commit_paired_exchange`, `can_approach_coupling_target`,
+`report_coupling_hold`, `get_recombination_contact_pos`), simhalt.* (laid-over pool and loading
+convoys), vehicle/rail_vehicle.* (`hand_over_contact_reservation`), vehicle/vehicle.* (slot matching
+and loose recipients), and tests/pending-runtime. Signalling and
 reservation consequences: [signals-and-blocks](signals-and-blocks.md). Design and feature status:
 [ex-15/recombination-design](ex-15/recombination-design.md),
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). Cargo and passenger continuity:
@@ -35,8 +37,8 @@ explorer: [ex-15/yh-path-explorer](ex-15/yh-path-explorer.md). Tests:
 - **Receiver / target.** In a paired exchange, the convoy whose entry carries `couple` is the
   receiver and the convoy whose entry carries `uncouple` is the target.
 - **Joining convoy.** The convoy a one-sided receive draws vehicles from.
-- **Mover.** The convoy that travels to the other convoy's rear tile under a committed choose-signal
-  approach. The other convoy is the approach target.
+- **Mover.** The convoy that travels to the other convoy's contact tile under a committed
+  choose-signal approach. The other convoy is the approach target.
 - **Coupling point.** The position at which the mover's front meets the target's rear vehicle: the
   target rear vehicle's `steps` value minus that vehicle's descriptor length in vehicle steps.
 - **Split-off portion.** The new convoy a division forms from the source convoy's displaced
@@ -133,10 +135,10 @@ complete and powered. It does not backtrack; the paired exchange uses the joint 
 displaced vehicles that become loose stock, and creates a laid-over convoy for the rest. For a
 division, the discharge of the split candidate is deferred until `form_divided_portion` fails, so a
 promoted portion keeps its load. When the receiver is the shared-contact mover and its route ends at
-the joining convoy's rear tile, the commit records both consists' vehicle positions before detaching
-them and lays the final groups out on those slots with `vehicle_t::set_layout_position`: the joining
-convoy's remainder in the front slots, the receiver's final consist behind it and loose stock behind
-that. The joining convoy releases and re-takes its reservations around the repositioning. The commit
+the joining convoy's contact tile, the commit records both consists' vehicle positions before
+detaching them and lays the final groups out on those slots with `vehicle_t::set_layout_position`: the
+joining convoy's remainder in the front slots, the receiver's final consist behind it and loose stock
+behind that. The joining convoy releases and re-takes its reservations around the repositioning. The commit
 unreserves the receiving convoy's reservations and calls `convoi_t::reserve_own_tiles()`;
 `convoi_t::form_divided_portion` removes the promoted portion from and re-adds it to `welt->sync`.
 
@@ -145,16 +147,17 @@ both final consists are discharged and laid out as loose stock; direct transfers
 laid-over donor emptied by the exchange is deregistered and destroyed. A changed convoy waits out
 `shunting_time_seconds`; an unchanged consist is not detached or repopulated. A changed counterpart
 waits in `LOADING` under the same lock so that its new consist loads after the delay. When the
-receiver reached the target's rear tile under a committed approach, the commit lays the final
+receiver reached the target's contact tile under a committed approach, the commit lays the final
 consists out on the tiles the pre-exchange vehicles occupied, front convoy first and loose stock
 behind both, using `vehicle_t::set_layout_position`; each changed convoy releases its previous
 reservations with `convoi_t::unreserve_route()` and re-reserves with
 `convoi_t::reserve_own_tiles()` after positioning. Without that physical order, each changed consist
-is placed at its former rear tile.
+is placed at its former rear vehicle position.
 
-An emptied pool donor on the single-order paths (targetless assembly and one-sided receive) can remain
-in the halt's laid-over list until the monthly sweep; this is an open bug in
-[known-bugs](known-bugs.md).
+A vehicle detached for layout has no convoy until it is attached to its final or loose consist, so
+the commit clears every detached vehicle's leading and last flags before moving it and sets those
+flags on the re-formed consists. An emptied laid-over donor on any path is deregistered and
+destroyed at the commit rather than at the monthly sweep.
 
 ## States, once-only execution and saved state
 
@@ -192,15 +195,26 @@ Choose-signal call-on is target-specific and intrinsic to every choose signal. F
 `couple`, or the reciprocal `uncouple`, `convoi_t::get_recombination_target_state()` distinguishes a
 target that is not yet committed, a target that has passed the last signal before the stop, and a
 target stationary at the stop. A committed target holds the mover at the choose signal. An available
-target causes the choose signal to route to that target's rear tile; the mover is admitted under
-call-on into that tile and applies the coupling-point stop, while the target keeps the reservation.
+target first passes `convoi_t::can_approach_coupling_target()`: the choose signal tests, without
+changing state, that the configured operation can produce valid powered consists. A paired exchange
+runs the joint solver; a one-sided receive runs the single-order matcher. A failure keeps the signal
+at danger and posts one warning with `convoi_t::report_coupling_hold()`, naming both owners and the
+reason, so a mover whose check fails is not routed to the target. The verdict is cached
+on `convoi_t::recombination_precheck_signature` and recomputed when either consist or the stop's
+laid-over pool changes. An available target that passes the check causes the choose signal to route
+to that target's contact tile; the mover is admitted under call-on into that tile and applies the
+coupling-point stop, while the target keeps the reservation.
 `convoi_t::is_recombination_contact_tile` requires the mover's `call_on` flag, the reciprocal
-approach link and a route ending at the target's rear tile; `vehicle_t::hop` sets the tile's
+approach link and a route ending at the target's contact tile; `vehicle_t::hop` sets the tile's
 `steps_next` to the coupling-point offset computed by
 `convoi_t::get_recombination_contact_ground`. `has_call_on` is display-only, and call-on always
 switches the train to `drive_by_sight`. The scripted cases assert the coupling tile and the
-intra-tile coupling point. The reservation handoff when the target leaves a tile the mover still
-occupies remains outstanding; `SHUNTING` remains a timed pause, not a movement.
+intra-tile coupling point. `rail_vehicle_t::hand_over_contact_reservation()` transfers the tile's
+reservation to the convoy that remains on it when the holder's last vehicle leaves, and suppresses
+the ordinary release when another convoy still occupies a tile it holds. The contact point is
+carried back through every tile the rear vehicle's length covers, so a rear vehicle that straddles
+a tile boundary is coupled to in the tile containing its rear end. `SHUNTING` remains a timed pause,
+not a movement.
 
 ## Tests
 
@@ -212,12 +226,18 @@ present target, `ignore_choose` on the receiver, an absent target with a free or
 platform, `ignore_choose` with an occupied scheduled platform, a target that arrives after the
 receiver has passed the signal, an unrelated convoy blocking the target platform approach, a
 moving-block choose beacon, two consecutive choose signals, and an unusable target-platform
-approach. The present-target cases assert that the receiver reaches the target's rear tile (the
+approach. The present-target cases assert that the receiver reaches the target's contact tile (the
 coupling tile) and stops at the coupling point; `target-arrives-after` asserts the same for the
 later target. The `one-sided-layout` case asserts the final consist's positions in the target's
-former slots and that the loose stock is behind the receiver. A committed-target fixture remains
-unscripted. The harnesses and runners are described in
-[scripting-and-tests](scripting-and-tests.md).
+former slots and that the loose stock is behind the receiver. `pair-layout` asserts the paired
+commit's layout: the target's final consist on the target's former front slot, the receiver's final
+consist from the target's former rear slot, and the loose stock behind it. `straddling-contact`
+asserts a stop at the coupling point in the tile behind a long rear vehicle's front tile.
+`unresolvable-order` and `pair-unresolvable` assert that the choose signal holds the receiver at
+danger with no call-on and that the hold warning is logged. The signalling cases use a satisfiable
+receiver order that restates the receiver's own consist; the two hold cases use an order that cannot
+be completed. A committed-target fixture remains unscripted. The harnesses and runners are described
+in [scripting-and-tests](scripting-and-tests.md).
 
 ## Open questions
 
@@ -226,15 +246,21 @@ questions are maintained in [ex-15/recombination-design](ex-15/recombination-des
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The main outstanding items are
 freight/passenger continuity (including the intended loose-stock preloading and retrospective
 loading credit), wait-cycle detection beyond a direct pair, reversal-aware picking, the per-portion
-validity gate, the shared-contact coupling movement's remaining parts (reservation handoff and
-failure after contact), the off-map pool package, and the GUI authoring pre-check.
+validity gate, the committed-target fixture, the off-map pool package, and the GUI authoring
+pre-check. The shared-contact reservation handoff is implemented but has no scripted case: a
+target that departs while the mover is in its contact tile and the approach link is live is not
+deterministic to stage. The coupling point is carried back through every tile the target's rear
+vehicle covers; `straddling-contact` asserts a stop in the tile behind the rear vehicle's front
+tile.
 
 Should the term "convoy"/"convoi" be phased out entirely in the code and this knowledge base as well
 as the UI?
 
 ## Provenance
 
-Choose-signal call-on code and its scripted cases verified against ex-15 @ 0692167b6
-(2026-11-15); remaining content against ex-15 @ 97029f453 (2026-11-14); paired reload fixture @
-fa85a59b8. The detailed design history and forum provenance are in
+Choose-signal resolvability pre-check and pool-donor destruction verified against ex-15 @ b501f13f3
+(2026-11-15); the contact point carried behind the rear vehicle and the handoff predicate against
+ex-15 @ 71f192a65 (2026-11-15); choose-signal call-on code and its scripted cases against ex-15 @
+0692167b6 (2026-11-15); remaining content against ex-15 @ 97029f453 (2026-11-14); paired reload
+fixture @ fa85a59b8. The detailed design history and forum provenance are in
 [ex-15/recombination-design](ex-15/recombination-design.md).
