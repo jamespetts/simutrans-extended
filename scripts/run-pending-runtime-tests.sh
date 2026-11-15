@@ -10,7 +10,8 @@
 #   RUNTIME CASE <case> FAIL: <assertion>
 #
 # Cases in cases/ are Y-division cases and use harness.nut. Cases in
-# pair-cases/ are paired H exchange cases and use pair-harness.nut. The forward
+# pair-cases/ are paired H exchange cases and use pair-harness.nut. Cases in
+# choose-cases/ are choose-signal call-on cases and use choose-harness.nut. The forward
 # case additionally prints the older Y DIVISION PASS and Y DIVISION FAIL
 # markers.
 #
@@ -48,6 +49,13 @@ for case_file in "$source_root"/pair-cases/*/scenario.nut
 do
 	[ -f "$case_file" ] || continue
 	pair_case_names+=("$(basename "$(dirname "$case_file")")")
+	case_names+=("$(basename "$(dirname "$case_file")")")
+done
+choose_case_names=()
+for case_file in "$source_root"/choose-cases/*/scenario.nut
+do
+	[ -f "$case_file" ] || continue
+	choose_case_names+=("$(basename "$(dirname "$case_file")")")
 	case_names+=("$(basename "$(dirname "$case_file")")")
 done
 
@@ -100,6 +108,10 @@ run_case()
 	then
 		case_scenario="$source_root/pair-cases/$case_name/scenario.nut"
 		harness_file=$source_root/pair-harness.nut
+	elif [ -f "$source_root/choose-cases/$case_name/scenario.nut" ]
+	then
+		case_scenario="$source_root/choose-cases/$case_name/scenario.nut"
+		harness_file=$source_root/choose-harness.nut
 	else
 		echo "Case $case_name: scenario file not found"
 		return 1
