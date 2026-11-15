@@ -604,6 +604,14 @@ private:
 	uint32 recombination_precheck_signature;
 	bool recombination_precheck_passed;
 
+	/**
+	 * The schedule entry whose consist order last failed at the current stop,
+	 * so that the failure is reported once instead of on every step spent
+	 * waiting for a coupling target. Cleared on arrival at each stop.
+	 * Transient: it is a UI-reporting aid, not simulation state.
+	 */
+	uint16 recombination_failure_reported_entry = 0;
+
 	// Helper function: used in init and replacing
 	void reset();
 
@@ -1809,6 +1817,10 @@ public:
 		// the error and leave the order unexecuted. It is never assembled from
 		// the stop's pool.
 		void report_broken_couple_target(halthandle_t halt);
+
+		// A consist order that could not be carried out leaves the consist
+		// unchanged; say so once, rather than failing silently.
+		void report_consist_order_failed(halthandle_t halt) const;
 
 		// An uncouple entry's resolved target: its line (also used when the
 		// named convoy is bound to a line), its lineless convoy, and the target

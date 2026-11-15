@@ -9734,6 +9734,7 @@ convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_o
 	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy, split_candidate);
 	if (result == succeed)
 	{
+		recombination_failure_reported_entry = 0;
 		if (state == LAYOVER)
 		{
 			// Shunting overwrites layover: deregister from the stop's layover
@@ -9744,7 +9745,22 @@ convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_o
 		const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
 		wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
 	}
+	else if (result == fail && recombination_failure_reported_entry != schedule->get_current_entry().unique_entry_id)
+	{
+		// The order could not be carried out here. Report it once per stop, not
+		// on every step of a wait for a coupling target.
+		recombination_failure_reported_entry = schedule->get_current_entry().unique_entry_id;
+		report_consist_order_failed(halt);
+	}
 	return result;
+}
+
+
+void convoi_t::report_consist_order_failed(halthandle_t halt) const
+{
+	cbuffer_t buf;
+	buf.printf(translator::translate("Convoy %s: the vehicles listed in the consist order for %s cannot be formed into a train, so the convoy is left as it is."), get_name(), halt.is_bound() ? halt->get_name() : get_pos().get_str());
+	welt->get_message()->add_message(buf, get_pos().get_2d(), message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
 }
 
 
@@ -12139,6 +12155,11 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 
 void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 {
+	if (first_run)
+	{
+		// A new stop reports the outcome of its consist order again.
+		recombination_failure_reported_entry = 0;
+	}
 	const schedule_entry_t &current_entry = schedule->get_current_entry();
 	const uint16 unique_id = current_entry.unique_entry_id;
 	const bool has_order = schedule->entry_has_consist_order(unique_id);

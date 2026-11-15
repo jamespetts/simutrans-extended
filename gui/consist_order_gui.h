@@ -233,12 +233,24 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 	bool leftover_filter_convoy = false;
 	void update_leftover_selection();
 
-	// [ORDER]
+	// [ORDER] The list of vehicles the train must have.
 	gui_aligned_container_t cont_order;
 	cont_order_overview_t cont_order_overview;
 	gui_scrollpane_t scroll_order;
 	uint32 old_order_count = 0;
 	uint32 old_order_mod_count = 0;
+
+	// [ORDER CHECK] Whether the list describes a train that can be formed, and,
+	// for an entry that divides or joins a train, which part of the train the
+	// list describes. Recomputed when the order changes.
+	gui_label_buf_t lb_order_check;
+	cbuffer_t order_check_buf;
+	uint32 checked_mod_count = UINT32_MAX_VALUE;
+	uint32 checked_alternative_count = UINT32_MAX_VALUE;
+	consist_order_check_t order_check;
+	// Recomputes the verdict and explanation when the order changes. Returns
+	// whether the displayed text changed, so the window can resize.
+	bool update_order_check();
 
 	// filter (common)
 	uint8 filter_catg=255; // all
@@ -388,8 +400,6 @@ private:
 	// this way type/category currently buyable new (timeline-aware). Empty when
 	// nothing matches.
 	void collect_pool(vector_tpl<const vehicle_desc_t*> &out) const;
-	bool desc_way_cat_ok(const vehicle_desc_t *desc) const;
-	bool desc_buyable_ok(const vehicle_desc_t *desc) const;
 	bool rule_line_matchable(uint8 line) const;
 	uint32 count_line_matches(uint8 line) const;
 	void build_line_probe(uint8 line, vehicle_description_element &probe) const;

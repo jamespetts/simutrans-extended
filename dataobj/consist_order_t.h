@@ -171,6 +171,41 @@ public:
 	bool operator== (const consist_order_element_t& other) const;
 };
 
+// Result of checking whether a consist order describes a train that can be
+// formed. Slots are numbered from the front of the train. Only the first
+// reason found is reported; "slot" is the zero-based slot it refers to (0 when
+// the reason is not about a particular slot). "unjudged" means the order
+// contains a rule-based slot and no vehicles were supplied to test it against,
+// so nothing can be said about the order.
+struct consist_order_check_t
+{
+	enum reason_t
+	{
+		ok = 0,
+		// The order has no slots at all.
+		empty_list,
+		// A slot has no alternatives.
+		slot_without_vehicle,
+		// A slot's alternatives are all rules, and no supplied vehicle
+		// satisfies them.
+		slot_without_available_vehicle,
+		// No vehicle in a slot can be coupled to any vehicle of the slot in
+		// front of it.
+		slot_does_not_connect,
+		// No vehicle in the first slot can be at the front of a train.
+		front_cannot_lead,
+		// No vehicle in the last slot can be at the rear of a train.
+		rear_cannot_be_last,
+		// No vehicle in any slot provides power.
+		no_power
+	};
+
+	reason_t reason = ok;
+	uint32 slot = 0;
+	bool unjudged = false;
+};
+
+
 class consist_order_t
 {
 	friend class schedule_t;
@@ -314,6 +349,16 @@ public:
 
 	// Determine if a combination of vehicles in consecutive order elements is possible
 	PIXVAL get_constraint_state_color(uint32 element_number, bool rear_side = true);
+
+	// Check that the order describes a train that can be formed: every slot can
+	// be filled, each pair of adjacent slots can be coupled, the first and last
+	// vehicles can be at the ends of the train, and at least one vehicle
+	// provides power. The pool is the set of vehicle types a rule-based slot may
+	// draw on; a named vehicle is always available. The result is the first
+	// problem found, or ok. This checks the order in the direction it is written
+	// (front to rear); it cannot know which way round a vehicle will be when the
+	// train is formed.
+	consist_order_check_t check(const vector_tpl<const vehicle_desc_t*> &pool) const;
 
 	void sprintf_consist_order(cbuffer_t &buf) const;
 	const char* sscanf_consist_order(const char* ptr);

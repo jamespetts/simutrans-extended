@@ -1231,13 +1231,13 @@ void consist_rule_editor_t::rebuild_class_list()
 // retired vehicles count as "in the past". Without a timeline, everything counts.
 // Way type and category must match the rule's slot. The Any wildcard accepts
 // any category.
-bool consist_rule_editor_t::desc_way_cat_ok(const vehicle_desc_t *desc) const
+static bool pool_desc_matches(const vehicle_desc_t *desc, waytype_t waytype, uint8 catg)
 {
 	if (waytype == invalid_wt || desc->get_waytype() != waytype) {
 		return false;
 	}
-	if (edit_catg != consist_order_element_t::any_catg_index
-		&& desc->get_freight_type()->get_catg_index() != edit_catg) {
+	if (catg != consist_order_element_t::any_catg_index
+		&& desc->get_freight_type()->get_catg_index() != catg) {
 		return false;
 	}
 	return true;
@@ -1245,24 +1245,24 @@ bool consist_rule_editor_t::desc_way_cat_ok(const vehicle_desc_t *desc) const
 
 
 // Buyable new: with the timeline on, only vehicles already introduced count.
-bool consist_rule_editor_t::desc_buyable_ok(const vehicle_desc_t *desc) const
+static bool pool_desc_buyable(const vehicle_desc_t *desc, waytype_t waytype, uint8 catg)
 {
-	return desc_way_cat_ok(desc)
+	return pool_desc_matches(desc, waytype, catg)
 		&& (!world()->get_settings().get_use_timeline()
 			|| desc->get_intro_year_month() <= world()->get_current_month());
 }
 
 
-// The vehicles a rule may draw on: the player's own fleet (convoys and depots),
-// plus anything currently buyable new. Deduplicated by descriptor.
-void consist_rule_editor_t::collect_pool(vector_tpl<const vehicle_desc_t*> &out) const
+// The vehicles an order or rule may draw on: the player's own fleet (convoys
+// and depots), plus anything currently buyable new. Deduplicated by descriptor.
+static void collect_vehicle_pool(player_t *player, waytype_t waytype, uint8 catg, vector_tpl<const vehicle_desc_t*> &out)
 {
 	out.clear();
 	if (waytype == invalid_wt) {
 		return;
 	}
 	for (auto const desc : vehicle_builder_t::get_info(waytype)) {
-		if (desc_buyable_ok(desc) && !out.is_contained(desc)) {
+		if (pool_desc_buyable(desc, waytype, catg) && !out.is_contained(desc)) {
 			out.append(desc);
 		}
 	}
@@ -1273,7 +1273,7 @@ void consist_rule_editor_t::collect_pool(vector_tpl<const vehicle_desc_t*> &out)
 			}
 			for (uint8 i = 0; i < cnv->get_vehicle_count(); i++) {
 				const vehicle_desc_t *desc = cnv->get_vehicle(i)->get_desc();
-				if (desc && desc_way_cat_ok(desc) && !out.is_contained(desc)) {
+				if (desc && pool_desc_matches(desc, waytype, catg) && !out.is_contained(desc)) {
 					out.append(desc);
 				}
 			}
@@ -1284,12 +1284,19 @@ void consist_rule_editor_t::collect_pool(vector_tpl<const vehicle_desc_t*> &out)
 			}
 			for (auto const veh : dep->get_vehicle_list()) {
 				const vehicle_desc_t *desc = veh->get_desc();
-				if (desc && desc_way_cat_ok(desc) && !out.is_contained(desc)) {
+				if (desc && pool_desc_matches(desc, waytype, catg) && !out.is_contained(desc)) {
 					out.append(desc);
 				}
 			}
 		}
 	}
+}
+
+
+// The rule editor's pool: the same set, narrowed to the slot's category.
+void consist_rule_editor_t::collect_pool(vector_tpl<const vehicle_desc_t*> &out) const
+{
+	collect_vehicle_pool(player, waytype, edit_catg, out);
 }
 
 
@@ -1685,6 +1692,8 @@ void consist_order_frame_t::init(schedule_gui_t *owner_, uint16 entry_id)
 	schedule = owner_->get_edit_schedule();
 	unique_entry_id = entry_id;
 	order = schedule->orders.get(unique_entry_id);
+	checked_mod_count = UINT32_MAX_VALUE;
+	checked_alternative_count = UINT32_MAX_VALUE;
 }
 
 
@@ -1823,6 +1832,13 @@ void consist_order_frame_t::init_table()
 	scroll_order.set_min_height(grid.y + LINESPACE + D_BUTTON_HEIGHT*3 + D_INDICATOR_HEIGHT + D_V_SPACE*5 + D_SCROLLBAR_HEIGHT);
 	scroll_order.set_maximize(true);
 	add_component(&scroll_order);
+
+	// [ORDER CHECK] Directly under the list it judges: whether the vehicles
+	// listed make a train that can run, and which part of a divided or joined
+	// train this list describes. The second line only appears when there is
+	// something to say; an unremarkable list stays quiet.
+	add_component(&lb_order_check);
+	new_component<gui_textarea_t>(&order_check_buf);
 
 	new_component<gui_divider_t>();
 
@@ -2203,6 +2219,13 @@ void consist_order_frame_t::init_input_value_range()
 void consist_order_frame_t::draw(scr_coord pos, scr_size size)
 {
 	if (player != welt->get_active_player() || !schedule->get_count()) { destroy_win(this); }
+	// Cheap when nothing changed; keeps the verdict in step with edits that do
+	// not change the element count.
+	if (update_order_check())
+	{
+		reset_min_windowsize();
+		resize(scr_size(0,0));
+	}
 	if( schedule->get_count() != old_entry_count ) {
 		init_input_value_range();
 		update();
@@ -2875,6 +2898,197 @@ void consist_order_frame_t::update_leftover_selection()
 }
 
 
+// Name of the line or consist that a couple or uncouple entry names. Returns
+// false when the entry names nothing, or the line or consist no longer exists.
+static bool recombination_target_name(uint16 id, bool is_convoy, cbuffer_t &out)
+{
+	if (id == 0)
+	{
+		return false;
+	}
+	if (is_convoy)
+	{
+		convoihandle_t cnv;
+		cnv.set_id(id);
+		if (cnv.is_bound())
+		{
+			out.append(cnv->get_name());
+			return true;
+		}
+	}
+	else
+	{
+		linehandle_t line;
+		line.set_id(id);
+		if (line.is_bound())
+		{
+			out.append(line->get_name());
+			return true;
+		}
+	}
+	return false;
+}
+
+
+// Explain the list to the player: whether it makes a train that can run, and,
+// when the entry divides or joins a train, which part of the train the list
+// describes. The wording avoids the internal vocabulary: the list is simply the
+// train's vehicles, from the front to the rear, in the direction it travels.
+bool consist_order_frame_t::update_order_check()
+{
+	// Adding an alternative to an existing slot does not bump mod_count (it
+	// would clear the picker selection), so the number of alternatives is part
+	// of the change test.
+	uint32 alternative_count = 0;
+	for (uint32 i = 0; i < order.get_count(); i++)
+	{
+		alternative_count += order.get_order(i).get_count();
+	}
+	if (order.get_mod_count() == checked_mod_count && alternative_count == checked_alternative_count)
+	{
+		return false;
+	}
+	checked_mod_count = order.get_mod_count();
+	checked_alternative_count = alternative_count;
+
+	vector_tpl<const vehicle_desc_t*> pool;
+	collect_vehicle_pool(player, schedule->get_waytype(), consist_order_element_t::any_catg_index, pool);
+	order_check = order.check(pool);
+
+	lb_order_check.buf().clear();
+	order_check_buf.clear();
+	PIXVAL colour = SYSCOL_TEXT;
+
+	switch (order_check.reason)
+	{
+		case consist_order_check_t::ok:
+			if (order_check.unjudged)
+			{
+				lb_order_check.buf().append(translator::translate("The list cannot be checked: there are no vehicles to compare it with."));
+			}
+			else
+			{
+				colour = COL_SAFETY;
+				lb_order_check.buf().append(translator::translate("The list makes a complete train."));
+			}
+			break;
+
+		case consist_order_check_t::empty_list:
+			colour = COL_WARNING;
+			lb_order_check.buf().append(translator::translate("The list has no vehicles."));
+			order_check_buf.append(translator::translate("Add the vehicles that the train\nshould have at this stop."));
+			break;
+
+		case consist_order_check_t::slot_without_vehicle:
+			colour = COL_DANGER;
+			lb_order_check.buf().printf(translator::translate("Position %u has no vehicle."), order_check.slot + 1);
+			order_check_buf.printf(translator::translate("Add a vehicle to position %u,\nor remove that position."), order_check.slot + 1);
+			break;
+
+		case consist_order_check_t::slot_without_available_vehicle:
+			colour = COL_DANGER;
+			lb_order_check.buf().printf(translator::translate("No available vehicle fits position %u."), order_check.slot + 1);
+			order_check_buf.printf(translator::translate("No vehicle that you own or can buy matches\nthe rules for position %u."), order_check.slot + 1);
+			break;
+
+		case consist_order_check_t::slot_does_not_connect:
+			colour = COL_DANGER;
+			lb_order_check.buf().printf(translator::translate("Positions %u and %u cannot be coupled together."), order_check.slot, order_check.slot + 1);
+			order_check_buf.printf(translator::translate("Change one of those vehicles, or insert one\nthat couples to both between them."));
+			break;
+
+		case consist_order_check_t::front_cannot_lead:
+			colour = COL_DANGER;
+			lb_order_check.buf().append(translator::translate("The first vehicle cannot be at the front."));
+			order_check_buf.append(translator::translate("Use a vehicle that can be at the front\nin position 1."));
+			break;
+
+		case consist_order_check_t::rear_cannot_be_last:
+			colour = COL_DANGER;
+			lb_order_check.buf().append(translator::translate("The last vehicle cannot be at the rear."));
+			order_check_buf.append(translator::translate("Use a vehicle that can be at the rear\nin the last position."));
+			break;
+
+		case consist_order_check_t::no_power:
+			colour = COL_DANGER;
+			lb_order_check.buf().append(translator::translate("No vehicle in the list provides power."));
+			order_check_buf.append(translator::translate("Add a vehicle that provides power."));
+			break;
+	}
+
+	// Which part of a divided or joined train this list describes. Shown
+	// whenever the entry names a counterpart, so the player can tell the two
+	// lists apart before anything goes wrong.
+	const uint8 entry_index = schedule->get_entry_from_unique_id(unique_entry_id);
+	if (entry_index != 255)
+	{
+		const schedule_entry_t &entry = schedule->entries[entry_index];
+		cbuffer_t target_name;
+		if (entry.is_flag_set(schedule_entry_t::uncouple))
+		{
+			const bool named = recombination_target_name(entry.target_id_uncouple, entry.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv), target_name);
+			if (order_check_buf.len() > 0)
+			{
+				order_check_buf.append("\n");
+			}
+			if (named)
+			{
+				order_check_buf.printf(translator::translate("This list is the part of the train that stays.\nThe rest goes to %s at this stop."), (const char *)target_name);
+			}
+			else if (entry.target_id_uncouple == 0)
+			{
+				order_check_buf.append(translator::translate("This list is the part of the train that stays.\nThe rest is left at this stop."));
+			}
+			else
+			{
+				order_check_buf.append(translator::translate("This list is the part of the train that stays.\nThe rest goes to another train at this stop."));
+			}
+		}
+		else if (entry.is_flag_set(schedule_entry_t::couple))
+		{
+			const bool named = recombination_target_name(entry.target_id_couple, entry.is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv), target_name);
+			if (order_check_buf.len() > 0)
+			{
+				order_check_buf.append("\n");
+			}
+			if (named)
+			{
+				order_check_buf.printf(translator::translate("This list is the train after it has taken\nvehicles from %s at this stop."), (const char *)target_name);
+			}
+			else
+			{
+				order_check_buf.append(translator::translate("This list is the train after it has taken\nvehicles from another train at this stop."));
+			}
+		}
+
+		if (entry.is_flag_set(schedule_entry_t::couple) || entry.is_flag_set(schedule_entry_t::uncouple))
+		{
+			if (order_check_buf.len() > 0)
+			{
+				order_check_buf.append("\n");
+			}
+			order_check_buf.append(translator::translate("Each side of a divided or joined train\nmust be able to run on its own."));
+		}
+	}
+
+	// The direction the list is written in is the one thing a player cannot see
+	// from the window: a train that is running backwards is still listed from
+	// its front. State it whenever there is a list at all.
+	if (order.get_count() > 0)
+	{
+		if (order_check_buf.len() > 0)
+		{
+			order_check_buf.append("\n");
+		}
+		order_check_buf.append(translator::translate("The list runs from the front of the train\nto the rear, in the direction it travels."));
+	}
+
+	lb_order_check.set_color(colour);
+	lb_order_check.update();
+	return true;
+}
+
+
 // reflesh labels, call when entry changed
 void consist_order_frame_t::update()
 {
@@ -2913,6 +3127,7 @@ void consist_order_frame_t::update()
 	bt_leftover_lines.pressed = !leftover_filter_convoy;
 	bt_leftover_convoys.pressed = leftover_filter_convoy;
 	update_leftover_selection();
+	update_order_check();
 	resize(scr_size(0,0));
 }
 

@@ -56,23 +56,46 @@ bool consist_order_element_t::append_vehicle(const vehicle_desc_t *v)
 }
 
 
+// Whether v may stand next to "other" in a consist, in the direction the order
+// is written: behind "other" when to_rear is set, in front of it otherwise. A
+// consist order records vehicle types but not their facing, so the editor
+// cannot tell which way round a bidirectional vehicle will be: accept it when
+// it connects either way round. A null "other" means the element has no other
+// vehicle, so v stands at the end of the train and must suit that end.
+static bool vehicle_fits(const vehicle_desc_t *v, const vehicle_desc_t *other, bool to_rear)
+{
+	if (!v)
+	{
+		return false;
+	}
+	if (!other)
+	{
+		return to_rear ? v->can_lead(nullptr) : v->can_follow(nullptr);
+	}
+	// The neighbour's own end does not depend on which way round v is.
+	if (!(to_rear ? other->can_lead(v) : other->can_follow(v)))
+	{
+		return false;
+	}
+	if (to_rear ? v->can_follow(other) : v->can_lead(other))
+	{
+		return true;
+	}
+	// The other way round, v's other end meets this neighbour.
+	return v->is_bidirectional() && (to_rear ? v->can_lead(other) : v->can_follow(other));
+}
+
+
 bool consist_order_element_t::can_connect(const vehicle_desc_t *v, bool to_rear) const
 {
-	if (!get_count()) {
-		// empty slot
-		return to_rear ? v->can_lead(NULL) : v->can_follow(NULL);
+	if (!get_count())
+	{
+		// empty slot: the vehicle stands at the end of the train
+		return vehicle_fits(v, nullptr, to_rear);
 	}
-	uint32 test = vehicle_description.get_count(); //
-	uint32 test2 = get_count(); //
-	for (uint32 i = 0; i < vehicle_description.get_count(); i++) {
-		const vehicle_desc_t *veh_type = vehicle_description[i].specific_vehicle;
-		bool can_connect = to_rear ? v->can_follow(veh_type) : v->can_lead(veh_type);
-		if (!can_connect) return false;
-		if (veh_type) {
-			// must be connectable to each other
-			can_connect = to_rear ? veh_type->can_lead(v) : veh_type->can_follow(v);
-			if (!can_connect) return false;
-		}
+	for (uint32 i = 0; i < vehicle_description.get_count(); i++)
+	{
+		if (!vehicle_fits(v, vehicle_description[i].specific_vehicle, to_rear)) return false;
 	}
 	return true;
 }
@@ -184,6 +207,199 @@ PIXVAL consist_order_t::get_constraint_state_color(uint32 element_number, bool r
 		return COL_DANGER;
 	}
 	return 0; // black
+}
+
+
+// The descriptors a slot can be filled with, in the order the matcher tries
+// them. A named vehicle is always available. A rule is resolved against the
+// pool; a slot whose alternative is permitted to be empty accepts any vehicle
+// of the pool. When the pool is empty a rule cannot be judged, which the
+// caller reports rather than treating as a failure.
+static void collect_slot_candidates(const consist_order_element_t &element, const vector_tpl<const vehicle_desc_t*> &pool, vector_tpl<const vehicle_desc_t*> &out, bool &unjudged)
+{
+	const uint8 catg = element.get_catg_index();
+	for (uint32 i = 0; i < element.get_count(); i++)
+	{
+		const vehicle_description_element &vde = element.get_vehicle_description(i);
+		if (vde.specific_vehicle)
+		{
+			if (!out.is_contained(vde.specific_vehicle))
+			{
+				out.append(vde.specific_vehicle);
+			}
+			continue;
+		}
+		if (pool.empty())
+		{
+			// Nothing to test a rule against.
+			unjudged = true;
+			continue;
+		}
+		for (auto const desc : pool)
+		{
+			if ((vde.empty || vehicle_t::desc_matches_rule(desc, catg, vde)) && !out.is_contained(desc))
+			{
+				out.append(desc);
+			}
+		}
+	}
+}
+
+
+// Whether "rear" may stand immediately in front of "front", in the direction
+// the order is written. These are the descriptor rules the runtime matcher
+// applies (convoi_t::consist_slot_couples): an articulated vehicle only couples
+// to its own group, and an ordinary vehicle couples unless the touching ends
+// are marked unconnectable.
+static bool descriptors_couple(const vehicle_desc_t *rear, const vehicle_desc_t *front)
+{
+	return rear->can_lead(front) && front->can_follow(rear);
+}
+
+
+consist_order_check_t consist_order_t::check(const vector_tpl<const vehicle_desc_t*> &pool) const
+{
+	consist_order_check_t result;
+	const uint32 count = orders.get_count();
+	if (count == 0)
+	{
+		result.reason = consist_order_check_t::empty_list;
+		return result;
+	}
+
+	// The candidate vehicles of every slot. A rule that cannot be judged leaves
+	// the order unjudged as a whole: the chain and the ends depend on it.
+	vector_tpl<vector_tpl<const vehicle_desc_t*> > candidates;
+	bool unjudged = false;
+	for (uint32 i = 0; i < count; i++)
+	{
+		vector_tpl<const vehicle_desc_t*> slot;
+		collect_slot_candidates(orders[i], pool, slot, unjudged);
+		if (slot.empty())
+		{
+			if (unjudged)
+			{
+				result.unjudged = true;
+				return result;
+			}
+			result.reason = orders[i].get_count() == 0
+				? consist_order_check_t::slot_without_vehicle
+				: consist_order_check_t::slot_without_available_vehicle;
+			result.slot = i;
+			return result;
+		}
+		candidates.append(slot);
+	}
+	if (unjudged)
+	{
+		result.unjudged = true;
+		return result;
+	}
+
+	// forward[i]: the candidates of slot i that can follow some candidate of
+	// slot i-1 (for slot 0, those that can be at the front of the train).
+	vector_tpl<vector_tpl<const vehicle_desc_t*> > forward;
+	{
+		vector_tpl<const vehicle_desc_t*> front;
+		for (auto const desc : candidates[0])
+		{
+			if (desc->can_follow(nullptr))
+			{
+				front.append(desc);
+			}
+		}
+		if (front.empty())
+		{
+			result.reason = consist_order_check_t::front_cannot_lead;
+			result.slot = 0;
+			return result;
+		}
+		forward.append(front);
+	}
+	for (uint32 i = 1; i < count; i++)
+	{
+		vector_tpl<const vehicle_desc_t*> reachable;
+		for (auto const desc : candidates[i])
+		{
+			for (auto const previous : forward[i - 1])
+			{
+				if (descriptors_couple(previous, desc))
+				{
+					reachable.append(desc);
+					break;
+				}
+			}
+		}
+		if (reachable.empty())
+		{
+			result.reason = consist_order_check_t::slot_does_not_connect;
+			result.slot = i;
+			return result;
+		}
+		forward.append(reachable);
+	}
+
+	// backward_rev[k]: the candidates of the slot k places from the rear that
+	// can be followed by some candidate of the slot behind them (for the last
+	// slot, those that can be at the rear of the train).
+	vector_tpl<vector_tpl<const vehicle_desc_t*> > backward_rev;
+	{
+		vector_tpl<const vehicle_desc_t*> rear;
+		for (auto const desc : candidates[count - 1])
+		{
+			if (desc->can_lead(nullptr))
+			{
+				rear.append(desc);
+			}
+		}
+		if (rear.empty())
+		{
+			result.reason = consist_order_check_t::rear_cannot_be_last;
+			result.slot = count - 1;
+			return result;
+		}
+		backward_rev.append(rear);
+	}
+	for (uint32 k = 1; k < count; k++)
+	{
+		const uint32 i = count - 1 - k;
+		vector_tpl<const vehicle_desc_t*> reachable;
+		for (auto const desc : candidates[i])
+		{
+			for (auto const next : backward_rev[k - 1])
+			{
+				if (descriptors_couple(desc, next))
+				{
+					reachable.append(desc);
+					break;
+				}
+			}
+		}
+		backward_rev.append(reachable);
+	}
+
+	// A candidate can be part of a complete train only when it is reachable
+	// from both ends; power must come from such a candidate, not from a vehicle
+	// that could never be placed.
+	bool has_power = false;
+	for (uint32 i = 0; i < count && !has_power; i++)
+	{
+		for (auto const desc : forward[i])
+		{
+			if (desc->get_power() > 0 && backward_rev[count - 1 - i].is_contained(desc))
+			{
+				has_power = true;
+				break;
+			}
+		}
+	}
+	if (!has_power)
+	{
+		result.reason = consist_order_check_t::no_power;
+		return result;
+	}
+
+	return result;
 }
 
 
