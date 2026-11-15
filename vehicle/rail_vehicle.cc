@@ -3677,6 +3677,10 @@ bool rail_vehicle_t::hand_over_contact_reservation(schiene_t *way, const grund_t
 		return false;
 	}
 	way->change_reservation_holder(mover);
+	if (schiene_t::show_reservations)
+	{
+		way->set_flag(obj_t::dirty);
+	}
 	return true;
 }
 
