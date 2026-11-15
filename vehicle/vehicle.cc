@@ -1507,6 +1507,14 @@ grund_t* vehicle_t::hop_check()
 			return NULL;
 		}
 
+		// If the next tile is the approach partner's rear tile, record the
+		// coupling point so that the hop below stops there rather than at the
+		// tile end.
+		if(leading && cnv && cnv->is_recombination_approach_mover())
+		{
+			cnv->get_recombination_contact_ground(this);
+		}
+
 		// check for one-way sign etc.
 		const waytype_t wt = get_waytype();
 		if(  air_wt != wt  &&  route_index < cnv->get_route()->get_count()-1  ) {
@@ -1618,6 +1626,28 @@ void vehicle_t::reposition_vehicle(grund_t* gr)
 	set_pos(gr->get_pos());
 	enter_tile(gr);
 	calc_image();
+	gr->set_all_obj_dirty();
+	if (cnv)	{
+		cnv->must_recalc_data();
+	}
+	calc_drag_coefficient(gr);
+}
+
+
+void vehicle_t::set_layout_position(const koord3d &pos, uint8 new_steps, ribi_t::ribi new_direction)
+{
+	grund_t *const gr = welt->lookup(pos);
+	if (!gr)
+	{
+		return;
+	}
+	leave_tile();
+	set_pos(pos);
+	steps = new_steps;
+	direction = new_direction;
+	enter_tile(gr);
+	calc_image();
+	calc_height(gr);
 	gr->set_all_obj_dirty();
 	if (cnv)
 	{
@@ -1741,6 +1771,18 @@ void vehicle_t::hop(grund_t* gr)
 	if(  check_for_finish  &  leading && (direction==ribi_t::north  || direction==ribi_t::west))
 	{
 		steps_next = (steps_next/2)+1;
+	}
+
+	if (check_for_finish && leading && cnv)
+	{
+		// The coupling point is inside the shared contact tile, so stop the
+		// vehicle there instead of at the tile end (and instead of the
+		// half-tile terminal correction above).
+		const sint16 contact_steps = cnv->take_recombination_contact_steps();
+		if (contact_steps > 0)
+		{
+			steps_next = (uint8)contact_steps;
+		}
 	}
 
 	// speedlimit may have changed

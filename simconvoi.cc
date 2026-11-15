@@ -219,6 +219,7 @@ void convoi_t::init(player_t *player)
 	last_stop_id = 0;
 	recombination_approach_partner = convoihandle_t();
 	recombination_approach_is_mover = false;
+	recombination_contact_steps = -1;
 
 	yielding_quit_index = -1;
 	lane_affinity = 0;
@@ -726,6 +727,7 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 	{
 		recombination_approach_partner = convoihandle_t();
 		recombination_approach_is_mover = false;
+		recombination_contact_steps = -1;
 	}
 
 	loading_limit = schedule->get_current_entry().minimum_loading;
@@ -10811,6 +10813,93 @@ void convoi_t::clear_recombination_approach()
 	}
 	recombination_approach_partner = convoihandle_t();
 	recombination_approach_is_mover = false;
+	recombination_contact_steps = -1;
+}
+
+
+bool convoi_t::is_recombination_contact_tile(const convoihandle_t &holder, const koord3d &pos) const
+{
+	const bool result = recombination_approach_is_mover
+		&& call_on
+		&& recombination_approach_partner.is_bound()
+		&& holder.is_bound()
+		&& holder == recombination_approach_partner
+		&& recombination_approach_partner->get_vehicle_count() > 0
+		&& pos == recombination_approach_partner->back()->get_pos()
+		&& !route.empty()
+		&& route.back() == pos;
+	return result;
+}
+
+
+grund_t *convoi_t::get_recombination_contact_ground(const vehicle_t *mover)
+{
+	recombination_contact_steps = -1;
+	if (!mover || !recombination_approach_is_mover || !recombination_approach_partner.is_bound())
+	{
+		return nullptr;
+	}
+	convoi_t *const target = recombination_approach_partner.get_rep();
+	if (!target || target->get_vehicle_count() == 0)
+	{
+		return nullptr;
+	}
+	vehicle_t *const rear = target->back();
+	if (!rear || rear->get_waytype() != mover->get_waytype())
+	{
+		return nullptr;
+	}
+	const koord3d contact_pos = rear->get_pos();
+	if (mover->get_pos() == contact_pos)
+	{
+		// The contact tile has been entered; the normal finish applies.
+		return nullptr;
+	}
+	if (mover->get_pos_next() != contact_pos)
+	{
+		// The helper is called before each hop; only the hop into the contact
+		// tile may use the coupling point.
+		return nullptr;
+	}
+	if (mover->get_pos().z != contact_pos.z
+		|| shortest_distance(mover->get_pos().get_2d(), contact_pos.get_2d()) != 1)
+	{
+		return nullptr;
+	}
+	const ribi_t::ribi to_contact = ribi_type(mover->get_pos(), contact_pos);
+	if (to_contact == ribi_t::none || (to_contact & mover->get_direction()) == 0)
+	{
+		return nullptr;
+	}
+	grund_t *const gr = welt->lookup(contact_pos);
+	if (!gr)
+	{
+		return nullptr;
+	}
+	const weg_t *const way = gr->get_weg(mover->get_waytype());
+	if (!way || !ribi_t::is_straight(way->get_ribi_unmasked()))
+	{
+		return nullptr;
+	}
+	// The partner's rear vehicle extends backwards from its front by its
+	// length. The coupling point is that rear end, measured from the start of
+	// the tile.
+	const sint32 rear_end = (sint32)rear->get_steps()
+		- (sint32)(rear->get_desc()->get_length() * VEHICLE_STEPS_PER_CARUNIT);
+	if (rear_end <= 0 || rear_end >= VEHICLE_STEPS_PER_TILE)
+	{
+		return nullptr;
+	}
+	recombination_contact_steps = (sint16)rear_end;
+	return gr;
+}
+
+
+sint16 convoi_t::take_recombination_contact_steps()
+{
+	const sint16 contact_steps = recombination_contact_steps;
+	recombination_contact_steps = -1;
+	return contact_steps;
 }
 
 
@@ -11384,6 +11473,14 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 }
 
 
+struct recombination_layout_slot_t
+{
+	koord3d pos;
+	uint8 steps;
+	ribi_t::ribi direction;
+};
+
+
 void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const bool changed[2], halthandle_t halt)
 {
 	// The recipient of each side's leftover vehicles follows that side's own
@@ -11459,6 +11556,73 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		}
 	}
 
+	// A convoy that reached the other's platform under a committed coupling
+	// approach stands on the same track, facing the other convoy's rear. In
+	// that case the two consists have a physical order along the track and the
+	// final consists can be laid out on the tiles the pre-exchange vehicles
+	// occupied. Without that order (consists at different platforms, or a
+	// laid-over donor supplying a final vehicle) the old behaviour, which
+	// places each changed consist at its former rear tile, is used.
+	convoi_t *const layout_receiver = convoys[0];
+	convoi_t *const layout_target = convoys[1];
+	const bool receiver_is_mover =
+		layout_receiver->is_recombination_approach_mover()
+		&& layout_receiver->get_recombination_approach_partner() == layout_target->self;
+	const bool target_is_mover =
+		layout_target->is_recombination_approach_mover()
+		&& layout_target->get_recombination_approach_partner() == layout_receiver->self;
+	convoi_t *layout_ahead = receiver_is_mover ? layout_target : (target_is_mover ? layout_receiver : nullptr);
+	convoi_t *layout_behind = receiver_is_mover ? layout_receiver : (target_is_mover ? layout_target : nullptr);
+	bool can_lay_out =
+		layout_ahead != nullptr
+		&& layout_ahead->get_vehicle_count() > 0
+		&& layout_behind->get_vehicle_count() > 0
+		&& layout_behind->get_route()
+		&& !layout_behind->get_route()->empty()
+		&& layout_behind->get_route()->back() == layout_ahead->back()->get_pos();
+
+	vector_tpl<recombination_layout_slot_t> layout_slots;
+	vector_tpl<vehicle_t*> slot_owners;
+	if (can_lay_out)
+	{
+		// The convoy in front comes first, then the one behind it.
+		convoi_t *const order[2] = { layout_ahead, layout_behind };
+		for (uint8 side = 0; side < 2; side++)
+		{
+			for (uint8 i = 0; i < order[side]->get_vehicle_count(); i++)
+			{
+				vehicle_t *const v = order[side]->get_vehicle(i);
+				recombination_layout_slot_t slot;
+				slot.pos = v->get_pos();
+				slot.steps = v->get_steps();
+				slot.direction = v->get_direction();
+				layout_slots.append(slot);
+				slot_owners.append(v);
+			}
+		}
+		for (uint8 side = 0; side < 2 && can_lay_out; side++)
+		{
+			for (uint32 i = 0; i < finals[side].get_count(); i++)
+			{
+				if (!slot_owners.is_contained(finals[side].get_element(i)))
+				{
+					// A laid-over donor supplied this vehicle, so it has no place
+					// in the physical order of the two exchanged consists.
+					can_lay_out = false;
+					break;
+				}
+			}
+		}
+		if (finals[0].get_count() + finals[1].get_count() > layout_slots.get_count())
+		{
+			can_lay_out = false;
+		}
+	}
+	const uint8 layout_ahead_side = layout_ahead == layout_target ? 1 : 0;
+	const uint8 layout_behind_side = 1 - layout_ahead_side;
+	const uint8 layout_ahead_original = can_lay_out ? layout_ahead->get_vehicle_count() : 0;
+	const uint8 layout_behind_original = can_lay_out ? layout_behind->get_vehicle_count() : 0;
+
 	// Remember the physical rear position and default name of each changed
 	// side, then detach every vehicle from it before repopulating it. The
 	// detach happens for both changed sides first, so a vehicle moving from one
@@ -11475,7 +11639,10 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		{
 			continue;
 		}
-		rear_gr[side] = welt->lookup(convoys[side]->back()->get_pos());
+		if (!can_lay_out)
+		{
+			rear_gr[side] = welt->lookup(convoys[side]->back()->get_pos());
+		}
 		previous_lead[side] = convoys[side]->front();
 		while (convoys[side]->get_vehicle_count() > 0)
 		{
@@ -11502,7 +11669,82 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		}
 		cnv->update_default_name(previous_lead[side]);
 		cnv->recalc_metrics();
-		cnv->reserve_own_tiles();
+		// The changed consist may have moved forward or backward on the track,
+		// so its former reservations are not necessarily its occupied tiles.
+		// Release them now; the new reservations are taken after the final
+		// positions are known.
+		cnv->unreserve_route();
+	}
+
+	if (can_lay_out)
+	{
+		// The two scheduled consists are laid out end to end, front convoy
+		// first. If the rear convoy is unchanged it cannot move, so the front
+		// convoy's loose stock takes the slots that convoy leaves free; if the
+		// rear convoy is changed, all loose stock is placed behind both
+		// consists, where it does not block either departure.
+		uint32 slot_index = 0;
+		if (changed[layout_ahead_side])
+		{
+			for (uint32 i = 0; i < finals[layout_ahead_side].get_count(); i++)
+			{
+				const recombination_layout_slot_t &slot = layout_slots.get_element(slot_index++);
+				finals[layout_ahead_side].get_element(i)->set_layout_position(slot.pos, slot.steps, slot.direction);
+			}
+		}
+		else
+		{
+			slot_index = layout_ahead_original;
+		}
+		if (changed[layout_behind_side])
+		{
+			for (uint32 i = 0; i < finals[layout_behind_side].get_count(); i++)
+			{
+				const recombination_layout_slot_t &slot = layout_slots.get_element(slot_index++);
+				finals[layout_behind_side].get_element(i)->set_layout_position(slot.pos, slot.steps, slot.direction);
+			}
+		}
+		else
+		{
+			// The rear convoy keeps its slots. Only the front convoy can have
+			// loose stock here, and it fills the slots that convoy has freed.
+			for (uint32 i = 0; i < leftovers[layout_ahead_side].get_count(); i++)
+			{
+				if (slot_index >= layout_ahead_original)
+				{
+					break;
+				}
+				const recombination_layout_slot_t &slot = layout_slots.get_element(slot_index++);
+				leftovers[layout_ahead_side].get_element(i)->set_layout_position(slot.pos, slot.steps, slot.direction);
+			}
+			slot_index = layout_ahead_original + layout_behind_original;
+		}
+		for (uint8 s = 0; s < 2; s++)
+		{
+			const uint8 side = s == 0 ? layout_ahead_side : layout_behind_side;
+			if (!changed[layout_behind_side] && side == layout_ahead_side)
+			{
+				// Already placed in the freed front slots above.
+				continue;
+			}
+			for (uint32 i = 0; i < leftovers[side].get_count(); i++)
+			{
+				if (slot_index >= layout_slots.get_count())
+				{
+					break;
+				}
+				const recombination_layout_slot_t &slot = layout_slots.get_element(slot_index++);
+				leftovers[side].get_element(i)->set_layout_position(slot.pos, slot.steps, slot.direction);
+			}
+		}
+	}
+
+	for (uint8 side = 0; side < 2; side++)
+	{
+		if (changed[side])
+		{
+			convoys[side]->reserve_own_tiles();
+		}
 	}
 
 	// Lay out each side's leftovers as loose stock at the stop.

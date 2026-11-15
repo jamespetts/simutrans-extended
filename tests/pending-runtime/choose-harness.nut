@@ -958,34 +958,18 @@ function observe_watch_approach()
 		fixture.drive_by_sight_seen = true
 		print("RUNTIME CASE " + case_name + ": receiver is running in " + depict_working_method(receiver.get_working_method()) + " at " + choose_position(receiver))
 	}
-	// The receiver must stop in the tile before the target's rear vehicle.
+	// The claimed mover enters the target's rear tile and stops at the
+	// coupling point inside it.
 	local target_slots = target.get_vehicle_snapshot()
 	local rear = target_slots[target_slots.len() - 1].pos
-	local expected = coord3d(rear.x - 1, rear.y, rear.z)
+	local expected = rear
 	if (same_pos(receiver.get_pos(), expected))
 	{
-		if (!same_pos(fixture.last_pos, expected))
-		{
-			fixture.last_pos = expected
-			fixture.stationary_steps = 0
-		}
-		else
-		{
-			++fixture.stationary_steps
-		}
-		if (fixture.stationary_steps >= HOLD_OBSERVATIONS)
-		{
-			if (!check(case_name == "moving-block" || fixture.call_on_seen, "the choose signal never displayed call-on; receiver is in " + depict_working_method(receiver.get_working_method()))) { return }
-			if (!check(receiver.get_working_method() == drive_by_sight, "the receiver is in " + depict_working_method(receiver.get_working_method()) + " after call-on, expected drive by sight")) { return }
-			print("RUNTIME CASE " + case_name + ": receiver stopped at " + choose_position(receiver) + " behind the target rear at " + choose_position(target))
-			pass()
-			return
-		}
-	}
-	else
-	{
-		fixture.last_pos = null
-		fixture.stationary_steps = 0
+		if (!check(case_name == "moving-block" || fixture.call_on_seen || fixture.drive_by_sight_seen, "the choose signal never displayed call-on; receiver is in " + depict_working_method(receiver.get_working_method()))) { return }
+		if (!check(fixture.drive_by_sight_seen, "the receiver never ran in drive by sight after call-on")) { return }
+		print("RUNTIME CASE " + case_name + ": receiver reached the target rear tile at " + choose_position(receiver))
+		pass()
+		return
 	}
 
 	++fixture.approach_steps
@@ -1141,31 +1125,14 @@ function observe_watch_late_target()
 	}
 	local receiver_slots = receiver.get_vehicle_snapshot()
 	local rear = receiver_slots[receiver_slots.len() - 1].pos
-	local expected = coord3d(rear.x - 1, rear.y, rear.z)
+	local expected = rear
 	if (same_pos(target.get_pos(), expected))
 	{
-		if (!same_pos(fixture.last_pos, expected))
-		{
-			fixture.last_pos = expected
-			fixture.stationary_steps = 0
-		}
-		else
-		{
-			++fixture.stationary_steps
-		}
-		if (fixture.stationary_steps >= HOLD_OBSERVATIONS)
-		{
-			if (!check(fixture.call_on_seen, "the choose signal never displayed call-on for the later target")) { return }
-			if (!check(target.get_working_method() == drive_by_sight, "the later target is in " + depict_working_method(target.get_working_method()) + " after call-on, expected drive by sight")) { return }
-			print("RUNTIME CASE " + case_name + ": later target stopped at " + choose_position(target) + " behind the standing receiver")
-			pass()
-			return
-		}
-	}
-	else
-	{
-		fixture.last_pos = null
-		fixture.stationary_steps = 0
+		if (!check(fixture.call_on_seen || fixture.drive_by_sight_seen, "the choose signal never displayed call-on for the later target")) { return }
+		if (!check(fixture.drive_by_sight_seen, "the later target never ran in drive by sight after call-on")) { return }
+		print("RUNTIME CASE " + case_name + ": later target reached the receiver rear tile at " + choose_position(target))
+		pass()
+		return
 	}
 	++fixture.approach_steps
 	if (fixture.approach_steps > APPROACH_STEP_LIMIT)

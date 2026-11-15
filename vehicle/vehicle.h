@@ -564,6 +564,11 @@ public:
 	void set_pos_next(const koord3d pos) { pos_next = pos; }
 	void set_pos_prev(const koord3d pos) { pos_prev = pos; }
 
+	// Place the vehicle at an exact position within a tile when a recombined
+	// consist is laid out on the track it already occupies. The vehicle must
+	// not be moving.
+	void set_layout_position(const koord3d &pos, uint8 steps, ribi_t::ribi direction);
+
 	void set_direction_steps(sint16 value) { direction_steps = value; }
 
 	void step_km(uint32 km) { km_since_new += km; km_since_last_overhaul += km; km_since_last_maintenance += km; km_since_last_replenish += km; }
