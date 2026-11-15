@@ -574,6 +574,16 @@ private:
 	 */
 	koord3d last_signal_pos;
 
+	/**
+	 * The other convoy in a committed choose-signal coupling approach, and
+	 * whether this convoy is the mover. The link is reciprocal on both
+	 * convoys and is saved from Extended save revision 13 so that the
+	 * approach survives save, reload and network transfer. A convoy has at
+	 * most one approach link, and a target at most one mover.
+	 */
+	convoihandle_t recombination_approach_partner;
+	bool recombination_approach_is_mover;
+
 	// Helper function: used in init and replacing
 	void reset();
 
@@ -1710,6 +1720,22 @@ public:
 	// named line's convoys: an available target outranks a committed one, then
 	// the earliest arrival_time wins, then the lowest convoy id.
 	recombination_target_state_t get_recombination_target_state(halthandle_t halt, convoihandle_t &target) const;
+
+	// The convoy this convoy is approaching to couple with, or an unbound
+	// handle when there is no committed approach.
+	convoihandle_t get_recombination_approach_partner() const { return recombination_approach_partner; }
+
+	// True when this convoy is the mover in the committed approach.
+	bool is_recombination_approach_mover() const { return recombination_approach_is_mover; }
+
+	// Record a reciprocal coupling approach with the given partner. Any
+	// previous link is cleared on both sides. If the partner is already
+	// approaching a third convoy, the link is not taken and this convoy's
+	// previous link is cleared.
+	void set_recombination_approach(convoihandle_t partner, bool is_mover);
+
+	// Clear this convoy's approach link and the partner's reciprocal link.
+	void clear_recombination_approach();
 
 	// Display-only state set when the convoy enters an occupied block under a
 	// choose signal's call-on aspect.

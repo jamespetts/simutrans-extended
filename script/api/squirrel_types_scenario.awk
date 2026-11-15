@@ -70,6 +70,8 @@ BEGIN {
 	export_types_scenario["convoy_x::is_schedule_editor_open"] = "bool()"
 	export_types_scenario["convoy_x::get_tile_length"] = "integer()"
 	export_types_scenario["convoy_x::get_working_method"] = "working_methods()"
+	export_types_scenario["convoy_x::get_recombination_approach_partner"] = "convoy_x()"
+	export_types_scenario["convoy_x::is_recombination_approach_mover"] = "bool()"
 	export_types_scenario["convoy_x::change_schedule"] = "void(player_x, schedule_x)"
 	export_types_scenario["convoy_x::calc_max_speed"] = "integer(integer, integer, integer)"
 	export_types_scenario["convoy_x::speed_to_tiles_per_month"] = "integer(integer)"

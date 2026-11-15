@@ -217,6 +217,8 @@ void convoi_t::init(player_t *player)
 	home_depot = koord3d::invalid;
 	last_signal_pos = koord3d::invalid;
 	last_stop_id = 0;
+	recombination_approach_partner = convoihandle_t();
+	recombination_approach_is_mover = false;
 
 	yielding_quit_index = -1;
 	lane_affinity = 0;
@@ -310,6 +312,10 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 
 	if (!welt->is_destroying())
 	{
+		// The approach link is reciprocal; release the other convoy's side
+		// before this convoy's id can be reused.
+		clear_recombination_approach();
+
 		clear_estimated_times();
 
 		// if lineless convoy -> unregister from stops
@@ -678,6 +684,10 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 		// convoy worker thread without passing through prepare_for_routing()
 		// first; release its target reservations here, on the main thread,
 		// before the workers are created (see prepare_for_routing()).
+		if (is_recombination_approach_mover())
+		{
+			clear_recombination_approach();
+		}
 		front()->release_target_reservations();
 	}
 	// remove wrong freight
@@ -704,6 +714,18 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 		{
 			vehicle[i]->set_owner(get_owner());
 		}
+	}
+
+	// A stored approach link is valid only if it is reciprocal and the two
+	// convoys claim opposite roles. Clear only this convoy's side here; the
+	// partner validates its own side in its own finish_rd, so the result does
+	// not depend on the order in which convoys are finished.
+	if (!recombination_approach_partner.is_bound()
+		|| recombination_approach_partner->recombination_approach_partner != self
+		|| recombination_approach_partner->recombination_approach_is_mover == recombination_approach_is_mover)
+	{
+		recombination_approach_partner = convoihandle_t();
+		recombination_approach_is_mover = false;
 	}
 
 	loading_limit = schedule->get_current_entry().minimum_loading;
@@ -1008,6 +1030,13 @@ route_t::route_result_t convoi_t::calc_route(koord3d start, koord3d ziel, sint32
 
 void convoi_t::update_route(uint32 index, const route_t &replacement)
 {
+	// A new route ends any committed coupling approach by this convoy; the
+	// choose signal records a new link immediately after it adopts a coupling
+	// route. A target's own route change does not release the mover's claim.
+	if (is_recombination_approach_mover())
+	{
+		clear_recombination_approach();
+	}
 	// replace route with replacement starting at index.
 	route_infos.clear();
 	route.remove_koord_from(index);
@@ -1016,6 +1045,10 @@ void convoi_t::update_route(uint32 index, const route_t &replacement)
 
 void convoi_t::replace_route(const route_t &replacement)
 {
+	if (is_recombination_approach_mover())
+	{
+		clear_recombination_approach();
+	}
 	route_infos.clear();
 	route.clear();
 	route.append(&replacement);
@@ -1440,6 +1473,12 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 bool convoi_t::prepare_for_routing()
 {
 	call_on = false;
+	// A new route search abandons any committed coupling approach by this
+	// convoy. A target's own route search does not release the mover's claim.
+	if (is_recombination_approach_mover())
+	{
+		clear_recombination_approach();
+	}
 	if (vehicle_count > 0 && schedule)
 	{
 		koord3d start = front()->get_pos();
@@ -3618,6 +3657,10 @@ bool convoi_t::set_schedule(schedule_t * sch)
 		return false;
 	}
 
+	// Replacing the schedule decisively abandons any coupling approach that
+	// was based on the old entry, for either side of the pair.
+	clear_recombination_approach();
+
 	DBG_DEBUG("convoi_t::set_schedule()", "new=%p, old=%p", sch, schedule);
 	assert(sch != NULL);
 
@@ -5671,6 +5714,12 @@ void convoi_t::rdwr(loadsave_t *file)
 	else if(file->is_loading())
 	{
 		last_salary_point_ticks = welt->get_ticks();
+	}
+
+	if (file->is_version_ex_atleast(15, 13))
+	{
+		rdwr_convoihandle_t(file, recombination_approach_partner);
+		file->rdwr_bool(recombination_approach_is_mover);
 	}
 
 	// This must come *after* all the loading/saving.
@@ -10752,6 +10801,48 @@ bool convoi_t::has_passed_last_signal_before_halt(halthandle_t halt) const
 }
 
 
+void convoi_t::clear_recombination_approach()
+{
+	if (recombination_approach_partner.is_bound()
+		&& recombination_approach_partner->recombination_approach_partner == self)
+	{
+		recombination_approach_partner->recombination_approach_partner = convoihandle_t();
+		recombination_approach_partner->recombination_approach_is_mover = false;
+	}
+	recombination_approach_partner = convoihandle_t();
+	recombination_approach_is_mover = false;
+}
+
+
+void convoi_t::set_recombination_approach(convoihandle_t partner, bool is_mover)
+{
+	if (!partner.is_bound() || partner == self)
+	{
+		clear_recombination_approach();
+		return;
+	}
+	if (recombination_approach_partner == partner
+		&& recombination_approach_is_mover == is_mover)
+	{
+		return;
+	}
+	// A target can have only one mover approaching it. If it is already
+	// approaching a third convoy, abandon this convoy's previous link and
+	// leave the target's link in place.
+	if (partner->recombination_approach_partner.is_bound()
+		&& partner->recombination_approach_partner != self)
+	{
+		clear_recombination_approach();
+		return;
+	}
+	clear_recombination_approach();
+	recombination_approach_partner = partner;
+	recombination_approach_is_mover = is_mover;
+	partner->recombination_approach_partner = self;
+	partner->recombination_approach_is_mover = !is_mover;
+}
+
+
 convoi_t::recombination_target_state_t convoi_t::get_recombination_target_state(halthandle_t halt, convoihandle_t &target) const
 {
 	target = convoihandle_t();
@@ -10817,6 +10908,14 @@ convoi_t::recombination_target_state_t convoi_t::get_recombination_target_state(
 		const schedule_entry_t &candidate_entry = candidate_schedule->get_current_entry();
 		const bool candidate_has_opposing = is_receiver ? candidate_entry.is_flag_set(schedule_entry_t::uncouple) : candidate_entry.is_flag_set(schedule_entry_t::couple);
 		if (candidate_has_opposing && !entry_names_this_convoy(candidate_entry, !is_receiver))
+		{
+			continue;
+		}
+
+		// A target can be claimed by one mover at a time. A claim made by
+		// another convoy hides the target from this one until it is released.
+		if (candidate->recombination_approach_partner.is_bound()
+			&& candidate->recombination_approach_partner != self)
 		{
 			continue;
 		}
@@ -11492,10 +11591,15 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 			{
 				state = LOADING;
 			}
+			// The pair was refused: the coupling is decisively abandoned.
+			clear_recombination_approach();
 			return;
 
 		case paired_ready:
 			execute_paired_exchange(halt, pair);
+			// The exchange committed or was refused; either way the coupling is
+			// resolved and the claim ends.
+			clear_recombination_approach();
 			return;
 
 		case paired_partner_absent:
@@ -11522,6 +11626,11 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 		{
 			state = LOADING;
 		}
+		// An order-less coupling entry cannot be carried out; release any claim.
+		if (is_recombination_approach_mover())
+		{
+			clear_recombination_approach();
+		}
 		return;
 	}
 
@@ -11539,10 +11648,18 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 		if (couple_state == schedule_t::couple_target_present)
 		{
 			process_current_entry_consist_order(halt, joining_convoy);
+			if (is_recombination_approach_mover())
+			{
+				clear_recombination_approach();
+			}
 		}
 		else if (couple_state == schedule_t::couple_target_missing)
 		{
 			report_broken_couple_target(halt);
+			if (is_recombination_approach_mover())
+			{
+				clear_recombination_approach();
+			}
 		}
 		if (state == AWAITING_RECOMBINATION)
 		{
@@ -11571,5 +11688,9 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 	if (divide && split_candidate.is_bound() && (result == succeed || result == no_change_needed))
 	{
 		form_divided_portion(split_candidate, halt, current_entry, uncouple_target);
+	}
+	if (is_recombination_approach_mover())
+	{
+		clear_recombination_approach();
 	}
 }

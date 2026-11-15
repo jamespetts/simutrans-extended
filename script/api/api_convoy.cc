@@ -221,6 +221,22 @@ sint32 convoy_get_working_method(convoi_t *cnv)
 }
 
 /**
+ * The convoy this convoy is approaching to couple with, or an unbound handle.
+ */
+convoihandle_t convoy_get_recombination_approach_partner(convoi_t *cnv)
+{
+	return cnv ? cnv->get_recombination_approach_partner() : convoihandle_t();
+}
+
+/**
+ * True when this convoy is the mover in a committed coupling approach.
+ */
+bool convoy_is_recombination_approach_mover(convoi_t *cnv)
+{
+	return cnv && cnv->is_recombination_approach_mover();
+}
+
+/**
  * Snapshot of the convoy's vehicles in running order. Each entry is a
  * vehicle_slot_x value object, so no vehicle pointer outlives the call.
  */
@@ -498,6 +514,14 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns the working method of a rail-family convoy, or -1 for a non-rail convoy
 	 */
 	register_method(vm, convoy_get_working_method, "get_working_method", true);
+	/**
+	 * @returns the convoy this convoy is approaching to couple with, or null
+	 */
+	register_method(vm, &convoy_get_recombination_approach_partner, "get_recombination_approach_partner", true);
+	/**
+	 * @returns true if this convoy is the mover in a committed coupling approach
+	 */
+	register_method(vm, &convoy_is_recombination_approach_mover, "is_recombination_approach_mover", true);
 	/**
 	 * @returns true if the convoy is running its schedule backwards
 	 */

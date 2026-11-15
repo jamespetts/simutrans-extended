@@ -521,6 +521,12 @@ function commit_target_schedule(pl, target, hold_id)
 	entries[0].couple = true
 	entries[0].couple_target_is_line_or_cnv = true
 	entries[0].target_id_couple = hold_id
+	if (case_name == "choose-reload")
+	{
+		// Keep the target loading while the reload fixture holds the receiver.
+		entries[0].wait_for_time = 1
+		entries[0].waiting_time_shift = 120
+	}
 
 	local schedule = schedule_x(wt_rail, entries)
 	schedule.orders.rawset(TARGET_ENTRY_ID, make_order([[fixture.loco_a]]))
@@ -702,7 +708,7 @@ function setup()
 	local hold = create_depot_convoy(pl, [fixture.loco_c], "hold convoy")
 	if (hold == null) { return false }
 	fixture.hold_id = hold.id
-	if (case_name == "target-platform-blocked")
+	if (case_name == "target-platform-blocked" || case_name == "choose-reload")
 	{
 		if (!commit_blocker_schedule(pl, hold)) { return false }
 	}
@@ -743,7 +749,7 @@ function setup()
 		return true
 	}
 
-	if (case_name == "target-platform-blocked")
+	if (case_name == "target-platform-blocked" || case_name == "choose-reload")
 	{
 		fixture.occupier_id = hold.id
 		if (!commit_target_schedule(pl, target, hold.id)) { return false }
@@ -866,6 +872,18 @@ function observe_watch_blocked()
 	}
 	if (receiver_held_at_signal())
 	{
+		if (case_name == "choose-reload")
+		{
+			print("RUNTIME CASE " + case_name + ": receiver is held at the choose signal with the approach link bound")
+			persistent.reload <- {
+				receiver_id = fixture.receiver_id,
+				target_id = fixture.target_id,
+				blocker_id = fixture.occupier_id
+			}
+			fixture.phase = "awaiting-reload"
+			print("RUNTIME CASE " + case_name + " READY")
+			return
+		}
 		print("RUNTIME CASE " + case_name + ": receiver is held at the choose signal at " + depict_aspect(fixture.signal_state) + " while the target approach is blocked")
 		pass()
 		return
@@ -1205,11 +1223,64 @@ function get_result_text(pl)
 }
 
 
+function resume_game()
+{
+	if (case_name != "choose-reload")
+	{
+		return
+	}
+	if (!("reload" in persistent) || typeof(persistent.reload) != "table")
+	{
+		fail("the savegame holds no persisted reload state; it must be saved while the receiver waits at the signal")
+		return
+	}
+
+	local state = persistent.reload
+	// Drop the state so that a later save cannot restore a stale pre-reload
+	// state.
+	delete persistent.reload
+	fixture.receiver_id = state.receiver_id
+	fixture.target_id = state.target_id
+	fixture.occupier_id = state.blocker_id
+	fixture.last_pos = null
+	fixture.stationary_steps = 0
+
+	local receiver = convoy_x(fixture.receiver_id)
+	local target = convoy_x(fixture.target_id)
+	if (!check(receiver.is_valid(), "the receiver named by the persisted state is not in the loaded world")) { return }
+	if (!check(target.is_valid(), "the target named by the persisted state is not in the loaded world")) { return }
+
+	local partner = receiver.get_recombination_approach_partner()
+	if (!check(partner != null && partner.is_valid() && partner.id == fixture.target_id, "the receiver's approach partner was not restored")) { return }
+	if (!check(receiver.is_recombination_approach_mover(), "the receiver is not the mover in the restored approach")) { return }
+
+	local reciprocal = target.get_recombination_approach_partner()
+	if (!check(reciprocal != null && reciprocal.is_valid() && reciprocal.id == fixture.receiver_id, "the target's reciprocal approach partner was not restored")) { return }
+	if (!check(!target.is_recombination_approach_mover(), "the target is the mover in the restored approach")) { return }
+
+	if (!check(receiver.get_state() == convoy_state_waiting_for_clearance, "the receiver is not waiting for clearance after the reload")) { return }
+	local p = receiver.get_pos()
+	if (!check(p.y == SIGNAL_POS.y && p.x <= SIGNAL_POS.x + 1, "the receiver is not held at the choose signal after the reload")) { return }
+
+	fixture.phase = "restored-pending"
+	print("RUNTIME CASE " + case_name + " RESTORED")
+}
+
+
 function is_scenario_completed(pl)
 {
 	if (pl != 0)
 	{
 		return 0
+	}
+	if (fixture.phase == "awaiting-reload")
+	{
+		return 0
+	}
+	if (fixture.phase == "restored-pending")
+	{
+		pass()
+		return 100
 	}
 	if (!fixture.setup_started)
 	{

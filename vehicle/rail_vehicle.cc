@@ -459,6 +459,9 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 	{
 		// A target that has passed the last signal before the platform area is
 		// committed to its platform. Entering first can block it, so hold here.
+		// Record which mover is waiting for it so that the claim survives save
+		// and reload.
+		cnv->set_recombination_approach(coupling_target, true);
 		return 0;
 	}
 
@@ -486,6 +489,9 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 				cnv->update_route(start_block, target_rt);
 				unreachable_choose_route_reported = false;
 				target_halt = target->get_halt();
+				// Record the reciprocal approach: the link and the route then
+				// survive save, reload and network transfer together.
+				cnv->set_recombination_approach(coupling_target, true);
 				// Reserve the new route. The target holds its rear tile, so the
 				// walk stops in front of it; the choose signal stays at danger
 				// until the convoy is at a stand and call-on is granted.
@@ -510,6 +516,12 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 			if (!geometry_route_exists)
 			{
 				report_unusable_choose_route();
+			}
+			else
+			{
+				// The route exists but another convoy temporarily obstructs it.
+				// Keep the target claimed while this mover waits for it to clear.
+				cnv->set_recombination_approach(coupling_target, true);
 			}
 		}
 		else
@@ -772,6 +784,17 @@ bool rail_vehicle_t::has_selected_coupling_target_route() const
 	if (!cnv || !cnv->get_schedule())
 	{
 		return false;
+	}
+	// A reciprocal approach link is authoritative: it was recorded when this
+	// convoy adopted the route to the target, and it survives a save and
+	// reload. The target need not still be stationary on the same tile.
+	if (cnv->is_recombination_approach_mover())
+	{
+		const convoihandle_t target = cnv->get_recombination_approach_partner();
+		if (target.is_bound() && target->get_recombination_approach_partner() == cnv->self)
+		{
+			return true;
+		}
 	}
 	const halthandle_t halt = haltestelle_t::get_halt(cnv->get_schedule()->get_current_entry().pos, cnv->get_owner());
 	convoihandle_t target;
