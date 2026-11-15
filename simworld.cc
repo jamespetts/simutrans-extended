@@ -13188,25 +13188,30 @@ sint64 karte_t::get_land_value(koord3d k)
 	// formula derived from local desirability, based on
 	// transport success rates.
 
-	// NOTE: settings.cst_buy_land is a *negative* number.
-	sint64 cost = settings.cst_buy_land;
+	// NOTE: settings.cst_buy_land and settings.cst_buy_city_land are *negative* numbers.
 	const stadt_t* city = get_city(k.get_2d());
 	const grund_t* gr = lookup_kartenboden(k.get_2d());
+	sint64 land_cost = settings.cst_buy_land;
 	if(city)
 	{
-		if(city->get_city_population() >= settings.get_city_threshold_size())
+		land_cost = settings.cst_buy_city_land;
+		if(city->get_city_population() >= settings.get_capital_threshold_size())
 		{
-			cost *= 4;
+			land_cost *= 6;
 		}
-		else if(city->get_city_population() >= settings.get_capital_threshold_size())
+		else if(city->get_city_population() >= settings.get_city_threshold_size())
 		{
-			cost *= 6;
+			land_cost *= 4;
 		}
 		else
 		{
-			cost *= 3;
+			land_cost *= 3;
 		}
+	}
 
+	sint64 cost = land_cost;
+	if(city)
+	{
 		cost = get_inflation_adjusted_price(get_timeline_year_month(), cost, city_land);
 	}
 	else
@@ -13228,7 +13233,8 @@ sint64 karte_t::get_land_value(koord3d k)
 		const gebaeude_t* gb = obj_cast<gebaeude_t>(gr->first_obj());
 		if(gb)
 		{
-			sint64 wayleave_cost = ((sint64)gb->get_tile()->get_desc()->get_level() * settings.cst_buy_land) / 5ll;
+			// Uses the same land cost as the purchase price above, including the city population multiplier where applicable.
+			sint64 wayleave_cost = ((sint64)gb->get_tile()->get_desc()->get_level() * land_cost) / 5ll;
 			if (city)
 			{
 				wayleave_cost = get_inflation_adjusted_price(get_timeline_year_month(), wayleave_cost, city_land);

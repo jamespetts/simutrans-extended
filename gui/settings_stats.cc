@@ -1019,6 +1019,7 @@ void settings_costs_stats_t::init(settings_t const* const sets)
 	INIT_COST( "cost_depot_road", -sets->cst_depot_road, 1, 100000000, 10, false );
 	INIT_COST( "cost_depot_ship", -sets->cst_depot_ship, 1, 100000000, 10, false );
 	INIT_COST( "cost_buy_land", -sets->cst_buy_land, 0, 100000000, 10, false );
+	INIT_COST( "cost_buy_city_land", -sets->cst_buy_city_land, 0, 100000000, 10, false );
 	INIT_COST( "cost_alter_land", -sets->cst_alter_land, 1, 100000000, 10, false );
 	INIT_COST( "cost_reclaim_land", -sets->cst_reclaim_land, 1, 100000000, 10, false);
 	INIT_COST( "cost_set_slope", -sets->cst_set_slope, 1, 100000000, 10, false );
@@ -1051,6 +1052,7 @@ void settings_costs_stats_t::read(settings_t* const sets)
 	READ_COST_VALUE( sets->cst_depot_road )*(-1);
 	READ_COST_VALUE( sets->cst_depot_ship )*(-1);
 	READ_COST_VALUE( sets->cst_buy_land )*(-1);
+	READ_COST_VALUE( sets->cst_buy_city_land )*(-1);
 	READ_COST_VALUE( sets->cst_alter_land )*(-1);
 	READ_COST_VALUE(sets->cst_reclaim_land)* (-1);
 	READ_COST_VALUE( sets->cst_set_slope )*(-1);

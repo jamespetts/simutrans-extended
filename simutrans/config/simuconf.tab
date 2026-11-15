@@ -775,6 +775,8 @@ toll_waycost_percentage = 0
 
 # other construction/destruction stuff
 #cost_buy_land=100
+# Land inside a city's limits. If not set, cost_buy_land is used.
+#cost_buy_city_land=100
 #cost_alter_land=1000
 #cost_set_slope=2500
 #cost_found_city=5000000

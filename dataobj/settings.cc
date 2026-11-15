@@ -265,6 +265,7 @@ settings_t::settings_t() :
 	cst_depot_air=-500000;
 	// alter landscape
 	cst_buy_land=-10000;
+	cst_buy_city_land=-10000;
 	cst_alter_land=-100000;
 	cst_reclaim_land=-1000000;
 	cst_alter_climate=-100000;
@@ -945,6 +946,15 @@ void settings_t::rdwr(loadsave_t *file)
 			}
 			// alter landscape
 			file->rdwr_longlong(cst_buy_land );
+			if (file->is_version_ex_atleast(15, 15))
+			{
+				file->rdwr_longlong(cst_buy_city_land);
+			}
+			else if (file->is_loading())
+			{
+				// Saves from before this setting existed used one cost for both city and country land.
+				cst_buy_city_land = cst_buy_land;
+			}
 			file->rdwr_longlong(cst_alter_land );
 			if (file->is_version_ex_atleast(14, 53))
 			{
@@ -1214,6 +1224,7 @@ void settings_t::rdwr(loadsave_t *file)
 				cst_multiply_post        = (cst_multiply_post        * distance_per_tile).to_sint32();
 				maint_building           = (maint_building           * distance_per_tile).to_sint32();
 				cst_buy_land             = (cst_buy_land             * distance_per_tile).to_sint32();
+				cst_buy_city_land        = (cst_buy_city_land        * distance_per_tile).to_sint32();
 				cst_remove_tree          = (cst_remove_tree          * distance_per_tile).to_sint32();
 			}
 
@@ -2715,6 +2726,15 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	sint64 new_cost_buy_land = contents.get_int64("cost_buy_land", -1);
 	if (new_cost_buy_land > 0) {
 		cst_buy_land = (new_cost_buy_land * -100 * distance_per_tile).to_sint32();
+	}
+	// Purchase land inside a city's limits.  Distance-based, adjust for distance_per_tile.
+	sint64 new_cost_buy_city_land = contents.get_int64("cost_buy_city_land", -1);
+	if (new_cost_buy_city_land > 0) {
+		cst_buy_city_land = (new_cost_buy_city_land * -100 * distance_per_tile).to_sint32();
+	}
+	else if (new_cost_buy_land > 0) {
+		// No separate city land cost is configured in this file, so use the country cost.
+		cst_buy_city_land = cst_buy_land;
 	}
 	// Delete house or field.  Both are definitely distance based.
 	// (You're usually trying to drive a railway line through a field.)
