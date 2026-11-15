@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and ten scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14
+verified: ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -213,6 +213,63 @@ were already considered in the 2018 explorer discussion
 the through pair across the schedule handover for the actual time to exist; until then the
 fallback applies.
 
+### Shared-contact coupling movement
+
+The choose-signal call-on core routes a receiver to the target's platform and admits it under
+call-on. The shared-contact coupling movement lets the claimed mover enter the target's rear tile
+and apply the coupling-point stop. The implemented parts are:
+
+- shared contact tile: `convoi_t::is_recombination_contact_tile` identifies the claimed partner's
+  rear tile and requires the mover's `call_on` flag, the reciprocal approach link and a route that
+  ends at that tile. `rail_vehicle_t::block_reserver` stops its reservation walk at that tile
+  without reserving it, so the target remains the reservation holder, and
+  `rail_vehicle_t::can_enter_tile` admits the mover to it.
+- contact stop: `convoi_t::get_recombination_contact_ground` computes the coupling-point offset
+  (the target rear vehicle's front position minus that vehicle's length, in vehicle steps within
+  the tile) from the target's rear vehicle position and length, and `vehicle_t::hop` uses it as the
+  moved tile's `steps_next` when the offset was recorded for that hop, instead of the terminal
+  half-tile correction. The value is transient (`convoi_t::recombination_contact_steps`) and is not
+  saved.
+- approach-link persistence: `convoi_t::recombination_approach_partner` and
+  `convoi_t::recombination_approach_is_mover` form a reciprocal link, are set at the first choose
+  signal commitment, survive a deferred wait, and are saved.
+- paired-exchange layout: `convoi_t::commit_paired_exchange` places the final consists on the
+  tiles the pre-exchange vehicles occupied, the convoy in front first and the one behind second,
+  with loose stock behind them, and releases each changed convoy's previous reservations before
+  re-reserving its occupied tiles (see "Post-exchange layout" below).
+- one-sided receive layout: `convoi_t::commit_recombined_consist` applies the same slot record when
+  the receiver is the shared-contact mover and its route ends at the joining convoy's rear tile.
+  The joining convoy's remainder takes the front slots, the receiver's final consist follows, and
+  loose stock takes the remaining slots; the joining convoy releases and re-takes its reservations
+  around the repositioning.
+
+Outstanding in this package: reservation handoff when the holder leaves a tile that the remaining
+convoy still occupies; and all-or-nothing failure after contact with no automatic reverse-out. The
+exact intra-tile offset is asserted by the present-target and late-target cases, and the one-sided
+receive's layout is asserted by `one-sided-layout`. The committed-target fixture remains unscripted.
+The choose-signal work handoff sometimes calls this package Phase 4; that numbering is specific to
+the call-on/coupling work and is unrelated to the phase numbering in
+[vps-migration](../vps-migration.md).
+
+### Post-exchange layout
+
+`convoi_t::commit_paired_exchange` records every pre-exchange vehicle's tile, `steps` and direction
+(front convoy first, then rear convoy) before detaching the consists. When the two consists are in a
+physical order (the mover reached the other convoy's rear tile), the final consists are placed on
+those tiles in order: the front convoy's final consist, the rear convoy's final consist, then all
+loose stock. A final consist that grows takes the other consist's former tiles; one that shrinks
+leaves the freed tiles to the loose stock. `vehicle_t::set_layout_position` sets the tile, `steps`
+and direction. The changed convoys release their reservations with `convoi_t::unreserve_route()` and
+re-reserve with `convoi_t::reserve_own_tiles()` after positioning. When the consists are not in a
+physical order (different platforms, or a laid-over donor supplying a final vehicle), the previous
+behaviour of placing each changed consist at its former rear tile remains.
+
+A one-sided receive uses the same slot record. When the receiver is the shared-contact mover and its
+route ends at the joining convoy's rear tile, the joining convoy's remainder takes the front slots,
+the receiver's final consist follows, and loose stock takes the remaining slots behind it. The
+joining convoy releases its reservations before positioning and re-takes them afterwards. Without
+the contact order, the receiver's final consist is placed at its former rear tile as before.
+
 ## Implementation order
 
 The agreed ordering constraints are:
@@ -249,9 +306,11 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
    core (target resolution, committed-target hold, target-platform route and admission) is
    implemented. Scripted cases cover present, absent and later-arriving targets; `ignore_choose`;
    occupied platforms and blocked approaches; moving-block call-on; consecutive choose signals;
-   and direction-restricted target-platform approaches. A committed-target fixture depends on the
-   planned approach-link work. The shared contact tile,
-   exact stop and approach-link persistence remain. The general signalling Squirrel API's read-only object model, construction commands and
+   and direction-restricted target-platform approaches. The approach link and shared contact tile are
+   implemented, and the present-target and late-target cases assert the coupling tile and coupling
+   point. The one-sided receive's layout is implemented and asserted by `one-sided-layout`. A
+   committed-target fixture remains unscripted. The reservation handoff and failure after contact
+   remain. The general signalling Squirrel API's read-only object model, construction commands and
    site-validity and price queries are implemented (`signalbox_x`, the signal, signal-descriptor,
    convoy, way and vehicle-slot getters, `command_x.build_signalbox`, the signalbox form of
    `command_x.build_sign_at`, `command_x.can_build_signalbox_at` and

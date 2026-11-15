@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation, route-unreserve removal and call-on/refactor changes (2026-11-14)
+verified: ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation, route-unreserve removal and call-on/refactor changes (2026-11-14)
 ---
 # Block reservations and reservation clearing
 
@@ -98,6 +98,12 @@ signalling, the signal is permissive (`get_permissive()`) and `signal_t::no_junc
 `roadsign_t::call_on`, switches the train to `drive_by_sight` and re-runs `block_reserver` with `from_call_on = true`; a failed
 reservation under `from_call_on` keeps the rest of the walk in `drive_by_sight` instead of stopping the train.
 
+The choose-signal coupling approach adds one admission case. When `convoi_t::is_recombination_contact_tile` identifies the claimed
+approach partner's rear tile, the mover's `call_on` flag is set and the mover's route ends at that tile, `block_reserver` treats the
+tile as the walk's limit without reserving it, and `rail_vehicle_t::can_enter_tile` skips the failed-reservation path for it. The
+partner keeps the reservation, so the tile has one holder while both convoys occupy it. The reservation handoff when the partner
+leaves a tile that the mover still occupies is not implemented.
+
 Under `token_block` and `one_train_staff`, `rail_vehicle_t::leave_tile` calls `schiene_t::set_stale()` instead of `schiene_t::unreserve`,
 and `rail_vehicle_t::clear_token_reservation` releases the stale tiles when the train passes the exit signal, walking the route backwards
 and stopping after the second run of tiles not reserved by this convoy. If the route was recalculated meanwhile, `convoi_t::calc_route`
@@ -117,8 +123,8 @@ block and one train staff), `rail_vehicle_t::unreserve_station` (fallback), `con
 
 - `rail_vehicle_t::unreserve_in_rear()` walks the route backwards from the vehicle's `route_index` and releases the tiles this convoy
   holds.
-- `rail_vehicle_t::unreserve_station()` walks backwards through the stop's tiles with `grund_t::get_neighbour`; when the route no longer
-  matches the position it falls back to `convoi_t::unreserve_route()` plus `convoi_t::reserve_own_tiles()`.
+- `rail_vehicle_t::unreserve_station()` walks backwards through the stop's tiles with `grund_t::get_neighbour`; when the route does not
+  match the position it falls back to `convoi_t::unreserve_route()` plus `convoi_t::reserve_own_tiles()`.
 - `rail_vehicle_t::leave_tile()` releases the tile being left with `schiene_t::unreserve(vehicle_t*)`, which clears the handle
   unconditionally (unlike `schiene_t::unreserve(convoihandle_t)`, which clears only a matching handle), except under token block and one
   train staff and while reversing.

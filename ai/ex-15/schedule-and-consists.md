@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and ten scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -140,10 +140,13 @@ explorer's treatment of consist orders.
   `convoi_t::commit_paired_exchange` commits both final consists as one operation: only vehicles
   that leave both final consists are discharged and laid out as loose stock under the releasing
   order's recipient setting; vehicles transferred directly between the two consists keep their
-  load; a laid-over donor emptied by the exchange is deregistered and destroyed.
-  A changed convoy waits out `shunting_time_seconds`; the counterpart waits in `LOADING` under the
-  same lock so that its new consist loads after the delay. Failure is all-or-nothing: neither
-  consist changes, one warning is posted, the counterpart is released from
+  load; a laid-over donor emptied by the exchange is deregistered and destroyed. When the receiver
+  reached the target's rear tile under a committed approach, the final consists are laid out on the
+  tiles the pre-exchange vehicles occupied (front convoy first, loose stock behind both) with
+  `vehicle_t::set_layout_position`; each changed convoy releases its previous reservations before
+  re-reserving. A changed convoy waits out `shunting_time_seconds`; the counterpart waits in
+  `LOADING` under the same lock so that its new consist loads after the delay. Failure is
+  all-or-nothing: neither consist changes, one warning is posted, the counterpart is released from
   `AWAITING_RECOMBINATION`, and both convoys continue on their own schedules.
 
 ## PARTIAL features
@@ -158,7 +161,7 @@ explorer's treatment of consist orders.
   absent (waited for in `convoi_t::AWAITING_RECOMBINATION`, deliberately without a timeout), and
   missing — a broken target, reported and left unexecuted, never pool-assembled. An incomplete
   couple order (flag with no target selected) is removed at commit with a notice naming the stops.
-  Missing: the one-sided receive is now the fallback only when the counterpart entry does not carry
+  Missing: the one-sided receive is the fallback only when the counterpart entry does not carry
   `uncouple`, which selects the paired exchange instead (see IMPLEMENTED features); an entry carrying
   both flags is refused. A one-sided receive whose consist order fails with a present target remains
   unexecuted and is not reported. Detection of wait cycles longer than a direct pair is absent.
@@ -203,7 +206,7 @@ explorer's treatment of consist orders.
   [RECOLLECTION:2026-11-01 user statement]. UI-level order: reversal-aware picking, then
   the per-portion gate with the dividing work package [RECOLLECTION:2026-11-01 user statement]. The per-portion gate belongs to that
   package: the runtime is major and complex, so its design and implementation are undertaken
-  together [RECOLLECTION:2026-11-01 user statement]. The composition rule is now settled
+  together [RECOLLECTION:2026-11-01 user statement]. The composition rule is settled
   (two end-state orders, one per portion —
   [recombination-design](recombination-design.md)) [RECOLLECTION:2026-11-03 user statement]; the
   gate itself is a small predicate in the existing picker, written from that rule and shipping with
@@ -237,10 +240,10 @@ explorer's treatment of consist orders.
   reachable in play subject to the runtime gaps below. Consist-order window and rule-editor
   persistence is implemented ([gui](../gui.md)); the remaining consist-order UI work is the
   reversal-aware picker and per-portion gate described above. The couple target-entry picker and
-  the "Target schedule is reversed" controls for both sides are now present, enabled only for
+  the "Target schedule is reversed" controls for both sides are present, enabled only for
   mirrored target schedules; target changes clear the stored entry id and direction. They are
   compile-verified but have not been exercised in an interactive game. They are additional UI
-  work beyond the schedule/consist UI previously treated as finished.
+  work beyond the schedule/consist UI described above.
 - **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
   OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
   are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
@@ -262,9 +265,9 @@ explorer's treatment of consist orders.
   consume a handover's departure history, so a through pair is still timed from the accumulated
   legs. Design:
   [yh-path-explorer](yh-path-explorer.md). `target_unique_entry_couple` and
-  `couple_target_sch_is_reversed` were added to `schedule_entry_t` (savegame revision 8). The
+  `couple_target_sch_is_reversed` are fields of `schedule_entry_t`. The
   connexion-rebuild generation, the cross-boundary predicate, the depth setting and the GUI controls are
-  implemented and committed at `f4f6fd2b5`. A temporary verification hook on
+  implemented. A temporary verification hook on
   `month-boundary.sve` passed seven modes: uncouple, one-sided couple, reversed target, mirrored
   source reverse pass, nested couplings (record present at depth 64, absent at depth 1), broken
   target (no record) and blocked coupling (no record), plus a repeated-refresh determinism check.
@@ -296,10 +299,12 @@ explorer's treatment of consist orders.
   platform, an absent target with an occupied scheduled platform and a free alternative, a target
   that arrives after the receiver has passed the signal, an unrelated convoy blocking the target
   platform approach, moving-block call-on, two consecutive choose signals, and a direction-restricted
-  target platform that must produce a warning and a stable hold. A committed target beyond the final
-  signal has no deterministic fixture and belongs to the planned approach-link work. The shared
-  contact tile, exact stopping geometry and approach-link persistence remain outstanding; SHUNTING
-  is still only a timed pause.
+  target platform that must produce a warning and a stable hold. The present-target cases assert
+  that the receiver reaches the target's rear tile (the coupling tile); the exact intra-tile offset
+  is not script-visible. A committed target beyond the final signal has no deterministic fixture.
+  The shared contact tile and the coupling-point calculation are implemented; the reservation
+  handoff, the one-sided receive's physical layout and exact offset verification remain
+  outstanding. SHUNTING is still only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Coupling semantics and reliability gaps
@@ -328,7 +333,7 @@ admits a laid-over vehicle to the receiver's pool only when its recorded recipie
 or names the receiver's line, or the receiver itself when the receiver is lineless [CODE]. One
 recipient may be specified, not a list. The
 consist-order window lists the Same/Any entries plus the halt's lines or consists, with a
-Line/Consist filter; a specific recipient no longer registered at the halt (or hidden by a filter
+Line/Consist filter; a specific recipient not registered at the halt (or hidden by a filter
 switch) resets to the default [CODE]. A target order applied to a split-off portion resolves "Same"
 before the portion is given its target line (`convoi_t::form_divided_portion` calls
 `process_consist_order` first and `convoi_t::set_line` afterwards), so released vehicles can name

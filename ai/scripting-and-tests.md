@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 0692167b6 (2026-11-15, ten choose-signal cases); ex-15 @ 97029f453 (2026-11-14, scripting remainder); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
+verified: ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ bf620c45c (2026-11-15, pending-runtime case filter and durations); ex-15 @ ed6d940be (2026-11-15, contact-tile assertions in the present-target cases); ex-15 @ 0692167b6 (2026-11-15, scripted choose-signal cases); ex-15 @ 97029f453 (2026-11-14, scripting remainder); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -216,7 +216,7 @@ paired H exchange and choose-signal call-on. It is not part of the default passi
 - `choose-harness.nut` builds the two-platform junction from `pair-harness.nut` with a choose
   signal and signalbox in the throat, then asserts the choose-signal behaviour through
   `sign_x.get_state()`, `convoy_x.get_working_method()` and `convoy_x.get_vehicle_snapshot()`.
-  The ten cases are: a target waiting on the loop platform with the receiver routed to it and admitted
+  The cases are: a target waiting on the loop platform with the receiver routed to it and admitted
   under call-on (`target-present`); the same with `ignore_choose` set on the receiver entry
   (`target-present-ignore-choose`); no target present with the receiver using its free scheduled
   platform and no call-on (`target-absent`); no target present with `ignore_choose` and an occupied
@@ -226,11 +226,22 @@ paired H exchange and choose-signal call-on. It is not part of the default passi
   which must become the mover (`target-arrives-after`); an unrelated convoy on the target platform
   approach (`target-platform-blocked`); a moving-block choose beacon using the 1992 fixture map and
   retaining `drive_by_sight` after call-on (`moving-block`); two consecutive choose signals with the
-  first selecting the target platform (`multiple-choose-signals`); and a target platform whose
-  usable approach is rejected for its direction restrictions (`target-unreachable`). The last case
-  asserts no call-on, no entry onto the third platform and a stable `WAITING_FOR_CLEARANCE` hold;
-  its runner also requires the unusable-geometry warning in the game log. A committed target beyond
-  the final signal has no deterministic fixture and belongs to the planned approach-link work.
+  first selecting the target platform (`multiple-choose-signals`); a target platform whose usable
+  approach is rejected for its direction restrictions (`target-unreachable`); and a one-sided
+  receive that takes both target vehicles, so the emptied target is destroyed and the receiver's
+  former vehicles must be laid out behind it as loose stock (`one-sided-layout`); the case asserts
+  the final consist's exact positions and `steps` in the target's former slots and that the loose
+  convoy is behind the receiver. The
+  `target-unreachable` case asserts no call-on, no entry onto the third platform and a stable
+  `WAITING_FOR_CLEARANCE` hold;
+  its runner also requires the unusable-geometry warning in the game log. The present-target cases
+  assert that the receiver reaches the target's rear tile (the coupling tile) and stops at the
+  coupling point. `steps` is a vehicle front's position within its tile, in vehicle steps. The
+  mover's leading vehicle's `steps` must equal the standing rear vehicle's `steps` minus its length
+  in vehicle steps; `vehicle_desc_x.get_length()` reports car units, with 16 vehicle steps per car
+  unit. `target-arrives-after` asserts the same for the later target. `moving-block` keeps its
+  earlier tile expectation because the moving-block beacon does not hold the target's reservation.
+  A committed target beyond the final signal has no deterministic fixture.
 - `scripts/run-pending-runtime-tests.sh` stages the selected case in the pakset scenario directory
   with its harness and all fixture maps, runs one process per case with `-nomidi`, and requires a printed
   PASS marker plus any case-specific log assertion. The `target-unreachable` assertion requires the
@@ -238,8 +249,10 @@ paired H exchange and choose-signal call-on. It is not part of the default passi
   for the stall timeout, the overall timeout and a crash all fail the case. It selects
   `harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/` and `choose-harness.nut` for
   `choose-cases/`. Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
-  `PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS`. Exit code 0 means every case passed its marker
-  and case-specific assertions.
+  `PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS`, `PENDING_RUNTIME_CASES`.
+  `PENDING_RUNTIME_CASES` is a space-separated subset of case names; the runner rejects a name that
+  is not a committed case. Each result line carries the case's wall-clock duration. Exit code 0
+  means every case passed its marker and case-specific assertions.
 - The paired cases cover a symmetric locomotive swap with either convoy started first, a one-way
   transfer that leaves a vehicle as loose stock, an already-satisfied pair, a joint-solver
   backtracking conflict, an unsatisfiable pair refused all-or-nothing, and a receiver that collects
@@ -267,6 +280,41 @@ paired H exchange and choose-signal call-on. It is not part of the default passi
   `vehicle_desc_x` names are invalid immediately after map load (open bug in
   [known-bugs](known-bugs.md)), so name comparison is not used. Successful cases print convoy
   identities and vehicle counts, not descriptor names.
+
+### Test cadence
+
+The fixture is outside the default suite, and the full set is an integration gate rather than an
+edit loop. Run only the cases that can observe the change:
+
+- **Iteration.** Run the case or cases that exercise the changed branch. A change to
+  `choose-harness.nut` can affect every choose case, but only `target-present`,
+  `target-present-ignore-choose`, `multiple-choose-signals` and `target-arrives-after` execute the
+  coupling-point assertion described above; `one-sided-layout` checks the post-commit layout, and
+  `target-absent` is enough as a load smoke test. A change confined to one case's `scenario.nut`
+  needs that case only.
+- **Package.** Run the whole group once the package's behaviour is complete and before committing
+  it: `forward` plus `cases/` (the division cases), `pair-cases/` (the paired exchanges), or
+  `choose-cases/` (the choose-signal cases).
+- **Integration.** Run the whole pending-runtime set plus both reload cases (`reload` and
+  `pair-reload`) before pushing or merging a package, and after any change to save/load code, track
+  reservation ownership ([signals-and-blocks](signals-and-blocks.md)), the network checklist,
+  convoy state transitions, the paired-exchange solver or the network protocol. The reload cases
+  use their own runners and are not part of the pending-runtime set.
+
+Do not run the fixture for documentation, comments, translation strings or help text. A 27-case run
+took 23 minutes 19 seconds on 2026-11-15; a choose case took 44-45 seconds and `target-absent` took
+24 seconds on the same machine [EXECUTION-VERIFIED:2026-11-15]. The full run therefore averaged
+about 52 seconds per case, and the choose cases measured 44-45 seconds, so the cost scales with the
+number of cases rather than with one slow case.
+
+`PENDING_RUNTIME_CASES` selects a subset, for example:
+
+```sh
+PENDING_RUNTIME_CASES='target-present target-arrives-after' \
+PENDING_RUNTIME_BINARY='./Simutrans-Extended-debug.exe' \
+PENDING_RUNTIME_OBJECTS='pak128.Britain-Ex' \
+scripts/run-pending-runtime-tests.sh
+```
 
 ## Writing new tests
 
