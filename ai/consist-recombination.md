@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes (2026-11-14); choose-signal call-on Phase 1 plus working tree (2026-11-14)
+verified: ex-15 @ 97029f453 (2026-11-14); choose-signal call-on core and scripted choose-signal cases (2026-11-14); paired reload fixture @ fa85a59b8
 ---
 # Consist recombination
 
@@ -184,10 +184,15 @@ shared-contact package; `SHUNTING` remains a timed pause, not a movement.
 ## Tests
 
 `tests/pending-runtime` covers the runtime through the public script interface: the division
-baseline cases in `cases/`, the paired-exchange cases in `pair-cases/`, the division
-save/network reload case in `reload/`, and the paired-exchange save/network reload case in
-`pair-reload/`. The harnesses and runners are described in
-[scripting-and-tests](scripting-and-tests.md).
+baseline cases in `cases/`, the paired-exchange cases in `pair-cases/`, the choose-signal call-on
+cases in `choose-cases/`, the division save/network reload case in `reload/`, and the
+paired-exchange save/network reload case in `pair-reload/`. The choose-signal cases cover a
+present target, `ignore_choose` on the receiver, an absent target, `ignore_choose` with an
+occupied scheduled platform, a target that arrives after the receiver has passed the signal, and
+an unrelated convoy blocking the target platform approach. The moving-block, committed-target,
+multiple-choose-signal and unreachable-platform cases are not in the fixture; the reasons are in
+[ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The harnesses and runners are
+described in [scripting-and-tests](scripting-and-tests.md).
 
 ## Open questions
 
@@ -204,6 +209,6 @@ as the UI?
 
 ## Provenance
 
-Code-verified against ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 and documentation changes;
-choose-signal call-on Phase 1 plus working tree (2026-11-14). The detailed design history and forum
-provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).
+Code-verified against ex-15 @ 97029f453 (2026-11-14); choose-signal call-on core and scripted
+choose-signal cases 2026-11-14; paired reload fixture @ fa85a59b8. The detailed design history and
+forum provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).

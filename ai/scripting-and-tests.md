@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c082c94ae (2026-11-14); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
+verified: ex-15 @ 97029f453 (2026-11-14); paired reload fixture @ fa85a59b8; choose-signal cases in tests/pending-runtime/choose-cases 2026-11-14; test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -206,18 +206,37 @@ exchange). It is not part of the default passing suite.
 - `harness.nut` builds the infrastructure, convoy, target and consist orders through public script
   interfaces, then owns the Y-division observers and assertions. `pair-harness.nut` does the same for
   two convoys that meet at one stop on two platforms of the same halt, with a reciprocal `couple` /
-  `uncouple` entry and an end-state order on each. Both read a case selector from the `case_kind`
-  global that the case's `scenario.nut` sets, and print
+  `uncouple` entry and an end-state order on each. All three harnesses read a case selector from
+  the `case_kind` global that the case's `scenario.nut` sets, and print
   `RUNTIME CASE <case> PASS` or `RUNTIME CASE <case> FAIL: <assertion>`.
 - `scenario.nut` selects the forward Y case; `cases/<case>/scenario.nut` selects each further Y case;
-  `pair-cases/<case>/scenario.nut` selects each paired case. Each case runs in its own game process,
-  so the cases cannot contaminate one another.
-- `scripts/run-pending-runtime-tests.sh` stages the selected case with its harness and
-  `empty-16x16.sve` in the pakset scenario directory, runs one process per case with `-nomidi`,
-  and treats a printed PASS marker as the only success. A script error, a process exit before a
-  marker, no log progress for the stall timeout, the overall timeout and a crash all fail the
-  case. It selects `harness.nut` for `cases/` and `pair-harness.nut` for `pair-cases/`.
-  Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
+  `pair-cases/<case>/scenario.nut` selects each paired case; `choose-cases/<case>/scenario.nut`
+  selects each choose-signal call-on case. Each case runs in its own game process, so the cases
+  cannot contaminate one another.
+- `choose-harness.nut` builds the two-platform junction from `pair-harness.nut` with a choose
+  signal and signalbox in the throat, then asserts the choose-signal behaviour through
+  `sign_x.get_state()`, `convoy_x.get_working_method()` and `convoy_x.get_vehicle_snapshot()`.
+  The cases are: a target waiting on the loop platform with the receiver routed to it and admitted
+  under call-on (`target-present`); the same with `ignore_choose` set on the receiver entry
+  (`target-present-ignore-choose`); no target present with the receiver using its free scheduled
+  platform and no call-on (`target-absent`); no target present with `ignore_choose` and an occupied
+  scheduled platform, so the receiver waits on the scheduled approach (`target-absent-ignore-choose`);
+  a target started after the receiver has already passed the signal, which must become the mover
+  (`target-arrives-after`); and an unrelated convoy on the target platform approach
+  (`target-platform-blocked`).
+- Four choose-signal cases are not in the committed fixture. A moving-block choose beacon can be
+  tested only after the call-on working-method defect is fixed: the receiver enters under the
+  beacon's `moving_block` working method instead of `drive_by_sight`. A committed target beyond the
+  final signal could not be staged deterministically: the engine holds the receiver on the signal
+  tile, where `try_choose_call_on` is not reached. Two choose signals in sequence and a target
+  platform reachable only against a one-way sign were also left out pending code work. These gaps
+  are recorded in [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md).
+- `scripts/run-pending-runtime-tests.sh` stages the selected case in the pakset scenario directory
+  with its harness and `empty-16x16.sve`, runs one process per case with `-nomidi`, and treats a printed
+  PASS marker as the only success. A script error, a process exit before a marker, no log progress
+  for the stall timeout, the overall timeout and a crash all fail the case. It selects
+  `harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/` and `choose-harness.nut` for
+  `choose-cases/`. Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
   `PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS`. Exit code 0 means every case printed PASS.
 - The paired cases cover a symmetric locomotive swap with either convoy started first, a one-way
   transfer that leaves a vehicle as loose stock, an already-satisfied pair, a joint-solver

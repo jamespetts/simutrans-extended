@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 235a9eddf plus paired reload fixture @ fa85a59b8 (2026-11-14); discharge boundary and paired runtime 2026-11-13; choose-signal call-on core 2026-11-14; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 97029f453 (2026-11-14); discharge boundary and paired runtime 2026-11-13; choose-signal call-on core and scripted cases 2026-11-14; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -290,8 +290,20 @@ explorer's treatment of consist orders.
   correction for cargo on moved vehicles, and no through fare ("passengers stay on the through
   portion" is not modelled).
 - **Choose-signal call-on for coupling movements** — the choose-signal target decision, target-platform
-  route and call-on admission are implemented. The shared contact tile, exact stopping geometry and
-  approach-link persistence remain outstanding; SHUNTING is still only a timed pause.
+  route and call-on admission are implemented. The scripted cases in
+  `tests/pending-runtime/choose-cases/` cover a present target, `ignore_choose` on the receiver,
+  an absent target on its free scheduled platform, `ignore_choose` with an occupied scheduled
+  platform, a target that arrives after the receiver has passed the signal, and an unrelated
+  convoy blocking the target platform approach. Cases not in the fixture: a moving-block choose
+  beacon enters the target platform with the receiver still in `moving_block` rather than
+  `drive_by_sight`, so call-on does not persist as a drive-by-sight movement authority; a committed
+  target beyond the final signal cannot be staged deterministically because the engine holds the
+  receiver on the signal tile and `try_choose_call_on` is not reached from that position; two choose
+  signals in sequence and an unreachable target platform also remain untested pending code work.
+  The moving-block, multiple-signal and unreachable-platform defects are recorded in
+  [known-bugs](../known-bugs.md).
+  The shared contact tile, exact stopping geometry and approach-link persistence remain outstanding;
+  SHUNTING is still only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Coupling semantics and reliability gaps
