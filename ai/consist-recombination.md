@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 97029f453 (2026-11-14); choose-signal call-on core and scripted choose-signal cases (2026-11-14); paired reload fixture @ fa85a59b8
+verified: ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and ten scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8
 ---
 # Consist recombination
 
@@ -187,10 +187,11 @@ shared-contact package; `SHUNTING` remains a timed pause, not a movement.
 baseline cases in `cases/`, the paired-exchange cases in `pair-cases/`, the choose-signal call-on
 cases in `choose-cases/`, the division save/network reload case in `reload/`, and the
 paired-exchange save/network reload case in `pair-reload/`. The choose-signal cases cover a
-present target, `ignore_choose` on the receiver, an absent target, `ignore_choose` with an
-occupied scheduled platform, a target that arrives after the receiver has passed the signal, and
-an unrelated convoy blocking the target platform approach. The moving-block, committed-target,
-multiple-choose-signal and unreachable-platform cases are not in the fixture; the reasons are in
+present target, `ignore_choose` on the receiver, an absent target with a free or occupied scheduled
+platform, `ignore_choose` with an occupied scheduled platform, a target that arrives after the
+receiver has passed the signal, an unrelated convoy blocking the target platform approach, a
+moving-block choose beacon, two consecutive choose signals, and an unusable target-platform
+approach. The committed-target case belongs to the planned approach-link work described in
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The harnesses and runners are
 described in [scripting-and-tests](scripting-and-tests.md).
 
@@ -209,6 +210,7 @@ as the UI?
 
 ## Provenance
 
-Code-verified against ex-15 @ 97029f453 (2026-11-14); choose-signal call-on core and scripted
-choose-signal cases 2026-11-14; paired reload fixture @ fa85a59b8. The detailed design history and
-forum provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).
+Choose-signal call-on code and its ten scripted cases verified against ex-15 @ 0692167b6
+(2026-11-15); remaining content against ex-15 @ 97029f453 (2026-11-14); paired reload fixture @
+fa85a59b8. The detailed design history and forum provenance are in
+[ex-15/recombination-design](ex-15/recombination-design.md).

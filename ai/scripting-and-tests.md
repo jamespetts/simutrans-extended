@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 97029f453 (2026-11-14); paired reload fixture @ fa85a59b8; choose-signal cases in tests/pending-runtime/choose-cases 2026-11-14; test-harness facts as cited; suite count 81/81 (2026-11-14)
+verified: ex-15 @ 0692167b6 (2026-11-15, ten choose-signal cases); ex-15 @ 97029f453 (2026-11-14, scripting remainder); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -200,8 +200,8 @@ importing Standard-only mechanics. Remaining work includes:
 
 ## Pending-runtime recombination fixture
 
-`tests/pending-runtime/` is a separate fixture for the recombination runtime (Y division and paired H
-exchange). It is not part of the default passing suite.
+`tests/pending-runtime/` is a separate fixture for the recombination runtime, including Y division,
+paired H exchange and choose-signal call-on. It is not part of the default passing suite.
 
 - `harness.nut` builds the infrastructure, convoy, target and consist orders through public script
   interfaces, then owns the Y-division observers and assertions. `pair-harness.nut` does the same for
@@ -216,28 +216,30 @@ exchange). It is not part of the default passing suite.
 - `choose-harness.nut` builds the two-platform junction from `pair-harness.nut` with a choose
   signal and signalbox in the throat, then asserts the choose-signal behaviour through
   `sign_x.get_state()`, `convoy_x.get_working_method()` and `convoy_x.get_vehicle_snapshot()`.
-  The cases are: a target waiting on the loop platform with the receiver routed to it and admitted
+  The ten cases are: a target waiting on the loop platform with the receiver routed to it and admitted
   under call-on (`target-present`); the same with `ignore_choose` set on the receiver entry
   (`target-present-ignore-choose`); no target present with the receiver using its free scheduled
   platform and no call-on (`target-absent`); no target present with `ignore_choose` and an occupied
   scheduled platform, so the receiver waits on the scheduled approach (`target-absent-ignore-choose`);
-  a target started after the receiver has already passed the signal, which must become the mover
-  (`target-arrives-after`); and an unrelated convoy on the target platform approach
-  (`target-platform-blocked`).
-- Four choose-signal cases are not in the committed fixture. A moving-block choose beacon can be
-  tested only after the call-on working-method defect is fixed: the receiver enters under the
-  beacon's `moving_block` working method instead of `drive_by_sight`. A committed target beyond the
-  final signal could not be staged deterministically: the engine holds the receiver on the signal
-  tile, where `try_choose_call_on` is not reached. Two choose signals in sequence and a target
-  platform reachable only against a one-way sign were also left out pending code work. These gaps
-  are recorded in [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md).
+  no target present with an occupied scheduled platform and a two-tile free alternative
+  (`target-absent-occupied`); a target started after the receiver has already passed the signal,
+  which must become the mover (`target-arrives-after`); an unrelated convoy on the target platform
+  approach (`target-platform-blocked`); a moving-block choose beacon using the 1992 fixture map and
+  retaining `drive_by_sight` after call-on (`moving-block`); two consecutive choose signals with the
+  first selecting the target platform (`multiple-choose-signals`); and a target platform whose
+  usable approach is rejected for its direction restrictions (`target-unreachable`). The last case
+  asserts no call-on, no entry onto the third platform and a stable `WAITING_FOR_CLEARANCE` hold;
+  its runner also requires the unusable-geometry warning in the game log. A committed target beyond
+  the final signal has no deterministic fixture and belongs to the planned approach-link work.
 - `scripts/run-pending-runtime-tests.sh` stages the selected case in the pakset scenario directory
-  with its harness and `empty-16x16.sve`, runs one process per case with `-nomidi`, and treats a printed
-  PASS marker as the only success. A script error, a process exit before a marker, no log progress
+  with its harness and all fixture maps, runs one process per case with `-nomidi`, and requires a printed
+  PASS marker plus any case-specific log assertion. The `target-unreachable` assertion requires the
+  unusable-geometry warning. A script error, a process exit before a marker, no log progress
   for the stall timeout, the overall timeout and a crash all fail the case. It selects
   `harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/` and `choose-harness.nut` for
   `choose-cases/`. Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
-  `PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS`. Exit code 0 means every case printed PASS.
+  `PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS`. Exit code 0 means every case passed its marker
+  and case-specific assertions.
 - The paired cases cover a symmetric locomotive swap with either convoy started first, a one-way
   transfer that leaves a vehicle as loose stock, an already-satisfied pair, a joint-solver
   backtracking conflict, an unsatisfiable pair refused all-or-nothing, and a receiver that collects
@@ -304,6 +306,7 @@ and the build source lists. The signalling API additions are `signalbox_x`, the 
 signal-descriptor, convoy, way and vehicle-slot getters, the signal-construction commands, the
 signalbox site-validity and price queries, and the signed object-type parameter handling.
 The API breadth is a code inventory; only the explicitly marked tests and fixture outcomes are
-execution-verified.
+execution-verified. The ten choose-signal cases ran in separate Debug x64 processes with `-nomidi`
+against ex-15 @ 0692167b6 on 2026-11-15.
 Other test-harness and CI facts retain their cited provenance (master @ 78a4bb3b9 / ex-15 @
 91d9b252e; mapgen @ 0954e8c3c; smoke/join facts as cited there).

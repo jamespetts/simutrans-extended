@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); gameplay model and reservation audit 2026-11-14; call-on, reservation-index and route-unreserve-removal changes (2026-11-14)
+verified: ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on and ten scripted cases); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13, remainder); gameplay model and reservation audit 2026-11-14; call-on, reservation-index and route-unreserve-removal changes (2026-11-14)
 ---
 # Signals, signalboxes and block working
 
@@ -195,9 +195,12 @@ covers only its reservation and platform consequences:
   signal: when the current entry has `couple` (or the reciprocal `uncouple`), the target is stationary
   at the stop and only the target obstructs the route, the choose signal routes to the target's rear
   tile and issues call-on. It does not require `get_permissive()` or `no_junctions_to_next_signal()`,
-  and `has_call_on` is display-only. Choose-signal call-on covers the choose-signal decision, the
-  target-platform route and admission; the shared-contact coupling, exact stop and approach-link
-  persistence remain outstanding.
+  and `has_call_on` is display-only. With consecutive choose signals, the first signal selects the
+  coupling-target route and later signals retain an already selected route. If no route can approach
+  the target platform in a usable direction, the approaching convoy stays at the choose signal and gets a
+  warning about the station geometry and one-way signs. Choose-signal call-on covers the choose-signal
+  decision, the target-platform route and admission; the shared-contact coupling, exact stop and
+  approach-link persistence remain outstanding.
 - A laid-over convoy keeps the reservations on its tiles; the halt-deletion path releases them with
   `convoi_t::reserve_own_tiles(true)`.
 - The platform a portion occupies must be long enough: `convoi_t::get_tile_length` is the station
@@ -217,9 +220,10 @@ and limits: [reservation-index](signals-and-blocks/reservation-index.md).
 
 ## Provenance
 
-Code-verified against ex-15 @ 23271d64e plus the working-tree route-unreserve removal on
-2026-11-14. The performance figures are execution measurements recorded in the reservation-index
-document. Reservation mechanics, their determinism record and the reservation open questions are in
+Choose-signal call-on code and its ten scripted cases verified against ex-15 @ 0692167b6
+(2026-11-15). Other signal and reservation mechanics verified against ex-15 @ 23271d64e plus the
+working-tree route-unreserve removal on 2026-11-14. The performance figures are execution
+measurements recorded in the reservation-index document. Reservation mechanics, their determinism record and the reservation open questions are in
 [block-reservations](signals-and-blocks/block-reservations.md). Signalboxes and the working-method
 system are Extended-era developments on the Standard Simutrans way and signal base; block reservation's
 provenance is in the nested document. Coarse provenance only, per [conventions](conventions.md).

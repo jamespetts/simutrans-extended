@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 97029f453 (2026-11-14); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment, choose-signal call-on core, scripted cases and general signalling API 2026-11-14
+verified: ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and ten scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -247,13 +247,11 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
 5. Complete platform/siding/home-depot and shared-contact call-on handling, solver completeness,
    ownership/access decisions and the remaining authoring validation. The choose-signal call-on
    core (target resolution, committed-target hold, target-platform route and admission) is
-   implemented and scripted cases cover a present target, `ignore_choose`, an absent target, an
-   unrelated convoy blocking the target platform, and a target that arrives after the receiver has
-   passed the signal. A moving-block beacon leaves the receiver in `moving_block` rather than
-   `drive_by_sight`; the committed-target hold could not be staged deterministically; the
-   multiple-signal and unreachable-platform cases remain untested. The shared contact tile, exact
-   stop and approach-link persistence remain. The
-   general signalling Squirrel API's read-only object model, construction commands and
+   implemented. Scripted cases cover present, absent and later-arriving targets; `ignore_choose`;
+   occupied platforms and blocked approaches; moving-block call-on; consecutive choose signals;
+   and direction-restricted target-platform approaches. A committed-target fixture depends on the
+   planned approach-link work. The shared contact tile,
+   exact stop and approach-link persistence remain. The general signalling Squirrel API's read-only object model, construction commands and
    site-validity and price queries are implemented (`signalbox_x`, the signal, signal-descriptor,
    convoy, way and vehicle-slot getters, `command_x.build_signalbox`, the signalbox form of
    `command_x.build_sign_at`, `command_x.can_build_signalbox_at` and

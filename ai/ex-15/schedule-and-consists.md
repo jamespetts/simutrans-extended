@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 97029f453 (2026-11-14); discharge boundary and paired runtime 2026-11-13; choose-signal call-on core and scripted cases 2026-11-14; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and ten scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -293,17 +293,13 @@ explorer's treatment of consist orders.
   route and call-on admission are implemented. The scripted cases in
   `tests/pending-runtime/choose-cases/` cover a present target, `ignore_choose` on the receiver,
   an absent target on its free scheduled platform, `ignore_choose` with an occupied scheduled
-  platform, a target that arrives after the receiver has passed the signal, and an unrelated
-  convoy blocking the target platform approach. Cases not in the fixture: a moving-block choose
-  beacon enters the target platform with the receiver still in `moving_block` rather than
-  `drive_by_sight`, so call-on does not persist as a drive-by-sight movement authority; a committed
-  target beyond the final signal cannot be staged deterministically because the engine holds the
-  receiver on the signal tile and `try_choose_call_on` is not reached from that position; two choose
-  signals in sequence and an unreachable target platform also remain untested pending code work.
-  The moving-block, multiple-signal and unreachable-platform defects are recorded in
-  [known-bugs](../known-bugs.md).
-  The shared contact tile, exact stopping geometry and approach-link persistence remain outstanding;
-  SHUNTING is still only a timed pause.
+  platform, an absent target with an occupied scheduled platform and a free alternative, a target
+  that arrives after the receiver has passed the signal, an unrelated convoy blocking the target
+  platform approach, moving-block call-on, two consecutive choose signals, and a direction-restricted
+  target platform that must produce a warning and a stable hold. A committed target beyond the final
+  signal has no deterministic fixture and belongs to the planned approach-link work. The shared
+  contact tile, exact stopping geometry and approach-link persistence remain outstanding; SHUNTING
+  is still only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Coupling semantics and reliability gaps
