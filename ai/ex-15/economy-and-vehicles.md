@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 29bc1a6e8
+verified: ex-15 @ 0d41455e7
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -131,6 +131,13 @@ value.
   get_total_fare); way/bridge/tunnel/signal/roadsign/wayobject maintenance & construction;
   buildings/depots/stations; all cst_* settings; corporation tax (player/finance.cc); land values;
   overdraft interest (base_rate + overdraft_percent_above_base_rate setting).
+- Land purchase (`karte_t::get_land_value`): `cst_buy_land` outside city limits and
+  `cst_buy_city_land` inside them (`cost_buy_land` and `cost_buy_city_land` in simuconf, both
+  scaled by the pakset's meters per tile and stored negative). Inside a city the base is
+  multiplied by 3 (below `city_threshold_size`), 4 (below `capital_threshold_size`) or 6 (at or
+  above it); the same multiplied base feeds the wayleave deduction for elevated or underground
+  ways (a wayleave is the payment for the right to pass over or under a building). The purchase
+  price and the wayleave are each adjusted by the `country_land` or `city_land` price index.
 - prices_rdwr gated extended ≥ 15; pakset-dir override re-read on load. Forum confirms implemented
   on 15.x [FORUM:https://forum.simutrans.com/index.php/topic,22054.msg207373.html].
 - Fuel and staff sit outside prices.tab (absolute yearly prices in their own .tab files).
