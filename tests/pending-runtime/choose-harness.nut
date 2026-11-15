@@ -63,6 +63,8 @@ local LAYOUT_STEP_LIMIT = 500
 // vehicle steps and vehicle lengths in car units. This mirrors
 // VEHICLE_STEPS_PER_CARUNIT in simunits.h.
 local VEHICLE_STEPS_PER_CARUNIT = 16
+// Vehicle steps per tile. This mirrors VEHICLE_STEPS_PER_TILE in simunits.h.
+local VEHICLE_STEPS_PER_TILE = 256
 
 local fixture = {
 	phase = "setup",
@@ -87,7 +89,9 @@ local fixture = {
 	target_rear_pos = null,
 	target_front_steps = 0,
 	target_rear_steps = 0,
-	contact_pos = null,
+	target_contact_pos = null,
+	target_contact_steps = 0,
+	pair_contact_seen = false,
 	layout_steps = 0,
 	last_target_rear_steps = -1,
 	target_settle_count = 0,
@@ -221,25 +225,45 @@ function choose_position(cnv)
 }
 
 
+// The coupling point at a standing convoy's rear: the rear vehicle's front
+// position minus its length, in the tile that contains it. The fixture's trains
+// run east, so an offset behind the tile start lies in the tile to the west.
+// This mirrors convoi_t::get_recombination_contact_point.
+function contact_slot(standing)
+{
+	local slots = standing.get_vehicle_snapshot()
+	local rear = slots[slots.len() - 1]
+	local offset = rear.steps - rear.desc.get_length() * VEHICLE_STEPS_PER_CARUNIT
+	local pos = rear.pos
+	while (offset <= 0)
+	{
+		pos = coord3d(pos.x - 1, pos.y, pos.z)
+		offset += VEHICLE_STEPS_PER_TILE
+	}
+	if (offset >= VEHICLE_STEPS_PER_TILE)
+	{
+		offset = VEHICLE_STEPS_PER_TILE - 1
+	}
+	return { pos = pos, steps = offset }
+}
+
+
 // The coupling point is the standing convoy's rear vehicle's front position
-// minus that vehicle's length, in vehicle steps within its tile. This mirrors
-// convoi_t::get_recombination_contact_ground. Returns 0 while the mover is
-// still moving, -1 after reporting a mismatch, and 1 when the mover has
-// stopped at the coupling point.
+// minus that vehicle's length, in vehicle steps within the tile that contains
+// it. This mirrors convoi_t::get_recombination_contact_ground. Returns 0 while
+// the mover is still moving, -1 after reporting a mismatch, and 1 when the
+// mover has stopped at the coupling point.
 function check_coupling_stop(mover, standing, what)
 {
 	if (mover.get_speed() != 0)
 	{
 		return 0
 	}
-	local standing_slots = standing.get_vehicle_snapshot()
-	local rear = standing_slots[standing_slots.len() - 1]
-	local expected = rear.steps - rear.desc.get_length() * VEHICLE_STEPS_PER_CARUNIT
+	local contact = contact_slot(standing)
 	local front = mover.get_vehicle_snapshot()[0]
-	if (!check(front.steps == expected,
-		what + " stopped at steps " + front.steps + " in the contact tile, expected the coupling point "
-		+ expected + " (the standing rear vehicle is at steps " + rear.steps + " and is "
-		+ rear.desc.get_length() + " car units long)"))
+	if (!check(front.steps == contact.steps,
+		what + " stopped at steps " + front.steps + " in the contact tile " + pos_text(contact.pos)
+		+ ", expected the coupling point " + contact.steps))
 	{
 		return -1
 	}
@@ -402,9 +426,11 @@ function build_infrastructure(pl)
 	if (!check(station != null, "no rail station available")) { return false }
 	if (!check_tool(station_builder(pl, MAIN_POS, station), "build main junction platform")) { return false }
 	if (!check_tool(station_builder(pl, LOOP_POS, station), "build loop junction platform")) { return false }
-	if (case_name == "target-absent-occupied")
+	if (case_name == "target-absent-occupied" || case_name == "straddling-contact")
 	{
 		// The receiver needs two platform tiles; keep the loop a valid alternative.
+		// The straddling case needs a straight two-tile platform so that the long
+		// target's rear end lies in a straight tile, not on a corner.
 		if (!check_tool(station_builder(pl, coord3d(6, 3, 0), station), "extend the free loop platform")) { return false }
 	}
 	if (case_name == "target-unreachable")
@@ -422,6 +448,11 @@ function build_infrastructure(pl)
 	{
 		local third_halt = halt_x.get_halt(UNREACHABLE_POS, pl)
 		if (!check(third_halt != null && third_halt.get_name() == main_halt.get_name(), "the third platform belongs to a separate halt")) { return false }
+	}
+	if (case_name == "straddling-contact")
+	{
+		local extended_halt = halt_x.get_halt(coord3d(6, 3, 0), pl)
+		if (!check(extended_halt != null && extended_halt.get_name() == main_halt.get_name(), "the extended loop platform belongs to a separate halt")) { return false }
 	}
 
 	if (!select_choose_signal_and_box()) { return false }
@@ -700,6 +731,36 @@ function commit_pair_receiver_schedule(pl, receiver, target_id, order)
 }
 
 
+// The straddling case needs the target to stop at the east end of a straight
+// two-tile platform, so that its long rear vehicle's rear end lies in the
+// straight tile behind its front tile rather than on a corner.
+function commit_straddling_target_schedule(pl, target)
+{
+	local entries = [make_entry(coord3d(6, 3, 0), TARGET_ENTRY_ID), make_entry(EAST_POS, TARGET_NEXT_ENTRY_ID)]
+	entries[0].minimum_loading = 100
+	local schedule = schedule_x(wt_rail, entries)
+	if (!check_tool(target.change_schedule(pl, schedule), "commit the straddling target schedule")) { return false }
+	return true
+}
+
+
+// The receiver side of a single-vehicle contact fixture: its order restates its
+// own locomotive, so the receive changes nothing and the contact stop can be
+// observed without a commit.
+function commit_receiver_single_schedule(pl, receiver, target_id, desc)
+{
+	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
+	entries[0].couple = true
+	entries[0].couple_target_is_line_or_cnv = true
+	entries[0].target_id_couple = target_id
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order([[desc]]))
+	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the single-vehicle receiver schedule")) { return false }
+	return true
+}
+
+
 function commit_receiver_schedule(pl, receiver, target_id, ignore_choose)
 {
 	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
@@ -854,11 +915,11 @@ function setup()
 	if (!build_infrastructure(pl)) { return false }
 	if (!check(select_descriptors(), "no set of three powered and two unpowered rail vehicles with the required couplings is available")) { return false }
 
-	local receiver = create_depot_convoy(pl, [fixture.loco_b, fixture.coach_b], "receiver convoy")
+	local receiver = create_depot_convoy(pl, case_name == "straddling-contact" ? [fixture.loco_c] : [fixture.loco_b, fixture.coach_b], "receiver convoy")
 	if (receiver == null) { return false }
 	fixture.receiver_id = receiver.id
 
-	local target = create_depot_convoy(pl, [fixture.loco_a, fixture.coach_a], "target convoy")
+	local target = create_depot_convoy(pl, case_name == "straddling-contact" ? [fixture.loco_a, fixture.loco_b] : [fixture.loco_a, fixture.coach_a], "target convoy")
 	if (target == null) { return false }
 	fixture.target_id = target.id
 
@@ -891,6 +952,18 @@ function setup()
 			if (!commit_target_schedule(pl, target, hold.id)) { return false }
 			if (!commit_receiver_schedule(pl, receiver, target.id, case_name == "target-present-ignore-choose")) { return false }
 		}
+		if (!start_convoy(pl, target, "target convoy")) { return false }
+		fixture.phase = "wait-target"
+		return true
+	}
+
+	if (case_name == "straddling-contact")
+	{
+		// The target is one long vehicle whose rear end lies in the tile behind
+		// its front tile. The receiver must stop at the coupling point in that
+		// behind tile, not enter the target's front tile.
+		if (!commit_straddling_target_schedule(pl, target)) { return false }
+		if (!commit_receiver_single_schedule(pl, receiver, target.id, fixture.loco_c)) { return false }
 		if (!start_convoy(pl, target, "target convoy")) { return false }
 		fixture.phase = "wait-target"
 		return true
@@ -990,6 +1063,10 @@ function observe_wait_target()
 		fixture.target_front_steps = target_slots[0].steps
 		fixture.target_rear_pos = target_slots[target_slots.len() - 1].pos
 		fixture.target_rear_steps = target_slots[target_slots.len() - 1].steps
+		local contact = contact_slot(target)
+		fixture.target_contact_pos = contact.pos
+		fixture.target_contact_steps = contact.steps
+		print("RUNTIME CASE " + case_name + ": target contact tile " + pos_text(contact.pos) + " at steps " + contact.steps)
 		if (case_name == "target-unreachable")
 		{
 			local one_way = null
@@ -1176,17 +1253,13 @@ function observe_watch_approach()
 		fixture.drive_by_sight_seen = true
 		print("RUNTIME CASE " + case_name + ": receiver is running in " + depict_working_method(receiver.get_working_method()) + " at " + choose_position(receiver))
 	}
-	// The claimed mover enters the target's rear tile and stops at the
-	// coupling point inside it.
+	// The claimed mover enters the contact tile and stops at the coupling
+	// point inside it.
 	local target_slots = target.get_vehicle_snapshot()
 	local rear = target_slots[target_slots.len() - 1].pos
-	local expected = case_name == "one-sided-layout" ? fixture.target_rear_pos : rear
-	// The shared contact tile is admitted through the block reservation held by
-	// the target. A moving-block choose beacon does not necessarily hold that
-	// reservation, so that case retains its previous expectation: the tile
-	// before the target's rear vehicle.
+	local contact = { pos = fixture.target_contact_pos, steps = fixture.target_contact_steps }
 	local before_rear = coord3d(rear.x - 1, rear.y, rear.z)
-	if (same_pos(receiver.get_pos(), expected)
+	if (same_pos(receiver.get_pos(), contact.pos)
 		|| (case_name == "moving-block" && same_pos(receiver.get_pos(), before_rear)))
 	{
 		if (!check(case_name == "moving-block" || fixture.call_on_seen || fixture.drive_by_sight_seen, "the choose signal never displayed call-on; receiver is in " + depict_working_method(receiver.get_working_method()))) { return }
@@ -1195,11 +1268,10 @@ function observe_watch_approach()
 		{
 			// The receive commits after arrival, so continue observing until the
 			// target has gone and the final consist can be checked.
-			fixture.contact_pos = expected
 			fixture.phase = "watch-layout"
 			return
 		}
-		if (same_pos(receiver.get_pos(), expected) && case_name != "moving-block")
+		if (case_name != "moving-block")
 		{
 			local coupling = check_coupling_stop(receiver, target, "the receiver")
 			if (coupling != 1)
@@ -1216,7 +1288,7 @@ function observe_watch_approach()
 	++fixture.approach_steps
 	if (fixture.approach_steps > APPROACH_STEP_LIMIT)
 	{
-		fail("timed out waiting for the receiver to stop behind the target: receiver " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", target rear (" + rear.x + "," + rear.y + "), signal " + depict_aspect(fixture.signal_state))
+		fail("timed out waiting for the receiver to stop behind the target: receiver " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", contact tile (" + contact.pos.x + "," + contact.pos.y + "), signal " + depict_aspect(fixture.signal_state))
 	}
 }
 
@@ -1325,28 +1397,27 @@ function observe_watch_pair_layout()
 	}
 	observe_signal()
 
-	if (fixture.contact_pos == null)
+	if (!fixture.pair_contact_seen)
 	{
-		local target_slots = target.get_vehicle_snapshot()
-		local rear = target_slots[target_slots.len() - 1].pos
-		if (!same_pos(receiver.get_pos(), rear))
+		if (target.get_vehicle_snapshot().len() == 1)
 		{
-			++fixture.approach_steps
-			if (fixture.approach_steps > APPROACH_STEP_LIMIT)
-			{
-				fail("the receiver did not reach the paired target's rear tile: " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", target rear (" + rear.x + "," + rear.y + ")")
-			}
+			// The commit ran in the same step as the arrival.
+			fixture.pair_contact_seen = true
+			fixture.layout_steps = 0
 			return
 		}
-		if (receiver.get_speed() != 0)
+		if (same_pos(receiver.get_pos(), fixture.target_contact_pos) && receiver.get_speed() == 0)
 		{
+			print("RUNTIME CASE " + case_name + ": receiver reached the contact tile " + pos_text(fixture.target_contact_pos) + " at steps " + receiver.get_vehicle_snapshot()[0].steps)
+			fixture.pair_contact_seen = true
+			fixture.layout_steps = 0
 			return
 		}
-		// The commit can run in the same step as the arrival, so the contact
-		// position is not asserted here; the layout assertions below cover the
-		// result. Record that contact happened and wait for both final consists.
-		fixture.contact_pos = rear
-		fixture.layout_steps = 0
+		++fixture.approach_steps
+		if (fixture.approach_steps > APPROACH_STEP_LIMIT)
+		{
+			fail("the receiver did not reach the paired target's contact tile: " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", contact tile " + pos_text(fixture.target_contact_pos))
+		}
 		return
 	}
 
@@ -1534,10 +1605,8 @@ function observe_watch_late_target()
 		fixture.drive_by_sight_seen = true
 		print("RUNTIME CASE " + case_name + ": later target is running in " + depict_working_method(target.get_working_method()) + " at " + choose_position(target))
 	}
-	local receiver_slots = receiver.get_vehicle_snapshot()
-	local rear = receiver_slots[receiver_slots.len() - 1].pos
-	local expected = rear
-	if (same_pos(target.get_pos(), expected))
+	local contact = contact_slot(receiver)
+	if (same_pos(target.get_pos(), contact.pos))
 	{
 		if (!check(fixture.call_on_seen || fixture.drive_by_sight_seen, "the choose signal never displayed call-on for the later target")) { return }
 		if (!check(fixture.drive_by_sight_seen, "the later target never ran in drive by sight after call-on")) { return }
@@ -1547,14 +1616,14 @@ function observe_watch_late_target()
 			// Still running towards the coupling point, or the check failed.
 			return
 		}
-		print("RUNTIME CASE " + case_name + ": later target reached the receiver rear tile at " + choose_position(target))
+		print("RUNTIME CASE " + case_name + ": later target reached the receiver contact tile at " + choose_position(target))
 		pass()
 		return
 	}
 	++fixture.approach_steps
 	if (fixture.approach_steps > APPROACH_STEP_LIMIT)
 	{
-		fail("timed out waiting for the later target to stop behind the receiver: target " + choose_position(target) + " " + depict_state(target.get_state()) + ", receiver rear (" + rear.x + "," + rear.y + "), signal " + depict_aspect(fixture.signal_state))
+		fail("timed out waiting for the later target to stop behind the receiver: target " + choose_position(target) + " " + depict_state(target.get_state()) + ", contact tile (" + contact.pos.x + "," + contact.pos.y + "), signal " + depict_aspect(fixture.signal_state))
 	}
 }
 

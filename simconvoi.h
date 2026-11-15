@@ -1759,18 +1759,23 @@ public:
 	// True when this convoy is the mover in the committed approach.
 	bool is_recombination_approach_mover() const { return recombination_approach_is_mover; }
 
-	// The ground of the approach partner's rear tile when this leading vehicle
-	// may hop into it to make physical contact, or NULL when the next tile is
-	// not that tile or the geometry is not supported. On success, records the
-	// coupling point within the tile.
+	// The ground of the tile that contains the approach partner's coupling
+	// point when this leading vehicle may hop into it to make physical contact,
+	// or NULL when the next tile is not that tile or the geometry is not
+	// supported. On success, records the coupling point within the tile.
 	grund_t *get_recombination_contact_ground(const vehicle_t *mover);
 
 	// The coupling point within the contact tile in vehicle steps, or -1.
 	// The value is consumed by the hop that uses it.
 	sint16 take_recombination_contact_steps();
 
+	// The tile that contains this convoy's coupling point: the rear vehicle's
+	// front position minus its length, carried back through as many tiles as
+	// the length requires. Invalid when the convoy has no vehicles.
+	koord3d get_recombination_contact_pos() const;
+
 	// True when the given holder and tile are the claimed approach partner's
-	// rear tile, which is the shared contact tile of this mover.
+	// coupling-point tile, which is the shared contact tile of this mover.
 	bool is_recombination_contact_tile(const convoihandle_t &holder, const koord3d &pos) const;
 
 	// Record a reciprocal coupling approach with the given partner. Any
@@ -1788,6 +1793,11 @@ public:
 	void set_call_on(bool value) { call_on = value; }
 
 	private:
+		// The coupling point at this convoy's rear: the tile that contains it
+		// and the offset within that tile in vehicle steps. Returns false when
+		// the convoy has no vehicles.
+		bool get_recombination_contact_point(koord3d &pos, sint16 &steps) const;
+
 		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy);
 
 		// Carry out the current entry's consist order, exchanging with the given

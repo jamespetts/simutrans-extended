@@ -25,7 +25,7 @@ protected:
 
 	sint32 activate_choose_signal(uint16 start_index, uint16 &next_signal_index, uint32 brake_steps, uint16 modified_sighting_distance_tiles, route_t* route, sint32 modified_route_index, convoi_t::recombination_target_state_t coupling_state, convoihandle_t coupling_target);
 
-	// The route search may enter the coupling target's rear tile and no other
+	// The route search may enter the coupling target's contact tile and no other
 	// tile held by another convoy. Cleared after the search.
 	koord3d choose_target_tile = koord3d::invalid;
 	convoihandle_t choose_target_convoy;
@@ -38,8 +38,9 @@ protected:
 	bool unreachable_choose_route_reported = false;
 	void report_unusable_choose_route();
 
-	// True when the route from the choose signal reaches the target's rear tile
-	// and every reservation on the way belongs to this convoy or to the target.
+	// True when the route from the choose signal reaches the target's contact
+	// tile and every reservation on the way belongs to this convoy or to the
+	// target.
 	bool target_obstructs_route_only(const signal_t *signal, const convoihandle_t &target) const;
 
 	// Grants choose-signal call-on at the given signal when the entry's coupling

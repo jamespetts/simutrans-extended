@@ -10508,10 +10508,11 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 	// The vehicles may include vehicles already present in the consist, but will always include
 	// at least one change from the current arrangement.
 
-	// When the receiver reached the joining convoy's rear tile under a committed
-	// coupling approach, the two consists have a physical order along the track.
-	// Record the occupied positions before any vehicle is detached, so that the
-	// final consist can be laid out in the space the two consists occupied.
+	// When the receiver reached the joining convoy's coupling point under a
+	// committed coupling approach, the two consists have a physical order along
+	// the track. Record the occupied positions before any vehicle is detached,
+	// so that the final consist can be laid out in the space the two consists
+	// occupied.
 	bool can_lay_out =
 		joining_convoy.is_bound()
 		&& joining_convoy.get_rep() != this
@@ -10519,7 +10520,7 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 		&& recombination_approach_partner == joining_convoy
 		&& joining_convoy->get_vehicle_count() > 0
 		&& !route.empty()
-		&& route.back() == joining_convoy->back()->get_pos();
+		&& route.back() == joining_convoy->get_recombination_contact_pos();
 
 	vector_tpl<recombination_layout_slot_t> layout_slots;
 	if (can_lay_out)
@@ -10975,6 +10976,41 @@ void convoi_t::clear_recombination_approach()
 }
 
 
+bool convoi_t::get_recombination_contact_point(koord3d &pos, sint16 &steps) const
+{
+	if (get_vehicle_count() == 0)
+	{
+		return false;
+	}
+	const vehicle_t *const rear = back();	sint32 offset = (sint32)rear->get_steps()
+		- (sint32)(rear->get_desc()->get_length() * VEHICLE_STEPS_PER_CARUNIT);
+	koord3d tile = rear->get_pos();
+	const koord back = koord(ribi_t::backward(rear->get_direction()));
+	while (offset <= 0)
+	{
+		tile += back;
+		offset += VEHICLE_STEPS_PER_TILE;
+	}
+	if (offset >= VEHICLE_STEPS_PER_TILE)
+	{
+		// The coupling point is exactly on the tile boundary. Keep it one step
+		// inside the tile that the rear end reaches first.
+		offset = VEHICLE_STEPS_PER_TILE - 1;
+	}
+	pos = tile;
+	steps = (sint16)offset;
+	return true;
+}
+
+
+koord3d convoi_t::get_recombination_contact_pos() const
+{
+	koord3d pos;
+	sint16 steps;
+	return get_recombination_contact_point(pos, steps) ? pos : koord3d::invalid;
+}
+
+
 bool convoi_t::is_recombination_contact_tile(const convoihandle_t &holder, const koord3d &pos) const
 {
 	const bool result = recombination_approach_is_mover
@@ -10983,7 +11019,7 @@ bool convoi_t::is_recombination_contact_tile(const convoihandle_t &holder, const
 		&& holder.is_bound()
 		&& holder == recombination_approach_partner
 		&& recombination_approach_partner->get_vehicle_count() > 0
-		&& pos == recombination_approach_partner->back()->get_pos()
+		&& pos == recombination_approach_partner->get_recombination_contact_pos()
 		&& !route.empty()
 		&& route.back() == pos;
 	return result;
@@ -11007,7 +11043,12 @@ grund_t *convoi_t::get_recombination_contact_ground(const vehicle_t *mover)
 	{
 		return nullptr;
 	}
-	const koord3d contact_pos = rear->get_pos();
+	koord3d contact_pos;
+	sint16 contact_steps;
+	if (!target->get_recombination_contact_point(contact_pos, contact_steps))
+	{
+		return nullptr;
+	}
 	if (mover->get_pos() == contact_pos)
 	{
 		// The contact tile has been entered; the normal finish applies.
@@ -11039,16 +11080,7 @@ grund_t *convoi_t::get_recombination_contact_ground(const vehicle_t *mover)
 	{
 		return nullptr;
 	}
-	// The partner's rear vehicle extends backwards from its front by its
-	// length. The coupling point is that rear end, measured from the start of
-	// the tile.
-	const sint32 rear_end = (sint32)rear->get_steps()
-		- (sint32)(rear->get_desc()->get_length() * VEHICLE_STEPS_PER_CARUNIT);
-	if (rear_end <= 0 || rear_end >= VEHICLE_STEPS_PER_TILE)
-	{
-		return nullptr;
-	}
-	recombination_contact_steps = (sint16)rear_end;
+	recombination_contact_steps = contact_steps;
 	return gr;
 }
 
@@ -11849,7 +11881,8 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 	// final consists can be laid out on the tiles the pre-exchange vehicles
 	// occupied. Without that order (consists at different platforms, or a
 	// laid-over donor supplying a final vehicle) the old behaviour, which
-	// places each changed consist at its former rear tile, is used.
+	// places each changed consist at its own former rear vehicle position, is
+	// used.
 	convoi_t *const layout_receiver = convoys[0];
 	convoi_t *const layout_target = convoys[1];
 	const bool receiver_is_mover =
@@ -11866,7 +11899,7 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		&& layout_behind->get_vehicle_count() > 0
 		&& layout_behind->get_route()
 		&& !layout_behind->get_route()->empty()
-		&& layout_behind->get_route()->back() == layout_ahead->back()->get_pos();
+		&& layout_behind->get_route()->back() == layout_ahead->get_recombination_contact_pos();
 
 	vector_tpl<recombination_layout_slot_t> layout_slots;
 	vector_tpl<vehicle_t*> slot_owners;

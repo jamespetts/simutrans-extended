@@ -308,8 +308,9 @@ bool rail_vehicle_t::check_next_tile(const grund_t *bd) const
 			check_reservation = sch->can_reserve(cnv->self, ribi);
 			if (!check_reservation && choose_target_convoy.is_bound() && choose_target_tile != koord3d::invalid && bd->get_pos() == choose_target_tile)
 			{
-				// A coupling approach may enter the target's rear tile only; every
-				// other tile held by another convoy stays closed to the search.
+				// A coupling approach may enter the target's coupling-point tile
+				// only; every other tile held by another convoy stays closed to the
+				// search.
 				check_reservation = sch->get_reserved_convoi() == choose_target_convoy;
 			}
 		}
@@ -475,10 +476,10 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 		{
 			return 0;
 		}
-		// Route to the target's rear tile, not to the halt: the halt route
-		// deliberately seeks a free platform. Pass zero as the convoy tile
+		// Route to the target's coupling-point tile, not to the halt: the halt
+		// route deliberately seeks a free platform. Pass zero as the convoy tile
 		// length so that the platform extension code does not move the goal.
-		const koord3d target_rear_tile = coupling_target->back()->get_pos();
+		const koord3d target_rear_tile = coupling_target->get_recombination_contact_pos();
 		route_t target_rt;
 		cnv->set_is_choosing(true);
 		choose_target_convoy = coupling_target;
@@ -500,7 +501,7 @@ sint32 rail_vehicle_t::activate_choose_signal(const uint16 start_block, uint16 &
 				// Record the reciprocal approach: the link and the route then
 				// survive save, reload and network transfer together.
 				cnv->set_recombination_approach(coupling_target, true);
-				// Reserve the new route. The target holds its rear tile, so the
+				// Reserve the new route. The target holds the contact tile, so the
 				// walk stops in front of it; the choose signal stays at danger
 				// until the convoy is at a stand and call-on is granted.
 				block_reserver(route, start_block, modified_sighting_distance_tiles, next_signal_index, 100000, true, false, true, false, false, false, brake_steps);
@@ -694,7 +695,7 @@ bool rail_vehicle_t::target_obstructs_route_only(const signal_t *signal, const c
 	{
 		return false;
 	}
-	const koord3d contact_tile = target->back()->get_pos();
+	const koord3d contact_tile = target->get_recombination_contact_pos();
 	if (current_route->back() != contact_tile)
 	{
 		// The route was not selected for this target's platform.
@@ -817,7 +818,7 @@ bool rail_vehicle_t::has_selected_coupling_target_route() const
 		return false;
 	}
 	const route_t *const current_route = cnv->get_route();
-	return current_route && !current_route->empty() && current_route->back() == target->back()->get_pos();
+	return current_route && !current_route->empty() && current_route->back() == target->get_recombination_contact_pos();
 }
 
 
@@ -1144,7 +1145,7 @@ bool rail_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 
 	const koord3d dir = gr->get_pos() - get_pos();
 	ribi = ribi_type(dir);
-	// The claimed approach partner keeps the reservation on its rear tile;
+	// The claimed approach partner keeps the reservation on the contact tile;
 	// the mover may enter that shared contact tile without reserving it.
 	const bool shared_contact_tile = cnv->is_recombination_contact_tile(w->get_reserved_convoi(), gr->get_pos());
 	if(!shared_contact_tile && !w->can_reserve(cnv->self, ribi))
@@ -1854,8 +1855,8 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			if (reserved_by.is_bound() && reserved_by != cnv->self
 				&& cnv->is_recombination_contact_tile(reserved_by, pos))
 			{
-				// The claimed approach partner holds its rear tile. That tile is
-				// the coupling point: admit the mover to it, but leave the
+				// The claimed approach partner holds the coupling-point tile. That
+				// tile is the coupling point: admit the mover to it, but leave the
 				// reservation with the partner.
 				next_signal_index = i;
 				success = true;
@@ -3190,7 +3191,7 @@ sint32 rail_vehicle_t::block_reserver(route_t *route, uint16 start_index, uint16
 			const koord3d check_tile_end = route->back();
 
 			choose_return = activate_choose_signal(choose_signal_index, next_signal_index, brake_steps, modified_sighting_distance_tiles, route, modified_route_index, choose_coupling_state, choose_coupling_target);
-			target_route_selected = choose_coupling_state == convoi_t::recombination_target_available && choose_coupling_target.is_bound() && route->back() == choose_coupling_target->back()->get_pos();
+			target_route_selected = choose_coupling_state == convoi_t::recombination_target_available && choose_coupling_target.is_bound() && route->back() == choose_coupling_target->get_recombination_contact_pos();
 			target_hold = choose_coupling_state == convoi_t::recombination_target_committed
 				|| (choose_coupling_state == convoi_t::recombination_target_available && !target_route_selected);
 			if (target_hold)
@@ -3657,13 +3658,21 @@ bool rail_vehicle_t::hand_over_contact_reservation(schiene_t *way, const grund_t
 
 	// The holder is this convoy. Under a committed coupling approach the tile
 	// passes to the reciprocal mover, which remains on it, so the tile keeps a
-	// single holder throughout.
+	// single holder throughout. Do not use is_recombination_contact_tile here:
+	// it requires the mover's call_on flag, which hat_gehalten clears when the
+	// mover stops in the tile.
 	const convoihandle_t mover = cnv->get_recombination_approach_partner();
 	if (!mover.is_bound() || mover == cnv->self || cnv->is_recombination_approach_mover())
 	{
 		return false;
 	}
-	if (!mover->is_recombination_contact_tile(cnv->self, pos) || !convoy_occupies_tile(mover, pos))
+	if (!mover->is_recombination_approach_mover()
+		|| mover->get_recombination_approach_partner() != cnv->self)
+	{
+		return false;
+	}
+	const route_t *const mover_route = mover->get_route();
+	if (!mover_route || mover_route->empty() || mover_route->back() != pos || !convoy_occupies_tile(mover, pos))
 	{
 		return false;
 	}
