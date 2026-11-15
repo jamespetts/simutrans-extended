@@ -57,6 +57,12 @@ local OCCUPIER_NEXT_ENTRY_ID = 32
 local TRAVEL_STEP_LIMIT = 6000
 local APPROACH_STEP_LIMIT = 3000
 local HOLD_OBSERVATIONS = 40
+local LAYOUT_STEP_LIMIT = 500
+
+// Vehicle steps per car unit. The script API reports vehicle positions in
+// vehicle steps and vehicle lengths in car units. This mirrors
+// VEHICLE_STEPS_PER_CARUNIT in simunits.h.
+local VEHICLE_STEPS_PER_CARUNIT = 16
 
 local fixture = {
 	phase = "setup",
@@ -77,6 +83,12 @@ local fixture = {
 	approach_steps = 0,
 	last_pos = null,
 	stationary_steps = 0,
+	target_front_pos = null,
+	target_rear_pos = null,
+	target_front_steps = 0,
+	target_rear_steps = 0,
+	contact_pos = null,
+	layout_steps = 0,
 	loco_a = null,
 	loco_b = null,
 	loco_c = null,
@@ -190,6 +202,12 @@ function same_pos(a, b)
 }
 
 
+function pos_text(p)
+{
+	return p == null ? "<none>" : "(" + p.x + "," + p.y + ")"
+}
+
+
 function choose_position(cnv)
 {
 	if (cnv == null || !cnv.is_valid())
@@ -198,6 +216,50 @@ function choose_position(cnv)
 	}
 	local p = cnv.get_pos()
 	return "(" + p.x + "," + p.y + ")"
+}
+
+
+// The coupling point is the standing convoy's rear vehicle's front position
+// minus that vehicle's length, in vehicle steps within its tile. This mirrors
+// convoi_t::get_recombination_contact_ground. Returns 0 while the mover is
+// still moving, -1 after reporting a mismatch, and 1 when the mover has
+// stopped at the coupling point.
+function check_coupling_stop(mover, standing, what)
+{
+	if (mover.get_speed() != 0)
+	{
+		return 0
+	}
+	local standing_slots = standing.get_vehicle_snapshot()
+	local rear = standing_slots[standing_slots.len() - 1]
+	local expected = rear.steps - rear.desc.get_length() * VEHICLE_STEPS_PER_CARUNIT
+	local front = mover.get_vehicle_snapshot()[0]
+	if (!check(front.steps == expected,
+		what + " stopped at steps " + front.steps + " in the contact tile, expected the coupling point "
+		+ expected + " (the standing rear vehicle is at steps " + rear.steps + " and is "
+		+ rear.desc.get_length() + " car units long)"))
+	{
+		return -1
+	}
+	return 1
+}
+
+
+function slot_matches(slot, desc)
+{
+	return slot != null && slot.desc != null && desc != null && slot.desc.is_equal(desc)
+}
+
+
+// The fixture's trains run east, so a slot with a smaller x is behind one with
+// a larger x. Within one tile the smaller steps value is behind.
+function slot_is_behind(a, b)
+{
+	if (a.pos.x != b.pos.x)
+	{
+		return a.pos.x < b.pos.x
+	}
+	return a.steps < b.steps
 }
 
 
@@ -601,6 +663,37 @@ function commit_receiver_schedule(pl, receiver, target_id, ignore_choose)
 }
 
 
+// The layout case needs a target that stays loading and available. Its entry
+// carries no couple order, so it never waits for another convoy, and it demands
+// full loading so that the empty fixture stop keeps it in the loading state.
+function commit_layout_target_schedule(pl, target)
+{
+	local entries = [make_entry(LOOP_POS, TARGET_ENTRY_ID), make_entry(EAST_POS, TARGET_NEXT_ENTRY_ID)]
+	entries[0].ignore_choose = true
+	entries[0].minimum_loading = 100
+	local schedule = schedule_x(wt_rail, entries)
+	if (!check_tool(target.change_schedule(pl, schedule), "commit the layout target schedule")) { return false }
+	return true
+}
+
+
+// The receiver takes both target vehicles. Its own two vehicles become loose
+// stock and the emptied target is destroyed. The loose stock must be laid out
+// behind the receiver rather than at the target's former slots.
+function commit_receiver_take_all_schedule(pl, receiver, target_id)
+{
+	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
+	entries[0].couple = true
+	entries[0].couple_target_is_line_or_cnv = true
+	entries[0].target_id_couple = target_id
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order([[fixture.loco_a], [fixture.coach_a]]))
+	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the receiver take-all schedule")) { return false }
+	return true
+}
+
+
 function commit_late_target_schedule(pl, target, receiver)
 {
 	local entries = [make_entry(LOOP_POS, TARGET_ENTRY_ID), make_entry(EAST_POS, TARGET_NEXT_ENTRY_ID)]
@@ -717,10 +810,18 @@ function setup()
 		return false
 	}
 
-	if (case_name == "target-present" || case_name == "target-present-ignore-choose" || case_name == "moving-block" || case_name == "multiple-choose-signals" || case_name == "target-unreachable")
+	if (case_name == "target-present" || case_name == "target-present-ignore-choose" || case_name == "moving-block" || case_name == "multiple-choose-signals" || case_name == "target-unreachable" || case_name == "one-sided-layout")
 	{
-		if (!commit_target_schedule(pl, target, hold.id)) { return false }
-		if (!commit_receiver_schedule(pl, receiver, target.id, case_name == "target-present-ignore-choose")) { return false }
+		if (case_name == "one-sided-layout")
+		{
+			if (!commit_layout_target_schedule(pl, target)) { return false }
+			if (!commit_receiver_take_all_schedule(pl, receiver, target.id)) { return false }
+		}
+		else
+		{
+			if (!commit_target_schedule(pl, target, hold.id)) { return false }
+			if (!commit_receiver_schedule(pl, receiver, target.id, case_name == "target-present-ignore-choose")) { return false }
+		}
 		if (!start_convoy(pl, target, "target convoy")) { return false }
 		fixture.phase = "wait-target"
 		return true
@@ -787,6 +888,11 @@ function observe_wait_target()
 	if (wait_for_entry(target, TARGET_ENTRY_ID, "target convoy"))
 	{
 		print("RUNTIME CASE " + case_name + ": target is loading at its scheduled platform")
+		local target_slots = target.get_vehicle_snapshot()
+		fixture.target_front_pos = target_slots[0].pos
+		fixture.target_front_steps = target_slots[0].steps
+		fixture.target_rear_pos = target_slots[target_slots.len() - 1].pos
+		fixture.target_rear_steps = target_slots[target_slots.len() - 1].steps
 		if (case_name == "target-unreachable")
 		{
 			local one_way = null
@@ -962,7 +1068,7 @@ function observe_watch_approach()
 	// coupling point inside it.
 	local target_slots = target.get_vehicle_snapshot()
 	local rear = target_slots[target_slots.len() - 1].pos
-	local expected = rear
+	local expected = case_name == "one-sided-layout" ? fixture.target_rear_pos : rear
 	// The shared contact tile is admitted through the block reservation held by
 	// the target. A moving-block choose beacon does not necessarily hold that
 	// reservation, so that case retains its previous expectation: the tile
@@ -973,6 +1079,23 @@ function observe_watch_approach()
 	{
 		if (!check(case_name == "moving-block" || fixture.call_on_seen || fixture.drive_by_sight_seen, "the choose signal never displayed call-on; receiver is in " + depict_working_method(receiver.get_working_method()))) { return }
 		if (!check(fixture.drive_by_sight_seen, "the receiver never ran in drive by sight after call-on")) { return }
+		if (case_name == "one-sided-layout")
+		{
+			// The receive commits after arrival, so continue observing until the
+			// target has gone and the final consist can be checked.
+			fixture.contact_pos = expected
+			fixture.phase = "watch-layout"
+			return
+		}
+		if (same_pos(receiver.get_pos(), expected) && case_name != "moving-block")
+		{
+			local coupling = check_coupling_stop(receiver, target, "the receiver")
+			if (coupling != 1)
+			{
+				// Still running towards the coupling point, or the check failed.
+				return
+			}
+		}
 		print("RUNTIME CASE " + case_name + ": receiver reached " + choose_position(receiver))
 		pass()
 		return
@@ -983,6 +1106,59 @@ function observe_watch_approach()
 	{
 		fail("timed out waiting for the receiver to stop behind the target: receiver " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", target rear (" + rear.x + "," + rear.y + "), signal " + depict_aspect(fixture.signal_state))
 	}
+}
+
+
+// The receiver has taken both target vehicles. The emptied target is destroyed,
+// and the receiver's former vehicles become loose stock. The final consist
+// occupies the target's former slots, and the loose stock must be laid out
+// behind the receiver rather than overlapping the target's former slots.
+function observe_watch_layout()
+{
+	local receiver = receiver_convoy()
+	local target = target_convoy()
+	if (!receiver.is_valid())
+	{
+		fail("the receiver disappeared during the one-sided layout observation")
+		return
+	}
+	local receiver_slots = receiver.get_vehicle_snapshot()
+	if (target.is_valid())
+	{
+		++fixture.layout_steps
+		if (fixture.layout_steps > LAYOUT_STEP_LIMIT)
+		{
+			fail("timed out waiting for the one-sided receive to commit: receiver has " + receiver_slots.len() + " vehicles at " + choose_position(receiver) + " in " + depict_state(receiver.get_state()) + "; target at " + choose_position(target) + " in " + depict_state(target.get_state()) + " with " + target.get_vehicle_snapshot().len() + " vehicles")
+		}
+		return
+	}
+	if (!check(receiver_slots.len() == 2, "the receiver has " + receiver_slots.len() + " vehicles after the receive, expected 2")) { return }
+	if (!check(slot_matches(receiver_slots[0], fixture.loco_a), "the receiver's first vehicle is not the target's locomotive")) { return }
+	if (!check(slot_matches(receiver_slots[1], fixture.coach_a), "the receiver's second vehicle is not the target's coach")) { return }
+	if (!check(same_pos(receiver_slots[0].pos, fixture.target_front_pos) && receiver_slots[0].steps == fixture.target_front_steps,
+		"the receiver's front is at " + pos_text(receiver_slots[0].pos) + " steps " + receiver_slots[0].steps
+		+ ", expected the target's former front slot " + pos_text(fixture.target_front_pos) + " steps " + fixture.target_front_steps)) { return }
+	if (!check(same_pos(receiver_slots[1].pos, fixture.target_rear_pos) && receiver_slots[1].steps == fixture.target_rear_steps,
+		"the receiver's second vehicle is at " + pos_text(receiver_slots[1].pos) + " steps " + receiver_slots[1].steps
+		+ ", expected the target's former rear slot " + pos_text(fixture.target_rear_pos) + " steps " + fixture.target_rear_steps)) { return }
+
+	local loose = null
+	foreach (cnv in world.get_convoy_list())
+	{
+		if (cnv.is_valid() && cnv.get_state() == convoy_state_layover && cnv.get_vehicle_snapshot().len() == 2)
+		{
+			loose = cnv
+			break
+		}
+	}
+	if (!check(loose != null, "no two-vehicle laid-over convoy found after the receive")) { return }
+	local loose_slots = loose.get_vehicle_snapshot()
+	if (!check(slot_matches(loose_slots[0], fixture.loco_b), "the loose convoy's first vehicle is not the receiver's former locomotive")) { return }
+	if (!check(slot_matches(loose_slots[1], fixture.coach_b), "the loose convoy's second vehicle is not the receiver's former coach")) { return }
+	if (!check(slot_is_behind(loose_slots[0], receiver_slots[1]), "the loose stock is not behind the receiver's rear vehicle")) { return }
+	if (!check(slot_is_behind(loose_slots[1], loose_slots[0]), "the loose convoy's second vehicle is not behind its first")) { return }
+	print("RUNTIME CASE " + case_name + ": one-sided receive laid out with loose stock behind the receiver at " + pos_text(loose_slots[0].pos))
+	pass()
 }
 
 
@@ -1136,6 +1312,12 @@ function observe_watch_late_target()
 	{
 		if (!check(fixture.call_on_seen || fixture.drive_by_sight_seen, "the choose signal never displayed call-on for the later target")) { return }
 		if (!check(fixture.drive_by_sight_seen, "the later target never ran in drive by sight after call-on")) { return }
+		local coupling = check_coupling_stop(target, receiver, "the later target")
+		if (coupling != 1)
+		{
+			// Still running towards the coupling point, or the check failed.
+			return
+		}
 		print("RUNTIME CASE " + case_name + ": later target reached the receiver rear tile at " + choose_position(target))
 		pass()
 		return
@@ -1156,6 +1338,7 @@ function observe()
 	if (fixture.phase == "watch-blocked") { observe_watch_blocked(); return }
 	if (fixture.phase == "wait-occupier-main") { observe_wait_occupier_main(); return }
 	if (fixture.phase == "watch-approach") { observe_watch_approach(); return }
+	if (fixture.phase == "watch-layout") { observe_watch_layout(); return }
 	if (fixture.phase == "watch-unreachable") { observe_watch_unreachable(); return }
 	if (fixture.phase == "watch-free-platform") { observe_watch_free_platform(); return }
 	if (fixture.phase == "watch-ignore-choose-absent") { observe_watch_ignore_choose_absent(); return }

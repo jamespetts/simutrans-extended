@@ -10412,7 +10412,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			recipient_is_convoy = order.get_available_to_is_convoy();
 		}
 
-		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy, split_candidate);
+		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy);
 
 		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
 		{
@@ -10430,11 +10430,66 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	return success;
 }
 
-void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate)
+struct recombination_layout_slot_t
+{
+	koord3d pos;
+	uint8 steps;
+	ribi_t::ribi direction;
+};
+
+
+void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy)
 {
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
 	// The vehicles may include vehicles already present in the consist, but will always include
 	// at least one change from the current arrangement.
+
+	// When the receiver reached the joining convoy's rear tile under a committed
+	// coupling approach, the two consists have a physical order along the track.
+	// Record the occupied positions before any vehicle is detached, so that the
+	// final consist can be laid out in the space the two consists occupied.
+	bool can_lay_out =
+		joining_convoy.is_bound()
+		&& joining_convoy.get_rep() != this
+		&& recombination_approach_is_mover
+		&& recombination_approach_partner == joining_convoy
+		&& joining_convoy->get_vehicle_count() > 0
+		&& !route.empty()
+		&& route.back() == joining_convoy->back()->get_pos();
+
+	vector_tpl<recombination_layout_slot_t> layout_slots;
+	if (can_lay_out)
+	{
+		// The donor is ahead of the receiver, so its remainder keeps the front
+		// slots and the receiver's final consist takes the slots behind it.
+		convoi_t *const order[2] = { joining_convoy.get_rep(), this };
+		for (uint8 side = 0; side < 2; side++)
+		{
+			for (uint8 i = 0; i < order[side]->get_vehicle_count(); i++)
+			{
+				vehicle_t *const v = order[side]->get_vehicle(i);
+				recombination_layout_slot_t slot;
+				slot.pos = v->get_pos();
+				slot.steps = v->get_steps();
+				slot.direction = v->get_direction();
+				layout_slots.append(slot);
+			}
+		}
+		// A laid-over donor has no place in the physical order of the two
+		// consists, and the final consist cannot be longer than the slots.
+		for (uint32 i = 0; i < vehicles.get_count() && can_lay_out; i++)
+		{
+			convoi_t *const source = vehicles.get_element(i)->get_convoi();
+			if (source != this && source != joining_convoy.get_rep())
+			{
+				can_lay_out = false;
+			}
+		}
+		if (vehicles.get_count() > layout_slots.get_count())
+		{
+			can_lay_out = false;
+		}
+	}
 
 	vehicle[0]->set_leading(false);
 	vehicle[vehicle_count - 1]->set_last(false);
@@ -10507,8 +10562,11 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 				previous_cnv->remove_vehicle(new_vehicle);
 			}
 			add_vehicle(new_vehicle);
-			grund_t* const gr = welt->lookup(rear_pos);
-			new_vehicle->reposition_vehicle(gr);
+			if (!can_lay_out)
+			{
+				grund_t* const gr = welt->lookup(rear_pos);
+				new_vehicle->reposition_vehicle(gr);
+			}
 			continue;
 		}
 
@@ -10551,6 +10609,40 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 	for (vehicle_t* v : vehicles)
 	{
 		v->clear_loose_recipient();
+	}
+
+	if (can_lay_out)
+	{
+		convoi_t *const donor = joining_convoy.get_rep();
+		if (donor->get_vehicle_count() > 0)
+		{
+			// The donor's remainder moves forward into the freed slots, so its
+			// former reservations are not necessarily its occupied tiles.
+			donor->unreserve_route();
+		}
+		uint32 slot_index = 0;
+		// The donor's remainder keeps the front slots.
+		for (uint8 i = 0; i < donor->get_vehicle_count() && slot_index < layout_slots.get_count(); i++)
+		{
+			const recombination_layout_slot_t &slot = layout_slots.get_element(slot_index++);
+			donor->get_vehicle(i)->set_layout_position(slot.pos, slot.steps, slot.direction);
+		}
+		// The receiver's final consist follows.
+		for (uint32 i = 0; i < vehicles.get_count() && slot_index < layout_slots.get_count(); i++)
+		{
+			const recombination_layout_slot_t &slot = layout_slots.get_element(slot_index++);
+			vehicles.get_element(i)->set_layout_position(slot.pos, slot.steps, slot.direction);
+		}
+		// Loose stock takes the remaining slots behind the receiver.
+		for (uint32 i = 0; i < displaced_vehicles.get_count() && slot_index < layout_slots.get_count(); i++)
+		{
+			const recombination_layout_slot_t &slot = layout_slots.get_element(slot_index++);
+			displaced_vehicles.get_element(i)->set_layout_position(slot.pos, slot.steps, slot.direction);
+		}
+		if (donor->get_vehicle_count() > 0)
+		{
+			donor->reserve_own_tiles();
+		}
 	}
 
 	unreserve_route();
@@ -11471,14 +11563,6 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 	commit_paired_exchange(convoys, orders, finals, changed, halt);
 	return true;
 }
-
-
-struct recombination_layout_slot_t
-{
-	koord3d pos;
-	uint8 steps;
-	ribi_t::ribi direction;
-};
 
 
 void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const bool changed[2], halthandle_t halt)

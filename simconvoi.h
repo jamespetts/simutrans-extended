@@ -1765,7 +1765,7 @@ public:
 	void set_call_on(bool value) { call_on = value; }
 
 	private:
-		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate);
+		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy);
 
 		// Carry out the current entry's consist order, exchanging with the given
 		// coupling target (unbound: assemble from the stop's pool). Sets SHUNTING
