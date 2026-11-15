@@ -28,7 +28,7 @@
 
 local case_name = ::case_kind
 
-map.file = "empty-16x16.sve"
+map.file = case_name == "moving-block" ? "empty-16x16-1992.sve" : "empty-16x16.sve"
 
 scenario.short_description = "Choose-signal call-on runtime case: " + case_name
 scenario.author = "Simutrans-Extended automated tests"

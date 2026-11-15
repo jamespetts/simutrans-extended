@@ -30,6 +30,14 @@ protected:
 	koord3d choose_target_tile = koord3d::invalid;
 	convoihandle_t choose_target_convoy;
 
+	// For a diagnostic route search only, ignore reservations while retaining
+	// direction and access constraints. Not saved.
+	bool choose_ignore_reservations = false;
+	// Suppress repeated warnings until a new route is prepared or the target
+	// becomes reachable. This affects only messages and is not saved.
+	bool unreachable_choose_route_reported = false;
+	void report_unusable_choose_route();
+
 	// True when the route from the choose signal reaches the target's rear tile
 	// and every reservation on the way belongs to this convoy or to the target.
 	bool target_obstructs_route_only(const signal_t *signal, const convoihandle_t &target) const;
@@ -37,6 +45,10 @@ protected:
 	// Grants choose-signal call-on at the given signal when the entry's coupling
 	// target is stationary on its platform and is the only obstruction.
 	bool try_choose_call_on(signal_t *signal);
+
+	// True when the route already ends at an available coupling target's rear
+	// tile. This is reconstructed from saved state.
+	bool has_selected_coupling_target_route() const;
 
 	working_method_t working_method = drive_by_sight;
 

@@ -2,9 +2,9 @@
 # Pending-runtime recombination fixture runner.
 #
 # This is NOT part of the default passing suite. For every committed case the
-# runner stages the case's scenario.nut with the shared harness and
-# empty-16x16.sve in the pakset scenario directory, runs one game process, and
-# checks the case's result markers:
+# runner stages the case's scenario.nut with the shared harness and fixture maps
+# in the pakset scenario directory, runs one game process, and checks the case's
+# result markers:
 #
 #   RUNTIME CASE <case> PASS
 #   RUNTIME CASE <case> FAIL: <assertion>
@@ -16,7 +16,7 @@
 # markers.
 #
 # Exit codes:
-#   0  every case printed RUNTIME CASE <case> PASS
+#   0  every case passed its result-marker and case-specific assertions
 #   1  any assertion or setup failure, script error, no progress, timeout or
 #      crash
 #
@@ -97,6 +97,7 @@ run_case()
 	local case_name=$1
 	local case_scenario
 	local harness_file=$source_root/harness.nut
+	local debug_level=2
 
 	if [ "$case_name" = "forward" ]
 	then
@@ -112,6 +113,10 @@ run_case()
 	then
 		case_scenario="$source_root/choose-cases/$case_name/scenario.nut"
 		harness_file=$source_root/choose-harness.nut
+		if [ "$case_name" = "target-unreachable" ]
+		then
+			debug_level=3
+		fi
 	else
 		echo "Case $case_name: scenario file not found"
 		return 1
@@ -127,14 +132,14 @@ run_case()
 	log_file="$workdir/pending-runtime-$case_name.log"
 	rm -rf "$stage_dir"
 	mkdir -p "$stage_dir" || return 1
-	cp "$harness_file" "$source_root/empty-16x16.sve" "$stage_dir/" || return 1
+	cp "$harness_file" "$source_root"/*.sve "$stage_dir/" || return 1
 	cp "$case_scenario" "$stage_dir/scenario.nut" || return 1
 
 	rm -f "$log_file"
 	(
 		cd "$workdir" || exit 1
 		exec "$binary" -use_workdir -objects "$objects" -lang en \
-			-scenario "pending-runtime-$case_name" -debug 2 -nomidi
+			-scenario "pending-runtime-$case_name" -debug "$debug_level" -nomidi
 	) > "$log_file" 2>&1 &
 	# The subshell uses exec, so its process identifier is the game process.
 	game_pid=$!
@@ -150,8 +155,14 @@ run_case()
 
 		if grep -qF "RUNTIME CASE $case_name PASS" "$log_file" 2>/dev/null
 		then
-			echo "Case $case_name: PASS"
-			result=0
+			if [ "$case_name" = "target-unreachable" ] && ! grep -qF "check station geometry and one-way signs" "$log_file"
+			then
+				echo "Case $case_name: FAILED (missing unusable-geometry warning)"
+				result=1
+			else
+				echo "Case $case_name: PASS"
+				result=0
+			fi
 			break
 		fi
 
