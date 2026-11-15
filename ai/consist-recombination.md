@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8
 ---
 # Consist recombination
 
@@ -70,6 +70,20 @@ electrification boundary, a through coach that moves between two services, a mul
 join, and a pick-up goods train that drops loaded wagons for a later service or collects wagons left
 at a yard. The schedule-order rules and the feature status are in
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md).
+
+The entry's window checks the list it shows. `consist_order_t::check` evaluates the whole list against
+the vehicle types the order may draw on and reports the first problem with the affected slot (the
+window numbers slots as positions, counting from the front of the train): an empty list, a slot with
+no alternative, a slot whose rules match no vehicle, a break in the coupling chain, a first or last
+vehicle that cannot be at its end of the train, or no vehicle providing power.
+`consist_order_frame_t::update_order_check` shows that verdict in colour with an explanation. For a
+couple or uncouple entry it also names the counterpart and states that each side of a divided or
+joined train must be able to run on its own, and it always states that the list runs from the front
+of the train to the rear in the direction it travels. The verdict is advisory: it
+never blocks an edit, a save or the order. A named vehicle is assumed to be available, because a
+couple entry may draw it from another train, and the check cannot know which way round a joining
+vehicle will be. When the runtime cannot carry an order out, the convoy posts one warning per stop
+and entry with `convoi_t::report_consist_order_failed`.
 
 ## Runtime paths
 
@@ -245,9 +259,10 @@ This feature set is incomplete. The runtime design, the resolved decisions and t
 questions are maintained in [ex-15/recombination-design](ex-15/recombination-design.md) and
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The main outstanding items are
 freight/passenger continuity (including the intended loose-stock preloading and retrospective
-loading credit), wait-cycle detection beyond a direct pair, reversal-aware picking, the per-portion
-validity gate, the committed-target fixture, the off-map pool package, and the GUI authoring
-pre-check. The shared-contact reservation handoff is implemented but has no scripted case: a
+loading credit), wait-cycle detection beyond a direct pair, the committed-target fixture, the off-map
+pool package, and the facing of a joining vehicle: the order records vehicle types but not their
+facing, the editor cannot know it, and neither commit path changes it. The shared-contact
+reservation handoff is implemented but has no scripted case: a
 target that departs while the mover is in its contact tile and the approach link is live is not
 deterministic to stage. The coupling point is carried back through every tile the target's rear
 vehicle covers; `straddling-contact` asserts a stop in the tile behind the rear vehicle's front

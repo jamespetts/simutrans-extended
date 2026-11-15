@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14; loose-stock recipient at pickup @ b501f13f3 (2026-11-15); paired reload fixture @ fa85a59b8 (2026-11-14)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14; loose-stock recipient at pickup @ b501f13f3 (2026-11-15); paired reload fixture @ fa85a59b8 (2026-11-14)
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -302,11 +302,12 @@ exchanges, nested splits, and portion-sensitive discharge
 Recording through journeys that the runtime cannot execute would misroute cargo. The following are
 required for the feature: the dividing runtime with schedule handover (including the reversed case
 and tile re-reservation), two-party timed joining with specified waiting/retry/failure behaviour,
-freight and passenger continuity across portions, platform and home-depot handling, and the
-remaining per-portion consist-order validation (registry:
+freight and passenger continuity across portions, and platform and home-depot handling (registry:
 [schedule-and-consists](schedule-and-consists.md)). The division and handover, including the
 reversed case and tile re-reservation, are implemented and pass the runtime fixture; the paired
-exchange runtime is also implemented and passes its fixture. The rest is outstanding.
+exchange runtime is also implemented and passes its fixture. The editor checks each list for
+completeness, power and valid ends and shows which part of a divided or joined train it describes.
+The rest is outstanding.
 
 ## Implementation stages
 

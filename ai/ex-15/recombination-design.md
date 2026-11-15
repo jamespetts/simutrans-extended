@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -301,12 +301,13 @@ position as before.
 
 The agreed ordering constraints are:
 
-- Dividing runtime design and implementation are one package. Split composition is settled (above,
-  2026-11-03); freight continuity is designed with the runtime because that determines whether
-  instance marking is needed. The per-portion picker gate is specified from the composition rule and
-  ships with the runtime [RECOLLECTION:2026-11-01 user statement].
-- At UI level, implement reversal-aware picking first, then the per-portion gate with the dividing
-  package [RECOLLECTION:2026-11-01 user statement].
+- The dividing runtime and the per-portion check are one package. Split composition is settled
+  (above); freight continuity is designed with the runtime because that determines whether instance
+  marking is needed. The per-portion check is implemented as the editor's verdict on each list,
+  written from the composition rule ([schedule-and-consists](schedule-and-consists.md)).
+- At UI level the picker's connection filter is facing-neutral and the list verdict is shown; the
+  remaining authoring gap is that the runtime does not choose a joining vehicle's facing
+  ([schedule-and-consists](schedule-and-consists.md)).
 - The through-journey explorer has its own documented stages: baselines, edge generation,
   cross-boundary condition, then transfer status/rebuild triggers/depth limit
   (→ [yh-path-explorer](yh-path-explorer.md)). Its through journeys must not be released before
@@ -321,7 +322,7 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
    sufficiently to specify the divided-portion behaviour. Preloading plus retrospective loose-stock
    loading credit is confirmed as the intended treatment (2026-11-14); its exact rule remains open.
 2. Implement division and schedule hand-over, including reversal, tile re-reservation and the
-   per-portion picker gate.
+   per-portion check. (Implemented: the check is the editor's list verdict.)
 3. Implement the paired exchange, failure behaviour and deadlock avoidance, while preserving the
    separate plain-uncouple/asynchronous pool-collection path. Recipient eligibility at pickup is
    implemented for the single-order path (see [schedule-and-consists](schedule-and-consists.md)).
@@ -330,7 +331,10 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
 4. Implement the through-journey stages in parallel where useful, but release them only with the runtime and
    freight-continuity work. Resolve asynchronous collection dwell within that package.
 5. Complete platform/siding/home-depot and shared-contact call-on handling, solver completeness,
-   ownership/access decisions and the remaining authoring validation. The choose-signal call-on
+   ownership/access decisions and the remaining authoring validation. The editor's list verdict
+   (`consist_order_t::check`, shown by `consist_order_frame_t::update_order_check`) reports the first
+   problem with a list and names the position; it is advisory and cannot know a named vehicle's
+   availability or a joining vehicle's facing. The choose-signal call-on
    core (target resolution, committed-target hold, target-platform route and admission) is
    implemented. Scripted cases cover present, absent and later-arriving targets; `ignore_choose`;
    occupied platforms and blocked approaches; moving-block call-on; consecutive choose signals;

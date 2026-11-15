@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -202,21 +202,29 @@ explorer's treatment of consist orders.
   Behaviour-relevant because the value is read at runtime by rule matching
   (`vehicle_t::desc_matches_rule` tests the slot's category; specific-vehicle alternatives
   bypass it) and by `schedule_t::parse_orders`' carried-category tables feeding the path
-  explorer [CODE]. OUTSTANDING: reversal-aware picking (the solver matches on a de-reversed
-  shadow consist and re-reverses the result, so the executed facing of a picked vehicle can
-  differ from the picker's presentation); and the "v-shape filter" — a per-portion validity
-  gate for a schedule that splits on the outward leg and
-  rejoins on the return leg (uncouple entry out, couple entry back), requiring each portion to
-  remain a valid consist (complete against its own end-state, own traction, valid ends at the
-  split faces and at the rejoin, in the executed orientation)
-  [RECOLLECTION:2026-11-01 user statement]. UI-level order: reversal-aware picking, then
-  the per-portion gate with the dividing work package [RECOLLECTION:2026-11-01 user statement]. The per-portion gate belongs to that
-  package: the runtime is major and complex, so its design and implementation are undertaken
-  together [RECOLLECTION:2026-11-01 user statement]. The composition rule is settled
-  (two end-state orders, one per portion —
-  [recombination-design](recombination-design.md)) [RECOLLECTION:2026-11-03 user statement]; the
-  gate itself is a small predicate in the existing picker, written from that rule and shipping with
-  the dividing runtime.
+  explorer [CODE]. The picker's connection filter
+  (`consist_order_element_t::can_connect`) accepts a bidirectional vehicle that connects in
+  either facing, because an order records vehicle types but not which way round each vehicle
+  will be when the train is formed. A list-level verdict is IMPLEMENTED: `consist_order_t::check`
+  evaluates the whole list against a pool of vehicle types (the player's fleet plus anything
+  buyable new) and reports the first problem with the affected slot, which the window numbers as a
+  position from the front of the train: an empty list; a slot with no alternative; a slot whose rule
+  alternatives match no vehicle in the pool; a break in the coupling chain between two adjacent
+  slots; a first vehicle that cannot be at the front; a last vehicle that cannot be at the rear; or
+  no vehicle that provides power. A named vehicle is assumed to be available, because the order may
+  draw it from another train.
+  `consist_order_frame_t::update_order_check` shows the verdict in colour under the slot list with
+  an explanation, names the counterpart of a couple or uncouple entry, states that each side of a
+  divided or joined train must be able to run on its own, and states that the list runs from the
+  front of the train to the rear in the direction it travels. The verdict is advisory: it marks
+  the list and never blocks an edit or a save. OUTSTANDING: the runtime does not choose a joining
+  vehicle's facing. `convoi_t::get_forward_consist` de-reverses the array for matching without
+  changing the vehicles' `is_reversed` flags, and `convoi_t::commit_recombined_consist` and
+  `convoi_t::commit_paired_exchange` leave those flags as they were, so a bidirectional vehicle
+  whose two ends couple differently can still make an order fail at the stop even though the
+  editor's verdict is clear. The verdict also cannot tell whether the two lists of a divide can
+  both be satisfied from the same vehicles; that is decided by the runtime matcher or the joint
+  solver from the vehicles actually available.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -244,8 +252,9 @@ explorer's treatment of consist orders.
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
   reachable in play subject to the runtime gaps below. Consist-order window and rule-editor
-  persistence is implemented ([gui](../gui.md)); the remaining consist-order UI work is the
-  reversal-aware picker and per-portion gate described above. The couple target-entry picker and
+  persistence is implemented ([gui](../gui.md)); the list-level verdict and the picker's
+  facing-neutral connection filter described above are implemented as well. The couple
+  target-entry picker and
   the "Target schedule is reversed" controls for both sides are present, enabled only for
   mirrored target schedules; target changes clear the stored entry id and direction. They are
   compile-verified but have not been exercised in an interactive game. They are additional UI
