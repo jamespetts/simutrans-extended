@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 03bf5306e (2026-11-16, fixture layout, cases and runners); case outcomes as cited
+verified: ex-15 @ 9fdefa153 (2026-11-16, facing case and 35-case set); case outcomes as cited
 ---
 # Consist recombination scripting and tests
 
@@ -21,15 +21,16 @@ defined in [consist-recombination](../consist-recombination.md#terms).
 ## Scope
 
 `tests/pending-runtime/` is a separate fixture for the recombination runtime: Y division (one convoy
-splitting into two portions), paired H exchange (two convoys exchanging vehicles) and choose-signal
-call-on. It is not part of the default Squirrel suite
+splitting into two portions), paired H exchange (two convoys exchanging vehicles), choose-signal
+call-on and a targetless order that turns a vehicle to reverse a consist. It is not part of the
+default Squirrel suite
 ([scripting-and-tests](../scripting-and-tests.md)) and no CI job runs it. Every case runs in its own
 game process, so cases cannot contaminate one another.
 
 ## Fixture layout
 
 - `harness.nut` builds the infrastructure, the convoy, the target and the consist orders through
-  public script interfaces, then owns the Y-division observers and assertions.
+  public script interfaces, then owns the Y-division and facing observers and assertions.
 - `pair-harness.nut` does the same for two convoys that meet at one stop on two platforms of the same
   halt, with a reciprocal `couple` / `uncouple` entry and an end-state order on each.
 - `choose-harness.nut` builds the two-platform junction from `pair-harness.nut` with a choose signal
@@ -42,7 +43,7 @@ game process, so cases cannot contaminate one another.
   case; `pair-cases/<case>/scenario.nut` selects each paired case;
   `choose-cases/<case>/scenario.nut` selects each choose-signal call-on case.
 
-## Division cases (`cases/`)
+## Y-division and targetless cases (`cases/`)
 
 The baseline case is `forward` (the shared `scenario.nut`). It builds a source convoy and the target
 line or lineless convoy, authors one end-state order for each portion and starts the convoy. It
@@ -52,9 +53,17 @@ normal advance from the target entry. The reversed cases also check the traversa
 
 The further cases are a plain uncouple, a deleted target line, a target entry without an order, an
 unsatisfiable order, an unpowered result, collection from the stop's pool, a reversed target
-schedule, a lineless target convoy and a mirrored source schedule: `plain-uncouple`,
-`broken-target`, `target-no-order`, `unsatisfiable-target`, `unpowered-target`, `pool-collection`,
-`reversed-target`, `lineless-target` and `reversed-source`.
+schedule, a lineless target convoy, a mirrored source schedule and a targetless order that
+reverses a two-vehicle consist: `plain-uncouple`, `broken-target`, `target-no-order`,
+`unsatisfiable-target`, `unpowered-target`, `pool-collection`, `reversed-target`,
+`lineless-target`, `reversed-source` and `facing`.
+
+`facing` builds `[retained, turned]`, a two-vehicle consist that is valid as written. Its entry at
+the junction carries a targetless consist order for `[turned, retained]`. The turned vehicle is an
+unpowered bidirectional vehicle that cannot be at the front in its current orientation; it can be
+at the front only after a turn. The runtime must therefore set its `is_reversed` flag and add the
+turntable reversal time to the shunting delay. The case asserts the reversed sequence and the flag,
+then lets the convoy continue to the east entry.
 
 ## Paired-exchange cases (`pair-cases/`)
 
@@ -126,6 +135,9 @@ Assertions:
   stock behind it).
 - `straddling-contact` asserts a stop at the coupling point in the tile behind the long rear
   vehicle's front tile.
+- `facing` asserts the source convoy's final sequence and that the turned vehicle's
+  `vehicle_slot_x.reversed` flag is set, so the runtime chose the orientation that makes the
+  reversed coupling valid.
 - `target-unreachable` asserts no call-on, no entry onto the third platform and a stable
   `WAITING_FOR_CLEARANCE` hold; its runner also requires the unusable-geometry warning in the game
   log.
@@ -203,20 +215,22 @@ edit loop. Run only the cases that can observe the change:
   `pair-layout` check the post-commit layouts, `unresolvable-order` and `pair-unresolvable` check the
   hold, `straddling-contact` checks the contact point in the tile behind a long rear vehicle, and
   `target-absent` is enough as a load smoke test. A change confined to one case's `scenario.nut`
-  needs that case only.
+  needs that case only. A change to the orientation choice, `vehicle_t::set_reversed` or the
+  unit/turntable reversal delay must run `facing` and the paired cases.
 - **Package.** Run the whole group once the package's behaviour is complete and before committing
-  it: `forward` plus `cases/` (the division cases), `pair-cases/` (the paired exchanges), or
-  `choose-cases/` (the choose-signal cases).
+  it: `forward` plus `cases/` (the division and targetless cases), `pair-cases/` (the paired
+  exchanges), or `choose-cases/` (the choose-signal cases).
 - **Integration.** Run the whole pending-runtime set plus the reload cases before pushing or merging
   a package, and after any change to save/load code, track reservation ownership
   ([signals-and-blocks](../signals-and-blocks.md)), the network checklist, convoy state transitions,
   the paired-exchange solver or the network protocol. The reload cases use their own runners and are
   not part of the pending-runtime set.
 
-Do not run the fixture for documentation, comments, translation strings or help text. A 32-case run
-took 22 minutes on 2026-11-15; a choose case took 33-54 seconds and `target-absent` took 13 seconds
-on the same machine [EXECUTION-VERIFIED:2026-11-15]. The full run therefore averaged about 41 seconds
-per case, so the cost scales with the number of cases rather than with one slow case.
+Do not run the fixture for documentation, comments, translation strings or help text. A 35-case run
+took about 23 minutes on 2026-11-16; a choose case took 14-53 seconds, a Y case took 26-51 seconds
+and a paired case took 40-76 seconds on the same machine [EXECUTION-VERIFIED:2026-11-16]. The full
+run therefore averaged about 39 seconds per case, so the cost scales with the number of cases rather
+than with one slow case.
 
 `PENDING_RUNTIME_CASES` selects a subset, for example:
 
@@ -252,18 +266,21 @@ is described in [cargo-continuity](../ex-15/recombination-design/cargo-continuit
   not commit. Staging it is not deterministic with the current fixture. Whether the branch is a
   defensive case is a design question for
   [ex-15/recombination-design](../ex-15/recombination-design.md).
-- The runtime cannot choose a joining vehicle's facing, and no case covers a bidirectional vehicle
-  whose two ends couple differently.
+- Whether a turn should require a reversal facility at the stop is open. The runtime turns any
+  bidirectional vehicle during the shunt and charges the existing unit or turntable reversal time;
+  `facing` covers the orientation choice and the flag application, but no case asserts the added
+  delay. A facility-gated model has no scripted case because the facility model does not exist.
 - No CI job runs either pending-runtime fixture. The fixture map is an Extended 14 save loaded and
   re-saved by ex-15; whether that is an adequate substitute for an ex-15-native save remains open.
 
 ## Provenance
 
-The fixture layout, case list, assertions and runner facts were checked against ex-15 @ 03bf5306e
+The fixture layout, case list, assertions and runner facts were checked against ex-15 @ 9fdefa153
 (2026-11-16). The division cases were executed against ex-15 @ 97029f453 / Debug|x64 on 2026-11-13;
 the paired and choose-signal cases on 2026-11-15 (choose cases against ex-15 @ 0692167b6 and later);
-the reload cases on 2026-11-14. The committed-target hold correction and the `committed-target` and
-`contact-reservation` cases are from ex-15 @ 03bf5306e (2026-11-16). The full pending-runtime set
-(34 cases) and the Y, paired and choose reloads passed on 2026-11-16
-[EXECUTION-VERIFIED:2026-11-16, release and DEBUG builds]. The planned coverage list is the
-operation-scope record from [ex-15/recombination-design](../ex-15/recombination-design.md).
+the reload cases on 2026-11-14 and 2026-11-16. The committed-target hold correction and the
+`committed-target` and `contact-reservation` cases are from ex-15 @ 03bf5306e (2026-11-16). The
+orientation choice and the `facing` case are from ex-15 @ 9fdefa153 (2026-11-16). The full
+pending-runtime set (35 cases) and the Y, paired and choose reloads passed on 2026-11-16
+[EXECUTION-VERIFIED:2026-11-16, DEBUG build]. The planned coverage list is the operation-scope
+record from [ex-15/recombination-design](../ex-15/recombination-design.md).

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge)
 ---
 # Consist recombination
 
@@ -151,12 +151,27 @@ released from `AWAITING_RECOMBINATION`, and both convoys continue.
 
 `convoi_t::process_consist_order` matches one order with a heuristic pass and a pass-over retry at
 the failed slot: it fills slots in order, tries the vehicle already in the slot first, then the
-available vehicles, enforces `convoi_t::check_validity()` coupling (head, adjacent and tail),
-deduplicates a vehicle already used in an earlier slot, and accepts the result only when it is
-complete and powered. It does not backtrack; the paired exchange uses the joint solver instead.
+available vehicles, enforces the coupling predicates (head, adjacent and tail) in the orientation
+chosen for each vehicle, deduplicates a vehicle already used in an earlier slot, and accepts the
+result only when it is complete and powered. It does not backtrack; the paired exchange uses the
+joint solver instead.
+
+The single-order matcher (`convoi_t::process_consist_order`) and the joint solver
+(`paired_exchange_solver_t`) choose an orientation for every vehicle they place. A candidate is
+tried in its current `is_reversed` orientation first; if it is bidirectional and that orientation
+does not fit, the other way round is tried. The chosen orientation is recorded per slot. The
+single-order matcher returns it in a vector parallel to the final consist, and the joint solver
+stores it per assigned slot. `convoi_t::commit_recombined_consist` and
+`convoi_t::commit_paired_exchange` apply the chosen value with `vehicle_t::set_reversed`, so a
+bidirectional vehicle can be turned during the shunt. For each bidirectional vehicle whose
+orientation changes, the commit adds `settings_t::get_unit_reverse_time()` when the vehicle is
+powered or `settings_t::get_turntable_reverse_time()` when it is hauled to the shunting delay. The
+editor's list verdict is facing-neutral because it cannot know which vehicle another consist will
+supply or which way round that vehicle will be; the runtime resolves that choice.
 
 `convoi_t::commit_recombined_consist` moves, substitutes, adds and removes vehicles, unloads the
-displaced vehicles that become loose stock, and creates a laid-over convoy for the rest. For a
+displaced vehicles that become loose stock (including a vehicle substituted out of the consist),
+and creates a laid-over convoy for the rest. For a
 division, the discharge of the split candidate is deferred until `form_divided_portion` fails, so a
 promoted portion keeps its load. When the receiver is the shared-contact mover and its route ends at
 the joining convoy's contact tile, the commit records both consists' vehicle positions before
@@ -241,8 +256,8 @@ suppresses the ordinary release when another convoy still occupies a tile it hol
 the approach link's lifetime and the window in which the transfer can run are in
 [reservation-handoff](consist-recombination/reservation-handoff.md). The contact
 point is carried back through every tile the rear vehicle's length covers, so a rear vehicle that
-straddles a tile boundary is coupled to in the tile containing its rear end. `SHUNTING` remains a
-timed pause, not a movement.
+straddles a tile boundary is coupled to in the tile containing its rear end. `SHUNTING` is a timed
+pause, not a movement.
 
 ## Tests
 
@@ -256,12 +271,15 @@ This feature set is incomplete. The runtime design, the resolved decisions and t
 questions are maintained in [ex-15/recombination-design](ex-15/recombination-design.md) and
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The main outstanding items are
 freight/passenger continuity (including the intended loose-stock preloading and retrospective
-loading credit), wait-cycle detection beyond a direct pair, the off-map pool package, and the facing
-of a joining vehicle: the order records vehicle types but not their facing, the editor cannot know
-it, and neither commit path changes it. The shared-contact reservation handoff's release-suppression
-half is scripted by `contact-reservation`. The transfer half has no scripted case: it covers a target
-that starts departing after the choose signal adopts the approach but before the mover's first
-recombination pass. The mechanism and the window are in
+loading credit), wait-cycle detection beyond a direct pair, and the off-map pool package. The
+runtime chooses a joining vehicle's facing for a bidirectional vehicle: a candidate is tried in its
+current orientation first, then the other way round. An order is not limited by the orientation in
+which another consist presents that vehicle. Whether the runtime should turn a vehicle only where
+the stop has a reversal facility remains open; the runtime turns it during the shunt and charges
+the existing unit or turntable reversal time. The shared-contact reservation handoff's
+release-suppression half is scripted by `contact-reservation`. The transfer half has no
+scripted case: it covers a target that starts departing after the choose signal adopts the approach
+but before the mover's first recombination pass. The mechanism and the window are in
 [reservation-handoff](consist-recombination/reservation-handoff.md#the-transfer-window); whether the
 branch is a defensive case is the open design question.
 
@@ -275,5 +293,6 @@ Choose-signal resolvability pre-check and pool-donor destruction verified agains
 ex-15 @ 71f192a65 (2026-11-15); choose-signal call-on code and its scripted cases against ex-15 @
 0692167b6 (2026-11-15); remaining content against ex-15 @ 97029f453 (2026-11-14); paired reload
 fixture @ fa85a59b8; the committed-target hold correction and the `committed-target` and
-`contact-reservation` cases against ex-15 @ 03bf5306e (2026-11-16). The detailed design history and
+`contact-reservation` cases against ex-15 @ 03bf5306e (2026-11-16); the orientation choice, reversal
+delay and `facing` case against ex-15 @ 9fdefa153 (2026-11-16). The detailed design history and
 forum provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).

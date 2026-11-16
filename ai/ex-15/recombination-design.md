@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -183,7 +183,7 @@ a locomotive [FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.
   halt (registration itself is owner-filtered) plus lines via `get_loading_convois()`. Copying a
   convoy's order does require mutual access (`gui/consist_order_gui.cc`), a precedent for gating
   coupling itself.
-- Company removal currently destroys every vehicle in its convoys regardless of vehicle owner.
+- Company removal destroys every vehicle in its convoys regardless of vehicle owner.
 - Recombination never changes liveries: through-worked stock keeps its owner's livery, and players
   cannot change other players' vehicles' liveries [RECOLLECTION:2026-11-01 user statement; CODE].
 
@@ -242,7 +242,7 @@ and apply the coupling-point stop. The implemented parts are:
   `convoi_t::recombination_precheck_signature` until either consist or the stop's laid-over pool
   changes. A failed check therefore prevents contact, so the normal path has no failure after
   physical contact and needs no reverse-out. A target whose consist changes after the route is
-  already adopted can still fail at the arrival commit; that remains all-or-nothing.
+  adopted can fail at the arrival commit; that is all-or-nothing.
 - committed-target hold: the reciprocal approach link records the claim but is not a selected route.
   `rail_vehicle_t::has_selected_coupling_target_route` requires the current route to end at the
   partner's contact point as well as the link, so a committed target keeps the mover held on every
@@ -288,8 +288,8 @@ loose stock. A final consist that grows takes the other consist's former tiles; 
 leaves the freed tiles to the loose stock. `vehicle_t::set_layout_position` sets the tile, `steps`
 and direction. The changed convoys release their reservations with `convoi_t::unreserve_route()` and
 re-reserve with `convoi_t::reserve_own_tiles()` after positioning. When the consists are not in a
-physical order (different platforms, or a laid-over donor supplying a final vehicle), the previous
-behaviour of placing each changed consist at its former rear vehicle position remains.
+physical order (different platforms, or a laid-over donor supplying a final vehicle), each changed
+consist is placed at its former rear vehicle position.
 
 A one-sided receive uses the same slot record. When the receiver is the shared-contact mover and its
 route ends at the joining convoy's contact tile, the joining convoy's remainder takes the front
@@ -306,9 +306,10 @@ The agreed ordering constraints are:
   (above); freight continuity is designed with the runtime because that determines whether instance
   marking is needed. The per-portion check is implemented as the editor's verdict on each list,
   written from the composition rule ([schedule-and-consists](schedule-and-consists.md)).
-- At UI level the picker's connection filter is facing-neutral and the list verdict is shown; the
-  remaining authoring gap is that the runtime does not choose a joining vehicle's facing
-  ([schedule-and-consists](schedule-and-consists.md)).
+- At UI level the picker's connection filter is facing-neutral and the list verdict is shown. The
+  runtime chooses a joining vehicle's facing during matching, so the editor does not need to know
+  it ([schedule-and-consists](schedule-and-consists.md)). A future model could gate turning on a
+  reversal facility at the stop; whether to simulate to that level is open.
 - The through-journey explorer has its own documented stages: baselines, edge generation,
   cross-boundary condition, then transfer status/rebuild triggers/depth limit
   (→ [yh-path-explorer](yh-path-explorer.md)). Its through journeys must not be released before
@@ -335,12 +336,14 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
    ownership/access decisions and the remaining authoring validation. The editor's list verdict
    (`consist_order_t::check`, shown by `consist_order_frame_t::update_order_check`) reports the first
    problem with a list and names the position; it is advisory and cannot know a named vehicle's
-   availability or a joining vehicle's facing. The choose-signal call-on
-   core (target resolution, committed-target hold, target-platform route and admission) is
-   implemented. The approach link and shared contact tile are implemented; the one-sided receive's
-   layout and the paired layout are implemented. The resolvability pre-check holds the signal and
-   reports instead of contacting a target that cannot resolve, so failure after contact no longer
-   arises. The coupling point is carried back through every tile the rear vehicle's length covers.
+   availability. The single-order matcher (`convoi_t::process_consist_order`) and the joint solver
+   (`paired_exchange_solver_t`) choose a joining vehicle's facing, so the editor does not need to
+   know it. The choose-signal call-on core (target resolution, committed-target hold, target-platform
+   route and admission) is implemented. The approach link and shared contact tile are implemented;
+   the one-sided receive's layout and the paired layout are implemented. The resolvability pre-check
+   holds the signal and reports instead of contacting a target that cannot resolve, so the normal
+   path has no failure after physical contact. The coupling point is carried back through every tile
+   the rear vehicle's length covers.
    The scripted cases, their assertions and the remaining coverage gaps (including the unscripted
    holder-to-mover transfer) are in
    [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md).
@@ -379,7 +382,7 @@ the realised scripted cases and their assertions are in the same doc.
   after play testing.
 - **Recipient model:** the 2018 proposal allowed a list of lines/convoys eligible to collect loose
   vehicles; the current data model stores one recipient (or Same/Any), and the single-order pickup
-  now honours it. Decide whether one recipient is sufficient for the required pickup-goods and
+  honours it. Decide whether one recipient is sufficient for the required pickup-goods and
   through-carriage operations [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html].
   The path explorer does not read the recipient setting when it generates a through connexion, so it
   can offer a journey through a later service that is not allowed to collect the vehicle; the
@@ -395,3 +398,10 @@ the realised scripted cases and their assertions are in the same doc.
 - **Outgoing-route validation:** must the solver itself validate replacement traction against the
   next leg's way/electrification constraints, or do player-authored orders and normal departure
   checks suffice? The operational requirement does not by itself choose between these.
+- **Reversal facility:** the runtime turns a bidirectional vehicle during the shunt at the coupling
+  stop and charges the existing unit or turntable reversal time. A future model could
+  allow a vehicle to be turned only where the stop has a reversal facility such as a turntable.
+  Whether to simulate to that level of operational granularity is open
+  [RECOLLECTION:2026-11-16 user statement]. The behaviour is recorded in
+  [consist-recombination](../consist-recombination.md#matching-and-commit) and
+  [schedule-and-consists](schedule-and-consists.md).

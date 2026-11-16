@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -167,10 +167,11 @@ explorer's treatment of consist orders.
   Missing: the one-sided receive is the fallback only when the counterpart entry does not carry
   `uncouple`, which selects the paired exchange instead (see IMPLEMENTED features); an entry carrying
   both flags is refused. A one-sided receive whose consist order fails with a present target remains
-  unexecuted and is not reported on the ordinary arrival path; a target that is stationary when the
-  convoy is at a choose signal is tested by the resolvability pre-check, which holds the convoy and
-  reports the reason instead of routing it to the target. Detection of wait cycles longer than a
-  direct pair is absent.
+  unexecuted; `convoi_t::process_current_entry_consist_order` reports the failure once per stop with
+  `convoi_t::report_consist_order_failed`. A target that is stationary when the convoy is at a
+  choose signal is tested by the resolvability pre-check, which holds the convoy and reports the
+  reason instead of routing it to the target. Detection of wait cycles longer than a direct pair is
+  absent.
 - **Consist orders** — data model: `consist_order_t` (end-state for one entry, keyed by
   unique_entry_id; exactly one order per entry
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202940.html]) →
@@ -183,7 +184,9 @@ explorer's treatment of consist orders.
   15.2 are read and discarded on load. Solver:
   `convoi_t::process_consist_order` (single-pass heuristic matching with one pass-over retry) +
   `commit_recombined_consist` (add/remove/substitute/move vehicles; removed vehicles force-unloaded
-  then collected into a new layover convoy; substituted vehicles keep their load). Matching:
+  then collected into a new layover convoy; a vehicle substituted out of the consist is
+  discharged in the same way, and a split candidate defers that discharge in the same way that it
+  defers the discharge of the vehicles displaced by a division). Matching:
   `vehicle_t::matches_consist_order_element`
   (rules evaluated except preferences; enforces can_lead/can_follow). SHUNTING state with
   `shunting_time_seconds` setting. GUI `consist_order_frame_t`: order overview, consist copier
@@ -217,14 +220,19 @@ explorer's treatment of consist orders.
   an explanation, names the counterpart of a couple or uncouple entry, states that each side of a
   divided or joined train must be able to run on its own, and states that the list runs from the
   front of the train to the rear in the direction it travels. The verdict is advisory: it marks
-  the list and never blocks an edit or a save. OUTSTANDING: the runtime does not choose a joining
-  vehicle's facing. `convoi_t::get_forward_consist` de-reverses the array for matching without
-  changing the vehicles' `is_reversed` flags, and `convoi_t::commit_recombined_consist` and
-  `convoi_t::commit_paired_exchange` leave those flags as they were, so a bidirectional vehicle
-  whose two ends couple differently can still make an order fail at the stop even though the
-  editor's verdict is clear. The verdict also cannot tell whether the two lists of a divide can
-  both be satisfied from the same vehicles; that is decided by the runtime matcher or the joint
-  solver from the vehicles actually available.
+  the list and never blocks an edit or a save. `convoi_t::get_forward_consist` de-reverses the array
+  for matching without changing the vehicles' `is_reversed` flags. The single-order matcher
+  (`convoi_t::process_consist_order`) and the joint solver (`paired_exchange_solver_t`) try each
+  candidate in its current `is_reversed` orientation first and, when it is bidirectional, the other
+  way round if that does not fit. The chosen orientation is applied by
+  `convoi_t::commit_recombined_consist` and `convoi_t::commit_paired_exchange` with
+  `vehicle_t::set_reversed`; each bidirectional vehicle whose orientation changes adds
+  `settings_t::get_unit_reverse_time()` (powered) or `settings_t::get_turntable_reverse_time()`
+  (hauled) to the shunting delay. The editor's verdict is facing-neutral because it cannot know
+  which vehicle another consist will supply or which way round that vehicle will be. The
+  verdict also cannot tell whether the two lists of a divide can both be satisfied from the same
+  vehicles; that is decided by the runtime matcher or the joint solver from the vehicles actually
+  available.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -274,9 +282,9 @@ explorer's treatment of consist orders.
 - **Through-journey path-explorer traversal** — the connexion-rebuild generation reads couple/uncouple
   targets and records through connexions as direct candidates whose time is the actual recorded
   through pair, with the existing accumulated-leg fallback. There is no routing-search substitution.
-  The Y division supplies the runtime divider and the schedule handover; the explorer does not yet
-  consume a handover's departure history, so a through pair is still timed from the accumulated
-  legs. Design:
+  The Y division supplies the runtime divider and the schedule handover; the explorer does not
+  consume a handover's departure history, so a through pair is timed from the accumulated legs.
+  Design:
   [yh-path-explorer](yh-path-explorer.md). `target_unique_entry_couple` and
   `couple_target_sch_is_reversed` are fields of `schedule_entry_t`. The
   connexion-rebuild generation, the cross-boundary predicate, the depth setting and the GUI controls are
@@ -302,9 +310,9 @@ explorer's treatment of consist orders.
   accounting step only: the vehicle is treated as never having been unloaded, with preloading and
   retrospective loading credit when a convoy collects it, while the path explorer keeps its current
   model ([cargo-continuity](recombination-design/cargo-continuity.md)). That treatment is not
-  implemented. There is still no deliberate transfer of cargo between portions, no re-routing
-  correction for cargo on moved vehicles, and no through fare ("passengers stay on the through
-  portion" is not modelled).
+  implemented. There is no deliberate transfer of cargo between portions, no re-routing correction
+  for cargo on moved vehicles, and no through fare ("passengers stay on the through portion" is not
+  modelled).
 - **Choose-signal call-on for coupling movements** — the choose-signal target decision, target-platform
   route and call-on admission are implemented. A committed target holds the mover at the signal.
   Before the signal routes to a stationary target it calls `convoi_t::can_approach_coupling_target`,
@@ -316,7 +324,7 @@ explorer's treatment of consist orders.
   one-sided receive's layout and the paired layout are implemented. Scripted coverage, the case
   lists and the remaining gaps (including the unscripted holder-to-mover transfer) are in
   [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md).
-  SHUNTING is still only a timed pause.
+  SHUNTING is a timed pause, not a movement.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Coupling semantics and reliability gaps
@@ -397,11 +405,11 @@ unbound/stale handles regardless.
 - Split composition: SETTLED — two end-state orders, one per portion (see
   [recombination-design](recombination-design.md)). Instance identity at a division remains open
   (same doc).
-- Substitution exchange: `commit_recombined_consist` force-unloads a vehicle that it removes but not
-  one that it displaces by substitution, so a substituted-out vehicle can keep through cargo when it
-  becomes loose stock. Is that intended (cargo stays with the physical vehicle) or should the
-  substitution branch unload like the removal branch? Either answer interacts with
-  [cargo-continuity](recombination-design/cargo-continuity.md).
+- Reversal facility: the runtime turns a bidirectional vehicle during the shunt at the coupling
+  stop and charges the existing unit or turntable reversal time. A future model could
+  allow a vehicle to be turned only where the stop has a reversal facility such as a turntable.
+  Whether to simulate to that level of operational granularity is open
+  [RECOLLECTION:2026-11-16 user statement].
 - Depot AWAITING_TRIGGER transitions (before-wait → ENTERING_DEPOT, no-flag → LEAVING_DEPOT):
   naming suggests inverted ordering; intended semantics unresolved — left open deliberately
   [RECOLLECTION:2026-09-07].
@@ -409,5 +417,5 @@ unbound/stale handles regardless.
   skipped depots between the stop and the turning point can exceed the bound and leave the duplicate
   end-stop visit; schedules of exactly 2 entries are excluded by its 3+ guard.
 - Conditional skip is documented as having no effect at waypoints, but the non-depot skip branch of
-  `convoi_t::advance_schedule` has no waypoint check, so a stored flag on a waypoint is still
-  honoured when the consist is empty.
+  `convoi_t::advance_schedule` has no waypoint check, so a stored flag on a waypoint is honoured
+  when the consist is empty.

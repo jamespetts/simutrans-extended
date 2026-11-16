@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); discharge boundary decided and implemented 2026-11-13; intended loose-stock treatment recorded 2026-11-14
+verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); discharge boundary decided and implemented 2026-11-13; intended loose-stock treatment recorded 2026-11-14; substitution discharge 2026-11-16 at ex-15 @ 9fdefa153
 ---
 # ex-15: re-combination — cargo and passenger continuity
 
@@ -115,11 +115,11 @@ time and fare apportionment across the collector — are adjusted by those mecha
 the explorer's edge model. This treatment is not implemented; it is the next work on loose stock.
 [RECOLLECTION:2026-11-14 user statement]
 
-The physical cost remains: a goods wagon or a through carriage left in a siding is emptied, and a
+The physical cost is: a goods wagon or a through carriage left in a siding is emptied, and a
 through carriage detached for a later branch service is emptied. The intended treatment removes the
 gameplay cost by treating the vehicle as never having been unloaded, so the through journey
-continues when the vehicle is collected. **The discharge boundary itself may still need
-reconsideration after play testing**, but preloading and retrospective loading credit are the
+continues when the vehicle is collected. **The discharge boundary itself may need reconsideration
+after play testing**, but preloading and retrospective loading credit are the
 recorded direction for the loose-stock work. Implementing it requires the identity of the convoy
 that collects the vehicle, the recorded arrival time, capacity and access checks at collection, and
 fare apportionment across that collector; these are that work package, not a reason to add a
@@ -131,7 +131,10 @@ vehicles displaced into the split candidate: `convoi_t::commit_recombined_consis
 `convoi_t::form_divided_portion` discharges the portion only when the target order cannot be
 completed or the result is unpowered. A promoted portion therefore keeps its load. A paired exchange
 discharges only the vehicles that leave both final consists; a vehicle transferred directly between
-the two convoys keeps its load. [RECOLLECTION:2026-11-13 user statement]
+the two convoys keeps its load. On the single-order path, a vehicle substituted out of the consist
+is discharged like a removed one, because it too becomes loose stock; a split candidate defers its
+discharge in the same way that it defers the discharge of the vehicles displaced by a division.
+[RECOLLECTION:2026-11-13 user statement]
 
 ## Grouped loading — refined scope [RECOLLECTION:2026-11-03 user statement]
 
@@ -197,7 +200,7 @@ here and in remote-implications.md.
 
 - **Instance identity and cargo continuity** — REOPENED 2026-11-03 [RECOLLECTION:2026-11-03 user
   statement]: the 2018 lightweight abstraction (orders assign vehicles; passenger position
-  abstracted) is no longer assumed for passengers. Candidate shapes: (i) full abstraction with a
+  abstracted) is not assumed for passengers. Candidate shapes: (i) full abstraction with a
   free reshuffle at the split; (ii) contents-derived assignment for freight (a wagon follows its
   load; unservable loads tranship at the divide) with abstraction only for passengers/mail;
   (iii) contents-derived assignment for all vehicles, with a free en-route-walk correction for
