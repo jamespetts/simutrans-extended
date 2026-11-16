@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 71f192a65 (2026-11-15, handoff independent of call_on and the contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, shared-contact reservation handoff); ex-15 @ 23271d64e plus working-tree route-unreserve removal and profiling (2026-11-14)
+verified: ex-15 @ 71f192a65 (2026-11-15, handoff independent of call_on and the contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, shared-contact reservation handoff); ex-15 @ 23271d64e plus working-tree route-unreserve removal and profiling (2026-11-14); ex-15 @ 03bf5306e (2026-11-16, transfer branch remains unstageable)
 ---
 # Per-holder reservation index
 
@@ -266,7 +266,10 @@ Validation coverage:
 
 Not yet covered:
 
-- shared-contact reservation-holder transfer, which belongs to the not-yet-implemented coupling handoff;
+- the shared-contact reservation-holder transfer: the handoff is implemented, but its transfer
+  branch cannot be staged deterministically (see [signals-and-blocks](../signals-and-blocks.md));
+  the release suppression is scripted, as recorded in
+  [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md);
 - world teardown under every destructor order;
 - every supported thread configuration;
 - the isolated cost of index maintenance in a workload that performs no broad clearing.

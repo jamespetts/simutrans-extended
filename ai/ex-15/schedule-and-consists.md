@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -50,9 +50,9 @@ explorer's treatment of consist orders.
   `schedule_t::sscanf_schedule` clears the copied schedule's old orders before rebuilding them and
   accepts multi-digit order keys; `schedule_t::parse_orders` keeps those keys at 16 bits. The
   schedule-string format is unchanged.
-- Scripted test setup for two portions, the division and paired-exchange cases, and their
-  save/network reloads is in [scripting-and-tests](../scripting-and-tests.md); the outcomes are
-  recorded in [yh-path-explorer](yh-path-explorer.md).
+- Scripted test setup and outcomes for the division, paired-exchange and choose-signal cases,
+  including their save/network reloads, are in
+  [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md).
 
 ## IMPLEMENTED features
 
@@ -308,25 +308,17 @@ explorer's treatment of consist orders.
   correction for cargo on moved vehicles, and no through fare ("passengers stay on the through
   portion" is not modelled).
 - **Choose-signal call-on for coupling movements** — the choose-signal target decision, target-platform
-  route and call-on admission are implemented. The scripted cases in
-  `tests/pending-runtime/choose-cases/` cover a present target, `ignore_choose` on the receiver,
-  an absent target on its free scheduled platform, `ignore_choose` with an occupied scheduled
-  platform, an absent target with an occupied scheduled platform and a free alternative, a target
-  that arrives after the receiver has passed the signal, an unrelated convoy blocking the target
-  platform approach, moving-block call-on, two consecutive choose signals, and a direction-restricted
-  target platform that must produce a warning and a stable hold. The present-target cases assert
-  that the receiver reaches the target's rear tile (the coupling tile) and stops at the coupling
-  point. Before the signal routes to a stationary target it calls
-  `convoi_t::can_approach_coupling_target`, which solves the configured operation without changing
-  state: the joint paired solver or the single-order matcher. A failure keeps the signal at danger,
-  posts one warning through `convoi_t::report_coupling_hold` and holds the receiver; the verdict is
-  cached until either consist or the stop's laid-over pool changes. `unresolvable-order` and
-  `pair-unresolvable` assert that hold and its warning. The shared contact tile, the coupling-point
+  route and call-on admission are implemented. A committed target holds the mover at the signal.
+  Before the signal routes to a stationary target it calls `convoi_t::can_approach_coupling_target`,
+  which solves the configured operation without changing state: the joint paired solver or the
+  single-order matcher. A failure keeps the signal at danger, posts one warning through
+  `convoi_t::report_coupling_hold` and holds the receiver; the verdict is cached until either
+  consist or the stop's laid-over pool changes. The shared contact tile, the coupling-point
   calculation, the reservation handoff (`rail_vehicle_t::hand_over_contact_reservation`), the
-  one-sided receive's layout (`one-sided-layout`), the paired layout (`pair-layout`) and a
-  coupling point in the tile behind the rear vehicle's front tile (`straddling-contact`) are
-  implemented. A committed target beyond the final signal has no deterministic fixture and the
-  handoff has no scripted case. SHUNTING is still only a timed pause.
+  one-sided receive's layout and the paired layout are implemented. Scripted coverage, the case
+  lists and the remaining gaps (including the unscripted holder-to-mover transfer) are in
+  [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md).
+  SHUNTING is still only a timed pause.
 - **Whole-schedule referring list** (warn players editing a schedule others point to) — absent.
 
 ## Coupling semantics and reliability gaps

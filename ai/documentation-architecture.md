@@ -42,6 +42,13 @@ lifecycle) live in [conventions](conventions.md). Read before authoring or restr
    domain docs (e.g. [gui](gui.md), [rendering](rendering.md)) stay stubs until a first
    task in that domain requires detail. Do not generate detail speculatively.
    [RECOLLECTION:2026-09-06]
+10. **Feature test details live in a feature test doc.** Scripting and testing material for a
+    feature — fixture layout, harness behaviour, case lists, assertions, runners, cadence and
+    planned coverage — goes in a dedicated doc at `ai/scripting-and-tests/<feature>.md`, keyed from
+    [scripting-and-tests](scripting-and-tests.md). The general feature doc carries only a short
+    Tests section linking to that doc. This keeps the master test doc about the scripting machinery
+    and the shared test infrastructure, and keeps the feature doc about the feature.
+    [RECOLLECTION:2026-11-16 user statement]
 
 ## Inventory policy
 

@@ -1,12 +1,12 @@
 ---
 status: draft
-verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, resolvability hold cases, paired layout case and 32-case run); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ bf620c45c (2026-11-15, pending-runtime case filter and durations); ex-15 @ ed6d940be (2026-11-15, contact-tile assertions in the present-target cases); ex-15 @ 0692167b6 (2026-11-15, scripted choose-signal cases); ex-15 @ 97029f453 (2026-11-14, scripting remainder); paired reload fixture @ fa85a59b8; test-harness facts as cited; suite count 81/81 (2026-11-14)
+verified: ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
 **Covers:** script/ (Squirrel virtual machine (VM) host and application programming interface
 (API)), squirrel/ (vendored language source), tests/ (all_tests.nut, test_*.nut,
-test_helpers.nut, scenario.nut, empty-16x16.sve),
+test_helpers.nut, scenario.nut, empty-16x16.sve), scripting-and-tests/ (per-feature test docs),
 gui/scenario_frame/scenario_info (→ [gui](gui.md)).
 
 ## Overview
@@ -198,136 +198,15 @@ importing Standard-only mechanics. Remaining work includes:
   generic failure markers. The fixture is not in the repo: the workflow reads
   `BB_SYNC_FIXTURE_URL` (optional `BB_SYNC_FIXTURE_SHA256`) and SKIPs while unset.
 
-## Pending-runtime recombination fixture
+## Feature test docs
 
-`tests/pending-runtime/` is a separate fixture for the recombination runtime, including Y division,
-paired H exchange and choose-signal call-on. It is not part of the default passing suite.
+Testing details for a feature live in that feature's own test doc, keyed here. They do not belong in
+this master doc or in the general feature doc; the feature doc links to its test doc from a short
+Tests section. See [documentation-architecture](documentation-architecture.md) for the policy.
 
-- `harness.nut` builds the infrastructure, convoy, target and consist orders through public script
-  interfaces, then owns the Y-division observers and assertions. `pair-harness.nut` does the same for
-  two convoys that meet at one stop on two platforms of the same halt, with a reciprocal `couple` /
-  `uncouple` entry and an end-state order on each. All three harnesses read a case selector from
-  the `case_kind` global that the case's `scenario.nut` sets, and print
-  `RUNTIME CASE <case> PASS` or `RUNTIME CASE <case> FAIL: <assertion>`.
-- `scenario.nut` selects the forward Y case; `cases/<case>/scenario.nut` selects each further Y case;
-  `pair-cases/<case>/scenario.nut` selects each paired case; `choose-cases/<case>/scenario.nut`
-  selects each choose-signal call-on case. Each case runs in its own game process, so the cases
-  cannot contaminate one another.
-- `choose-harness.nut` builds the two-platform junction from `pair-harness.nut` with a choose
-  signal and signalbox in the throat, then asserts the choose-signal behaviour through
-  `sign_x.get_state()`, `convoy_x.get_working_method()` and `convoy_x.get_vehicle_snapshot()`.
-  The cases are: a target waiting on the loop platform with the receiver routed to it and admitted
-  under call-on (`target-present`); the same with `ignore_choose` set on the receiver entry
-  (`target-present-ignore-choose`); no target present with the receiver using its free scheduled
-  platform and no call-on (`target-absent`); no target present with `ignore_choose` and an occupied
-  scheduled platform, so the receiver waits on the scheduled approach (`target-absent-ignore-choose`);
-  no target present with an occupied scheduled platform and a two-tile free alternative
-  (`target-absent-occupied`); a target started after the receiver has already passed the signal,
-  which must become the mover (`target-arrives-after`); an unrelated convoy on the target platform
-  approach (`target-platform-blocked`); a moving-block choose beacon using the 1992 fixture map and
-  retaining `drive_by_sight` after call-on (`moving-block`); two consecutive choose signals with the
-  first selecting the target platform (`multiple-choose-signals`); a target platform whose usable
-  approach is rejected for its direction restrictions (`target-unreachable`); a one-sided
-  receive that takes both target vehicles, so the emptied target is destroyed and the receiver's
-  former vehicles must be laid out behind it as loose stock (`one-sided-layout`); a paired exchange
-  reached through the choose signal, whose joint commit must lay out the target's final consist on
-  the target's former front slot, the receiver's final consist from the target's former rear slot,
-  and the loose stock behind it (`pair-layout`); a receiver whose order cannot be completed from the
-  two consists, which must be held at the signal with no call-on (`unresolvable-order`); a
-  paired exchange whose two orders cannot be solved jointly, which must be held in the same way
-  (`pair-unresolvable`); and a target whose long rear vehicle's rear end lies in the tile behind its
-  front tile, so the receiver must stop at the coupling point in that behind tile
-  (`straddling-contact`). The `one-sided-layout` case asserts the final consist's exact positions and
-  `steps` in the target's former slots and that the loose convoy is behind the receiver. The
-  `target-unreachable` case asserts no call-on, no entry onto the third platform and a stable
-  `WAITING_FOR_CLEARANCE` hold;
-  its runner also requires the unusable-geometry warning in the game log. The two hold cases'
-  runner also requires their hold warning. The present-target cases
-  assert that the receiver reaches the target's rear tile (the coupling tile) and stops at the
-  coupling point. `steps` is a vehicle front's position within its tile, in vehicle steps. The
-  mover's leading vehicle's `steps` must equal the standing rear vehicle's `steps` minus its length
-  in vehicle steps; `vehicle_desc_x.get_length()` reports car units, with 16 vehicle steps per car
-  unit. `target-arrives-after` asserts the same for the later target. `moving-block` keeps its
-  earlier tile expectation because the moving-block beacon does not hold the target's reservation.
-  The signalling cases use a satisfiable receiver order that restates the receiver's own consist, so
-  the receive changes nothing; the two hold cases use an order that cannot be completed. A committed
-  target beyond the final signal has no deterministic fixture, and the shared-contact reservation
-  handoff has no scripted case.
-- `scripts/run-pending-runtime-tests.sh` stages the selected case in the pakset scenario directory
-  with its harness and all fixture maps, runs one process per case with `-nomidi`, and requires a printed
-  PASS marker plus any case-specific log assertion. The `target-unreachable` assertion requires the
-  unusable-geometry warning, and `unresolvable-order` and `pair-unresolvable` require their hold
-  warnings. A script error, a process exit before a marker, no log progress
-  for the stall timeout, the overall timeout and a crash all fail the case. It selects
-  `harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/` and `choose-harness.nut` for
-  `choose-cases/`. Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
-  `PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS`, `PENDING_RUNTIME_CASES`.
-  `PENDING_RUNTIME_CASES` is a space-separated subset of case names; the runner rejects a name that
-  is not a committed case. Each result line carries the case's wall-clock duration. Exit code 0
-  means every case passed its marker and case-specific assertions.
-- The paired cases cover a symmetric locomotive swap with either convoy started first, a one-way
-  transfer that leaves a vehicle as loose stock, an already-satisfied pair, a joint-solver
-  backtracking conflict, an unsatisfiable pair refused all-or-nothing, and a receiver that collects
-  a coach from the stop's laid-over pool while the emptied donor is destroyed.
-- `reload/scenario.nut` is deliberately outside `cases/`, so the baseline runner does not select
-  it. It runs the forward division on a loopback server, holds after the split-off portion forms,
-  re-asserts the divided state in `resume_game()` after the join's save/transfer/reload, and
-  advances the portion. `pair-reload/scenario.nut` does the same for the paired exchange's
-  one-way transfer case: it holds after the commit, re-asserts both final consists and the
-  laid-over vehicle from a string of each expected vehicle descriptor's scalar
-  `vehicle_desc_x` properties (`get_power()`, `get_topspeed()`, `get_weight()`, `get_length()` and
-  the coupling and electrification flags), because descriptor names are not reliable after a load,
-  and then observes both convoys advance.
-  Runners: `scripts/run-pending-runtime-reload-tests.sh` (POSIX) and
-  `scripts/run-pending-runtime-reload-tests.ps1` (Windows). Both start a client to force the join,
-  check for desync markers and parsed checklist-pair mismatches, require the joined peers to stay
-  alive for an observation window, and then load the preserved join save in a fresh offline
-  process. Both default to the division reload and select the pair reload with
-  `-CaseName pair-reload -ScenarioName pending-runtime-pair-reload -Selector
-  tests\pending-runtime\pair-reload\scenario.nut -Harness tests\pending-runtime\pair-harness.nut
-  -HarnessName pair-harness` (PowerShell) or the corresponding `--case`, `--scenario`,
-  `--selector`, `--harness` and `--harness-name` options (POSIX). The PowerShell runner stages the
-  scenario through a directory junction and removes the junction without following it.
-- The fixture uses `is_equal` for vehicle-descriptor and loose-stock identity. Sampled
-  `vehicle_desc_x` names are invalid immediately after map load (open bug in
-  [known-bugs](known-bugs.md)), so name comparison is not used. Successful cases print convoy
-  identities and vehicle counts, not descriptor names.
-
-### Test cadence
-
-The fixture is outside the default suite, and the full set is an integration gate rather than an
-edit loop. Run only the cases that can observe the change:
-
-- **Iteration.** Run the case or cases that exercise the changed branch. A change to
-  `choose-harness.nut` can affect every choose case, but only `target-present`,
-  `target-present-ignore-choose`, `multiple-choose-signals` and `target-arrives-after` execute the
-  coupling-point assertion described above; `one-sided-layout` and `pair-layout` check the
-  post-commit layouts, `unresolvable-order` and `pair-unresolvable` check the hold,
-  `straddling-contact` checks the contact point in the tile behind a long rear vehicle, and
-  `target-absent` is enough as a load smoke test. A change confined to one case's `scenario.nut`
-  needs that case only.
-- **Package.** Run the whole group once the package's behaviour is complete and before committing
-  it: `forward` plus `cases/` (the division cases), `pair-cases/` (the paired exchanges), or
-  `choose-cases/` (the choose-signal cases).
-- **Integration.** Run the whole pending-runtime set plus both reload cases (`reload` and
-  `pair-reload`) before pushing or merging a package, and after any change to save/load code, track
-  reservation ownership ([signals-and-blocks](signals-and-blocks.md)), the network checklist,
-  convoy state transitions, the paired-exchange solver or the network protocol. The reload cases
-  use their own runners and are not part of the pending-runtime set.
-
-Do not run the fixture for documentation, comments, translation strings or help text. A 32-case run
-took 22 minutes on 2026-11-15; a choose case took 33-54 seconds and `target-absent` took 13 seconds
-on the same machine [EXECUTION-VERIFIED:2026-11-15]. The full run therefore averaged about 41
-seconds per case, so the cost scales with the number of cases rather than with one slow case.
-
-`PENDING_RUNTIME_CASES` selects a subset, for example:
-
-```sh
-PENDING_RUNTIME_CASES='target-present target-arrives-after' \
-PENDING_RUNTIME_BINARY='./Simutrans-Extended-debug.exe' \
-PENDING_RUNTIME_OBJECTS='pak128.Britain-Ex' \
-scripts/run-pending-runtime-tests.sh
-```
+- [consist-recombination](scripting-and-tests/consist-recombination.md) — read when running,
+  extending or debugging the recombination runtime fixture (`tests/pending-runtime/`), its harnesses,
+  cases or reload runners.
 
 ## Writing new tests
 
@@ -346,10 +225,6 @@ scripts/run-pending-runtime-tests.sh
 - Is the `ai` host mode usable as-is? It has no caller and may depend on scenario-only state.
 - Which remaining Extended fields need script interfaces? A full gap analysis against the GUI is
   still needed; schedule and consist-order coverage does not make the rest of the API complete.
-- The pending-runtime reload runner exercises the Y-division schedule and the paired-exchange
-  one-way transfer over loopback, including the restored NWC_TOOL callback, but no CI job runs
-  either pending-runtime fixture. The fixture map is an Extended 14 save loaded and re-saved by
-  ex-15; whether that is an adequate substitute for an ex-15-native save remains open.
 - join-sync on ex-15: the fixture is a 14.x-era save; loading it with the ex-15 engine and the
   ex-15 pakset pin is unverified. If it fails, restrict `join-sync.yml` to master or host a
   branch-specific fixture.
@@ -367,7 +242,7 @@ and the build source lists. The signalling API additions are `signalbox_x`, the 
 signal-descriptor, convoy, way and vehicle-slot getters, the signal-construction commands, the
 signalbox site-validity and price queries, and the signed object-type parameter handling.
 The API breadth is a code inventory; only the explicitly marked tests and fixture outcomes are
-execution-verified. The ten choose-signal cases ran in separate Debug x64 processes with `-nomidi`
-against ex-15 @ 0692167b6 on 2026-11-15.
+execution-verified. Fixture-specific provenance is in
+[consist-recombination](scripting-and-tests/consist-recombination.md).
 Other test-harness and CI facts retain their cited provenance (master @ 78a4bb3b9 / ex-15 @
 91d9b252e; mapgen @ 0954e8c3c; smoke/join facts as cited there).

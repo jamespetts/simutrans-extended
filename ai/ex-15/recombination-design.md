@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -243,6 +243,11 @@ and apply the coupling-point stop. The implemented parts are:
   changes. A failed check therefore prevents contact, so the normal path has no failure after
   physical contact and needs no reverse-out. A target whose consist changes after the route is
   already adopted can still fail at the arrival commit; that remains all-or-nothing.
+- committed-target hold: the reciprocal approach link records the claim but is not a selected route.
+  `rail_vehicle_t::has_selected_coupling_target_route` requires the current route to end at the
+  partner's contact point as well as the link, so a committed target keeps the mover held on every
+  reservation pass. The link alone would let the mover treat the route as selected after the first
+  pass and follow its scheduled platform instead of waiting.
 - paired-exchange layout: `convoi_t::commit_paired_exchange` places the final consists on the
   tiles the pre-exchange vehicles occupied, the convoy in front first and the one behind second,
   with loose stock behind them, and releases each changed convoy's previous reservations before
@@ -256,22 +261,18 @@ and apply the coupling-point stop. The implemented parts are:
   reservation holder to the convoy that remains on it when the holder's last vehicle leaves, and
   suppresses the ordinary release when another convoy still occupies a tile it holds. The mover
   entered the contact tile without reserving it, so the handoff keeps exactly one holder throughout.
+  The two branches and the link lifetime are in
+  [reservation-handoff](../consist-recombination/reservation-handoff.md).
 
-The exact intra-tile offset is asserted by the present-target and late-target cases, the one-sided
-receive's layout is asserted by `one-sided-layout`, and the paired layout is asserted by
-`pair-layout`. `unresolvable-order` and `pair-unresolvable` assert the pre-check's hold and warning.
-The committed-target fixture remains unscripted, and the handoff has no scripted case because a
-target that departs while the mover is in its contact tile with a live approach link is not
-deterministic to stage.
-
-The coupling point is carried back through as many tiles as the rear vehicle's
-length requires: `convoi_t::get_recombination_contact_point` adds
-`VEHICLE_STEPS_PER_TILE` and steps one tile backward for each tile the rear end
-falls behind the front tile, so a rear vehicle whose body crosses a tile
-boundary is coupled to in the tile that contains its rear end.
-`convoi_t::get_recombination_contact_pos` returns that tile for the route target,
-the contact-tile test and the two layout tests. `straddling-contact` asserts a
-stop in the tile behind the target's front tile.
+The scripted coverage, its assertions and the coverage gap in the holder-to-mover transfer are in
+[scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md); the
+design question is whether that branch is a defensive case for a target that starts departing after
+the approach is adopted. The coupling point is carried back through as many tiles as the rear vehicle's length
+requires: `convoi_t::get_recombination_contact_point` adds `VEHICLE_STEPS_PER_TILE` and steps one
+tile backward for each tile the rear end falls behind the front tile, so a rear vehicle whose body
+crosses a tile boundary is coupled to in the tile that contains its rear end.
+`convoi_t::get_recombination_contact_pos` returns that tile for the route target, the contact-tile
+test and the two layout tests.
 
 The choose-signal work handoff sometimes calls this package Phase 4; that numbering is specific to
 the call-on/coupling work and is unrelated to the phase numbering in
@@ -336,32 +337,26 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
    problem with a list and names the position; it is advisory and cannot know a named vehicle's
    availability or a joining vehicle's facing. The choose-signal call-on
    core (target resolution, committed-target hold, target-platform route and admission) is
-   implemented. Scripted cases cover present, absent and later-arriving targets; `ignore_choose`;
-   occupied platforms and blocked approaches; moving-block call-on; consecutive choose signals;
-   and direction-restricted target-platform approaches. The approach link and shared contact tile are
-   implemented, and the present-target and late-target cases assert the coupling tile and coupling
-   point. The one-sided receive's layout is implemented and asserted by `one-sided-layout`, and the
-   paired layout by `pair-layout`. The resolvability pre-check holds the signal and reports instead
-   of contacting a target that cannot resolve, asserted by `unresolvable-order` and
-   `pair-unresolvable`, so failure after contact no longer arises. The reservation handoff is
-   implemented but unscripted. A committed-target fixture remains unscripted. The coupling point is
-   carried back through every tile the rear vehicle's length covers, asserted by
-   `straddling-contact`. The general signalling Squirrel API's read-only object model, construction
-   commands and site-validity and price queries are implemented (`signalbox_x`, the signal,
-   signal-descriptor, convoy, way and vehicle-slot getters, `command_x.build_signalbox`, the
+   implemented. The approach link and shared contact tile are implemented; the one-sided receive's
+   layout and the paired layout are implemented. The resolvability pre-check holds the signal and
+   reports instead of contacting a target that cannot resolve, so failure after contact no longer
+   arises. The coupling point is carried back through every tile the rear vehicle's length covers.
+   The scripted cases, their assertions and the remaining coverage gaps (including the unscripted
+   holder-to-mover transfer) are in
+   [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md).
+   The general signalling Squirrel API's read-only object
+   model, construction commands and site-validity and price queries are implemented (`signalbox_x`,
+   the signal, signal-descriptor, convoy, way and vehicle-slot getters,
+   `command_x.build_signalbox`, the
    signalbox form of `command_x.build_sign_at`, `command_x.can_build_signalbox_at` and
    `command_x.signalbox_get_price`).
    Basic loose-pool storage and visibility already exist; do not recreate them as a prerequisite subsystem.
 
 ## Verification fixtures
 
-Exercise at least: a multi-stop pick-up goods train; locomotive replacement with unchanged hauled
-vehicles, including an electrification boundary and a cross-player case; multiple-unit division and
-rejoining in both orientations; a locomotive-hauled split with a non-driveable loose remainder;
-through coaches collected later by a branch service; a tractor exchanging loading trailers; and a
-motor boat with zero, one and several butties. Include pool contention, broken/absent targets,
-save/reload and server/client determinism checks [RECOLLECTION:2026-11-03 operational scope;
-UNVERIFIED fixture composition].
+The planned verification coverage is listed in
+[scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md#planned-coverage);
+the realised scripted cases and their assertions are in the same doc.
 
 ## Open questions
 

@@ -195,38 +195,13 @@ a within-process determinism check. The temporary hook is not in the code; the r
 the verification record. Not yet covered: the category/class consist-order predicate,
 cross-process determinism of saves containing couplings, and interactive GUI operation.
 
-`tests/pending-runtime/` is the runtime fixture for recombination, not for the explorer. Its shared
-`harness.nut` builds a source convoy and the target line or lineless convoy through the script
-interface, authors one end-state order for each portion and starts the convoy. The forward case
-observes the created portion's line, schedule, entry, vehicle membership and identity and then its
-normal advance from the target entry; the reversed cases also check the traversal direction.
-Further cases cover a plain uncouple, a deleted target line, a target entry without an order, an
-unsatisfiable order, an unpowered result, collection from the stop's pool, a reversed target
-schedule, a lineless target convoy and a mirrored source schedule. [EXECUTION-VERIFIED:2026-11-13,
-Debug|x64 with `-nomidi`] Every case passes.
+The recombination runtime fixture is described in
+[scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md). It is
+the runtime fixture for recombination, not for the explorer: its cases exercise the division, paired
+exchange and choose-signal call-on paths, and its reload cases exercise the loopback join, the
+save/transfer/reload and a fresh offline load of the preserved join save.
 
-`pair-harness.nut` builds two lineless convoys whose pair entries lie on two platforms of the same
-halt; each entry carries one of `couple` and `uncouple`, names the other convoy and the other
-entry's unique id, and has an end-state order. One convoy starts first and must enter
-`convoi_t::AWAITING_RECOMBINATION` at its entry; the other then executes the exchange. Cases cover
-a symmetric locomotive swap with either convoy started first, a one-way transfer that leaves a
-vehicle as loose stock, an already-satisfied pair, a joint-solver backtracking conflict, an
-unsatisfiable pair refused all-or-nothing, and a receiver that must collect a coach from the stop's
-laid-over pool while the emptied donor is destroyed. Test layout and runners:
-[scripting-and-tests](../scripting-and-tests.md).
-
-The reload cases run on a loopback server, join a client so that the server saves, transfers and
-reloads its state (`nwc_sync_t`), re-assert the restored state from the loaded world, and then
-load the preserved join save in a fresh offline process and repeat the assertions. The division
-case re-asserts the divided state and observes the split-off portion advance. The paired case
-runs the one-way transfer, re-asserts both final consists and the laid-over vehicle from a
-string of each expected vehicle descriptor's scalar properties (because descriptor names are not
-reliable after a load), and observes both convoys advance. [EXECUTION-VERIFIED:2026-11-14,
-Debug|x64] Both cases pass in the join phase and in the fresh offline load, both peers stayed running
-through the observation window, and no parsed checklist pair mismatched (12,108 pairs for the
-paired case).
-
-Neither fixture covers cargo or passenger continuity. A vehicle that becomes loose stock through the
+The runtime fixture does not cover cargo or passenger continuity. A vehicle that becomes loose stock through the
 Y division's deferred discharge, or through a paired exchange, is force-unloaded at the stop
 (`convoi_t::unload_individual_vehicle_at`); a vehicle that remains in a scheduled consist, including
 one transferred directly between the two convoys of a pair, keeps its load. No through fare or
