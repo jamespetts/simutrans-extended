@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 1c8d9cadf; reservation-index clearing and route-unreserve removal plus working tree (2026-11-14)
+verified: ex-15 @ bdfdc8311 (odometer passage); other content ex-15 @ 1c8d9cadf plus working tree (2026-11-14)
 ---
 # Vehicles, consists & convoys
 
@@ -74,6 +74,11 @@ verified: ex-15 @ 1c8d9cadf; reservation-index clearing and route-unreserve remo
   (`vehicle_t::is_maintenance_needed`), overdue-overhaul availability/cost decay and
   replenishment range), plus `book(km, CONVOI_DISTANCE)`, `owner->book_convoy_distance`,
   `total_distance_traveled` and per-way-owner way-usage (`departures[].increment_way_distance`).
+  The accumulator behind this conversion is
+  `convoi_t::steps_since_last_odometer_increment`; it retains the sub-kilometre remainder
+  after each booking, and `increment_way_distance` on `departure_data_t` receives only the
+  distance in whole booked kilometres (`km * settings_t::get_steps_per_km()`), so that the
+  next booking does not count it a second time.
 
 ## Planned sections
 
