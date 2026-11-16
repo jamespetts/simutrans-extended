@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -228,7 +228,7 @@ explorer's treatment of consist orders.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
-- **Left-over/loose vehicles** — displaced vehicles become a new layover convoy in situ (blank
+- **Left-over/loose vehicles** — displaced vehicles become a new layover convoy in place (blank
   route, reserves own tiles, empty schedule, no line); pool at stops via
   `haltestelle_t::get_laid_over`, consumed by process_consist_order; mothballed vehicles excluded
   from the pool but stored alongside. Player visibility: the stop information window shows a
@@ -259,16 +259,14 @@ explorer's treatment of consist orders.
   mirrored target schedules; target changes clear the stored entry id and direction. They are
   compile-verified but have not been exercised in an interactive game. They are additional UI
   work beyond the schedule/consist UI described above.
-- **Range stops & replenishment** — range checks exist (`convoi_t::min_range`/calc_min_range,
-  OUT_OF_RANGE in prepare_for_routing, depot-finding range check). Replenishment pieces exist but
-  are disconnected: `vehicle_t::replenish()` (REPLENISHING state, replenishment_seconds .dat),
-  building `replenish_enable` flag, `km_since_last_replenish`, replace_data on_replenish — no
-  callers/triggers anywhere; force_range_stop flag is display-only ("[RS]", img_refuel). In scope
-  for 15.x: the connecting logic is outstanding, and more sophisticated integration with
-  re-combination/consist orders is likely needed [RECOLLECTION:2026-09-07]. The range-stop
-  algorithm follows the design
-  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg193779.html]; dynamic
-  (fuel-consumption-derived) range is rejected by design
+- **Range stops & replenishment — ABSENT runtime; scaffold present.** Range descriptors, the
+  out-of-range guard, saved `km_since_last_replenish`, schedule authoring, the `replenish_enable`
+  building flag, `REPLENISHING` and `replace_data_t::on_replenish` exist. Automatic selection,
+  facility lookup, runtime dwell and the replacement trigger are not connected. Detailed current
+  code state, design decisions and resumption order:
+  [range-stops-replenishment](range-stops-replenishment.md) — read before implementing automatic
+  range-stop detection, replenishment dwell, facilities or replacement on replenishment. Dynamic
+  (fuel-consumption-derived) range remains rejected by design
   [FORUM:https://forum.simutrans.com/index.php/topic,14991.msg193647.html].
 
 ## ABSENT — core outstanding 15.x work [RECOLLECTION:2026-09-07]

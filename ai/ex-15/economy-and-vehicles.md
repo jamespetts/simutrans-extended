@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0d41455e7
+verified: ex-15 @ 0d41455e7; maintenance article and status ex-15 @ 6a9e8d963
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -12,6 +12,10 @@ gui/convoi_detail_t.*, gui/prices_frame.*, simworld.{cc,h} (prices/fuel), player
 Per-feature registry for the 15.x programme. Intent sources: forum threads 16980/17852/14991/22054
 (post URLs inline); parent doc: [ex-15](../ex-15.md). Untagged claims are [CODE] at the frontmatter
 value.
+
+Detailed routine-maintenance status, defect links and outstanding design decisions:
+[depot-maintenance](depot-maintenance.md) — read when working on availability, depot visits,
+maintenance queues, maintenance duration, overhauls or overhaul finance on ex-15.
 
 ## Usage-based (wear) maintenance — IMPLEMENTED
 
@@ -42,7 +46,7 @@ value.
   them, that bypasses inflation adjustment [RECOLLECTION:2026-09-07]. A full audit of all booking
   paths against this requirement is outstanding (open question below).
 
-## Vehicle overhauls — IMPLEMENTED
+## Vehicle overhauls — PARTIAL
 
 - .dat: initial_overhaul_cost (reader default base_cost/5), max_overhaul_cost,
   overhauls_before_max_cost, max_distance_between_overhauls, max_takeoffs, overhaul_month_tenths
@@ -50,7 +54,7 @@ value.
 - `vehicle_t::overhaul()`: resets km counters, increments overhaul count, escalating cost
   (sigmoid over overhauls_before_max_cost between initial and max cost), books via
   book_vehicle_maintenance, applies auto-upgrade (`get_auto_upgrade` → set_desc; upgrade price
-  charged instead; preserves maintenance history), then `update_livery()` to the latest available
+  used instead; preserves maintenance history), then `update_livery()` to the latest available
   livery in the current scheme — own vehicles only: a vehicle owned by another player in a
   mixed-owner consist keeps its livery ([schedule-and-consists](schedule-and-consists.md)).
 - Deferral: do_not_overhaul per-vehicle flag (excluded at depot); overdue penalty = running cost
@@ -60,22 +64,24 @@ value.
 - GUI: convoy detail maintenance tab — per-vehicle rows (last overhaul date/count, km/takeoffs
   since, three-segment overhaul bar, cost + delta %, do_not_overhaul and do_not_auto_upgrade
   toggles, auto-upgrade target).
-- Gaps: separate financial category + affordability check are TODOs in overhaul() — both still
-  intended for 15.x [RECOLLECTION:2026-09-07]; switching to a
-  NEW livery scheme when the current scheme obsoletes is a TODO; calibration open — trains may
-  overhaul repeatedly because carriages differ (forum proposal: overhaul together if next overhaul
-  is near).
+- Gaps: the booking credits the player instead of charging them, monthly-scales the one-off payment,
+  and uses un-inflation-adjusted overhaul prices; separate financial category and affordability
+  behaviour remain outstanding. Livery fallback to an available scheme and the open calibration
+  question about independently timed vehicles are detailed in
+  [depot-maintenance](depot-maintenance.md).
 
-## Depot visits & availability — IMPLEMENTED
+## Depot visits & availability — PARTIAL
 
-- `vehicle_t::maintain()`: depot time = elapsed revenue-service time × 100 / availability;
-  non-interruptible (convoi_t::start proceeds only from INITIAL/ROUTING states).
+- The intended depot time depends on active-service time and availability; the current calculation
+  and the clearing of the calculated wait are defective. The settled rules, current defects, open
+  design decisions and resumption order are in [depot-maintenance](depot-maintenance.md). Maintenance
+  is non-interruptible (`convoi_t::start` proceeds only from INITIAL/ROUTING states).
 - Depot queue: `depot_t::under_maintenance`, register_for_maintenance (time multiplier when over
   capacity), is_awaiting_attention, queue rdwr gated extended ≥ 15; capacity .dat
   max_vehicles_under_maintenance (default 4, building_tile_desc_t).
 - Triggers: maintenance_interval_km per vehicle, else months-based settings
   (maintenance_interval_months default 12, extended_maintenance_interval_months default 18);
-  simplified_maintenance setting is a kill-switch for the whole system.
+  simplified_maintenance setting disables the whole system.
 - Skippable scheduled depot entry: `conditional_skip` on a depot entry skips it unless
   `is_maintenance_needed()`. `convoi_t::enter_depot` adds `maintain_or_overhaul` to the visit flags
   for such entries (no stored per-entry flag), so `depot_t::convoi_arrived` overhauls
@@ -150,8 +156,8 @@ value.
 - (b) Replacement without depot visits / staggered — PARTIAL: replace_data_t::replacement_time
   enum (immediate, on_replenish, on_maintenance, on_overhaul, manual, automatic), rdwr ≥ 15; all
   execution paths require the convoy to be in a depot (convoi_t::step INITIAL,
-  depot_t::convoi_arrived, manual send); on_replenish has no trigger code (replenishment itself is
-  unwired → [schedule-and-consists](schedule-and-consists.md)); GUI can only set immediate or
+  depot_t::convoi_arrived, manual send); on_replenish has no trigger code and its intended
+  location is unresolved → [range-stops-replenishment](range-stops-replenishment.md); GUI can only set immediate or
   manual ("HACK ... temporary" comment on bt_mark); staggering exists only as the replace/sell/skip
   "Replace cycle" across matching convoys.
 - (c) Order-insensitive matching of identical consists — ABSENT: `convoi_t::has_same_vehicles`
@@ -161,10 +167,12 @@ value.
   replace_frame_t::all_convoys_of_this_line mode (line-mode constructor, magic_replace_line),
   opened from line management (schedule_list bt_replace); merged from the ex-15-line-replacement
   lineage; completion message when the line's replacing count reaches 0.
-- Replacer↔overhaul interaction ("replace instead of overhaul") — backend IMPLEMENTED:
-  depot_t::convoi_arrived executes replace_now INSTEAD of overhauling/maintaining when replace_at
-  is on_overhaul/on_maintenance (remaining vehicles still overhauled normally); no GUI sets those
-  values, so unreachable except via savegame/tool data. Related TODO in vehicle_t::overhaul.
+- Replacer↔overhaul interaction ("replace instead of overhaul") — execution code present but not
+  reachable through the interface: depot_t::convoi_arrived executes replace_now instead of
+  overhauling or maintaining when replace_at is on_overhaul or on_maintenance (remaining vehicles
+  are still overhauled normally); no graphical control sets those values, so they are reachable only
+  through savegame or tool data. The convoy-trigger decision is in
+  [depot-maintenance](depot-maintenance.md).
 
 ## Other vehicle features
 

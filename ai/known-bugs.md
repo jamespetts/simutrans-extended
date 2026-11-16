@@ -236,6 +236,71 @@ Rank on discovery; re-rank on triage.
   explicitly (the shipped simuconf sets only `base_meters_per_tile`); the settings-window reset
   path can change the scale to the constructor default 250 even without such a key.
 
+### Vehicle overhauls credit the player instead of charging them — priority 1
+
+- `vehicle_t::get_overhaul_cost()` returns `initial_overhaul_cost` or an interpolated value toward
+  `max_overhaul_cost` as a positive amount. `vehicle_t::overhaul()` also uses the positive
+  `vehicle_desc_t::get_upgrade_price()` when an auto-upgrade is selected.
+- `vehicle_t::overhaul()` passes that positive amount to
+  `player_t::book_vehicle_maintenance()`.
+  `finance_t::book_vehicle_maintenance_with_bits()` adds the amount directly to `account_balance` and
+  `ATV_VEHICLE_MAINTENANCE`. Monthly fixed costs and mothballing charges are passed as negative
+  amounts, so the overhaul path has the wrong sign: every completed overhaul or automatic upgrade
+  increases the owner's balance.
+- The same booking path applies `karte_t::calc_adjusted_monthly_figure()` to the amount, although an
+  overhaul is a one-off payment, and `vehicle_desc_t::get_initial_overhaul_cost()` /
+  `get_max_overhaul_cost()` do not call `karte_t::get_inflation_adjusted_price`, contrary to the
+  project's inflation rule.
+- The intended one-off payment rules, financial category and affordability question are in
+  [ex-15/depot-maintenance](ex-15/depot-maintenance.md). No runtime test has exercised a completed
+  overhaul. [CODE ex-15 @ 6a9e8d963]
+
+### Depot maintenance duration is cleared before it can run — priority 2
+
+- `vehicle_t::maintain()` and `vehicle_t::overhaul()` set the convoy's `wait_lock` to the
+  calculated maintenance duration. `depot_t::convoi_arrived()` calls those methods, but
+  `convoi_t::enter_depot()` unconditionally sets `wait_lock` to zero after
+  `depot_t::convoi_arrived()` returns. Its caller `convoi_t::drive_to()` sets it to zero again
+  after `enter_depot()` returns.
+- Consequently a convoy placed in `MAINTENANCE` or `OVERHAUL` retains no calculated dwell after
+  depot entry. The depot queue freezes the countdown while a convoy awaits attention, but the head
+  of the queue has no wait to count down.
+- Correcting this without changing the duration formula would preserve an incorrect duration. The
+  formula defect and the intended active-service measurement are recorded in the next detailed
+  entry and [ex-15/depot-maintenance](ex-15/depot-maintenance.md). No behavioural test covers
+  maintenance dwell. [CODE ex-15 @ 6a9e8d963]
+
+### Depot maintenance duration uses the wrong quantity — priority 2
+
+- `vehicle_t::maintain()` calculates
+  `(welt->get_ticks() - last_maintenance_time) * 100 / vehicle_t::get_availability()`. This uses all
+  elapsed wall-clock ticks since the previous maintenance, including storage, layover and other
+  non-service time, and does not match either recorded availability example:
+  - 90% availability after 10 hours in service should need 1 hour in the depot;
+  - 75% availability after 1 hour in service should need 15 minutes.
+- Both examples are consistent with
+  `active_service_time * (100 - availability) / 100`. The exact ratio
+  `active_service_time * (100 - availability) / availability` is a different model and has not been
+  selected.
+- The measurement boundary for active-service time is an open design decision in
+  [ex-15/depot-maintenance](ex-15/depot-maintenance.md). The formula and the wait-clearing defect
+  must be corrected together. [CODE ex-15 @ 6a9e8d963;
+  FORUM:https://forum.simutrans.com/index.php/topic,16980.msg161553.html]
+
+### `REPLENISHING` expiry can fall through to convoy destruction — priority 3
+
+- The `REPLENISHING` branch of `convoi_t::step()` is grouped with the loading states and calls
+  `convoi_t::laden()`. If `laden()` leaves the state as `REPLENISHING` - for example because minimum
+  loading, a timed wait or spacing prevents departure - the subsequent condition
+  `state != SELF_DESTRUCT && state != REPLENISHING` is false. Control then falls through to the
+  `SELF_DESTRUCT` case and calls `convoi_t::destroy()`.
+- `vehicle_t::replenish()` has no callers, so the path is not currently reachable. It becomes
+  reachable as soon as range-stop runtime calls it. A safe transition must leave `REPLENISHING` for `LOADING` or
+  `ROUTING_1` before returning from `laden()`, and the dwell-expiry cases need behavioural tests.
+- The intended range-stop runtime and outstanding decisions are in
+  [ex-15/range-stops-replenishment](ex-15/range-stops-replenishment.md).
+  [CODE ex-15 @ 6a9e8d963]
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -246,6 +311,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | Route unreservation reads beyond the way list on master (not a forum report: code triage) | — | detailed entry above; an unsigned empty-slice underflow followed by signed `min` narrowing produces an unbounded worker range when the way count is not greater than `karte_t::get_parallel_operations()` |
+| Vehicle overhauls credit the player instead of charging them (not a forum report: code inspection 2026-11-16) | — | detailed entry above; positive overhaul/upgrade price is added to the balance, monthly-scaled and not inflation-adjusted |
 | First-join desync then clean rejoin (not a forum report: investigation 2026-09-30; see also 22203 below) | — | detailed investigation → [bug-first-join-desync](bug-first-join-desync.md); isolated to single-convoy speed divergence 3 frames after unpause; cause not yet isolated |
 | ["Lost synchronisation with server" report thread](https://forum.simutrans.com/index.php/topic,20355.0.html) | 2024 | sticky umbrella thread for desync reports; triage individual cases |
 | ["Wrong theme loaded" crash on start](https://forum.simutrans.com/index.php/topic,24061.0.html) | 2026 | startup crash; candidate 0 if reproducible on current builds; see also 21907 |
@@ -283,6 +349,8 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| Depot maintenance duration is cleared before it can run (not a forum report: code inspection 2026-11-16) | — | detailed entry above; `enter_depot()` and `drive_to()` zero the wait set by `maintain()`/`overhaul()` |
+| Depot maintenance duration uses the wrong quantity (not a forum report: code inspection 2026-11-16) | — | detailed entry above; formula uses elapsed wall-clock time and `100 / availability`, not the recorded availability examples |
 | Scripted vehicle descriptor names are invalid on ex-15 (not a forum report: runtime-test triage) | — | [EXECUTION-VERIFIED:2026-11-13] Immediately after loading an otherwise no-tool scripted probe, every sampled entry from `vehicle_desc_x.get_available_vehicles(wt_rail)` returned the same invalid, non-UTF-8 byte sequence from `get_name()`, despite different descriptor power and length values; `is_equal` still distinguished descriptor pointers. The cause is unresolved. Script-side vehicle-name comparisons and diagnostics are unreliable; direct C++ descriptor-name use was not shown to be affected. |
 | Newly created convoys can read an uninitialised arrival time (not a forum report: code inspection 2026-11-13) | — | On ex-15, `convoi_t::init()` does not initialise `convoi_t::arrival_time`; `convoi_t::check_departure()` and the `EDIT_SCHEDULE` path read that member, so a newly created convoy that reaches either path before `laden()` assigns it has undefined behaviour [CODE ex-15 @ 684d570f9] |
 | `meters_per_tile` changes do not invalidate saved route data (not a forum report: code inspection 2026-11-11) | — | detailed entry above; load-time simuconf override leaves the path explorer tables at the old scale; the settings-window "Simuconf.tab" reset also skips `karte_t::set_scale()` and can reset the scale to the `settings_t` default (250 m/tile); possible remedy is to disallow changing the scale for an existing world |
@@ -347,6 +415,7 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
+| `REPLENISHING` expiry can fall through to convoy destruction (not a forum report: code inspection 2026-11-16) | — | detailed entry above; latent because `vehicle_t::replenish()` has no caller; must be fixed before range-stop runtime |
 | Toolbar scroll arrows are not clickable (not a forum report: third-party usability transcript) | — | `gui/tool_selector.cc`: `tool_selector_t::draw` draws `gui_theme_t::arrow_button_left_img`, `arrow_button_right_img`, `arrow_button_up_img` and `arrow_button_down_img`; `tool_selector_t::infowin_event` handles dragging and icon hits only, so a click on an arrow activates the icon under it, and wheel events are not handled. Workaround: drag the toolbar. Proposed change and context → [gui/usability-considerations](gui/usability-considerations.md) [CODE ex-15 @ 97029f453] |
 | Settings dialogue labels are raw configuration keys (not a forum report: third-party usability transcript) | — | `gui/settings_stats.h`: `INIT_NUM`, `INIT_BOOL`, `INIT_COST`, `INIT_LB` and `INIT_COLOR` call `gui_label_t::set_text_pointer`, which does not translate; many keys (e.g. `frames_per_second`, `max_route_steps`) have no entry in `simutrans/text/en.tab` or `simutrans/pak128.Britain-Ex/text/en.tab`, so they are displayed verbatim. `gui_numberinput_t::draw` adds only a numeric-range tooltip. Display/localisation only. Context → [gui/usability-considerations](gui/usability-considerations.md) [CODE ex-15 @ 97029f453] |
 | Depot auto-continuous-removal preview may use the wrong last-vehicle length (not a forum report: code inspection 2026-11-09) | — | gui/components/gui_convoy_assembler.cc, update_vehicle_info_text(): when the auto-removed block reaches the end of the consist, `new_last_veh_length` is taken from `count-2` (or `count-1`) rather than from the vehicle before the block, so the automatic end margin in the preview is wrong; the code carries a TODO for this case. Display-only. [CODE master @ 48b0fbf4a] |
