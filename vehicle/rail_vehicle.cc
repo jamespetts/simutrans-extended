@@ -800,13 +800,19 @@ bool rail_vehicle_t::has_selected_coupling_target_route() const
 	{
 		return false;
 	}
-	// A reciprocal approach link is authoritative: it was recorded when this
-	// convoy adopted the route to the target, and it survives a save and
-	// reload. The target need not still be stationary on the same tile.
+	// A reciprocal approach link records that this convoy adopted the approach,
+	// but the link alone does not mean the route has been selected: a committed
+	// target is still moving, so the route still ends at the scheduled platform
+	// and the choose signal must keep the mover held until the target is
+	// stationary at its contact point.
 	if (cnv->is_recombination_approach_mover())
 	{
 		const convoihandle_t target = cnv->get_recombination_approach_partner();
-		if (target.is_bound() && target->get_recombination_approach_partner() == cnv->self)
+		const route_t *const linked_route = cnv->get_route();
+		if (target.is_bound()
+			&& target->get_recombination_approach_partner() == cnv->self
+			&& linked_route && !linked_route->empty()
+			&& linked_route->back() == target->get_recombination_contact_pos())
 		{
 			return true;
 		}

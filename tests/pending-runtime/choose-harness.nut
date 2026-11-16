@@ -426,11 +426,13 @@ function build_infrastructure(pl)
 	if (!check(station != null, "no rail station available")) { return false }
 	if (!check_tool(station_builder(pl, MAIN_POS, station), "build main junction platform")) { return false }
 	if (!check_tool(station_builder(pl, LOOP_POS, station), "build loop junction platform")) { return false }
-	if (case_name == "target-absent-occupied" || case_name == "straddling-contact")
+	if (case_name == "target-absent-occupied" || case_name == "straddling-contact" || case_name == "committed-target")
 	{
 		// The receiver needs two platform tiles; keep the loop a valid alternative.
 		// The straddling case needs a straight two-tile platform so that the long
-		// target's rear end lies in a straight tile, not on a corner.
+		// target's rear end lies in a straight tile, not on a corner. The
+		// committed-target case needs the target to stay driving inside the halt
+		// while the receiver reaches the choose signal.
 		if (!check_tool(station_builder(pl, coord3d(6, 3, 0), station), "extend the free loop platform")) { return false }
 	}
 	if (case_name == "target-unreachable")
@@ -449,7 +451,7 @@ function build_infrastructure(pl)
 		local third_halt = halt_x.get_halt(UNREACHABLE_POS, pl)
 		if (!check(third_halt != null && third_halt.get_name() == main_halt.get_name(), "the third platform belongs to a separate halt")) { return false }
 	}
-	if (case_name == "straddling-contact")
+	if (case_name == "straddling-contact" || case_name == "committed-target")
 	{
 		local extended_halt = halt_x.get_halt(coord3d(6, 3, 0), pl)
 		if (!check(extended_halt != null && extended_halt.get_name() == main_halt.get_name(), "the extended loop platform belongs to a separate halt")) { return false }
@@ -838,6 +840,65 @@ function commit_late_target_schedule(pl, target, receiver)
 }
 
 
+// The reservation case's target stays loading indefinitely: it demands full
+// loading at an empty stop and has no timed wait, so it never departs while the
+// case observes the shared contact tile.
+function commit_contact_target_schedule(pl, target)
+{
+	local entries = [make_entry(LOOP_POS, TARGET_ENTRY_ID), make_entry(EAST_POS, TARGET_NEXT_ENTRY_ID)]
+	entries[0].minimum_loading = 100
+	local schedule = schedule_x(wt_rail, entries)
+	if (!check_tool(target.change_schedule(pl, schedule), "commit the contact target schedule")) { return false }
+	return true
+}
+
+
+// The reservation case's receiver restates its own consist, so the receive
+// changes nothing at the contact stop and the receiver departs normally. Its
+// departure is what leaves the shared contact tile while the target still holds
+// it.
+function commit_contact_receiver_schedule(pl, receiver, target_id)
+{
+	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
+	entries[0].couple = true
+	entries[0].couple_target_is_line_or_cnv = true
+	entries[0].target_id_couple = target_id
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order([[fixture.loco_b], [fixture.coach_b]]))
+	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the contact receiver schedule")) { return false }
+	return true
+}
+
+
+// The committed-target case's target runs to the far end of the extended loop
+// platform and stays there loading. The receiver, started after the target has
+// passed the choose signal, reaches the signal while the target is still driving
+// through the halt.
+function commit_committed_target_schedule(pl, target)
+{
+	local entries = [make_entry(coord3d(6, 3, 0), TARGET_ENTRY_ID), make_entry(EAST_POS, TARGET_NEXT_ENTRY_ID)]
+	entries[0].minimum_loading = 100
+	local schedule = schedule_x(wt_rail, entries)
+	if (!check_tool(target.change_schedule(pl, schedule), "commit the committed target schedule")) { return false }
+	return true
+}
+
+
+function commit_committed_receiver_schedule(pl, receiver, target_id)
+{
+	local entries = [make_entry(MAIN_POS, RECEIVER_ENTRY_ID), make_entry(EAST_POS, RECEIVER_NEXT_ENTRY_ID)]
+	entries[0].couple = true
+	entries[0].couple_target_is_line_or_cnv = true
+	entries[0].target_id_couple = target_id
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order([[fixture.loco_b], [fixture.coach_b]]))
+	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the committed receiver schedule")) { return false }
+	return true
+}
+
+
 function receiver_convoy()
 {
 	return convoy_x(fixture.receiver_id)
@@ -1027,6 +1088,30 @@ function setup()
 		return true
 	}
 
+	if (case_name == "contact-reservation")
+	{
+		// The target stays loading. The receiver restates its own consist and
+		// departs, leaving the shared contact tile while the target still holds
+		// its reservation.
+		if (!commit_contact_target_schedule(pl, target)) { return false }
+		if (!commit_contact_receiver_schedule(pl, receiver, target.id)) { return false }
+		if (!start_convoy(pl, target, "target convoy")) { return false }
+		fixture.phase = "wait-target"
+		return true
+	}
+
+	if (case_name == "committed-target")
+	{
+		// The target leads out of the depot. The receiver follows as soon as the
+		// depot tile is clear, so it reaches the choose signal while the target is
+		// still running between that signal and the platform.
+		if (!commit_committed_target_schedule(pl, target)) { return false }
+		if (!commit_committed_receiver_schedule(pl, receiver, target.id)) { return false }
+		if (!start_convoy(pl, target, "target convoy")) { return false }
+		fixture.phase = "wait-committed-start-receiver"
+		return true
+	}
+
 	return fail("unknown case " + case_name)
 }
 
@@ -1097,6 +1182,10 @@ function observe_wait_target()
 		else if (case_name == "pair-layout")
 		{
 			fixture.phase = "watch-pair-layout"
+		}
+		else if (case_name == "contact-reservation")
+		{
+			fixture.phase = "watch-contact-hold"
 		}
 		else
 		{
@@ -1628,6 +1717,199 @@ function observe_watch_late_target()
 }
 
 
+// The reservation holder of a tile, or 0 when the tile is not reserved.
+function contact_holder_id(pos)
+{
+	local way = tile_x(pos.x, pos.y, pos.z).get_way(wt_rail)
+	if (way == null)
+	{
+		return 0
+	}
+	local holder = way.get_reserved_convoi()
+	return holder != null && holder.is_valid() ? holder.id : 0
+}
+
+
+// The receiver has stopped at the coupling point with the target ahead of it in
+// the same tile. The target reserved the tile first, so the target must still be
+// the holder while both consists occupy it.
+function observe_watch_contact_hold()
+{
+	local receiver = receiver_convoy()
+	local target = target_convoy()
+	if (!receiver.is_valid() || !target.is_valid())
+	{
+		fail("a convoy disappeared while the receiver approached the contact tile")
+		return
+	}
+	observe_signal()
+	if (same_pos(receiver.get_pos(), fixture.target_contact_pos))
+	{
+		local coupling = check_coupling_stop(receiver, target, "the receiver")
+		if (coupling != 1)
+		{
+			// Still running towards the coupling point, or the check failed.
+			return
+		}
+		local holder = contact_holder_id(fixture.target_contact_pos)
+		if (!check(holder == target.id, "the contact tile is held by convoy " + holder + " while both consists stand in it, expected the target " + target.id)) { return }
+		print("RUNTIME CASE " + case_name + ": receiver stopped at the coupling point with the target holding the contact tile")
+		fixture.layout_steps = 0
+		fixture.phase = "watch-contact-departure"
+		return
+	}
+	++fixture.approach_steps
+	if (fixture.approach_steps > APPROACH_STEP_LIMIT)
+	{
+		fail("the receiver did not stop in the contact tile: " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", contact tile " + pos_text(fixture.target_contact_pos))
+	}
+}
+
+
+// The receiver departs after the no-change receive. When its last vehicle leaves
+// the shared contact tile, the target still occupies and holds the tile, so the
+// release must be suppressed and the target must remain the holder.
+function observe_watch_contact_departure()
+{
+	local receiver = receiver_convoy()
+	local target = target_convoy()
+	if (!target.is_valid())
+	{
+		fail("the target disappeared while the receiver left the contact tile")
+		return
+	}
+	if (!receiver.is_valid())
+	{
+		fail("the receiver disappeared before it left the contact tile")
+		return
+	}
+	foreach (slot in receiver.get_vehicle_snapshot())
+	{
+		if (same_pos(slot.pos, fixture.target_contact_pos))
+		{
+			++fixture.layout_steps
+			if (fixture.layout_steps > LAYOUT_STEP_LIMIT)
+			{
+				fail("the receiver did not leave the contact tile: front " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", entry " + receiver.get_current_entry_id())
+			}
+			return
+		}
+	}
+	local holder = contact_holder_id(fixture.target_contact_pos)
+	if (!check(holder == target.id, "the contact tile reservation is held by convoy " + holder + " after the receiver left it, expected the target " + target.id)) { return }
+	if (!check(target.get_state() == convoy_state_loading, "the target is in " + depict_state(target.get_state()) + " after the receiver left the contact tile, expected loading")) { return }
+	print("RUNTIME CASE " + case_name + ": the target kept the contact tile reservation after the receiver left it")
+	pass()
+}
+
+
+// Start the receiver only after the target has left the depot tile. Two convoys
+// started from the same depot tile in one step overlap on that tile.
+function observe_wait_committed_start_receiver()
+{
+	local target = target_convoy()
+	if (!target.is_valid())
+	{
+		fail("the committed target disappeared before it left the depot")
+		return
+	}
+	++fixture.travel_steps
+	if (fixture.travel_steps > TRAVEL_STEP_LIMIT)
+	{
+		fail("the committed target did not leave the depot: " + choose_position(target) + " " + depict_state(target.get_state()))
+		return
+	}
+	// Start the receiver as soon as the target has left the depot tile. The
+	// receiver then follows to the choose signal while the target runs through
+	// the halt, so the committed hold lasts several observation steps.
+	local tp = target.get_pos()
+	if (same_pos(tp, DEPOT_POS))
+	{
+		return
+	}
+	print("RUNTIME CASE " + case_name + ": committed target left the depot at " + choose_position(target) + "; starting the receiver")
+	if (!start_convoy(player_x(0), receiver_convoy(), "receiver convoy")) { return }
+	fixture.phase = "wait-committed-hold"
+}
+
+
+// The receiver has reached the choose signal while the target is still running
+// between the signal and the platform. The choose signal must hold the receiver
+// and record the reciprocal approach with the receiver as the mover.
+function observe_wait_committed_hold()
+{
+	local receiver = receiver_convoy()
+	local target = target_convoy()
+	if (!receiver.is_valid() || !target.is_valid())
+	{
+		fail("a convoy disappeared while the receiver approached the choose signal")
+		return
+	}
+	observe_signal()
+	if (receiver.get_state() == convoy_state_waiting_for_clearance && receiver.get_pos().x >= SIGNAL_POS.x - 1)
+	{
+		local p = receiver.get_pos()
+		if (!same_pos(fixture.last_pos, p))
+		{
+			fixture.last_pos = p
+			fixture.stationary_steps = 0
+			return
+		}
+		++fixture.stationary_steps
+		if (fixture.stationary_steps < 1)
+		{
+			return
+		}
+		if (!check(target.get_state() == convoy_state_driving, "the target is in " + depict_state(target.get_state()) + " at the choose signal hold, expected driving between the signal and the platform")) { return }
+		if (!check(fixture.signal_state != call_on, "the choose signal issued call-on for a committed target")) { return }
+		local partner = receiver.get_recombination_approach_partner()
+		if (!check(partner != null && partner.is_valid() && partner.id == target.id, "the receiver's approach partner is not the committed target")) { return }
+		if (!check(receiver.is_recombination_approach_mover(), "the receiver is not the mover in the committed-target approach")) { return }
+		local reciprocal = target.get_recombination_approach_partner()
+		if (!check(reciprocal != null && reciprocal.is_valid() && reciprocal.id == receiver.id, "the target's reciprocal approach partner is not the receiver")) { return }
+		if (!check(!target.is_recombination_approach_mover(), "the target is the mover in the committed-target approach")) { return }
+		print("RUNTIME CASE " + case_name + ": receiver held at the choose signal while the committed target runs to the platform")
+		fixture.approach_steps = 0
+		fixture.phase = "watch-committed-approach"
+		return
+	}
+	++fixture.approach_steps
+	if (fixture.approach_steps > APPROACH_STEP_LIMIT)
+	{
+		fail("the receiver never waited at the choose signal: " + choose_position(receiver) + " " + depict_state(receiver.get_state()) + ", signal " + depict_aspect(fixture.signal_state))
+	}
+}
+
+
+// Wait for the committed target to become available at the platform and record
+// its coupling point, then use the ordinary shared-contact observations.
+function observe_watch_committed_approach()
+{
+	local target = target_convoy()
+	if (!target.is_valid())
+	{
+		fail("the committed target disappeared before it reached the platform")
+		return
+	}
+	observe_signal()
+	if (!convoy_is_loading(target))
+	{
+		++fixture.approach_steps
+		if (fixture.approach_steps > APPROACH_STEP_LIMIT)
+		{
+			fail("the committed target did not start loading: " + choose_position(target) + " " + depict_state(target.get_state()))
+		}
+		return
+	}
+	local contact = contact_slot(target)
+	fixture.target_contact_pos = contact.pos
+	fixture.target_contact_steps = contact.steps
+	print("RUNTIME CASE " + case_name + ": committed target is loading; contact tile " + pos_text(contact.pos) + " at steps " + contact.steps)
+	fixture.approach_steps = 0
+	fixture.phase = "watch-approach"
+}
+
+
 function observe()
 {
 	if (fixture.phase == "wait-target") { observe_wait_target(); return }
@@ -1636,6 +1918,11 @@ function observe()
 	if (fixture.phase == "watch-blocked") { observe_watch_blocked(); return }
 	if (fixture.phase == "wait-occupier-main") { observe_wait_occupier_main(); return }
 	if (fixture.phase == "watch-approach") { observe_watch_approach(); return }
+	if (fixture.phase == "watch-contact-hold") { observe_watch_contact_hold(); return }
+	if (fixture.phase == "watch-contact-departure") { observe_watch_contact_departure(); return }
+	if (fixture.phase == "wait-committed-start-receiver") { observe_wait_committed_start_receiver(); return }
+	if (fixture.phase == "wait-committed-hold") { observe_wait_committed_hold(); return }
+	if (fixture.phase == "watch-committed-approach") { observe_watch_committed_approach(); return }
 	if (fixture.phase == "watch-layout") { observe_watch_layout(); return }
 	if (fixture.phase == "watch-unresolvable") { observe_watch_unresolvable(); return }
 	if (fixture.phase == "watch-pair-layout") { observe_watch_pair_layout(); return }
