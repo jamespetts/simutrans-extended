@@ -17,6 +17,8 @@
  * - Added @ref sign_x::get_state, @ref sign_x::get_signalbox_pos, @ref sign_x::get_no_junctions_to_next_signal
  * - Added signalling getters to @ref sign_desc_x, including working method and signal group
  * - Added @ref convoy_x::get_working_method
+ * - Added @ref vehicle_desc_x::is_bidirectional
+ * - Added @ref vehicle_desc_x::can_be_first_when_reversed and @ref vehicle_desc_x::can_be_last_when_reversed
  * - Added reservation getters to @ref way_x
  * - Added geometry fields to @ref vehicle_slot_x
  * - Added the @ref signal_aspects, @ref working_methods and @ref reservation_types groups

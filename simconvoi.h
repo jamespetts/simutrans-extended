@@ -1723,8 +1723,10 @@ public:
 	// sufficient of the right number of vehicles to do so).
 	// If split_candidate is not null, the vehicles displaced from this convoy are collected
 	// into one newly created laid-over convoy instead of being appended to an existing
-	// laid-over convoy, and that new convoy's handle is stored there.
-	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr);
+	// laid-over convoy, and that new convoy's handle is stored there. If turn_ticks is not
+	// null, it receives the extra shunting time needed to turn the vehicles whose chosen
+	// orientation differs from their current one.
+	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr, uint32 *turn_ticks = nullptr);
 
 	// True when any vehicle supplies power: a powerless consist cannot run.
 	bool has_power() const;
@@ -1801,12 +1803,15 @@ public:
 	void set_call_on(bool value) { call_on = value; }
 
 	private:
+		// The time needed to turn one vehicle at a stop.
+		static uint32 vehicle_turn_delay_ticks(const vehicle_t *v);
+
 		// The coupling point at this convoy's rear: the tile that contains it
 		// and the offset within that tile in vehicle steps. Returns false when
 		// the convoy has no vehicles.
 		bool get_recombination_contact_point(koord3d &pos, sint16 &steps) const;
 
-		void commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy);
+		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy);
 
 		// Carry out the current entry's consist order, exchanging with the given
 		// coupling target (unbound: assemble from the stop's pool). Sets SHUNTING
@@ -1912,14 +1917,16 @@ public:
 
 		// Match one order against the available vehicles. Does not change any
 		// state. On success, final_consist holds the forward-oriented result
-		// before any re-reversal.
-		consist_order_process_result match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available, const vector_tpl<vehicle_t*> &shadow, vector_tpl<vehicle_t*> &final_consist) const;
+		// before any re-reversal, and final_reversed holds the chosen
+		// orientation of each vehicle in the same order.
+		consist_order_process_result match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available, const vector_tpl<vehicle_t*> &shadow, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed) const;
 
 		// Solve a pair without changing any state: search for a disjoint pair of
 		// coupling-valid powered final consists satisfying both orders. Returns
 		// false and sets failure when no arrangement exists or the search reaches
-		// its computation limit.
-		bool solve_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], halthandle_t halt, vector_tpl<vehicle_t*> finals[2], bool changed[2], pair_failure_t &failure) const;
+		// its computation limit. finals holds each forward-oriented result and
+		// final_reversed its chosen per-vehicle orientations.
+		bool solve_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], halthandle_t halt, vector_tpl<vehicle_t*> finals[2], vector_tpl<bool> final_reversed[2], bool changed[2], pair_failure_t &failure) const;
 
 		// A translated phrase completing "because ..."; nullptr when the reason
 		// has no shared phrasing (none, or the broken-target report).
@@ -1930,8 +1937,10 @@ public:
 		void report_coupling_hold(halthandle_t halt, convoihandle_t target, const char *reason) const;
 
 		// Replace the two consists with the solved forward-oriented final consists.
-		// Only vehicles that become loose stock are discharged at the stop.
-		void commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const bool changed[2], halthandle_t halt);
+		// Applies the chosen per-vehicle orientations and adds their reversal time
+		// to the shunting delay. Only vehicles that become loose stock are
+		// discharged at the stop.
+		void commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const vector_tpl<bool> final_reversed[2], const bool changed[2], halthandle_t halt);
 
 		void report_paired_exchange_failure(halthandle_t halt, convoihandle_t counterpart, pair_failure_t failure) const;
 

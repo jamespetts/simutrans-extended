@@ -110,6 +110,8 @@ local fixture = {
 	reached_junction = false,
 	pool_prepared = false,
 	pool_donor_id = 0,
+	facing_formed = false,
+	facing_steps = 0,
 	saw_last_entry_forward = false,
 	loose_stock_seen = false,
 	waiting_for = "",
@@ -301,6 +303,86 @@ function select_vehicles()
 }
 
 
+// Whether a descriptor list contains the given descriptor. The script API's
+// descriptor identity is compared with is_equal().
+function descriptor_in_list(list, desc)
+{
+	foreach (candidate in list)
+	{
+		if (candidate.is_equal(desc)) { return true }
+	}
+	return false
+}
+
+
+// Whether a can lead b in the descriptor's forward orientation.
+function descriptor_can_lead(a, b)
+{
+	local successors = a.get_successors()
+	return successors.len() == 0 || descriptor_in_list(successors, b)
+}
+
+
+// Whether a can follow b in the descriptor's forward orientation.
+function descriptor_can_follow(a, b)
+{
+	local predecessors = a.get_predecessors()
+	return predecessors.len() == 0 || descriptor_in_list(predecessors, b)
+}
+
+
+// Select a powered vehicle and an unpowered tail-only bidirectional vehicle:
+//
+//   [powered, unpowered]  valid as written: the powered vehicle leads and the
+//                         unpowered vehicle is at the rear;
+//   [unpowered, powered]  the end state the targetless order asks for. The
+//                         unpowered vehicle cannot be at the front in its
+//                         current orientation, so the runtime must turn it.
+//
+// Both have no fixed successor, so depot.append_vehicle adds exactly the two
+// vehicles the case authors.
+function select_facing_vehicles()
+{
+	local powered = []
+	local unpowered = []
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+	{
+		if (desc.needs_electrification()) { continue }
+		if (desc.get_successors().len() > 0) { continue }
+		if (!desc.is_bidirectional()) { continue }
+		if (desc.get_power() == 0)
+		{
+			// Tail-only in the descriptor's forward orientation, but able to
+			// lead once turned.
+			if (!desc.can_be_first() && desc.can_be_last() && desc.can_be_first_when_reversed())
+			{
+				unpowered.append(desc)
+			}
+		}
+		else if (desc.can_be_first() && desc.can_be_last())
+		{
+			powered.append(desc)
+		}
+	}
+	foreach (a in unpowered)
+	{
+		foreach (b in powered)
+		{
+			// [b, a] is the consist the depot builds.
+			if (!descriptor_can_lead(b, a) || !descriptor_can_follow(a, b)) { continue }
+			// [a, b] is the ordered end state. The turned a must lead b and
+			// b must follow a.
+			if (!descriptor_can_lead(a, b)) { continue }
+			if (!descriptor_can_follow(b, a)) { continue }
+			fixture.retained = b
+			fixture.split = a
+			return true
+		}
+	}
+	return false
+}
+
+
 // A vehicle with zero power that couples behind leader. Descriptors with a
 // fixed successor are excluded because depot.append_vehicle adds the successor
 // as well, which would change the consist the case authors.
@@ -451,7 +533,7 @@ function source_consist_descriptors()
 
 function needs_target_line()
 {
-	return case_name != "plain-uncouple" && case_name != "lineless-target"
+	return case_name != "plain-uncouple" && case_name != "lineless-target" && case_name != "facing"
 }
 
 
@@ -670,14 +752,26 @@ function commit_source_schedule(pl, cnv)
 {
 	local entries = build_source_entries()
 	local uncouple_entry = entries[fixture.uncouple_index]
-	uncouple_entry.uncouple = true
-	uncouple_entry.uncouple_target_is_line_or_cnv = (case_name == "lineless-target")
-	uncouple_entry.uncouple_target_sch_is_reversed = (case_name == "reversed-target")
-	uncouple_entry.target_id_uncouple = source_target_id()
-	uncouple_entry.target_unique_entry_uncouple = source_target_entry()
+	if (case_name != "facing")
+	{
+		uncouple_entry.uncouple = true
+		uncouple_entry.uncouple_target_is_line_or_cnv = (case_name == "lineless-target")
+		uncouple_entry.uncouple_target_sch_is_reversed = (case_name == "reversed-target")
+		uncouple_entry.target_id_uncouple = source_target_id()
+		uncouple_entry.target_unique_entry_uncouple = source_target_entry()
+	}
 
 	local schedule = schedule_x(wt_rail, entries)
-	schedule.orders.rawset(fixture.uncouple_entry_id, make_order([fixture.retained]))
+	if (case_name == "facing")
+	{
+		// Targetless assembly: no couple or uncouple flag, and the order
+		// reverses the two vehicles.
+		schedule.orders.rawset(fixture.uncouple_entry_id, make_order([fixture.split, fixture.retained]))
+	}
+	else
+	{
+		schedule.orders.rawset(fixture.uncouple_entry_id, make_order([fixture.retained]))
+	}
 	if (case_name == "reversed-source")
 	{
 		// The convoy starts at the last entry. On departing that entry, the
@@ -698,6 +792,16 @@ function commit_source_schedule(pl, cnv)
 	}
 
 	local live_uncouple = back.entries[fixture.uncouple_index]
+	if (case_name == "facing")
+	{
+		if (!check(live_uncouple.uncouple == false, "source schedule read-back: the targetless facing entry carries the uncouple flag")) { return false }
+		if (!check(fixture.uncouple_entry_id in back.orders, "source schedule read-back: no order at entry " + fixture.uncouple_entry_id)) { return false }
+		local order = back.orders[fixture.uncouple_entry_id]
+		if (!check(order.slots.len() == 2, "source schedule read-back: order at entry " + fixture.uncouple_entry_id + " has " + order.slots.len() + " slots, expected 2")) { return false }
+		if (!check(vehicle_matches(order.slots[0].alternatives[0].specific_vehicle, fixture.split), "source schedule read-back: the first slot is not the turned vehicle")) { return false }
+		if (!check(vehicle_matches(order.slots[1].alternatives[0].specific_vehicle, fixture.retained), "source schedule read-back: the second slot is not the powered vehicle")) { return false }
+		return true
+	}
 	if (!check(live_uncouple.uncouple == true, "source schedule read-back: the uncouple flag is not set at entry " + fixture.uncouple_entry_id)) { return false }
 	if (!check(live_uncouple.target_id_uncouple == source_target_id(), "source schedule read-back: target id is " + live_uncouple.target_id_uncouple + ", expected " + source_target_id())) { return false }
 	if (!check(live_uncouple.target_unique_entry_uncouple == source_target_entry(), "source schedule read-back: target entry is " + live_uncouple.target_unique_entry_uncouple + ", expected " + source_target_entry())) { return false }
@@ -725,6 +829,21 @@ function setup()
 	local pl = player_x(0)
 
 	if (!build_infrastructure(pl)) { return false }
+
+	if (case_name == "facing")
+	{
+		if (!check(select_facing_vehicles(), "no powered bidirectional pair with the required one-way coupling is available")) { return false }
+		fixture.uncouple_entry_id = UNCOUPLE_ENTRY_ID
+		fixture.uncouple_index = 1
+
+		local cnv = create_depot_convoy(pl, source_consist_descriptors(), "source convoy")
+		if (cnv == null) { return false }
+		fixture.convoy_id = cnv.id
+
+		if (!commit_source_schedule(pl, cnv)) { return false }
+		if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start the source convoy")) { return false }
+		return true
+	}
 
 	if (case_name == "pool-collection")
 	{
@@ -1762,11 +1881,52 @@ function check_reversed_source_formation(portion)
 }
 
 
+// The facing case: a targetless order reverses the source convoy's two
+// vehicles. The turned vehicle must be reversed for the reversed coupling to
+// be valid, and the convoy must then continue to the east entry.
+function observe_facing()
+{
+	local src = source_convoy()
+	if (!src.is_valid())
+	{
+		fail("the source convoy disappeared before its consist order was carried out")
+		return
+	}
+	++fixture.facing_steps
+	if (fixture.facing_steps > TRAVEL_STEP_LIMIT)
+	{
+		fail("the source convoy did not complete the facing order within " + TRAVEL_STEP_LIMIT + " steps")
+		return
+	}
+	local snap = src.get_vehicle_snapshot()
+	if (snap.len() == 2
+		&& vehicle_matches(snap[0].desc, fixture.split)
+		&& vehicle_matches(snap[1].desc, fixture.retained))
+	{
+		if (!check(snap[0].reversed, "the runtime did not turn the leading vehicle to satisfy the reversed order")) { return }
+		fixture.facing_formed = true
+	}
+	if (!fixture.facing_formed && src.get_current_entry_id() == EAST_ENTRY_ID)
+	{
+		fail("the source convoy passed the junction without forming the reversed consist")
+		return
+	}
+	if (fixture.facing_formed && src.get_current_entry_id() == EAST_ENTRY_ID)
+	{
+		pass()
+	}
+}
+
+
 function observe()
 {
 	if (case_name == "forward" || case_name == "reload")
 	{
 		observe_forward()
+	}
+	else if (case_name == "facing")
+	{
+		observe_facing()
 	}
 	else if (case_name == "reversed-target")
 	{

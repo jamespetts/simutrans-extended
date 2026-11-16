@@ -757,6 +757,9 @@ public:
 
 	bool is_reversed() const { return reversed; }
 	void set_reversed(bool value);
+	// Refresh the image of a stationary vehicle on the map after its
+	// orientation has changed.
+	void refresh_image() { calc_image(); }
 
 	// Gets modified direction, used for drawing
 	// vehicles in reverse formation.

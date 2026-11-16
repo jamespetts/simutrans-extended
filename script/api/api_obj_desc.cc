@@ -231,6 +231,21 @@ bool can_be_last(const vehicle_desc_t *desc)
 	return desc->can_lead(NULL);
 }
 
+bool is_bidirectional(const vehicle_desc_t *desc)
+{
+	return desc->is_bidirectional();
+}
+
+bool can_be_first_when_reversed(const vehicle_desc_t *desc)
+{
+	return desc->is_bidirectional() && (desc->get_basic_constraint_prev(true) & vehicle_desc_t::can_be_head) != 0;
+}
+
+bool can_be_last_when_reversed(const vehicle_desc_t *desc)
+{
+	return desc->is_bidirectional() && (desc->get_basic_constraint_next(true) & vehicle_desc_t::can_be_tail) != 0;
+}
+
 bool is_coupling_allowed(const vehicle_desc_t *desc1, const vehicle_desc_t *desc2)
 {
 	return desc1->can_lead(desc2)  &&  desc2->can_follow(desc1);
@@ -464,6 +479,18 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns true if this vehicle can be the last of a convoy
 	 */
 	register_method(vm, &can_be_last, "can_be_last", true);
+	/**
+	 * @returns true if this vehicle can travel in either direction
+	 */
+	register_method(vm, &is_bidirectional, "is_bidirectional", true);
+	/**
+	 * @returns true if this vehicle can lead a convoy when reversed
+	 */
+	register_method(vm, &can_be_first_when_reversed, "can_be_first_when_reversed", true);
+	/**
+	 * @returns true if this vehicle can be the last of a convoy when reversed
+	 */
+	register_method(vm, &can_be_last_when_reversed, "can_be_last_when_reversed", true);
 	/**
 	 * @returns list of possible successors, if all are allowed then list is empty
 	 */

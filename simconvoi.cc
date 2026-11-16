@@ -9731,7 +9731,8 @@ void convoi_t::report_broken_couple_target(halthandle_t halt)
 convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate)
 {
 	const consist_order_t &order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
-	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy, split_candidate);
+	uint32 turn_ticks = 0;
+	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy, split_candidate, &turn_ticks);
 	if (result == succeed)
 	{
 		recombination_failure_reported_entry = 0;
@@ -9743,7 +9744,7 @@ convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_o
 		}
 		state = SHUNTING;
 		const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
-		wait_lock = seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile());
+		wait_lock = (sint32)seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile()) + (sint32)turn_ticks;
 	}
 	else if (result == fail && recombination_failure_reported_entry != schedule->get_current_entry().unique_entry_id)
 	{
@@ -9764,31 +9765,120 @@ void convoi_t::report_consist_order_failed(halthandle_t halt) const
 }
 
 
-// Coupling predicate for one slot of a consist order under construction.
-// Mirrors convoi_t::check_validity(): the first vehicle must be able to be at
-// the front, each later vehicle must follow the vehicle chosen for the
-// preceding slot, and the vehicle chosen for the final slot must be able to be
-// at the rear.
-static bool consist_slot_couples(uint32 slot, uint32 slot_count, const vector_tpl<vehicle_t*> &chosen, const vehicle_t *candidate)
+// Whether a vehicle can stand at the front of a train in the given
+// orientation. A reversed vehicle has its descriptor's prev and next ends
+// exchanged, so the physical front end is the descriptor's next end.
+static bool consist_vehicle_can_be_at_front(const vehicle_t *v, bool reversed)
 {
-	const vehicle_desc_t *const desc = candidate->get_desc();
-	if (slot == 0 && !desc->can_follow(nullptr))
+	const vehicle_desc_t *const desc = v->get_desc();
+	if (reversed)
+	{
+		return (desc->get_basic_constraint_prev(true) & vehicle_desc_t::can_be_head) != 0;
+	}
+	return desc->can_follow(nullptr);
+}
+
+
+// Whether a vehicle can stand at the rear of a train in the given orientation.
+static bool consist_vehicle_can_be_at_rear(const vehicle_t *v, bool reversed)
+{
+	const vehicle_desc_t *const desc = v->get_desc();
+	if (reversed)
+	{
+		return (desc->get_basic_constraint_next(true) & vehicle_desc_t::can_be_tail) != 0;
+	}
+	return desc->can_lead(nullptr);
+}
+
+
+// Whether two adjacent vehicles couple in the given orientations. The
+// descriptor's leader and trailer lists are written for the vehicle's forward
+// orientation; a reversed vehicle has them exchanged along with its ends.
+static bool consist_vehicles_couple(const vehicle_t *front, bool front_reversed, const vehicle_t *rear, bool rear_reversed)
+{
+	const vehicle_desc_t *const front_desc = front->get_desc();
+	const vehicle_desc_t *const rear_desc = rear->get_desc();
+	const bool front_allows_rear = front_reversed ? front_desc->can_follow(rear_desc) : front_desc->can_lead(rear_desc);
+	const bool rear_allows_front = rear_reversed ? rear_desc->can_lead(front_desc) : rear_desc->can_follow(front_desc);
+	return front_allows_rear && rear_allows_front;
+}
+
+
+static bool consist_vehicle_can_be_at_front_any(const vehicle_t *v)
+{
+	return consist_vehicle_can_be_at_front(v, v->is_reversed())
+		|| (v->get_desc()->is_bidirectional() && consist_vehicle_can_be_at_front(v, !v->is_reversed()));
+}
+
+
+static bool consist_vehicle_can_be_at_rear_any(const vehicle_t *v)
+{
+	return consist_vehicle_can_be_at_rear(v, v->is_reversed())
+		|| (v->get_desc()->is_bidirectional() && consist_vehicle_can_be_at_rear(v, !v->is_reversed()));
+}
+
+
+// Reorder a parallel orientation vector after its vehicle vector has been
+// re-reversed into the convoy's own array order.
+static void reorder_reversed_flags(const vector_tpl<vehicle_t*> &before, const vector_tpl<bool> &before_flags, vector_tpl<vehicle_t*> &after, vector_tpl<bool> &after_flags)
+{
+	after_flags.clear();
+	for (uint32 i = 0; i < after.get_count(); i++)
+	{
+		const uint32 index = before.index_of(after.get_element(i));
+		after_flags.append(index < before_flags.get_count() ? before_flags.get_element(index) : false);
+	}
+}
+
+
+static bool consist_slot_couples(uint32 slot, uint32 slot_count, const vector_tpl<vehicle_t*> &chosen, const vector_tpl<bool> &chosen_reversed, const vehicle_t *candidate, bool candidate_reversed);
+
+
+// Try the candidate in its current orientation first, then the other way
+// round when the vehicle is bidirectional. The chosen orientation is returned
+// in candidate_reversed; the caller appends it to the parallel orientation
+// vector.
+static bool choose_candidate_orientation(const vehicle_t *candidate, uint32 slot, uint32 slot_count, const vector_tpl<vehicle_t*> &chosen, const vector_tpl<bool> &chosen_reversed, bool &candidate_reversed)
+{
+	const bool current = candidate->is_reversed();
+	const uint32 orientation_count = candidate->get_desc()->is_bidirectional() ? 2 : 1;
+	for (uint32 i = 0; i < orientation_count; i++)
+	{
+		const bool reversed = i == 0 ? current : !current;
+		if (consist_slot_couples(slot, slot_count, chosen, chosen_reversed, candidate, reversed))
+		{
+			candidate_reversed = reversed;
+			return true;
+		}
+	}
+	return false;
+}
+
+
+// Coupling predicate for one slot of a consist order under construction. The
+// first vehicle must be able to be at the front, each later vehicle must
+// couple to the vehicle chosen for the preceding slot, and the vehicle chosen
+// for the final slot must be able to be at the rear. Unlike
+// convoi_t::check_validity(), this uses the orientation actually chosen for
+// each vehicle rather than the descriptor's forward orientation.
+static bool consist_slot_couples(uint32 slot, uint32 slot_count, const vector_tpl<vehicle_t*> &chosen, const vector_tpl<bool> &chosen_reversed, const vehicle_t *candidate, bool candidate_reversed)
+{
+	if (slot == 0 && !consist_vehicle_can_be_at_front(candidate, candidate_reversed))
 	{
 		return false;
 	}
 	if (slot > 0)
 	{
-		if (chosen.empty())
+		if (chosen.empty() || chosen_reversed.get_count() != chosen.get_count())
 		{
 			return false;
 		}
-		const vehicle_desc_t *const previous = chosen.back()->get_desc();
-		if (!previous->can_lead(desc) || !desc->can_follow(previous))
+		if (!consist_vehicles_couple(chosen.back(), chosen_reversed.back(), candidate, candidate_reversed))
 		{
 			return false;
 		}
 	}
-	if (slot + 1 == slot_count && !desc->can_lead(nullptr))
+	if (slot + 1 == slot_count && !consist_vehicle_can_be_at_rear(candidate, candidate_reversed))
 	{
 		return false;
 	}
@@ -9817,6 +9907,7 @@ struct paired_vehicle_t
 	uint8 min_class;
 	bool powered;
 	bool in_pool;
+	bool reversed;
 	uint32 equiv_id;
 };
 
@@ -9847,6 +9938,7 @@ struct paired_exchange_solver_t
 	vector_tpl<paired_vehicle_t> universe;
 	vector_tpl<uint32> candidates[2 * convoi_t::max_rail_vehicle];
 	uint32 assigned[2 * convoi_t::max_rail_vehicle];
+	bool assigned_reversed[2 * convoi_t::max_rail_vehicle];
 	vector_tpl<uint8> used;
 	uint32 last_powerable_slot[2];
 
@@ -9859,6 +9951,7 @@ struct paired_exchange_solver_t
 	bool access_pruned;
 
 	vector_tpl<vehicle_t*> final[2];
+	vector_tpl<bool> final_reversed[2];
 
 
 	void init(const consist_order_t &order_R, const vector_tpl<vehicle_t*> &shadow_R, waytype_t waytype_R,
@@ -9877,6 +9970,21 @@ struct paired_exchange_solver_t
 		slot_count[0] = order_R.get_count();
 		slot_count[1] = order_T.get_count();
 		total_slots = slot_count[0] + slot_count[1];
+
+		for (uint32 i = 0; i < 2 * convoi_t::max_rail_vehicle; i++)
+		{
+			assigned_reversed[i] = false;
+		}
+
+		// These are also reset by reset_search(), but init() can return through
+		// build_candidates() before reset_search() is called.
+		budget_hit = false;
+		access_pruned = false;
+		for (uint8 side = 0; side < 2; side++)
+		{
+			side_powered[side] = false;
+			side_locomotive_owner[side] = nullptr;
+		}
 
 		for (uint8 side = 0; side < 2; side++)
 		{
@@ -9911,6 +10019,7 @@ struct paired_exchange_solver_t
 		entry.min_class = v->get_min_class();
 		entry.powered = entry.desc->get_power() > 0;
 		entry.in_pool = in_pool;
+		entry.reversed = v->is_reversed();
 		entry.equiv_id = universe.get_count();
 		// Two unused vehicles with the same descriptor, minimum class, owner and
 		// pool status are interchangeable for every later predicate: matching,
@@ -9919,7 +10028,7 @@ struct paired_exchange_solver_t
 		for (uint32 i = 0; i < universe.get_count(); i++)
 		{
 			const paired_vehicle_t &other = universe.get_element(i);
-			if (other.desc == entry.desc && other.min_class == entry.min_class && other.owner == entry.owner && other.in_pool == entry.in_pool)
+			if (other.desc == entry.desc && other.min_class == entry.min_class && other.owner == entry.owner && other.in_pool == entry.in_pool && other.reversed == entry.reversed)
 			{
 				entry.equiv_id = other.equiv_id;
 				break;
@@ -9975,11 +10084,11 @@ struct paired_exchange_solver_t
 		{
 			return;
 		}
-		if (local == 0 && !candidate.desc->can_follow(nullptr))
+		if (local == 0 && !consist_vehicle_can_be_at_front_any(v))
 		{
 			return;
 		}
-		if (local + 1 == slot_count[side] && !candidate.desc->can_lead(nullptr))
+		if (local + 1 == slot_count[side] && !consist_vehicle_can_be_at_rear_any(v))
 		{
 			return;
 		}
@@ -10115,14 +10224,6 @@ struct paired_exchange_solver_t
 			{
 				continue;
 			}
-			if (local > 0)
-			{
-				const vehicle_desc_t *const previous = universe.get_element(assigned[slot - 1]).desc;
-				if (!previous->can_lead(candidate.desc) || !candidate.desc->can_follow(previous))
-				{
-					continue;
-				}
-			}
 			const bool powered = side_powered[side] || candidate.powered;
 			if (!powered && local >= last_powerable_slot[side])
 			{
@@ -10131,12 +10232,6 @@ struct paired_exchange_solver_t
 			if (!access_allowed(side, slot, u))
 			{
 				continue;
-			}
-			steps_used++;
-			if (steps_used > paired_exchange_step_budget)
-			{
-				budget_hit = true;
-				return false;
 			}
 
 			const bool previous_powered = side_powered[side];
@@ -10149,7 +10244,40 @@ struct paired_exchange_solver_t
 				side_locomotive_owner[side] = candidate.owner;
 			}
 			const uint32 next_pool_used = pool_used + (candidate.in_pool ? 1u : 0u);
-			if (search(slot + 1, next_pool_used))
+
+			bool solved = false;
+			const uint32 orientation_count = candidate.desc->is_bidirectional() ? 2 : 1;
+			for (uint32 o = 0; o < orientation_count && !solved; o++)
+			{
+				const bool candidate_reversed = o == 0 ? candidate.reversed : !candidate.reversed;
+				if (local == 0 && !consist_vehicle_can_be_at_front(candidate.vehicle, candidate_reversed))
+				{
+					continue;
+				}
+				if (local + 1 == slot_count[side] && !consist_vehicle_can_be_at_rear(candidate.vehicle, candidate_reversed))
+				{
+					continue;
+				}
+				if (local > 0 && !consist_vehicles_couple(
+					universe.get_element(assigned[slot - 1]).vehicle, assigned_reversed[slot - 1],
+					candidate.vehicle, candidate_reversed))
+				{
+					continue;
+				}
+				steps_used++;
+				if (steps_used > paired_exchange_step_budget)
+				{
+					budget_hit = true;
+					break;
+				}
+				assigned_reversed[slot] = candidate_reversed;
+				if (search(slot + 1, next_pool_used))
+				{
+					solved = true;
+				}
+			}
+
+			if (solved)
 			{
 				return true;
 			}
@@ -10204,10 +10332,12 @@ struct paired_exchange_solver_t
 				for (uint8 side = 0; side < 2; side++)
 				{
 					final[side].clear();
+					final_reversed[side].clear();
 					const uint32 offset = side == 0 ? 0 : slot_count[0];
 					for (uint32 local = 0; local < slot_count[side]; local++)
 					{
 						final[side].append(universe.get_element(assigned[offset + local]).vehicle);
+						final_reversed[side].append(assigned_reversed[offset + local]);
 					}
 				}
 				return paired_solver_solved;
@@ -10222,13 +10352,19 @@ struct paired_exchange_solver_t
 };
 
 
-convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate)
+convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate, uint32 *turn_ticks)
 
 {
 	// Overall scheme: assemble a vector of vehicles based on the priority of slots and whether it is driveable,
 	// then if, and only if driveable and complete, commit the result.
 
+	if (turn_ticks)
+	{
+		*turn_ticks = 0;
+	}
+
 	vector_tpl<vehicle_t*> final_consist;
+	vector_tpl<bool> final_reversed;
 	vector_tpl<vehicle_t*> available_vehicles;
 
 	if (!get_recombination_available_vehicles(halt, dep, joining_convoy, available_vehicles))
@@ -10248,14 +10384,24 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	vector_tpl<vehicle_t*> shadow_consist;
 	get_forward_consist(shadow_consist);
 
-	convoi_t::consist_order_process_result success = match_consist_order(order, available_vehicles, shadow_consist, final_consist);
+	convoi_t::consist_order_process_result success = match_consist_order(order, available_vehicles, shadow_consist, final_consist, final_reversed);
 
 	if (success == succeed)
 	{
-		// Now re-reverse the consist if it had been un-reversed for matching
+		// Now re-reverse the consist if it had been un-reversed for matching.
+		// The chosen orientations are relative to the forward direction, so they
+		// follow their vehicles through the re-reversal.
 		if (reversed)
 		{
+			vector_tpl<vehicle_t*> forward_consist;
+			vector_tpl<bool> forward_reversed;
+			for (uint32 i = 0; i < final_consist.get_count(); i++)
+			{
+				forward_consist.append(final_consist.get_element(i));
+				forward_reversed.append(final_reversed.get_element(i));
+			}
 			execute_reverse_order(final_consist, final_consist.get_count(), true, true);
+			reorder_reversed_flags(forward_consist, forward_reversed, final_consist, final_reversed);
 		}
 
 		// Resolve the recipient of any vehicles that this order releases:
@@ -10283,7 +10429,11 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			recipient_is_convoy = order.get_available_to_is_convoy();
 		}
 
-		commit_recombined_consist(final_consist, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy);
+		const uint32 recombined_turn_ticks = commit_recombined_consist(final_consist, final_reversed, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy);
+		if (turn_ticks)
+		{
+			*turn_ticks = recombined_turn_ticks;
+		}
 
 		if (joining_convoy.is_bound() && joining_convoy->get_vehicle_count() == 0)
 		{
@@ -10414,10 +10564,11 @@ void convoi_t::get_forward_consist(vector_tpl<vehicle_t*> &consist) const
 }
 
 
-convoi_t::consist_order_process_result convoi_t::match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available_vehicles, const vector_tpl<vehicle_t*> &shadow_consist, vector_tpl<vehicle_t*> &final_consist) const
+convoi_t::consist_order_process_result convoi_t::match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available_vehicles, const vector_tpl<vehicle_t*> &shadow_consist, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed) const
 {
 	convoi_t::consist_order_process_result success = fail;
 
+	final_reversed.clear();
 	const uint32 element_count = order.get_count();
 	uint32 existing_vehicle_count = 0;
 
@@ -10437,6 +10588,7 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 			pass_over_vehicle = final_consist[k];
 			// Start again
 			final_consist.clear();
+			final_reversed.clear();
 		}
 
 		for (uint32 i = 0; i < element_count; i++)
@@ -10447,13 +10599,16 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 
 			for (uint32 j = 0; j < priority_count && !matched_this_element; j++)
 			{
+				bool chosen_reversed = false;
 				if (i < shadow_consist.get_count() && shadow_consist[i]
 					&& !final_consist.is_contained(shadow_consist[i])
 					&& shadow_consist[i]->matches_consist_order_element(element, j)
-					&& consist_slot_couples(i, element_count, final_consist, shadow_consist[i]))
+					&& choose_candidate_orientation(shadow_consist[i], i, element_count, final_consist, final_reversed, chosen_reversed))
 				{
-					// The existing vehicle in its existing position is a match - no change needed
+					// The existing vehicle in its existing position is a match - maybe
+					// it is in the right position but the wrong orientation.
 					final_consist.append(shadow_consist[i]);
+					final_reversed.append(chosen_reversed);
 					existing_vehicle_count++;
 					break;
 				}
@@ -10469,9 +10624,10 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 						continue;
 					}
 					else if (veh->matches_consist_order_element(element, j) && !final_consist.is_contained(veh)
-						&& consist_slot_couples(i, element_count, final_consist, veh))
+						&& choose_candidate_orientation(veh, i, element_count, final_consist, final_reversed, chosen_reversed))
 					{
 						final_consist.append(veh);
+						final_reversed.append(chosen_reversed);
 						matched_this_element = true;
 						break;
 					}
@@ -10482,7 +10638,16 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 
 	if (final_consist.get_count() == element_count)
 	{
-		if (existing_vehicle_count == element_count && element_count == shadow_consist.get_count())
+		bool orientation_changed = false;
+		for (uint32 i = 0; i < final_consist.get_count(); i++)
+		{
+			if (final_consist.get_element(i)->is_reversed() != final_reversed.get_element(i))
+			{
+				orientation_changed = true;
+				break;
+			}
+		}
+		if (existing_vehicle_count == element_count && element_count == shadow_consist.get_count() && !orientation_changed)
 		{
 			success = no_change_needed;
 		}
@@ -10518,11 +10683,43 @@ struct recombination_layout_slot_t
 };
 
 
-void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy)
+// The time needed to turn one vehicle at a stop. A powered bidirectional
+// vehicle reverses under its own power; a hauled vehicle needs a turntable.
+// These are the existing reversal times used by terminal reversals, so the
+// delay is grounded in a setting rather than a new tuning value.
+uint32 convoi_t::vehicle_turn_delay_ticks(const vehicle_t *v)
+{
+	if (!v->get_desc()->is_bidirectional())
+	{
+		return 0;
+	}
+	return v->get_desc()->get_power() > 0
+		? welt->get_settings().get_unit_reverse_time()
+		: welt->get_settings().get_turntable_reverse_time();
+}
+
+
+uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy)
 {
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
 	// The vehicles may include vehicles already present in the consist, but will always include
 	// at least one change from the current arrangement.
+
+	// Apply the orientation chosen by the matcher. A vehicle whose orientation
+	// changes is turned during the shunting delay, which the caller adds to the
+	// shunting time.
+	uint32 turn_ticks = 0;
+	for (uint32 i = 0; i < vehicles.get_count() && i < vehicles_reversed.get_count(); i++)
+	{
+		vehicle_t *const v = vehicles.get_element(i);
+		const bool chosen_reversed = vehicles_reversed.get_element(i);
+		if (v->is_reversed() != chosen_reversed)
+		{
+			turn_ticks += vehicle_turn_delay_ticks(v);
+			v->set_reversed(chosen_reversed);
+			v->refresh_image();
+		}
+	}
 
 	// When the receiver reached the joining convoy's coupling point under a
 	// committed coupling approach, the two consists have a physical order along
@@ -10665,6 +10862,13 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 		}
 		else if (new_vehicle_cnv)
 		{
+			// A substituted-out vehicle leaves the scheduled consist and becomes
+			// loose stock, so it is discharged at the stop like a removed vehicle.
+			// A split candidate defers its discharge until promotion fails.
+			if (!split_candidate)
+			{
+				unload_individual_vehicle_at(i, halt, true);
+			}
 			new_vehicle_cnv->remove_vehicle(new_vehicle);
 			grund_t* const gr = welt->lookup(new_vehicle->get_pos());
 			vehicle_t* removed_vehicle = substitute_vehicle(new_vehicle, i);
@@ -10758,6 +10962,8 @@ void convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles,
 			*split_candidate = cnv->self;
 		}
 	}
+
+	return turn_ticks;
 }
 
 
@@ -10816,7 +11022,8 @@ void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, c
 	// The target entry's order defines the split-off group's end state. It may
 	// draw on the stop's laid-over vehicles; vehicles that it releases remain
 	// ordinary loose stock under the existing commit rules.
-	const consist_order_process_result result = portion->process_consist_order(target.schedule->get_consist_order(target_unique_id), halt, nullptr, convoihandle_t());
+	uint32 turn_ticks = 0;
+	const consist_order_process_result result = portion->process_consist_order(target.schedule->get_consist_order(target_unique_id), halt, nullptr, convoihandle_t(), nullptr, &turn_ticks);
 	if ((result != succeed && result != no_change_needed) || !portion->has_power())
 	{
 		// The group cannot be promoted, so it is loose stock at the stop. This is
@@ -10891,7 +11098,7 @@ void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, c
 	// then takes the normal loading path at the target entry, which applies the
 	// entry's minimum loading and spacing before departure.
 	portion->state = LOADING;
-	portion->wait_lock = seconds_to_ticks(welt->get_settings().get_shunting_time_seconds(), welt->get_settings().get_meters_per_tile());
+	portion->wait_lock = (sint32)seconds_to_ticks(welt->get_settings().get_shunting_time_seconds(), welt->get_settings().get_meters_per_tile()) + (sint32)turn_ticks;
 }
 
 void convoi_t::set_blank_route()
@@ -11372,9 +11579,10 @@ bool convoi_t::can_approach_coupling_target(halthandle_t halt, const convoihandl
 			pair.own_is_receiver ? pair.counterpart_order : pair.own_order
 		};
 		vector_tpl<vehicle_t*> finals[2];
+		vector_tpl<bool> final_reversed[2];
 		bool changed[2];
 		pair_failure_t failure = pair_failure_none;
-		if (!solve_paired_exchange(convoys, orders, halt, finals, changed, failure))
+		if (!solve_paired_exchange(convoys, orders, halt, finals, final_reversed, changed, failure))
 		{
 			const char *const reason = paired_failure_reason(failure);
 			report_coupling_hold(halt, target, reason ? reason : translator::translate("no arrangement of the two consists satisfies both consist orders"));
@@ -11399,7 +11607,8 @@ bool convoi_t::can_approach_coupling_target(halthandle_t halt, const convoihandl
 			vector_tpl<vehicle_t*> shadow;
 			get_forward_consist(shadow);
 			vector_tpl<vehicle_t*> final_consist;
-			if (match_consist_order(order, available, shadow, final_consist) == fail)
+			vector_tpl<bool> final_reversed;
+			if (match_consist_order(order, available, shadow, final_consist, final_reversed) == fail)
 			{
 				report_coupling_hold(halt, target, translator::translate("the consist order cannot be completed into a powered consist from the two consists"));
 				recombination_precheck_passed = false;
@@ -11705,9 +11914,10 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 	};
 
 	vector_tpl<vehicle_t*> finals[2];
+	vector_tpl<bool> final_reversed[2];
 	bool changed[2];
 	pair_failure_t failure = pair_failure_none;
-	if (!solve_paired_exchange(convoys, orders, halt, finals, changed, failure))
+	if (!solve_paired_exchange(convoys, orders, halt, finals, final_reversed, changed, failure))
 	{
 		report_paired_exchange_failure(halt, pair.counterpart, failure);
 		// All-or-nothing: neither consist changes. Release the waiting counterpart
@@ -11724,12 +11934,12 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 		return false;
 	}
 
-	commit_paired_exchange(convoys, orders, finals, changed, halt);
+	commit_paired_exchange(convoys, orders, finals, final_reversed, changed, halt);
 	return true;
 }
 
 
-bool convoi_t::solve_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], halthandle_t halt, vector_tpl<vehicle_t*> finals[2], bool changed[2], pair_failure_t &failure) const
+bool convoi_t::solve_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], halthandle_t halt, vector_tpl<vehicle_t*> finals[2], vector_tpl<bool> final_reversed[2], bool changed[2], pair_failure_t &failure) const
 {
 	failure = pair_failure_none;
 	if (!convoys[0] || !convoys[1] || convoys[0] == convoys[1] || !orders[0] || !orders[1])
@@ -11801,22 +12011,32 @@ bool convoi_t::solve_paired_exchange(convoi_t *const convoys[2], const consist_o
 		for (uint32 i = 0; i < solver.final[side].get_count(); i++)
 		{
 			finals[side].append(solver.final[side].get_element(i));
+			final_reversed[side].append(solver.final_reversed[side].get_element(i));
 		}
 		changed[side] = solver.final[side].get_count() != shadow[side].get_count();
 		for (uint32 i = 0; !changed[side] && i < solver.final[side].get_count(); i++)
 		{
-			changed[side] = solver.final[side].get_element(i) != shadow[side].get_element(i);
+			changed[side] = solver.final[side].get_element(i) != shadow[side].get_element(i)
+				|| solver.final_reversed[side].get_element(i) != shadow[side].get_element(i)->is_reversed();
 		}
 		if (changed[side] && reversed[side])
 		{
+			vector_tpl<vehicle_t*> forward_consist;
+			vector_tpl<bool> forward_reversed;
+			for (uint32 i = 0; i < finals[side].get_count(); i++)
+			{
+				forward_consist.append(finals[side].get_element(i));
+				forward_reversed.append(final_reversed[side].get_element(i));
+			}
 			execute_reverse_order(finals[side], finals[side].get_count(), true, true);
+			reorder_reversed_flags(forward_consist, forward_reversed, finals[side], final_reversed[side]);
 		}
 	}
 	return true;
 }
 
 
-void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const bool changed[2], halthandle_t halt)
+void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const vector_tpl<bool> final_reversed[2], const bool changed[2], halthandle_t halt)
 {
 	// The recipient of each side's leftover vehicles follows that side's own
 	// end-state order: "same" means the releasing convoy's line if it has one,
@@ -11993,6 +12213,7 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		}
 	}
 
+	uint32 turn_ticks[2] = { 0, 0 };
 	for (uint8 side = 0; side < 2; side++)
 	{
 		if (!changed[side])
@@ -12003,6 +12224,13 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		for (uint32 i = 0; i < finals[side].get_count(); i++)
 		{
 			vehicle_t *const v = finals[side].get_element(i);
+			const bool chosen_reversed = final_reversed[side].get_element(i);
+			if (v->is_reversed() != chosen_reversed)
+			{
+				turn_ticks[side] += vehicle_turn_delay_ticks(v);
+				v->set_reversed(chosen_reversed);
+				v->refresh_image();
+			}
 			cnv->add_vehicle(v);
 			if (rear_gr[side])
 			{
@@ -12142,12 +12370,12 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		else if (cnv == this)
 		{
 			cnv->state = SHUNTING;
-			cnv->wait_lock = shunting_ticks;
+			cnv->wait_lock = shunting_ticks + (sint32)turn_ticks[side];
 		}
 		else
 		{
 			cnv->state = LOADING;
-			cnv->wait_lock = shunting_ticks;
+			cnv->wait_lock = shunting_ticks + (sint32)turn_ticks[side];
 		}
 	}
 }
