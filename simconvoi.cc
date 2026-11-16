@@ -927,16 +927,21 @@ void convoi_t::increment_odometer(uint32 steps)
 		player = MAX_PLAYER_COUNT + 1;
 	}
 
+	const sint64 km = steps_since_last_odometer_increment / welt->get_settings().get_steps_per_km();
+	const sint64 booked_steps = km * welt->get_settings().get_steps_per_km();
+
 	for (auto& i : departures)
 	{
-		i.value.increment_way_distance(player, steps_since_last_odometer_increment);
+		// Only the distance in whole booked kilometres: the remainder is
+		// retained in the accumulator and would otherwise be counted again
+		// at the next booking.
+		i.value.increment_way_distance(player, (uint32)booked_steps);
 	}
 
-	const sint64 km = steps_since_last_odometer_increment / welt->get_settings().get_steps_per_km();
 	book( km, CONVOI_DISTANCE );
 	owner->book_convoy_distance(km, front()->get_desc()->get_waytype(), vehicle_count);
 	total_distance_traveled += km;
-	steps_since_last_odometer_increment -= km * steps_since_last_odometer_increment;
+	steps_since_last_odometer_increment -= booked_steps;
 	koord3d pos = koord3d::invalid;
 	weg_t* weg = NULL;
 	sint32 running_cost = 0;
