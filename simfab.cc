@@ -2204,6 +2204,18 @@ sint32 fabrik_t::goods_needed(const goods_desc_t *typ) const
 				// Original just in time with industries always demanding enough goods to fill their storage but no more.
 				return ware.max_transit - (transit_internal_units + ware.menge - ware.max);
 			}
+			else if(ware.max_transit == 0)
+			{
+				// A zero limit on goods in transit means that the limit is
+				// disabled (maximum_intransit_percentage is zero), and
+				// calc_max_intransit_percentages then leaves max_transit at
+				// zero. The just-in-time rules for 2, 3 and 4 compute their
+				// demand from max_transit, so they would demand nothing and the
+				// factory would never dispatch freight. Demand the consumer's
+				// free storage instead, as the classic rule does. Just in time
+				// 1 has its own formula above and is deliberately unchanged.
+				return ware.max - ware.menge;
+			}
 			else if(welt->get_settings().get_just_in_time() == 2 || welt->get_settings().get_just_in_time() == 3)
 			{
 				// Modified just in time, with industries not filling more of their storage than they are likely to need.
