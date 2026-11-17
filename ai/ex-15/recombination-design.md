@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, cargo continuity, through-wagon model, flash-load credit, optional slots and loaded/empty rules)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -128,35 +128,37 @@ Code constraints (packet model, per-leg revenue and the `calc_revenue` cross-sch
 convoy-level loading), realism constraints, candidate shapes and all sub-questions:
 [cargo-continuity](recombination-design/cargo-continuity.md).
 
-The discharge boundary is decided: a vehicle that remains in a scheduled consist keeps its load,
-and a vehicle that becomes loose stock is physically discharged at the stop. The boundary, its
-path-explorer consequences and the play-testing caveat are in
-[cargo-continuity](recombination-design/cargo-continuity.md). The discharge is intended to be an
-accounting step only for a loose vehicle, which is treated as never having been unloaded (see
-"Loading while stock is loose" below). [RECOLLECTION:2026-11-13 and 2026-11-14 user statements]
+The discharge boundary is decided from the final consist. A vehicle in a scheduled consist keeps its
+load. A detached loaded wagon waiting in the loose pool also keeps its through cargo; this is the
+through-wagon model, and the wagon is the unit of collection [RECOLLECTION:2026-11-17 user decision].
+Packets for the stop itself are delivered there. The existing load stays outside halt capacity,
+overcrowding and waiting-time rules; on collection the normal halt loader supplies new freight only
+then, and that new freight is subject to the halt rules. The existing load receives no loading credit;
+the credit applies only to cargo loaded at collection. Route repair, the loading-time credit and the
+through fare record are specified in [cargo-continuity](recombination-design/cargo-continuity.md).
 
-### Loading while stock is loose
+### Flash-load credit at collection
 
-The 2013 discussion identified both the need to preload goods wagons before a passing train
-collects them and the impossibility of knowing their future service while they remain loose
-[FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.html]. Preloading means loading
-cargo into a loose vehicle at the stop before the convoy that will collect it arrives. The intended
-resolution of the loose-stock case is that the discharge boundary is physically applied but treated
-as an accounting step only: a loose vehicle is treated as never having been unloaded. Its packets
-stay associated with the vehicle, cargo arriving at the stop may be loaded into it in advance, and
-its recorded arrival time supplies retrospective loading credit when a convoy collects it: that is,
-the collection is charged as the vehicle's loading operation rather than as an extra wait, subject
-to the intersection rule in [remote-implications](recombination-design/remote-implications.md) A8
-[FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html]. The path explorer keeps
-its current two-case model (a vehicle in a scheduled consist, or a vehicle that becomes loose
-stock); these mechanisms adjust the implications of the discharge instead of adding a
-loaded-loose-wait case to the explorer. This treatment is not implemented; it is the next work on
-this subject and is not a consequence of the discharge boundary itself.
-[RECOLLECTION:2026-11-14 user statement]
+Physical preloading is not used: a loose empty wagon stays empty; until collection, freight that has
+arrived for it remains in the halt. `convoi_t::hat_gehalten` measures the earliest `arrival_time` of
+the cargo actually loaded while processing the collecting convoy. The loading credit is the smaller
+of that load's ordinary contribution to `convoi_t::current_loading_time` (the difference between
+`calc_current_loading_time` with that amount and with zero) and the time between collection and
+`max(wagon_loose_since, earliest_cargo_arrival_time)`. The wagon becomes available at
+`collection_loose_since`, the tick at which it entered loose stock, which is later than the
+laid-over convoy's `arrival_time` when the wagon joined an existing convoy. Negative intersections
+clamp to zero, credits from separate loaded amounts are added only for their respective normal
+contributions, and the subtraction from `current_loading_time` is floored at zero. The Same, Any and
+named recipient choices do not alter this calculation.
 
-Whether preloading needs a general mechanism for placing new ware objects into stationary
-unscheduled vehicles, or only a bounded rule for loose vehicles awaiting a named collector, is part
-of that work.
+Each vehicle records when it became loose, including when it joins an older laid-over convoy.
+The pending collection data are saved because a counterpart in a paired exchange can load after its
+shunting interval. In an ordinary asynchronous pool collection the load occurs in the same
+stop-processing call, and clearing the pending marker after that calculation prevents a second
+credit on subsequent loading passes.
+The path explorer is not changed for this credit: routing still describes a loose-stock handover,
+not a new class of edge. See [remote-implications](recombination-design/remote-implications.md) for
+why late-arriving cargo must not inherit the wagon's entire standing time.
 
 ### Multi-player consists: current model
 
@@ -320,9 +322,9 @@ The agreed ordering constraints are:
 
 The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
 
-1. Composition is settled (2026-11-03). Resolve the cargo/instance and exchange-failure questions
-   sufficiently to specify the divided-portion behaviour. Preloading plus retrospective loose-stock
-   loading credit is confirmed as the intended treatment (2026-11-14); its exact rule remains open.
+1. Composition is settled. Freight forwarding uses per-vehicle through-departure records, and
+   optional-slot, load-state and recipient rules govern pickup. Cargo retains its fare history and
+   loose-stock wait time is used only by the documented collection-loading credit.
 2. Implement division and schedule hand-over, including reversal, tile re-reservation and the
    per-portion check. (Implemented: the check is the editor's list verdict.)
 3. Implement the paired exchange, failure behaviour and deadlock avoidance, while preserving the
@@ -372,21 +374,23 @@ the realised scripted cases and their assertions are in the same doc.
   network join's save/transfer/reload and a fresh offline load (2026-11-14). Remaining: wait-cycle
   detection longer than a direct pair, and the GUI authoring-time pre-check (designed but not
   brought into the knowledge base). The no-timeout decision for an absent named target is settled.
-- **Loose-stock loading:** the recorded direction is preloading plus retrospective loading credit: a
-  loose vehicle is treated as never having been unloaded, and its recorded arrival time supplies
-  loading credit when a convoy collects it (see "Loading while stock is loose").
-  [RECOLLECTION:2026-11-14 user statement] Open details: the exact credit rule (A8 in
-  [remote-implications](recombination-design/remote-implications.md) requires the intersection of
-  cargo-present and suitable-capacity-available time), whether the mechanism is general or bounded
-  to loose vehicles awaiting a named collector, and the interaction with the discharge boundary
-  after play testing.
-- **Recipient model:** the 2018 proposal allowed a list of lines/convoys eligible to collect loose
-  vehicles; the current data model stores one recipient (or Same/Any), and the single-order pickup
-  honours it. Decide whether one recipient is sufficient for the required pickup-goods and
-  through-carriage operations [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html].
+- **Loose-stock loading:** cargo is not moved into a loose wagon before collection. Loaded stock
+  retains its existing through packets under the through-wagon model, and that existing load receives
+  no loading credit. The normal collection loading pass supplies new freight with the
+  intersection-based credit described under "Flash-load credit at collection"; the Same, Any and
+  named recipient modes use the same credit. Halt capacity and ordinary waiting rules apply to
+  freight waiting in the halt before collection, not to the existing load aboard the wagon.
+  [RECOLLECTION:2026-11-17 user instruction]
+- **Recipient model:** each loose vehicle has one recipient, or Same/Any rather than a list
+  [RECOLLECTION:2026-11-17 user instruction]. Both pool pickup and the paired receiver honour it.
+  The halt Vehicles tab permits bulk edits to Same, Any, a line or a convoy using a
+  `tool_change_convoi_t` network command, and states whether the wagon is waiting loaded or empty.
+  Explicit Same keeps the resolved releasing line or convoy; Any uses a flag in the existing
+  recipient byte and retains that identity so the editor can restore Same without a new save field.
+  This does not make an existing legacy Any item recover an identity that was never saved.
   The path explorer does not read the recipient setting when it generates a through connexion, so it
-  can offer a journey through a later service that is not allowed to collect the vehicle; the
-  explorer's treatment of the recipient needs a decision.
+  could offer a journey through a later service that is not allowed to collect the vehicle. Whether to
+  exclude such candidates by constructor-time recipient data remains an open question.
 - **Asynchronous dwell:** does measured through dwell include the full wait for a later collecting
   service, and how is it reconstructed before measurements exist? Do not silently charge either
   only the global shunting delay or an ordinary second wait plus walking transfer.

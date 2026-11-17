@@ -30,6 +30,7 @@
 #include "halthandle_t.h"
 
 #include "simconst.h"
+#include "simdeparture.h"
 
 #include "obj/simobj.h"
 #include "convoy.h"
@@ -153,93 +154,6 @@ public:
 	* @author prissi
 	*/
 	sint64 go_on_ticks;
-
-	struct departure_data_t
-	{
-	public:
-		/**
-		  * Departure time in internal ticks
-		  */
-		sint64 departure_time;
-
-		/**
-		* Accumulated distance since the convoy departed from
-		* this stop, indexed by the player number of the way
-		* over which the convoy has passed. If the way is
-		* ownerless, it is recorded as belonging as being
-		* MAX_PLAYER_COUNT + 1.
-		*
-		* accumulated_distance_since_departure[MAX_PLAYER_COUNT]
-		* is a special value for overall distance, demoninated
-		* in a different unit to the others, which others are
-		* demoninated in steps
-		*/
-	private:
-		uint32 accumulated_distance_since_departure[MAX_PLAYER_COUNT + 2];
-
-	public:
-
-		departure_data_t()
-		{
-			departure_time = 0ll;
-			init_distances();
-		}
-
-		/**
-		 * Method for adding the total distance at intermediate halts
-		 */
-		void add_overall_distance(uint32 distance)
-		{
-			accumulated_distance_since_departure[MAX_PLAYER_COUNT] += distance;
-		}
-
-		/**
-		 * Method to get the overall distance. This should be the basis
-		 * for measuring the total revenue.
-		 */
-		uint32 get_overall_distance() const
-		{
-			return accumulated_distance_since_departure[MAX_PLAYER_COUNT];
-		}
-
-		uint32 get_way_distance(uint8 index) const
-		{
-			return accumulated_distance_since_departure[index];
-		}
-
-
-		/**
-		 * Method to increment by one the distance recorded as
-		 * travelled by a vehicle over a particular way, indexed
-		 * by the player ID of the way. This is used for revenue
-		 * apportionment.
-		 */
-		void increment_way_distance(uint8 player, uint32 steps)
-		{
-			accumulated_distance_since_departure[player] += steps;
-		}
-
-		/**
-		 * Method for setting values in the array ab initio.
-		 * Used when loading from a saved game only.
-		 */
-		void set_distance(uint8 index, uint32 value)
-		{
-			accumulated_distance_since_departure[index] = value;
-		}
-
-		/**
-		 * Method for initialising the value of the overall
-		 * distances to zero
-		 */
-		void init_distances()
-		{
-			for(int i = 0; i < MAX_PLAYER_COUNT + 2; i ++)
-			{
-				accumulated_distance_since_departure[i] = 0;
-			}
-		}
-	};
 
 // BG, 31.12.2012: virtual methods of lazy_convoy_t:
 private:
@@ -1307,7 +1221,7 @@ public:
 	void laden();
 
 	// Unloads the payload from a single vehicle in this consist
-	uint16 unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_lay_over);
+	uint16 unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_lay_over, bool recombination_pass = false, bool destinations_only = false);
 
 	// Book fuel consumption of individual vehicles
 	void book_fuel_consumption();
@@ -1542,7 +1456,7 @@ public:
 	uint32 calc_longest_max_loading_time();
 
 	uint32 calc_current_loading_time(uint16 load_charge);
-	inline uint16 get_current_loading_time() const { return current_loading_time; }
+	inline uint32 get_current_loading_time() const { return current_loading_time; }
 
 	koord3d get_checked_tile_this_step() const { return checked_tile_this_step; }
 	void set_checked_tile_this_step(koord3d value) { checked_tile_this_step = value; }
@@ -1578,7 +1492,7 @@ public:
 	 * players based on track usage.
 	 * @author: jamespetts, neroden, Knightly
 	 */
-	sint64 calc_revenue(const ware_t &ware, array_tpl<sint64> & apportioned_revenues, uint8 g_class);
+	sint64 calc_revenue(const ware_t &ware, const vehicle_t *v, array_tpl<sint64> & apportioned_revenues, uint8 g_class);
 
 	uint16 get_livery_scheme_index() const;
 	void set_livery_scheme_index(uint16 value) { livery_scheme_index = value; }
@@ -1811,12 +1725,47 @@ public:
 		// the convoy has no vehicles.
 		bool get_recombination_contact_point(koord3d &pos, sint16 &steps) const;
 
-		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy);
+		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same);
 
 		// Carry out the current entry's consist order, exchanging with the given
 		// coupling target (unbound: assemble from the stop's pool). Sets SHUNTING
 		// when the consist changes.
 		consist_order_process_result process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr);
+
+		// The departure data for the last call at the given stop in this
+		// convoy's schedule, walking backwards from the current stop. Returns
+		// false when the stop is not on the schedule or has not been departed.
+		bool get_departure_data_for_halt(halthandle_t halt, departure_data_t &dep) const;
+
+		// Give a vehicle that is about to leave this convoy a through journey
+		// record for each boarding stop in its cargo that has none. Called
+		// before removal so the distance and per-player way distances travelled
+		// in this convoy are not lost.
+		void capture_through_departures(vehicle_t *v);
+
+		// True when this convoy's remaining schedule can take the packet from
+		// the given stop to its next transfer or destination, or can deliver it
+		// at that stop. Used to keep through cargo from being carried past a
+		// stop by a convoy that does not serve it.
+		bool serves_packet_from_stop(const ware_t &w, halthandle_t stop) const;
+
+		// True when every packet aboard the vehicle has a continuation on this
+		// convoy's schedule from the given stop. A vehicle that fails this test
+		// must not be taken into the consist with its load.
+		bool vehicle_cargo_is_served(const vehicle_t *v, halthandle_t halt) const;
+
+	public:
+		// Repair a packet's next transfer to the first later stop on this
+		// convoy's schedule that serves its planned transfer or destination.
+		// Returns false when neither is served. Does not change last_transfer.
+		bool repair_packet_route(ware_t &ware, halthandle_t stop) const;
+
+	private:
+		// Unload cargo left at the stop by a recombination. Scheduled consists
+		// repair onward routes first and discharge only a packet that arrives here
+		// or has no continuation. Newly loose stock has no carrier yet, so only
+		// cargo whose final destination is this stop is discharged.
+		uint16 unload_cargo_for_stop(halthandle_t halt, bool newly_loose = false);
 
 		// A couple order whose target does not resolve has a broken target: log
 		// the error and leave the order unexecuted. It is never assembled from

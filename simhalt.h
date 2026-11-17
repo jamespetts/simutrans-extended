@@ -956,6 +956,47 @@ public:
 	void liefere_an(ware_t ware, uint8 walked_between_stations = 0);
 	void starte_mit_route(ware_t ware, koord origin_pos);
 
+	/**
+	 * Adds a normal cargo packet to this halt's waiting list. This is the
+	 * implementation behind halt_x.add_cargo and exists for scenario setup:
+	 * the caller supplies the packet's routing and arrival state directly,
+	 * including the arrival time, which is preserved. The packet is saved and
+	 * loaded with the halt's ordinary cargo.
+	 *
+	 * The packet is not merged with an existing packet, so repeated calls
+	 * create separate packets with their own arrival times.
+	 *
+	 * A scenario script runs on the server only. This method is not a network
+	 * command, so it must not be called while a network client is connected:
+	 * the client would not apply the change. halt_x.add_cargo enforces this.
+	 *
+	 * @param desc goods type; must not be NULL
+	 * @param amount quantity in goods units; must be positive
+	 * @param ziel ultimate destination halt; must bound and accept the category
+	 * @param zwischenziel halt at which the packet must leave its next convoy;
+	 *                    if unbound, ziel is used
+	 * @param arrival_time tick at which the packet arrived at this halt
+	 * @param origin halt at which the journey began; if unbound, this halt is
+	 *               used, which books the handling volume at the first carrier
+	 * @param zielpos delivery position, normally a factory position; if
+	 *                koord::invalid, the destination halt's basis position is
+	 *                used
+	 * @param g_class passenger or mail class; zero for goods
+	 * @returns false if the arguments cannot produce a valid packet
+	 */
+	bool add_cargo(const goods_desc_t *desc, uint32 amount, halthandle_t ziel, halthandle_t zwischenziel, sint64 arrival_time, halthandle_t origin, koord zielpos, uint8 g_class);
+
+	/**
+	 * Discards all waiting and transferring cargo at this halt. Factory transit
+	 * statistics are decremented for each discarded packet, as in the halt
+	 * destructor, and no revenue or refund is booked. This is the implementation
+	 * behind halt_x.clear_cargo and exists for deterministic scenario setup.
+	 *
+	 * This method is not a network command; the same network restriction as for
+	 * add_cargo() applies.
+	 */
+	void clear_cargo();
+
 	const grund_t *find_matching_position(waytype_t wt) const;
 
 	/**

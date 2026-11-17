@@ -23,6 +23,8 @@
 #include "components/gui_container.h"
 #include "components/action_listener.h"
 #include "components/gui_button.h"
+#include "components/gui_combobox.h"
+#include "../convoihandle_t.h"
 
 class player_t;
 class gui_halt_waiting_indicator_t;
@@ -102,13 +104,32 @@ public:
 };
 
 // The loose vehicles stored at a stop: the layover pool that consist orders draw on
-class gui_halt_loose_vehicles_t : public gui_aligned_container_t
+class gui_halt_loose_vehicles_t : public gui_aligned_container_t, private action_listener_t
 {
 	halthandle_t halt;
 
 	uint32 cached_signature;
 
+	struct loose_vehicle_ref_t
+	{
+		convoihandle_t convoy;
+		uint16 index;
+	};
+	struct recipient_choice_t
+	{
+		uint8 kind; // 0 Same, 1 Any, 2 line, 3 convoy
+		uint16 id;
+	};
+	vector_tpl<loose_vehicle_ref_t> vehicle_refs;
+	vector_tpl<button_t *> vehicle_selectors;
+	vector_tpl<recipient_choice_t> recipient_choices;
+	gui_aligned_container_t vehicle_rows;
+	gui_combobox_t recipient_selector;
+	button_t bt_select_all;
+	button_t bt_apply_recipient;
+
 	void update_vehicles();
+	void apply_recipient();
 
 public:
 	gui_halt_loose_vehicles_t(halthandle_t halt = halthandle_t());
@@ -116,6 +137,7 @@ public:
 	void init(halthandle_t halt);
 
 	void draw(scr_coord offset) OVERRIDE;
+	bool action_triggered(gui_action_creator_t *comp, value_t value) OVERRIDE;
 };
 
 class gui_halt_route_info_t : public gui_world_component_t

@@ -134,6 +134,8 @@ class gui_vehicle_description_element_t : public gui_aligned_container_t, privat
 
 	gui_colorbox_t state_prev, state_next;
 	button_t bt_can_empty;
+	button_t bt_optional;
+	gui_combobox_t load_selector;
 	button_t bt_add_rule;
 	gui_label_buf_t lb_catg;
 	gui_label_t *rule_header = nullptr;

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit)
 ---
 # Consist recombination
 
@@ -55,9 +55,16 @@ contact tile.
   vehicles.
 - **Laid-over pool / loose stock.** Convoys in `LAYOVER` at the stop; their vehicles are loose stock
   available to a targetless order and, for the receiver only, to a paired exchange.
-- **Discharge boundary.** A vehicle that remains in a scheduled consist keeps its load; a vehicle that
-  becomes loose stock is discharged at the stop. The decision, including the intended loose-stock
-  preloading and retrospective loading credit, is in
+- **Discharge boundary.** A vehicle that remains in a scheduled consist keeps its load. A loaded
+  vehicle detached as loose stock also keeps its through cargo: this is the through-wagon model, in
+  which the wagon is the unit of collection. Cargo destined for the detaching stop is delivered
+  there. The existing load receives no loading credit, is outside halt capacity and waiting rules,
+  and the collecting convoy must serve every packet aboard. At collection, the packet's
+  `zwischenziel` (its next transfer stop) is repaired to the first later scheduled stop that serves
+  its planned transfer or destination, without changing `last_transfer` (the boarding halt used for
+  fare distance). An explicit `discharge_payload` entry is a full discharge: it delivers the packets
+  to the halt and books the fare at that stop, so it is not the flash-load credit model. The
+  loading-time credit, storage consequence and fallback rules are in
   [cargo-continuity](ex-15/recombination-design/cargo-continuity.md).
 
 ## What the player authors
@@ -108,7 +115,7 @@ convoy. The available vehicles are the convoy's own plus the stop's laid-over co
 waytype. (The depot branch in `process_consist_order` is dead: `hat_gehalten` always passes no depot.)
 The order is matched against those vehicles and committed with `convoi_t::commit_recombined_consist`.
 This is also the path of a plain uncouple (`uncouple` with target id 0): the displaced vehicles are
-discharged and laid out as loose stock.
+laid out as loose stock, retaining through cargo under the discharge boundary above.
 
 ### One-sided receive
 
@@ -156,6 +163,14 @@ chosen for each vehicle, deduplicates a vehicle already used in an earlier slot,
 result only when it is complete and powered. It does not backtrack; the paired exchange uses the
 joint solver instead.
 
+`consist_order_element_t::optional` permits a slot to be unfilled at any position; this is distinct
+from `vehicle_description_element::empty`, which makes a rule-based alternative a wildcard. The
+optional-slot matcher searches filled slots in their authored order, tries to fill optional slots
+first, applies the front/rear constraints to the actual chosen ends, and keeps mandatory vehicles such
+as a rear brake vehicle. The paired solver likewise searches optional-slot omissions. A slot
+alternative's `load_requirement` can demand `get_total_cargo() > 0`, demand zero cargo, or permit
+either state, in both matchers.
+
 The single-order matcher (`convoi_t::process_consist_order`) and the joint solver
 (`paired_exchange_solver_t`) choose an orientation for every vehicle they place. A candidate is
 tried in its current `is_reversed` orientation first; if it is bidirectional and that orientation
@@ -169,11 +184,12 @@ powered or `settings_t::get_turntable_reverse_time()` when it is hauled to the s
 editor's list verdict is facing-neutral because it cannot know which vehicle another consist will
 supply or which way round that vehicle will be; the runtime resolves that choice.
 
-`convoi_t::commit_recombined_consist` moves, substitutes, adds and removes vehicles, unloads the
-displaced vehicles that become loose stock (including a vehicle substituted out of the consist),
-and creates a laid-over convoy for the rest. For a
-division, the discharge of the split candidate is deferred until `form_divided_portion` fails, so a
-promoted portion keeps its load. When the receiver is the shared-contact mover and its route ends at
+`convoi_t::commit_recombined_consist` moves, substitutes, adds and removes vehicles and creates a
+laid-over convoy for the displaced vehicles. It delivers cargo whose destination is the stop, repairs
+the route of packets that will travel onward, and retains through cargo in vehicles that become loose
+stock (including a vehicle substituted out of the consist). A `discharge_payload` entry forces a full
+discharge. For a division, delivery in the split candidate is deferred until `form_divided_portion`
+has assigned its target schedule. When the receiver is the shared-contact mover and its route ends at
 the joining convoy's contact tile, the commit records both consists' vehicle positions before
 detaching them and lays the final groups out on those slots with `vehicle_t::set_layout_position`: the
 joining convoy's remainder in the front slots, the receiver's final consist behind it and loose stock
@@ -181,8 +197,8 @@ behind that. The joining convoy releases and re-takes its reservations around th
 unreserves the receiving convoy's reservations and calls `convoi_t::reserve_own_tiles()`;
 `convoi_t::form_divided_portion` removes the promoted portion from and re-adds it to `welt->sync`.
 
-`convoi_t::commit_paired_exchange` handles both sides of a pair atomically: only vehicles that leave
-both final consists are discharged and laid out as loose stock; direct transfers keep their load; a
+`convoi_t::commit_paired_exchange` handles both sides of a pair atomically: vehicles that leave both
+final consists keep through cargo when they are laid out as loose stock; direct transfers keep their load; a
 laid-over donor emptied by the exchange is deregistered and destroyed. A changed convoy waits out
 `shunting_time_seconds`; an unchanged consist is not detached or repopulated. A changed counterpart
 waits in `LOADING` under the same lock so that its new consist loads after the delay. When the
@@ -269,9 +285,9 @@ runners, the cadence and the planned coverage — is in
 
 This feature set is incomplete. The runtime design, the resolved decisions and the remaining open
 questions are maintained in [ex-15/recombination-design](ex-15/recombination-design.md) and
-[ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The main outstanding items are
-freight/passenger continuity (including the intended loose-stock preloading and retrospective
-loading credit), wait-cycle detection beyond a direct pair, and the off-map pool package. The
+[ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). The main outstanding items are wait-cycle detection beyond a direct pair and the off-map pool
+package. Pick-up goods forwarding, loading credit, loaded/empty slot predicates and optional slots are
+implemented; their exact fields and scripted cases are in the linked design and testing documents. The
 runtime chooses a joining vehicle's facing for a bidirectional vehicle: a candidate is tried in its
 current orientation first, then the other way round. An order is not limited by the orientation in
 which another consist presents that vehicle. Whether the runtime should turn a vehicle only where

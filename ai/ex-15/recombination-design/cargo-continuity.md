@@ -1,240 +1,178 @@
 ---
 status: draft
-verified: ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); discharge boundary decided and implemented 2026-11-13; intended loose-stock treatment recorded 2026-11-14; substitution discharge 2026-11-16 at ex-15 @ 9fdefa153
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, through-wagon model, collection credit and optional slots)
 ---
-# ex-15: re-combination — cargo and passenger continuity
+# ex-15: re-combination - cargo and passenger continuity
 
 **Covers:** how passengers, mail and freight are handled when vehicles move between consists at a
-split or join; the instance-identity decision (which physical vehicle enters which portion); and the
+split or join; the instance-identity decision (which physical vehicle enters which portion); and
 fare/revenue consequences. Parent: [recombination-design](../recombination-design.md); journey-time
 recording across boundaries: [yh-path-explorer](../yh-path-explorer.md). Untagged claims are [CODE]
-at the frontmatter value. The independent reviews' disputes of claims here were SETTLED by the user
-on 2026-11-03; outcomes are inline and in [remote-implications](remote-implications.md),
-*Conflicts between the two reviews*.
+at the frontmatter value. The reviews and the original proposals are retained as design constraints
+in [remote-implications](remote-implications.md); those items do not establish later implementation.
 
-## Working assumption and its status
+## No unnecessary discharge
 
-The 2018 working assumption is that cargo is rearranged internally into the correct portion at a
-split; it need not have been assigned to its eventual post-split vehicle when it first boarded. The
-path explorer must not impose a vehicle-level pre-boarding constraint
-[FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html;
-RECOLLECTION:2026-09-19]. This does not permit an alight-and-reboard model for a vehicle that
-remains in a scheduled consist: that would double-count waiting and walking transfers and run fare
-apportionment twice ([yh-path-explorer](../yh-path-explorer.md)). The exception is a vehicle that
-becomes loose stock under the discharge boundary below: under the current explorer model its load is
-discharged and reboards through the ordinary halt transfer process, and that movement is priced as
-an ordinary transfer, not as a through journey. The intended loose-stock treatment (see the
-discharge boundary below) instead treats the discharge as an accounting step only, keeping the load
-associated with the vehicle and supplying retrospective loading credit when it is collected; the
-explorer's edge model stays as it is. NOTE: the working assumption was justified in 2018 by
-implementation capacity;
-that rationale is under reconsideration and the passenger side of the continuity question is
-reopened (see Open questions) [RECOLLECTION:2026-11-03 user statement].
+A recombination first determines which vehicles remain in a scheduled consist. `convoi_t::hat_gehalten`
+defers its normal unloading pass when an entry may recombine, unless the entry is pick-up-only,
+requires a layover or requires an explicit full discharge. It then runs
+`convoi_t::process_recombination_at_stop`; delivery and route repair therefore use the final consists
+rather than discarding a through packet merely because its vehicle changed convoy.
 
-Cargo-derived vehicle selection, passenger load-by-routing, internal shuffling and fallback
-unloading/reloading were all discussed in 2018
-[FORUM:https://forum.simutrans.com/index.php/topic,17892.msg170680.html,
-https://forum.simutrans.com/index.php/topic,17892.msg170688.html].
+- Vehicles retained in the same scheduled consist, transferred directly between scheduled consists,
+  or promoted to a Y division's target schedule keep their cargo.
+- A loaded vehicle that becomes loose stock also keeps its through cargo. Cargo whose final
+  destination is the stop is delivered there. An entry with `schedule_entry_t::discharge_payload`
+  still discharges everything. Newly loose stock has no assigned onward carrier: `unload_cargo_for_stop`
+  uses a destination-only pass for it, so a stale next transfer at the stop does not unload it.
+  `vehicle_t::remove_stale_cargo` leaves the load of a vehicle in a laid-over convoy alone when the
+  convoy has no schedule entries, because that convoy has no schedule to check the load against; a
+  layover convoy that has a real schedule is still validated. The collecting convoy repairs the
+  route. The load therefore survives a save and reload of the loose wagon.
+- On collection, `convoi_t::repair_packet_route` examines the collecting convoy's remaining schedule.
+  It finds the first later stop that serves the packet's existing `zwischenziel` (next transfer) or its
+  `ziel` (ultimate destination), and writes that halt as the next transfer. A packet that can be
+  delivered at the collection stop is left alone. The packet's `last_transfer`, used as the boarding
+  halt for fare distance, is not changed.
+- The scheduled post-recombination pass discharges only packets whose destination or next transfer
+  is the stop, or whose continuation cannot be repaired. The latter is the ordinary halt-transfer
+  fallback: the halt can reroute them from there. Compatible loose vehicles are filtered before
+  collection by the same repaired-route predicate, so a service that cannot take the load cannot
+  carry it past the stop.
 
-## Code constraints [CODE ex-15 @ bf447619a]
+The loaded left-over wagon keeps its load: this is the **through-wagon model**
+[RECOLLECTION:2026-11-17 user decision]. The wagon is the unit of collection, and the cargo, its
+`last_transfer` and the per-vehicle `through_departures` record stay with it. The collecting convoy
+must serve every packet aboard (`convoi_t::vehicle_cargo_is_served`), and
+`convoi_t::repair_packet_route` aligns the packet's next transfer with that convoy's schedule. The
+model is a design decision, not a forum requirement: the 2018 discussion describes left-over vehicles
+as dormant units available to other convoys and says they do not load while laid over, but it does not
+say whether a vehicle that is already loaded is emptied
+[FORUM:https://forum.simutrans.com/index.php/topic,17852.msg170134.html]. The 2013 goods example
+describes an empty wagon whose goods wait at the stop, which is the flash-load case; it does not settle
+the loaded wagon [FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.html].
 
-- Cargo packets (`ware_t`) carry final destination, next transfer (`zwischenziel`), origin,
-  `last_transfer` (boarding halt, used for revenue distance), class and comfort preference — no
-  per-vehicle binding, no accumulated fare history. Unloading runs before consist processing in
-  `hat_gehalten`, so only through traffic is aboard when a split executes.
-- Revenue is recognised per leg when a packet leaves a convoy: `convoi_t::calc_revenue` computes
-  from `last_transfer` plus the delivering convoy's recorded distance/time for the leg, with class
-  capped by `class_reassignments` (the existing en-route downgrade mechanism). `calc_revenue`
-  searches the delivering convoy's own schedule for the boarding halt; for a through journey across
-  a split the boarding halt is on the pre-split schedule, so the lookup fails and revenue falls
-  back to a crude distance estimate. **Any stay-aboard design must fix this** — it is required
-  work in the continuity package under every variant. SETTLED 2026-11-03 [RECOLLECTION:2026-11-03
-  user statement]: where the consist is scheduled through, a journey using the through movement is
-  always priced as a through fare — alight-and-reboard pricing is decisively wrong. How the
-  through fare is computed and apportioned across portions and operators (fix the cross-schedule
-  lookup vs compute-and-apportion per leg, Railway Clearing House mileage style) remains an open
-  booking-model decision (remote-implications R4/A1/A7).
-- Minimum-loading stipulations are convoy-level (`convoi_t::loading_level` is the aggregate fill
-  percentage; `loading_limit` comes from the entry's `minimum_loading`). Destination-grouped
-  loading interacts with them via convoy-level capacity fragmentation, not per-wagon fill levels.
-- Loading at arrivals (`fetch_goods`/`load_cargo`) is absent from the measured hotspot profile
-  (gargantuan fixture, 2026-09-10; [performance](../../performance.md)); the nearest measured cost
-  is halt cargo handling (`check_transferring_cargoes` ~2.6% self), which is what junction
-  fallbacks would feed. No profile of a recombination-heavy world exists, so benchmark rather than
-  assume.
-- Loading already decides per packet, not per convoy: `haltestelle_t::fetch_goods` heap-sorts the
-  category's waiting packets by arrival time (three class passes), then walks the convoy's
-  remaining schedule (per-entry halt cache) to check the convoy serves each packet's next transfer
-  or destination, and compares this convoy's arrival time against alternatives. Vehicles are filled
-  in consist order with no destination grouping within a wagon beyond `mixed_load_prohibition`
-  (goods type only). A grouping rule is therefore a local filter added to this existing selection,
-  not new machinery (see "Grouped loading — refined scope" below); its scan cost at busy hubs must
-  be benchmarked. [Review B P4/P5 qualification: "local filter" understates it — loading re-runs
-  every step while a convoy is in the LOADING state, and cross-schedule continuation derivation
-  grows with joins and nested divides; see
-  [remote-implications](remote-implications.md).]
+The through-wagon model has three consequences. First, the existing load receives no loading credit:
+`convoi_t::hat_gehalten` applies the credit only to cargo loaded into the vehicle at the collection
+stop, not to cargo that never left it. Second, the cargo is outside the halt: halt capacity,
+overcrowding and waiting-time discard do not apply, and the wagon is the storage.
+[remote-implications](remote-implications.md) A3 identifies this as penalty-free storage and favours
+"unload unless a named recipient serves them" for loaded loose wagons. Third,
+`schedule_entry_t::discharge_payload` is not the flash-load
+alternative: it calls `vehicle_t::unload_cargo` with `discharge_all`, which delivers the packets to
+the halt, books the fare for the completed leg and makes them ordinary halt cargo. The named-recipient
+hybrid recorded as the follow-up would keep the load only when a named line or convoy is the expected
+collector, and otherwise discharge the cargo without booking a fare and flash-load it with its
+through record preserved.
 
-## Realism constraints [RECOLLECTION:2026-11-03 user statement]
+The one-vehicle-at-a-time receiver-side changes apply equally to passengers, mail and goods.
+Passenger portion grouping and passenger-capacity allocation remain separate open design questions;
+this mechanism does not silently supply a passenger grouping model.
 
-- Physically unloading and re-boarding costs time even for passengers (minutes, against a minute
-  or two for an uncouple) and consumes waiting capacity at the divide stop; walking through a
-  gangwayed train en route is free. The design must distinguish the two, not price them alike.
-- If the through portion is full, either would-be through passengers are not boarded at the origin
-  (portion-aware capacity at loading) or the excess is discharged at the divide (junction halt
-  capacity/overcrowding consequences, including the existing overcrowd-discard-with-refund path in
-  `vehicle_t::unload_cargo`). SETTLED 2026-11-03 (Review B R7 correct): portion capacity is
-  statically knowable only where the orders use fixed single-vehicle slots; slot alternatives/rules
-  make capacity a range and instance-dependent even without external joins, so static boarding
-  gating covers only the fixed-slot case.
+## Through-leg revenue history
 
-## Discharge boundary — DECIDED
+Each vehicle can carry a sparse `vehicle_t::through_departures` vector. An entry has the packet's
+boarding halt identity, a `history_known` flag and a `departure_data_t` record containing elapsed
+distance and per-player way distances. Only a loaded vehicle leaving a convoy needs these records.
+`convoi_t::capture_through_departures` takes them from the existing departure data before removal,
+including the distance on the current leg. If the convoy has no usable departure history for the
+boarding halt, a valid zero-distance record can be created only while the vehicle is still at that
+halt. Otherwise no record is added, rather than treating an incomplete history as complete.
 
-A vehicle that leaves a consist during a re-combination has two possible outcomes:
+`convoi_t::laden` advances the overall distance on each vehicle that has such a record. The ordinary
+`increment_odometer` path advances its per-player distances in the same whole-kilometre increments as
+the convoy's existing departure records. Records are pruned when the corresponding packets leave the
+vehicle. They are serialised per vehicle at Extended 15 revision 16.
 
-- It remains in a **scheduled consist**: the receiver's post-exchange consist, the target's retained
-  consist, or a Y division's split-off portion that `convoi_t::form_divided_portion` promotes to a
-  schedule. Such a vehicle keeps its load. A passenger, mail packet or goods packet aboard it stays
-  aboard, and [yh-path-explorer](../yh-path-explorer.md) records the movement as a through
-  connexion.
-- It becomes **loose stock**: it appears in neither final consist and is left at the stop in a
-  laid-over convoy. Such a vehicle is **physically discharged** at the stop. Under the current
-  runtime treatment its passengers, mail and goods join the ordinary halt transfer process, and the
-  path explorer prices the movement as an ordinary transfer rather than a through connexion. The
-  intended treatment of that discharge is set out after the boundary below: the vehicle is treated
-  as never having been unloaded.
+`convoi_t::calc_revenue` receives the unloading vehicle. It first tries a usable matching through
+record; only when none is available does it search the delivering convoy's own schedule as before.
+No through packet is booked as a completed leg merely because its vehicle detaches at an intermediate
+stop or is collected, and collection itself does not change `last_transfer`. The packet is booked when
+it reaches its destination or a genuine halt-transfer fallback. Per-player apportionment uses the
+accumulated way distances, including travel before the recombination.
 
-The boundary keeps the path explorer's current two-case model: the explorer does not gain a case for
-a loaded vehicle waiting loose and later collected. Under the intended treatment the discharge is an
-accounting step only. A loose vehicle is treated as never having been unloaded: its packets stay
-associated with the vehicle and do not enter the halt transfer process, cargo arriving at the stop
-may be loaded into it in advance (preloading), and its recorded arrival time supplies retrospective
-loading credit when a convoy collects it. The explorer's ordinary-transfer edge stays in the model
-for cargo that genuinely is discharged, but it is not the path taken by a packet that remains with
-the loose vehicle. The implications of the discharge — collection eligibility, capacity, waiting
-time and fare apportionment across the collector — are adjusted by those mechanisms, not by changing
-the explorer's edge model. This treatment is not implemented; it is the next work on loose stock.
-[RECOLLECTION:2026-11-14 user statement]
+## Collection and flash-load credit
 
-The physical cost is: a goods wagon or a through carriage left in a siding is emptied, and a
-through carriage detached for a later branch service is emptied. The intended treatment removes the
-gameplay cost by treating the vehicle as never having been unloaded, so the through journey
-continues when the vehicle is collected. **The discharge boundary itself may need reconsideration
-after play testing**, but preloading and retrospective loading credit are the
-recorded direction for the loose-stock work. Implementing it requires the identity of the convoy
-that collects the vehicle, the recorded arrival time, capacity and access checks at collection, and
-fare apportionment across that collector; these are that work package, not a reason to add a
-loaded-loose-wait edge to the explorer.
+Physical preloading is deliberately absent: no new cargo is moved into a loose wagon while it waits.
+The halt therefore continues to charge capacity and apply its ordinary overcrowding and waiting rules
+to freight that will be loaded later. To collect an empty wagon, the targetless order uses optional
+slots; `vehicle_description_element::load_requirement` can refuse loaded wagons, require loaded
+wagons, or accept either state. The recipient setting governs only collection eligibility and does
+not change loading treatment.
 
-The boundary is implemented for both runtime paths. The Y division defers the discharge of the
-vehicles displaced into the split candidate: `convoi_t::commit_recombined_consist` skips
-`convoi_t::unload_individual_vehicle_at(..., true)` while a split candidate is being collected, and
-`convoi_t::form_divided_portion` discharges the portion only when the target order cannot be
-completed or the result is unpowered. A promoted portion therefore keeps its load. A paired exchange
-discharges only the vehicles that leave both final consists; a vehicle transferred directly between
-the two convoys keeps its load. On the single-order path, a vehicle substituted out of the consist
-is discharged like a removed one, because it too becomes loose stock; a split candidate defers its
-discharge in the same way that it defers the discharge of the vehicles displaced by a division.
-[RECOLLECTION:2026-11-13 user statement]
+`collection_loose_since` records the tick at which each vehicle enters loose stock, either on a
+recombination or on entry to a scheduled layover. The per-vehicle value remains correct when a wagon
+is added to an existing laid-over convoy whose `arrival_time` is older. A pre-revision-17 save has no
+such value; collection then falls back to the donor convoy's `arrival_time`.
+The collection tick is captured separately when the vehicle moves into the collecting convoy.
+Collection code handles Same, Any and named recipients alike. A vehicle's recipient is saved with the vehicle
+(`vehicle_t::rdwr_from_convoi`, Extended 15 revision 3 and later): the stored line or convoy id and the flag byte
+that distinguishes a convoy from a line, Same, and an explicit Any override.
 
-## Grouped loading — refined scope [RECOLLECTION:2026-11-03 user statement]
+For each ordinary loading call that adds freight to a collected empty wagon, the code records the
+earliest `ware_t::arrival_time` among the packets actually added, without a separate scan of the
+vehicle's pre-existing load. It computes:
 
-The grouping rule is narrower than "one next transfer per wagon":
+- the load's ordinary time contribution as `calc_current_loading_time(amount) -
+  calc_current_loading_time(0)`, using the existing convoy capacity interpolation and longest
+  vehicle loading times;
+- the available interval as `collection_time - max(wagon_loose_since, earliest_cargo_arrival_time)`,
+  clamped at zero; and
+- the credit as the smaller of that ordinary contribution and the available interval.
 
-- It applies only when the consist's schedule contains a divide at which the packet would still be
-  aboard. Packets that leave at or before the divide are neutral filler and may share any wagon.
-  SETTLED 2026-11-03 (Review B R9 correct): a schedule with no divide is unaffected only if there
-  is also no downstream divide after its joins — a feeder with no divide of its own can load wagons
-  that a later main-line train splits, and the constraint cannot be applied upstream (which onward
-  train a wagon will join is unknowable), so upstream-loaded mixed wagons raise the
-  transhipment-fallback rate at the downstream divide.
-- The grouping key is the packet's **portion outcome at that divide** — which portion's schedule
-  serves its next transfer — not the literal next transfer. Freight for two different destinations
-  on the same portion shares a wagon freely. For a simple Y split there are at most two groups.
-  [Review B R8 qualification: "the destination is served" must mean a workable continuation
-  (direct vs circuitous vs reversed), and loads usable by *either* portion form a third class whose
-  allocation is not free.]
-- The compatibility key set is schedule-level static: it derives from the two consist orders and
-  the serves predicate and is computable once per loading event. SETTLED 2026-11-03 (Review B
-  R7/C7/P5 correct in part): portion *capacity* is instance-dependent wherever slots have
-  alternatives or capacity ranges, even without external joins; cross-schedule continuation
-  derivation grows with joins and nested divides (benchmark the derivation, not just the filter);
-  and whether service commitments/stock circulation need persistence is an open decision, not an
-  assumption of none. Also note Review B P4 [CODE verified ex-15 @ bf447619a]: loading re-runs
-  every sync step while a convoy is in the LOADING state, so "once per loading event" values need
-  explicit caching.
-- Nested divides: either group by the portion path through all future divides (same predicate,
-  finer partition, still static) or accept transhipment fallback at nested divides — sub-question.
-  [Review B R9 note: the constraint also propagates upstream, beyond the divides in this schedule.]
-- Wagons joining from another active consist at the divide may carry loads loaded under that
-  consist's schedule and may be mixed: the transhipment fallback applies to them. Wagons taken from
-  the laid-over pool are physically empty under the current implementation, because loose stock is
-  discharged at the stop. Under the intended loose-stock treatment (the vehicle is treated as never
-  having been unloaded, see the discharge boundary above), a collected wagon may carry the load it
-  held when it became loose, or cargo preloaded while it waited; the mixed-wagon rule must then
-  cover that load as well. The marshal-before-loading conclusion below is unchanged; only the set
-  of wagons that can arrive loaded grows [RECOLLECTION:2026-11-14 user statement]. SETTLED
-  2026-11-03 (Review B R9/C5 correct): marshal-before-loading is not a sufficient answer — the
-  loader itself can mix wagons the player cannot un-mix, and players must not be charged for
-  avoidable loader misallocation (the loader-competence boundary, remote-implications C5, is a
-  correctness requirement, not display polish).
-- If the target schedule changes en route, the divide-time assignment re-reads contents against
-  current data and falls back if unservable — grouping can be stale, never wrong in its favour.
+Credits are integer ticks only. They are subtracted once from `current_loading_time`, floored at zero,
+then the pending collection marker is cleared so later loading calls cannot credit the same load
+again. A partial load therefore receives only the credit for the amount added in that call. Several
+collected wagons accumulate their respective contributions. Where a paired counterpart loads only
+after its shunting interval, revision 17 saves the pending bool and the two tick values that this
+later calculation needs.
 
-Because the key is per portion-outcome (two groups in the common case) and neutral short-hop
-freight fills any wagon, capacity fragmentation shrinks from per-destination to per-portion-class.
-SETTLED 2026-11-03 (Review B C6 calibration accepted): the stall scenario is weaker, not weak —
-a skewed flow (mostly portion A traffic, small B portion) can still leave unusable space with
-convoy-level `minimum_loading` unreachable, starving both branches; the departure policy for
-partially filled multi-portion consists needs an intelligible rule.
+`convoi_t::get_current_loading_time` and the vehicle snapshots expose the resulting loading state for
+the scripted fixtures. There is no random choice and no service-specific adjustment of the credit.
+The scripted cases in `tests/pending-runtime/pickup-cases/` supply the freight with
+`halt_x.add_cargo` and declare its arrival time, so the expected credit is computed from a known
+interval rather than from factory production. The API is in
+[scripting-and-tests](../../scripting-and-tests.md); the fixture and assertions are in
+[consist-recombination tests](../../scripting-and-tests/consist-recombination.md).
+
+## Grouped loading - remaining scope
+
+The original proposals also discuss placing packets in portion-compatible vehicles before a divide.
+That is not the same as the identity and loading rules above. Current ordinary loading still fills
+vehicles in consist order and does not group by eventual portion. A mixed wagon may therefore need
+an ordinary halt-transfer fallback when its packets have incompatible continuations. Candidate
+schemes and their capacity consequences remain in the parent design and
+[remote-implications](remote-implications.md). No load-time grouping,
+portion-capacity boarding reservation or free internal rearrangement is claimed here.
 
 ## Open questions
 
-Cross-cutting implications of the options below (realism, cognitive overhead, performance,
-anomalies): [remote-implications](remote-implications.md) — R1 and R2 correct assumptions in this
-question (passengers get load-time grouping too; contiguity); R3, R4 and A2 add decisions (dwell
-classification, fare booking at coupling events, the never-carry-past invariant). Its 2026-11-03
-addendum adds R7–R10, C5–C7, A6–A8, P4–P6 and three further decisions (boarding promise policy,
-loader competence boundary, persistence for commitments/stock circulation). The six inter-agent
-conflicts generated by the two reviews were SETTLED by the user on 2026-11-03; outcomes are inline
-here and in remote-implications.md.
-
-- **Instance identity and cargo continuity** — REOPENED 2026-11-03 [RECOLLECTION:2026-11-03 user
-  statement]: the 2018 lightweight abstraction (orders assign vehicles; passenger position
-  abstracted) is not assumed for passengers. Candidate shapes: (i) full abstraction with a
-  free reshuffle at the split; (ii) contents-derived assignment for freight (a wagon follows its
-  load; unservable loads tranship at the divide) with abstraction only for passengers/mail;
-  (iii) contents-derived assignment for all vehicles, with a free en-route-walk correction for
-  passengers/mail up to the portion's capacity and genuine discharge (with its time/capacity/fare
-  costs) beyond it. Decide with freight continuity, not as a standalone vehicle-numbering feature
-  [FORUM:https://forum.simutrans.com/index.php/topic,16980.0]; any persistent marking engages the
-  savegame/network rules before implementation. The `calc_revenue` cross-schedule leg fix recorded
-  above is required under every stay-aboard variant. Sub-questions:
-
-  - the mixed-wagon/mixed-group tie-break rule (sync-relevant, must be exact);
-  - a vehicle that becomes loose stock is physically discharged at the stop, but the intended
-    treatment is that it is treated as never having been unloaded (see the discharge boundary
-    above). Whether a collecting convoy may take only loose vehicles that it can serve, and how
-    preloaded or retained loads are grouped, remain part of the loose-stock and recipient work;
-  - mandatory-slot behaviour when no content-compatible wagon exists (empty-if-permitted vs order
-    failure — interacts with the empty-slot question in
-    [schedule-and-consists](../schedule-and-consists.md));
-  - fallback message policy (bounded: one per consist-order execution per category, not per
-    packet);
-  - mail's treatment (freight-like grouping is realistic — mail is sorted — but a light hand-carry
-    correction is defensible);
-  - the portion-capacity boarding rule (realism constraints above);
-  - whether grouped loading is needed at all, and at what threshold (measure per-wagon load
-    mixedness in a real save first; note divides do not exist yet, so distinct-next-transfer
-    counts per wagon are an upper bound — collapse them to portion classes per
-    "Grouped loading — refined scope" before judging);
-  - **grouped loading under capacity pressure** [RECOLLECTION:2026-11-03 user statement]: when no
-    wagon with a matching portion-class group and no empty wagon has space, either the goods wait
-    at the halt (honest and visible as building stock; but loading stipulations are convoy-level,
-    so the unusable reserved space lowers the convoy's aggregate loading level, and a high
-    `minimum_loading` on a many-destination flow can stall the train) or mixing is permitted (and
-    the divide transhipment fallback returns). With portion-class grouping rather than
-    per-destination grouping the stall scenario is weaker, not weak (settled calibration, see
-    "Grouped loading — refined scope") — the mixedness measurement informs the residual choice;
-  - freight grouping and contents-derived assignment stand or fall together: assignment without
-    grouping means routine transhipment of mixed wagons; grouping without contents-assignment buys
-    nothing [UNVERIFIED].
+- **Passenger and mail instance policy.** The implementation preserves each vehicle and its packets,
+  rather than introducing a freely reshuffled passenger load. Whether passenger loading needs
+  portion-outcome grouping, accommodation-capacity reservation and a gangway/inter-unit model remains
+  open. A future choice must preserve the through fare history above.
+- **Grouped freight loading.** A contents-derived assignment without load-time grouping can still
+  create mixed wagons. Whether, and at what threshold, to add grouping should be measured in real
+  saves; the fallback still guarantees that unservable packets are not carried onward.
+- **Path feasibility of recipients.** No recipient-dependent path-explorer change is made. An authored
+  through candidate might therefore name a later collector that rejects the vehicle; this needs an
+  explicit feasibility decision, not an unexplained runtime transfer.
+- **Loaded loose wagon storage.** The through-wagon model keeps the cargo outside the halt's capacity,
+  overcrowding and waiting-time rules (see [remote-implications](remote-implications.md) A3). The
+  recorded follow-up is a named-recipient hybrid: keep the load only when a named line or convoy is
+  the expected collector, otherwise discharge the cargo without booking a fare and flash-load it with
+  its through record preserved. Whether to implement that hybrid, and how the through record moves
+  from the vehicle to the halt packet, remains open.
+- **Old unrestricted loose stock.** The per-vehicle editor retains a resolved releasing-service
+  identity for new stock so that Same can be restored after choosing Any. A legacy unrestricted item
+  has no such saved identity. Whether compatibility code should invent one is undecided; currently it
+  remains unrestricted.
+- **Failure reporting.** The fallback is an ordinary halt transfer and can be visible in cargo waiting
+  lists, but there is no separate bounded per-category recombination warning for it. Whether players
+  need such a warning remains open.
+- **`pick_up_only` with a recombination.** `convoi_t::hat_gehalten` suppresses the ordinary unloading
+  pass for a `pick_up_only` entry, but the delivery pass at the end of
+  `convoi_t::commit_recombined_consist` and the promoted-portion pass in
+  `convoi_t::form_divided_portion` are not gated by that flag. Whether the flag should suppress those
+  passes too, or whether a `pick_up_only` entry with a consist order is unsupported, needs a decision
+  and a scripted case.

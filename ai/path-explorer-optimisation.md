@@ -104,8 +104,9 @@ compare them with each other, not with the canonical figures above.
 
 ## Savegame and network
 
-`EX_SAVE_MINOR` is 9. A mid-refresh save carries only the finished matrix; a load restarts
-the current compartment from the start of the refresh and keeps the previous finished matrix.
+The path explorer matrix format dates from Extended savegame revision 9. A mid-refresh save carries
+only the finished matrix; a load restarts the current compartment from the start of the refresh and
+keeps the previous finished matrix.
 This is safe when every peer reloads, but it loses the current compartment's in-progress
 refresh work at a join. At the 128 ms budget and 5.6 steps/s a large passenger
 class takes ≈17-18 s of session time, so the expected join loss is ≈8-9 s and the worst case

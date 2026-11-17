@@ -422,7 +422,13 @@ static void rule_summary(cbuffer_t &buf, uint32 number, const vehicle_descriptio
 		buf.append(translator::translate(", match-all"));
 	}
 	if (rule.empty) {
-		buf.append(translator::translate(", may be empty"));
+		buf.append(translator::translate(", wildcard"));
+	}
+	if (rule.load_requirement == vehicle_description_element::load_only_loaded) {
+		buf.append(translator::translate(", loaded vehicles only"));
+	}
+	else if (rule.load_requirement == vehicle_description_element::load_only_empty) {
+		buf.append(translator::translate(", empty vehicles only"));
 	}
 	buf.append(")");
 }
@@ -440,14 +446,29 @@ gui_vehicle_description_element_t::gui_vehicle_description_element_t(consist_ord
 		set_table_layout(1,0);
 		set_alignment(ALIGN_TOP);
 
-		// Slot-level "may be empty" toggle (A3). The pre-rework widget was
-		// per-alternative, but this widget is per-slot, so the toggle reads
-		// and writes the empty flag on every alternative in the slot.
-		// square_automatic flips pressed itself; the handler only stores it.
-		bt_can_empty.init(button_t::square_automatic, "This slot may be empty");
-		bt_can_empty.set_tooltip(translator::translate("Allow this slot to be left empty when the consist is assembled."));
+		// A wildcard alternative disregards its attribute rules. This is not
+		// the separate option that permits the slot itself to be omitted.
+		bt_can_empty.init(button_t::square_automatic, "Any vehicle may occupy this slot");
+		bt_can_empty.set_tooltip(translator::translate("Make every rule-based alternative in this slot a wildcard that matches any vehicle."));
 		bt_can_empty.add_listener(this);
 		add_component(&bt_can_empty);
+
+		bt_optional.init(button_t::square_automatic, "This slot may be omitted");
+		bt_optional.set_tooltip(translator::translate("Allow this slot to remain unfilled at any position; later mandatory slots move forward."));
+		bt_optional.add_listener(this);
+		add_component(&bt_optional);
+
+		add_table(2,1);
+		{
+			new_component<gui_label_t>("Required load state");
+			load_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Any load state"), SYSCOL_TEXT);
+			load_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Loaded vehicles only"), SYSCOL_TEXT);
+			load_selector.new_component<gui_scrolled_list_t::const_text_scrollitem_t>(translator::translate("Empty vehicles only"), SYSCOL_TEXT);
+			load_selector.add_listener(this);
+			add_component(&load_selector);
+		}
+		end_table();
+
 		// Category label indented like the slot contents.
 		{
 			gui_aligned_container_t *catg_row = add_table(2,1);
@@ -517,7 +538,17 @@ void gui_vehicle_description_element_t::update()
 	if (slot_index < order->get_count()) {
 		consist_order_element_t elem = order->access_order(slot_index);
 		old_count = elem.get_count();
-		// Slot-level display: checked iff every alternative allows empty.
+		bt_optional.pressed = elem.is_optional();
+		uint8 load_requirement = old_count ? elem.get_vehicle_description(0).load_requirement : (uint8)vehicle_description_element::load_any;
+		for (uint32 i = 1; i < old_count; i++) {
+			if (elem.get_vehicle_description(i).load_requirement != load_requirement) {
+				load_requirement = vehicle_description_element::load_any;
+				break;
+			}
+		}
+		load_selector.set_selection(load_requirement);
+		load_selector.enable(old_count > 0);
+		// Slot-level display: checked iff every alternative is a wildcard.
 		// Individual alternatives are edited in the rule editor window.
 		if (old_count == 0) {
 			bt_can_empty.pressed = false;
@@ -663,6 +694,22 @@ bool gui_vehicle_description_element_t::action_triggered(gui_action_creator_t *c
 		for (uint32 i = 0; i < elem.get_count(); i++) {
 			elem.access_vehicle_description(i).set_empty(bt_can_empty.pressed);
 		}
+		order->touch();
+		update();
+	}
+	else if (comp == &bt_optional) {
+		order->access_order(slot_index).set_optional(bt_optional.pressed);
+		order->touch();
+		update();
+	}
+	else if (comp == &load_selector) {
+		consist_order_element_t &elem = order->access_order(slot_index);
+		const uint8 requirement = (uint8)(load_selector.get_selection() < 0 ? vehicle_description_element::load_any : load_selector.get_selection());
+		for (uint32 i = 0; i < elem.get_count(); i++) {
+			elem.access_vehicle_description(i).load_requirement = requirement;
+		}
+		order->touch();
+		update();
 	}
 	else if (comp == &bt_add_rule) {
 		consist_order_element_t &elem = order->access_order(slot_index);
@@ -796,8 +843,8 @@ consist_rule_editor_t::consist_rule_editor_t() :
 	}
 	end_table();
 
-	bt_empty.init(button_t::square_automatic, "This alternative may be empty");
-	bt_empty.set_tooltip(translator::translate("Allow this alternative to be left empty when the consist is assembled."));
+	bt_empty.init(button_t::square_automatic, "This alternative matches any vehicle");
+	bt_empty.set_tooltip(translator::translate("Make this alternative a wildcard that disregards its attribute rules. This does not make the slot optional."));
 	bt_empty.add_listener(this);
 	add_component(&bt_empty);
 

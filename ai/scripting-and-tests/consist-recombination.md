@@ -1,11 +1,12 @@
 ---
 status: draft
-verified: ex-15 @ 9fdefa153 (2026-11-16, facing case and 35-case set); case outcomes as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
 **Covers:** `tests/pending-runtime/` (`harness.nut`, `pair-harness.nut`, `choose-harness.nut`,
-`cases/`, `pair-cases/`, `choose-cases/`, `reload/`, `pair-reload/`, `choose-reload/`),
+`pickup-harness.nut`, `cases/`, `pair-cases/`, `choose-cases/`, `pickup-cases/` and the reload
+scenarios),
 `scripts/run-pending-runtime-tests.sh`, `scripts/run-pending-runtime-reload-tests.sh` and
 `scripts/run-pending-runtime-reload-tests.ps1`. Parent:
 [scripting-and-tests](../scripting-and-tests.md). Feature and runtime:
@@ -36,7 +37,16 @@ game process, so cases cannot contaminate one another.
 - `choose-harness.nut` builds the two-platform junction from `pair-harness.nut` with a choose signal
   and signalbox in the throat, then asserts the choose-signal behaviour through `sign_x.get_state()`,
   `convoy_x.get_working_method()` and `convoy_x.get_vehicle_snapshot()`.
-- All three harnesses read a case selector from the `case_kind` global that the case's
+- `pickup-harness.nut` uses public construction, schedule and consist-order calls to build the
+  freight fixture in the empty map, and the halt cargo API to place its cargo packets. For the cargo
+  cases it selects a consumer industry and builds only that industry; those cases create their cargo
+  with `halt_x.add_cargo` instead of by factory production, so they do not depend on factory
+  dispatch. `halt_x.clear_cargo` removes any other waiting cargo before each injection. The harness
+  reads waiting cargo, vehicle loads, loading time and player way-toll statistics, and watches the
+  loose-stock sequence.
+  `pickup-reload/` and `flash-reload/` use that harness with the ordinary network-join reload
+  runner.
+- All four harnesses read a case selector from the `case_kind` global that the case's
   `scenario.nut` sets, and print `RUNTIME CASE <case> PASS` or
   `RUNTIME CASE <case> FAIL: <assertion>`.
 - `scenario.nut` selects the forward Y case; `cases/<case>/scenario.nut` selects each further Y
@@ -77,7 +87,9 @@ The cases cover a symmetric locomotive swap with either convoy started first
 stock (`one-way-to-receiver`), an already-satisfied pair (`already-at-end-state`), a joint-solver
 backtracking conflict (`conflict-backtrack`), an unsatisfiable pair refused all-or-nothing
 (`unsatisfiable`), and a receiver that collects a coach from the stop's laid-over pool while the
-emptied donor is destroyed (`pool-fallback`).
+emptied donor is destroyed (`pool-fallback`). The `already-at-end-state` orders place an optional
+empty slot between the locomotive and the coach, so the joint solver must omit that slot without
+moving either mandatory vehicle or charging a shunting delay.
 
 ## Choose-signal call-on cases (`choose-cases/`)
 
@@ -149,6 +161,70 @@ Assertions:
   so the receive changes nothing; the two hold cases use an order that cannot be completed.
   `committed-target` and `contact-reservation` use the same no-change order.
 
+## Pick-up goods cases (`pickup-cases/`)
+
+The fixture selects a consumer industry from the loaded pakset by taking one of its input goods,
+and builds only that industry. The cargo cases clear the fixture halts and inject their own cargo
+with `halt_x.add_cargo`, so the cargo amount, routing, origin and arrival time are fixed by the case
+rather than by factory production. The destination position is the consumer's position, so an
+unloaded packet is handed to that industry in the ordinary way. The injected packet is ordinary
+saved halt cargo; no factory-produced packet takes part in any assertion. `empty-distribution` and
+`recipient-same` use empty wagons only and do not inject cargo.
+
+- `empty-distribution` releases five empty wagons, then repeatedly calls a collector whose order is
+  `[locomotive, optional wagon, optional wagon, optional wagon, mandatory rear vehicle]`, with the
+  optional alternatives restricted to empty vehicles. The first visit forms three wagon slots and
+  leaves two. The mandatory D order releases the first batch, so the second B visit collects the two
+  remaining wagons. After that batch is also released at D, a further B call cannot add anything. The
+  assertions include the rear vehicle's position and the pool contents.
+- `recipient-same` releases an empty wagon to the Same recipient (`available_to_flags` value 2,
+  which resolves to the releasing lineless convoy's own id) and collects it when the same convoy
+  returns. It reads the loose vehicle's recipient from the vehicle snapshot: the convoy flag, the
+  Same flag and the releasing convoy's id. The collecting order asks for a wagon that is empty, so
+  the collected vehicle can only be the released one.
+- `cargo-through` injects a wagon load at A with D as the ultimate destination and B as the next
+  transfer halt. The donor's line is A-B, so the donor loads the packet at A, carries it to B and
+  releases the loaded wagon onto B's loop platform. A separate B-D collector has an optional slot
+  restricted to loaded wagons. The donor waits for one per cent of a load (`minimum_loading` 1)
+  before it departs. The assertions use the wagon's own load: it must be positive when the wagon is
+  loose and unchanged when the collector has it. This is the through-wagon model: the wagon is the
+  unit of collection, its existing load receives no loading credit, and the collector must serve the
+  load. The collector must book the whole fare when it unloads at D. Way-toll apportionment to the
+  second way owner is not observable here: the fixture map's saved settings carry no toll revenue
+  percentage, so no payment reaches a way owner however the journey is apportioned.
+- `flash-full`, `flash-partial` and `flash-late` release one empty wagon at B and inject a full
+  wagon load at B for D. These cases test the empty-wagon loading credit: the cargo waits at the
+  halt, the empty wagon is collected, and the cargo is loaded into it with the credit. The collector
+  runs a B-D loop with no wagon in its consist before the
+  wagon is released; its first two observed B arrivals give its looping period. A calibration
+  donor run measures the travel time from the fixture's depot to the wagon release, and the real
+  donor is then started so that the release falls a fixed margin after a collector arrival. That
+  gives the wagon almost a full period of lead before the collecting arrival and keeps the donor
+  clear of the junction at that arrival. The collecting tick is predicted as one period after the
+  last actual B arrival before the release, which absorbs any delay the donor caused on the
+  approach. The packet's declared arrival time is placed relative to that prediction: at the
+  wagon's release tick for full credit, half a load share before the collection for partial
+  credit, and 3000 ticks before it for the late case. The injection call itself runs at the
+  release, so the result does not depend on the call's wall-clock tick; the credit uses the
+  declared arrival time. Each case computes the expected result from the descriptor's
+  minimum/maximum loading ticks, total and overcrowded capacity, the actual loaded amount and the
+  snapshot's collection and earliest-arrival fields, and requires the collector's reported loading
+  time to equal it. Full availability must credit the entire ordinary contribution, the partial
+  case must produce a nonzero partial credit, and the late case must produce less than the full
+  credit. The full case requires the interval from the release to the collecting arrival to be at
+  least the load share, because the collector takes the empty wagon at its first arrival after the
+  release.
+- `pickup-reload/` holds the loaded loose wagon for a loopback client join and a fresh offline load of
+  the join save; it also names the collecting line as the wagon's recipient and checks that choice
+  after both loads. It is the named-recipient through-wagon case: the cargo stays aboard the wagon
+  across the reload and the named collector takes both. `flash-reload/` holds the collected, fully credited wagon during its departure
+  interval and repeats the delivery observation after both loads. Use the existing PowerShell reload
+  runner with `-Harness tests\pending-runtime\pickup-harness.nut -HarnessName pickup-harness` and
+  `-CaseName pickup-reload -ScenarioName pending-runtime-pickup-reload -Selector
+  tests\pending-runtime\pickup-reload\scenario.nut`. For `flash-reload`, use `-CaseName flash-reload`,
+  `-ScenarioName pending-runtime-flash-reload` and
+  `-Selector tests\pending-runtime\flash-reload\scenario.nut`.
+
 ## Reload cases (`reload/`, `pair-reload/`, `choose-reload/`)
 
 These are deliberately outside `cases/`, so the baseline runner does not select them. Each runs on a
@@ -189,14 +265,18 @@ scenario through a directory junction and removes the junction without following
 its harness and all fixture maps, runs one process per case with `-nomidi`, and requires a printed
 PASS marker plus any case-specific log assertion. A script error, a process exit before a marker, no
 log progress for the stall timeout, the overall timeout and a crash all fail the case. It selects
-`harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/` and `choose-harness.nut` for
-`choose-cases/`.
+`harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/`, `choose-harness.nut` for
+`choose-cases/` and `pickup-harness.nut` for `pickup-cases/`.
 
-Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`, `PENDING_RUNTIME_BINARY`,
-`PENDING_RUNTIME_OBJECTS` and `PENDING_RUNTIME_CASES`. `PENDING_RUNTIME_CASES` is a space-separated
-subset of case names; the runner rejects a name that is not a committed case. Each result line
-carries the case's wall-clock duration. Exit code 0 means every case passed its marker and
-case-specific assertions.
+Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_PICKUP_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
+`PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS` and `PENDING_RUNTIME_CASES`. `PENDING_RUNTIME_CASES` is a
+space-separated subset of case names; the runner rejects a name that is not a committed case. The slow
+`pickup-cases/` cases (`cargo-through` and the `flash-*` cases) use `PENDING_RUNTIME_PICKUP_TIMEOUT`
+(default 600 seconds, against 300 for the others) because each of them builds a consumer industry,
+several services and a wagon release sequence, and then waits for the scheduled collection. The
+pick-up reload cases use the reload runner's `-ServerReadyTimeout`, `-ClientTimeout` and
+`-OfflineTimeout` instead. Each result line carries the case's wall-clock duration. Exit code 0 means
+every case passed its marker and case-specific assertions.
 
 The fixture uses `is_equal` for vehicle-descriptor and loose-stock identity. Sampled
 `vehicle_desc_x` names are invalid immediately after map load (open bug in
@@ -206,7 +286,7 @@ identities and vehicle counts, not descriptor names.
 ## Test cadence
 
 The fixture is outside the default suite, and the full set is an integration gate rather than an
-edit loop. Run only the cases that can observe the change:
+edit loop. Run only the cases that can observe the change, one case at a time:
 
 - **Iteration.** Run the case or cases that exercise the changed branch. A change to
   `choose-harness.nut` can affect every choose case, but only `target-present`,
@@ -216,21 +296,35 @@ edit loop. Run only the cases that can observe the change:
   hold, `straddling-contact` checks the contact point in the tile behind a long rear vehicle, and
   `target-absent` is enough as a load smoke test. A change confined to one case's `scenario.nut`
   needs that case only. A change to the orientation choice, `vehicle_t::set_reversed` or the
-  unit/turntable reversal delay must run `facing` and the paired cases.
+  unit/turntable reversal delay must run `facing` and the paired cases. A change to the cargo API,
+  the loading credit or the route repair must run `cargo-through`, one of the `flash-*` cases and
+  the matching reload case (`pickup-reload` or `flash-reload`) rather than the whole pick-up group.
 - **Package.** Run the whole group once the package's behaviour is complete and before committing
   it: `forward` plus `cases/` (the division and targetless cases), `pair-cases/` (the paired
-  exchanges), or `choose-cases/` (the choose-signal cases).
+  exchanges), `choose-cases/` (the choose-signal cases) or `pickup-cases/` (the pick-up goods
+  cases).
 - **Integration.** Run the whole pending-runtime set plus the reload cases before pushing or merging
   a package, and after any change to save/load code, track reservation ownership
   ([signals-and-blocks](../signals-and-blocks.md)), the network checklist, convoy state transitions,
   the paired-exchange solver or the network protocol. The reload cases use their own runners and are
-  not part of the pending-runtime set.
+  not part of the pending-runtime set. A full set that already passed in the same session need not
+  be repeated when only test or scenario code has changed since; record the earlier result.
+- **Stop redundant runs.** Stop a run that can no longer produce new evidence, keep its partial log,
+  and kill stale game processes before the next case. Do not overlap game processes: the per-case
+  watchdog and the result markers assume one process per case.
+- **Prefer a deterministic fixture.** A cargo case should inject the packet it needs instead of
+  waiting for factory production, and a loaded-wagon case should build the load through an explicit
+  order sequence. The fixture does not preload a loose wagon physically: no public script call
+  places freight into a stationary unscheduled vehicle, and the loading credit is the mechanism
+  that the case asserts.
 
-Do not run the fixture for documentation, comments, translation strings or help text. A 35-case run
-took about 23 minutes on 2026-11-16; a choose case took 14-53 seconds, a Y case took 26-51 seconds
-and a paired case took 40-76 seconds on the same machine [EXECUTION-VERIFIED:2026-11-16]. The full
-run therefore averaged about 39 seconds per case, so the cost scales with the number of cases rather
-than with one slow case.
+Do not run the fixture for documentation, comments, translation strings or help text. A choose case
+takes 14-53 seconds, a Y case 26-51 seconds and a paired case 40-76 seconds; the 35-case set took
+about 23 minutes in total [EXECUTION-VERIFIED:2026-11-16]. A pick-up goods case takes between about 1
+and 5.5 minutes, the cargo cases being the slowest at about 3-5.5 minutes, because each runs several
+complete service cycles; the whole pick-up group cost about 25 minutes [EXECUTION-VERIFIED:2026-11-17].
+That cost is the reason for the targeted policy above: one pick-up case is affordable during
+iteration, a repeated group is not.
 
 `PENDING_RUNTIME_CASES` selects a subset, for example:
 
@@ -252,12 +346,32 @@ with zero, one and several butties. Include pool contention, broken or absent ta
 and server/client determinism checks [RECOLLECTION:2026-11-03 operational scope; UNVERIFIED fixture
 composition].
 
-Neither this fixture nor the reload cases covers cargo or passenger continuity: a vehicle that
-becomes loose stock is discharged under the current runtime, and the intended loose-stock treatment
-is described in [cargo-continuity](../ex-15/recombination-design/cargo-continuity.md).
+The `pickup-cases/` set extends the base fixture to cargo continuity, optional collection slots,
+loaded/empty predicates and loading credit. It is listed in a separate section below. The general
+cargo and fare rules are in
+[cargo-continuity](../ex-15/recombination-design/cargo-continuity.md).
 
 ## Open questions
 
+- Way-toll apportionment of a through journey across a release and a collection has no scripted case. The
+  fixture map's saved settings carry no toll revenue percentage, so `player_t::get_way_tolls()` cannot
+  distinguish a working apportionment from a missing one. A case would need a map whose saved settings enable
+  the toll, or a way for a script to read the apportioned revenue directly.
+- The flash-load full-credit case requires the interval between the wagon release and the collector's next B
+  arrival to be at least the load share. Whether a future change to loading times or service timings could
+  make that interval too short is not bounded by the fixture; the case fails with an explicit message rather
+  than silently weakening the assertion.
+- The partial and late flash cases place the packet on the halt when the empty wagon is released, but give
+  it a later `arrival_time` (half a load share or 3000 ticks before the predicted collection) so that the
+  loading-credit intersection is deterministic without waiting for the clock. `halt_x.add_cargo` preserves
+  any supplied tick. Whether the API should refuse a tick later than the current world tick, or the fixture
+  should wait for the chosen tick and inject then, is open; the current assertion depends on the explicit
+  value.
+- No case exercises the named-recipient hybrid recorded in
+  [cargo-continuity](../ex-15/recombination-design/cargo-continuity.md): a named recipient keeps the
+  load, while Same or Any would discharge the cargo without booking a fare and flash-load it with its
+  through record preserved. `cargo-through` and `pickup-reload` cover the current through-wagon
+  model; the discharge+flash-load alternative has no case.
 - The holder-to-mover transfer half of `rail_vehicle_t::hand_over_contact_reservation` has no
   scripted case. The mechanism and the narrow stale-target window in which it runs are in
   [reservation-handoff](../consist-recombination/reservation-handoff.md#the-transfer-window). A
@@ -282,5 +396,16 @@ the reload cases on 2026-11-14 and 2026-11-16. The committed-target hold correct
 `committed-target` and `contact-reservation` cases are from ex-15 @ 03bf5306e (2026-11-16). The
 orientation choice and the `facing` case are from ex-15 @ 9fdefa153 (2026-11-16). The full
 pending-runtime set (35 cases) and the Y, paired and choose reloads passed on 2026-11-16
-[EXECUTION-VERIFIED:2026-11-16, DEBUG build]. The planned coverage list is the operation-scope
-record from [ex-15/recombination-design](../ex-15/recombination-design.md).
+[EXECUTION-VERIFIED:2026-11-16, DEBUG build]. The scenario cargo API
+(`halt_x.add_cargo` and `halt_x.clear_cargo`) and the injected-cargo pick-up goods rewrite were
+executed on 2026-11-17. One pending-runtime run passed all 35 standard cases and the pick-up cases
+`cargo-through`, `empty-distribution`, `flash-full`, `flash-partial` and `flash-late`; the run was
+then stopped after `recipient-same` had started, and that case passed in a targeted run. The
+`pickup-reload` and `flash-reload` loopback join and fresh offline reload both passed with no
+diagnosed checklist-pair mismatch; the parsed pair count depends on the observation window, and the
+2026-11-17 through-wagon `pickup-reload` verification parsed 1636 pairs (the `flash-reload`
+verification parsed 604). After the API-validation rebuild, `cargo-through` passed again in 275
+seconds; after the through-wagon rebuild, `pickup-reload` passed again with the narrowed layover
+exemption (READY 143 s, server PASS 179 s, offline RESTORED 16 s). All runs used the Debug x64 build with
+`-nomidi` [EXECUTION-VERIFIED:2026-11-17, DEBUG build, working tree]. The planned coverage list is
+the operation-scope record from [ex-15/recombination-design](../ex-15/recombination-design.md).

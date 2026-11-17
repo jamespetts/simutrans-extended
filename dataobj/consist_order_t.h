@@ -28,12 +28,21 @@ struct vehicle_description_element
 	const vehicle_desc_t* specific_vehicle = nullptr;
 
 	/*
-	* If this is set to true, the vehicle slot is empty.
-	* This means that it is permissible for the convoy as
-	* assembled by this consist order to have no vehicle
-	* in this slot.
+	* If this is set on a rule-based alternative, the alternative is a
+	* wildcard: it matches any vehicle irrespective of the other rules.
+	* It does not make the slot optional.
 	*/
 	bool empty = true;
+
+	enum load_requirement_t
+	{
+		load_any = 0,
+		load_only_loaded = 1,
+		load_only_empty = 2
+	};
+
+	// Require a vehicle to have cargo, be empty, or have either state.
+	uint8 load_requirement = load_any;
 
 	/* Rules hereinafter */
 
@@ -100,6 +109,10 @@ protected:
 	*/
 	uint8 catg_index = goods_manager_t::INDEX_NONE;
 
+	// An optional slot may be omitted at any position. Filled slots retain
+	// their authored order, so later mandatory slots move forward.
+	bool optional = false;
+
 	vector_tpl<vehicle_description_element> vehicle_description;
 
 public:
@@ -113,6 +126,8 @@ public:
 	uint32 get_count() const { return vehicle_description.get_count(); }
 
 	uint8 get_catg_index() const { return catg_index; }
+	bool is_optional() const { return optional; }
+	void set_optional(bool value) { optional = value; }
 
 	// The category is a property of the whole slot: the solver's rule matching
 	// and schedule_t::parse_orders' carried-category tables read the single
@@ -129,7 +144,7 @@ public:
 
 	// Append a rule-based alternative (no specific vehicle: the hard-constraint
 	// ranges select the vehicle). Enforced (empty=false) so the rule actually
-	// constrains matching; use set_empty afterwards for an optional slot.
+	// constrains matching; set_empty changes it into a wildcard alternative.
 	// Engine defaults to "any" (MAX_TRACTION_TYPE, the matcher wildcard).
 	void append_rule()
 	{

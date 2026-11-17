@@ -119,6 +119,17 @@ SQInteger player_get_my_player(HSQUIRRELVM vm)
 	return script_api::param<player_t*>::push(vm, get_my_player(vm) );
 }
 
+call_tool_init player_allow_access(player_t *player, player_t *recipient, bool allow)
+{
+	if (!player || !recipient) {
+		return "Cannot change access for a missing player";
+	}
+	cbuffer_t buf;
+	buf.printf("g%u,%u,%u", (unsigned int)player->get_player_nr(), (unsigned int)recipient->get_player_nr(), allow ? 1u : 0u);
+	return call_tool_init(TOOL_ACCESS_TOOL | SIMPLE_TOOL, buf, 0, player);
+}
+
+
 call_tool_init player_set_name(player_t *player, const char* name)
 {
 	return script_api::command_rename(player, 'p', player->get_player_nr(), name);
@@ -175,6 +186,10 @@ void export_player(HSQUIRRELVM vm, bool scenario)
 	 * @ingroup rename_func
 	 */
 	register_method(vm, &player_set_name, "set_name", true);
+	/** Allow or withdraw this player's ways for another player. */
+	register_method(vm, &player_allow_access, "set_allow_access_to", true);
+	/** Whether this player permits the supplied player on its ways. */
+	register_method(vm, &player_t::allows_access_to, "allows_access_to");
 	/**
 	 * Get monthly statistics of construction costs.
 	 * @returns array, index [0] corresponds to current month

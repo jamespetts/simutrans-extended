@@ -280,6 +280,24 @@ SQInteger convoy_get_vehicle_snapshot(HSQUIRRELVM vm)
 		set_slot(vm, "reversed", v->is_reversed());
 		set_slot(vm, "cargo", (SQInteger)v->get_total_cargo());
 		set_slot(vm, "capacity", (SQInteger)v->get_cargo_max());
+		set_slot(vm, "loose_recipient_id", (SQInteger)v->get_loose_recipient_id());
+		set_slot(vm, "loose_recipient_is_convoy", v->get_loose_recipient_is_convoy());
+		set_slot(vm, "loose_recipient_is_same", v->get_loose_recipient_is_same());
+		set_slot(vm, "loose_recipient_is_any", v->is_loose_recipient_any());
+		sint64 collection_loose_since = 0;
+		sint64 collection_time = 0;
+		v->get_collection_credit_times(collection_loose_since, collection_time);
+		set_slot(vm, "collection_loose_since", (SQInteger)collection_loose_since);
+		set_slot(vm, "collection_time", (SQInteger)collection_time);
+		sint64 earliest_cargo_arrival = -1;
+		for (uint8 c = 0; c < v->get_number_of_classes(); c++) {
+			for (const ware_t &ware : v->get_cargo(c)) {
+				if (earliest_cargo_arrival < 0 || ware.arrival_time < earliest_cargo_arrival) {
+					earliest_cargo_arrival = ware.arrival_time;
+				}
+			}
+		}
+		set_slot(vm, "earliest_cargo_arrival", (SQInteger)earliest_cargo_arrival);
 		set_slot(vm, "pos", v->get_pos());
 		set_slot(vm, "route_index", (SQInteger)v->get_route_index());
 		set_slot(vm, "steps", (SQInteger)v->get_steps());
@@ -464,6 +482,14 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns get current loading level
 	 */
 	register_method(vm, &convoi_t::get_loading_level, "get_loading_level");
+	/**
+	 * @returns total loading time assigned at the current stop in simulation ticks
+	 */
+	register_method(vm, &convoi_t::get_current_loading_time, "get_current_loading_time");
+	/**
+	 * @returns arrival time at the current stop in simulation ticks
+	 */
+	register_method(vm, &convoi_t::get_arrival_time, "get_arrival_time");
 	/**
 	 * @returns gets location of home depot
 	 */

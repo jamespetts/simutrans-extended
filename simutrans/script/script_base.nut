@@ -608,8 +608,10 @@ class schedule_entry_x {
 class vehicle_description_x {
 	/// specific vehicle, or null for a rule-based alternative
 	specific_vehicle = null
-	/// true if the slot may be left empty
+	/// true if this rule alternative is a wildcard matching any descriptor
 	empty = true
+	/// 0 = any load state; 1 = loaded vehicles only; 2 = empty vehicles only
+	load_requirement = 0
 
 	engine_type = 0
 	min_catering = 0
@@ -650,6 +652,8 @@ class consist_order_element_x {
 	/// goods category index; -1 means "derive from the alternatives",
 	/// consist_order_element_x.any_catg is the wildcard
 	catg = -1
+	/// true if this slot may be unfilled at any position
+	optional = false
 	/// prioritised alternatives, in preference order
 	alternatives = []
 
@@ -682,6 +686,18 @@ class vehicle_slot_x {
 	cargo = 0
 	/// maximum cargo units
 	capacity = 0
+	/// recipient of this vehicle while it is loose stock
+	loose_recipient_id = 0
+	loose_recipient_is_convoy = false
+	loose_recipient_is_same = false
+	loose_recipient_is_any = true
+	/// earliest arrival time of the cargo aboard, or -1 for an empty vehicle
+	earliest_cargo_arrival = -1
+	/// tick at which this vehicle entered loose stock, used by the collection
+	/// loading-time credit
+	collection_loose_since = 0
+	/// tick at which this vehicle entered the collecting convoy
+	collection_time = 0
 	/// current position
 	pos = null
 	/// index into the convoy's saved route

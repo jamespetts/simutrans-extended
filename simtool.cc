@@ -9843,6 +9843,7 @@ static bool scenario_check_schedule(karte_t *welt, player_t *player, schedule_t 
  * 'T' : toggle 'retire'
  * 's' : change state to [number] (and maybe set open schedule flag)
  * 'l' : apply new line [number]
+ * 'r' : set the recipient of a loose vehicle
  * 'c' : reassign fare classes
  * 'i' : init assingned fare class
  * 'j' : change a single compartment's fare class
@@ -9881,7 +9882,7 @@ bool tool_change_convoi_t::init( player_t *player )
 		return false;
 	}
 	// ownership check for network games
-	if (cnv.is_bound()  &&  env_t::networkmode  &&  !player_t::check_owner(cnv->get_owner(), player)) {
+	if (cnv.is_bound() && tool != 'r' && env_t::networkmode && !player_t::check_owner(cnv->get_owner(), player)) {
 		return false;
 	}
 
@@ -9909,6 +9910,66 @@ bool tool_change_convoi_t::init( player_t *player )
 				cnv->open_schedule_window(is_local_execution());
 			}
 			break;
+
+		case 'r': // change a loose vehicle's collection recipient
+		{
+			unsigned index = 0;
+			unsigned id = 0;
+			unsigned flags = 0;
+			if (cnv->get_state() != convoi_t::LAYOVER
+				|| sscanf(p, "%u,%u,%u", &index, &id, &flags) != 3
+				|| index >= cnv->get_vehicle_count()
+				|| id > 65535u
+				|| (flags & ~(vehicle_t::loose_recipient_is_convoy | vehicle_t::loose_recipient_is_same | vehicle_t::loose_recipient_is_any)) != 0
+				|| ((flags & vehicle_t::loose_recipient_is_same) != 0 && (flags & vehicle_t::loose_recipient_is_any) != 0))
+			{
+				return false;
+			}
+			vehicle_t *const v = cnv->get_vehicle((uint8)index);
+			if (!player_t::check_owner(v->get_owner(), player))
+			{
+				return false;
+			}
+			const bool is_convoy = (flags & vehicle_t::loose_recipient_is_convoy) != 0;
+			if (id != 0)
+			{
+				if (is_convoy)
+				{
+					convoihandle_t recipient;
+					recipient.set_id((uint16)id);
+					if (!recipient.is_bound())
+					{
+						return false;
+					}
+				}
+				else
+				{
+					linehandle_t recipient;
+					recipient.set_id((uint16)id);
+					if (!recipient.is_bound())
+					{
+						return false;
+					}
+				}
+			}
+			if (flags & vehicle_t::loose_recipient_is_same)
+			{
+				if (v->get_loose_recipient_id() == 0)
+				{
+					return false;
+				}
+				v->set_loose_recipient_same();
+			}
+			else
+			{
+				v->set_loose_recipient((uint16)id, is_convoy);
+				if (flags & vehicle_t::loose_recipient_is_any)
+				{
+					v->set_loose_recipient_any();
+				}
+			}
+			break;
+		}
 
 		case 'g': // change schedule
 			{

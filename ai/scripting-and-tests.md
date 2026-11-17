@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); test-harness facts as cited; suite count 81/81 (2026-11-14)
+verified: ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -76,12 +76,58 @@ not a safe model for multiplayer-synchronised scripted actions. Network mechanic
   mutators appropriate to that VM's location.
 - `call_tool_init`/`call_tool_work` set `WFL_SCRIPT`; `nwc_tool_t::clone` clears it for commands
   not sent by the server, so client scripts do not bypass the normal player-authentication check.
+- `halt_x.add_cargo` and `halt_x.clear_cargo` mutate the saved world directly rather than
+  travelling as a network command. They exist for scenario setup, which runs on the server only,
+  and both are refused unless the game is offline or is a server with no connected client. A
+  direct mutation with a client connected would not be applied by that client and would
+  desynchronise; a client that joins later receives the server's complete saved state. The
+  injected packet is an ordinary `ware_t` on the halt's waiting list, so the savegame format is
+  unchanged.
 - RNG: script/query code must not consume `simrand`. `way_builder_t::is_allowed_step` consumes it
   only in the river bautyp; `vehicle_builder_t::vehicle_search` consumes it. Read-only planner
   queries should be audited and tested to leave the RNG seed unchanged.
 - `set_tool_api` does not broadcast; do not use it as the action path for a network bot. Actions
   belong on `welt->set_tool()` from a client, or on a server-local command that goes through
   `clone()` and the broadcast path.
+
+### Scenario cargo setup
+
+`halt_x.add_cargo` and `halt_x.clear_cargo` are scenario-authoring calls, not player actions: they
+have no cost, ownership check or tool. `add_cargo(goods, amount, destination, next_transfer,
+arrival_time[, origin, destination_pos, class])` appends one ordinary cargo packet to the halt's
+waiting list and returns `true`; invalid input raises a Squirrel error instead. The optional
+arguments after `arrival_time` are, in order, the origin halt (default: this halt), the delivery
+position (default: the destination halt's basis position) and the cargo class (default:
+0; it must be below `goods_desc_t::get_number_of_classes()`). The packet's fields are:
+
+| argument | `ware_t` field | behaviour |
+| --- | --- | --- |
+| `goods` | `index`, through the `goods_desc_t` | must be a known goods descriptor |
+| `amount` | `menge` | must be a positive 32-bit quantity; repeated calls append separate packets rather than merging |
+| `destination` | `ziel` | the ultimate destination halt, which must handle the cargo kind |
+| `next_transfer` | `zwischenziel` | the halt at which the packet must leave its next convoy; an unbound halt (for example `halt_x(0)`) means `destination` |
+| `arrival_time` | `arrival_time` | stored unchanged; `add_ware_to_halt(ware, true)` does not replace it with the current tick |
+| `origin` | `origin` | the halt at which the journey began; an unbound halt means this halt; the fare calculation uses it for the distance from the origin that the recorded leg does not cover |
+| `destination_pos` | `zielpos` | normally the consumer industry's position; it must be within the map |
+| `class` | `g_class` | zero for goods |
+
+`haltestelle_t::add_cargo` sets `last_transfer` to this halt through `add_ware_to_halt`,
+`is_commuting_trip` to false, and leaves `comfort_preference_percentage` at the value that
+`ware_t::ware_t(const goods_desc_t*)` gives, which is zero. That is harmless for freight, which does
+not use it; a passenger packet created this way does not carry the value that
+`karte_t::generate_passengers_and_mail` assigns (between 100 and the configured maximum), and the API
+has no argument for it. It also calls `fabrik_t::update_transit(ware, true)`, like the halt save
+loader, so a consumer's in-transit statistic includes the packet. The halt's storage capacity is not
+checked: an over-capacity packet is accepted and the halt's ordinary overcrowding state follows.
+
+`halt_x.clear_cargo()` removes all waiting and transferring packets at the halt without booking
+revenue or a refund. It decrements the consumers' in-transit statistics, clears the halt's
+current-wait snapshot (`current_waiting_times`) while leaving the retained `waiting_times` samples
+alone, sets `resort_freight_info` and calls `recalc_status()`. It returns `true`.
+
+Both calls change the saved world directly and are refused while a network client is connected, as
+described in the read/write split above. The injected packet is ordinary saved halt cargo, so
+`add_cargo` adds no savegame field; `clear_cargo` removes saved packets but adds no field either.
 
 ## API inventory
 
@@ -95,23 +141,32 @@ not a safe model for multiplayer-synchronised scripted actions. Network mechanic
   storage/received/consumed/in transit/delivered/produced.
 - Halt: name, owner, waiting, happy/unhappy/no-route, convoys arrived, line list, convoy list,
   read-only laid-over convoy list, tile list, factory list, freight to destination, capacity.
+  `add_cargo` places a normal cargo packet with an explicit routing and arrival time, and
+  `clear_cargo` discards the halt's waiting cargo; both are scenario-setup calls.
 - Line: name, owner, schedule, goods category, capacity, convoy count, revenue, cost, profit,
   distance, way tolls, convoy list, waytype.
 - Convoy: name, position, owner, waytype, schedule and current entry, state, reversal, capacity,
   revenue, cost, profit, distance, tolls, line, speed, loading level, home depot, obsolete vehicles,
   withdrawal, depot state, waiting state and tile length. `get_vehicle_snapshot` returns value
   objects containing each slot's descriptor, owner, reversal, cargo quantity, capacity, `pos`,
-  `route_index`, `steps` and `steps_next`; `get_vehicles` separately retains the Standard
-  descriptor-list interface. `get_working_method` returns the working method of a convoy whose
-  front vehicle derives from `rail_vehicle_t`, or -1 for any other convoy.
+  `route_index`, `steps` and `steps_next`; it also carries the loose recipient (`loose_recipient_id`
+  and the `loose_recipient_is_convoy`, `loose_recipient_is_same` and `loose_recipient_is_any` flags),
+  the earliest `ware_t::arrival_time` among the vehicle's packets and the collection credit ticks
+  (`collection_loose_since`, `collection_time`). `get_vehicles` separately retains the Standard
+  descriptor-list interface. `get_current_loading_time` returns the loading time assigned at the
+  current stop, and `get_arrival_time` the convoy's arrival tick there. `get_working_method` returns
+  the working method of a convoy whose front vehicle derives from `rail_vehicle_t`, or -1 for any
+  other convoy.
 - Player: construction, vehicle maintenance, new vehicles, income, infrastructure maintenance,
   assets, cash, net wealth, profit, operating profit, margin, powerline revenue, transported
-  passengers/mail/goods, convoy count, way tolls, line list.
+  passengers/mail/goods, convoy count, way tolls, line list, and way-access permissions
+  (`set_allow_access_to`, `allows_access_to`).
 - Tiles: ground, slope, way, depot, halt, objects, neighbours, climate, height. For rail ways,
   `way_x` exposes `get_reserved_convoi`, `get_reservation_type`, `get_reserved_direction` and
   `can_reserve`, which accepts a convoy and an optional direction.
 - Descriptors: vehicles, buildings, ways, bridges, tunnels, goods, signals, way objects; costs,
-  capacities, availability, intro/retire dates. Signal descriptors expose `get_permissive`,
+  capacities, availability, intro/retire dates. Vehicle descriptors additionally expose total and
+  overcrowded capacity and minimum/maximum loading times. Signal descriptors expose `get_permissive`,
   `get_has_call_on`, `get_has_selective_choose`, `get_working_method`, `get_aspects`,
   `get_normal_danger`, `get_double_block`, `is_station_signal`, `get_max_distance_to_signalbox`,
   `get_signal_group` and `get_allow_underground` (0 = above ground only, 1 = underground only,
@@ -137,8 +192,9 @@ not a safe model for multiplayer-synchronised scripted actions. Network mechanic
   and the named flag properties. The `orders` table is keyed by `unique_entry_id`;
   `consist_order_x` contains ordered `consist_order_element_x` slots, whose alternatives carry
   either a specific vehicle or every `vehicle_description_element` rule/range field. Recipient
-  settings and empty slots are preserved. Conversion rejects duplicate or dangling identifiers,
-  incompatible categories and other malformed data rather than silently discarding data.
+  settings, the per-slot `optional` flag and the per-alternative `load_requirement` are preserved.
+  Conversion rejects duplicate or dangling identifiers, incompatible categories and other malformed
+  data rather than silently discarding data.
 
 ## Remaining Standard compatibility gaps
 
@@ -198,6 +254,27 @@ importing Standard-only mechanics. Remaining work includes:
   generic failure markers. The fixture is not in the repo: the workflow reads
   `BB_SYNC_FIXTURE_URL` (optional `BB_SYNC_FIXTURE_SHA256`) and SKIPs while unset.
 
+### Test cadence
+
+A suite is a gate, not an edit loop:
+
+- During iteration, run only the case or the smallest subset that can observe the changed branch,
+  and run one game process at a time. Overlapping processes make the watchdog and the result markers
+  unreliable.
+- Run the full suite for a package once, when the package's behaviour is complete and before it is
+  committed or pushed. Do not repeat a full suite that already passed in the same session when only
+  test or scenario code has changed since; record the earlier result instead.
+- Stop a run that can no longer produce new evidence and keep its partial log. Completing a suite
+  for its own sake is not a reason to spend the machine time.
+- Prefer a deterministic fixture that supplies the required state directly over one that waits for
+  the state to emerge through production, traffic or a long simulation. The direct fixture is both
+  faster and reproducible.
+- Kill stale game processes before a run so that a previous process cannot hold the work directory
+  or a port.
+
+The per-feature cases, their selection rules and their measured costs are in the feature's test
+doc, for example [consist-recombination](scripting-and-tests/consist-recombination.md).
+
 ## Feature test docs
 
 Testing details for a feature live in that feature's own test doc, keyed here. They do not belong in
@@ -225,6 +302,8 @@ Tests section. See [documentation-architecture](documentation-architecture.md) f
 - Is the `ai` host mode usable as-is? It has no caller and may depend on scenario-only state.
 - Which remaining Extended fields need script interfaces? A full gap analysis against the GUI is
   still needed; schedule and consist-order coverage does not make the rest of the API complete.
+- Should `halt_x.add_cargo` expose `comfort_preference_percentage` for passenger and mail packets?
+  The current call leaves it at zero, which is not the value that generated passengers receive.
 - join-sync on ex-15: the fixture is a 14.x-era save; loading it with the ex-15 engine and the
   ex-15 pakset pin is unverified. If it fails, restrict `join-sync.yml` to master or host a
   branch-specific fixture.

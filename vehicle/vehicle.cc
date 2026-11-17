@@ -820,7 +820,7 @@ void vehicle_t::set_convoi(convoi_t *c)
 	}
 }
 
-uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all)
+uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all, bool recombination_pass, bool destinations_only)
 {
 	uint16 sum_menge = 0, index = 0;
 
@@ -836,7 +836,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 			if (  !fracht[j].empty()  ) {
 				for (slist_tpl<ware_t>::iterator i = fracht[j].begin(), end = fracht[j].end(); i != end; )
 				{
-					const ware_t& tmp = *i;
+					ware_t& tmp = *i;
 
 					halthandle_t end_halt = tmp.get_ziel();
 					halthandle_t via_halt = tmp.get_zwischenziel();
@@ -849,11 +849,29 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 						sum_weight -= tmp.menge * tmp.get_desc()->get_weight_per_unit();
 						i = fracht[j].erase( i );
 					}
-					else if (discharge_all || end_halt == halt || via_halt == halt)
+					else
 					{
+						bool unload_here = discharge_all || end_halt == halt || via_halt == halt;
+						if (destinations_only)
+						{
+							unload_here = discharge_all || end_halt == halt;
+						}
+						else if (recombination_pass && !discharge_all && end_halt != halt)
+						{
+							// Forward a through packet only when this carrier reaches its
+							// planned next transfer or destination. Otherwise use the
+							// ordinary halt-transfer fallback at this stop.
+							unload_here = !cnv->repair_packet_route(tmp, halt);
+						}
+						if (!unload_here)
+						{
+							++i;
+							continue;
+						}
+
 						// here, only ordinary goods should be processed
 
-						if (halt != end_halt && welt->get_settings().is_avoid_overcrowding() && tmp.is_passenger() && !halt->is_within_walking_distance_of(via_halt) && halt->is_overcrowded(tmp.get_desc()->get_index()))
+						if (halt != end_halt && welt->get_settings().is_avoid_overcrowding() && tmp.is_passenger() && !halt->is_within_walking_distance_of(tmp.get_zwischenziel()) && halt->is_overcrowded(tmp.get_desc()->get_index()))
 						{
 							// The avoid_overcrowding setting is activated
 							// Halt overcrowded - discard passengers, and collect no revenue.
@@ -916,7 +934,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 							// Don't charge a higher class that the passenger is willing to pay, in case the accommodation was reassigned enroute.
 							const uint8 class_of_accommodation = min(class_reassignments[j], tmp.get_class());
 
-							revenue_from_unloading += menge > 0 ? cnv->calc_revenue(tmp, apportioned_revenues, class_of_accommodation) : 0;
+							revenue_from_unloading += menge > 0 ? cnv->calc_revenue(tmp, this, apportioned_revenues, class_of_accommodation) : 0;
 
 							// book delivered goods to destination
 							if (end_halt == halt)
@@ -1010,13 +1028,12 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 						}
 						i = fracht[j].erase(i);
 					}
-					else {
-						++i;
-					}
 				}
 			}
 		}
 	}
+
+	prune_through_departures();
 
 	return sum_menge;
 }
@@ -1026,7 +1043,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
  * Load freight from halt
  * @return amount loaded
  */
-bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *skip_vehicles, bool use_lower_classes)
+bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *skip_vehicles, bool use_lower_classes, sint64 *earliest_arrival)
 {
 	const uint16 total_capacity = desc->get_total_capacity() + (overcrowd ? desc->get_overcrowded_capacity() : 0);
 	bool other_classes_available = false;
@@ -1093,6 +1110,10 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 					{
 						ware_t &ware = *iter_z;
 
+						if (earliest_arrival && (*earliest_arrival < 0 || ware.arrival_time < *earliest_arrival))
+						{
+							*earliest_arrival = ware.arrival_time;
+						}
 						total_freight += ware.menge;
 
 						// could this be joined with existing freight?
@@ -1204,6 +1225,18 @@ void vehicle_t::remove_stale_cargo()
 {
 	DBG_DEBUG("vehicle_t::remove_stale_cargo()", "called");
 
+	// A vehicle in loose stock deliberately keeps its through cargo: its convoy
+	// has no schedule that could serve the packet, and the collecting convoy
+	// repairs the packet's route when it takes the vehicle. Dropping the load
+	// here would lose it on every save and reload of a laid-over wagon. A
+	// layover convoy that has a real schedule is not a loose-stock holder, so
+	// its cargo is still validated against that schedule.
+	if (cnv != NULL && cnv->get_state() == convoi_t::LAYOVER
+		&& (cnv->get_schedule() == NULL || cnv->get_schedule()->get_count() == 0))
+	{
+		return;
+	}
+
 	// and now check every piece of ware on board,
 	// if its target is somewhere on
 	// the new schedule, if not -> remove
@@ -1268,6 +1301,7 @@ void vehicle_t::remove_stale_cargo()
 			}
 		}
 	}
+	prune_through_departures();
 	sum_weight =  get_cargo_weight() + desc->get_weight();
 }
 
@@ -1366,6 +1400,7 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, route_index(1)
 	, total_freight(0)
 	, fracht(NULL)
+	, through_departures(NULL)
 	, desc(desc)
 	, cnv(NULL)
 	, number_of_classes(desc->get_number_of_classes())
@@ -1426,6 +1461,7 @@ vehicle_t::vehicle_t() :
 	, route_index(1)
 	, total_freight(0)
 	, fracht(NULL)
+	, through_departures(NULL)
 	, desc(NULL)
 	, cnv(NULL)
 	, number_of_classes(0) // This cannot be set substantively here because we do not know the number of classes yet, which is set in desc.
@@ -1461,6 +1497,7 @@ void vehicle_t::set_desc(const vehicle_desc_t* value)
 		}
 	}
 
+	clear_through_departures();
 	desc = value;
 }
 
@@ -2173,15 +2210,26 @@ void vehicle_t::discard_cargo()
 		}
 		fracht[i].clear();
 	}
+	clear_through_departures();
 	sum_weight =  desc->get_weight();
 }
 
-uint16 vehicle_t::load_cargo(halthandle_t halt, bool overcrowd, bool *skip_convois, bool *skip_vehicles, bool use_lower_classes)
+uint16 vehicle_t::load_cargo(halthandle_t halt, bool overcrowd, bool *skip_convois, bool *skip_vehicles, bool use_lower_classes, sint64 *earliest_arrival)
 {
 	const uint16 start_freight = total_freight;
+	if (earliest_arrival)
+	{
+		*earliest_arrival = -1;
+	}
+	if (halt.is_bound() && total_freight == 0)
+	{
+		// An empty vehicle cannot have a live through journey: the records
+		// would refer to cargo that is no longer aboard.
+		clear_through_departures();
+	}
 	if(halt.is_bound() && halt->gibt_ab(desc->get_freight_type()))
 	{
-		*skip_convois = load_freight_internal(halt, overcrowd, skip_vehicles, use_lower_classes);
+		*skip_convois = load_freight_internal(halt, overcrowd, skip_vehicles, use_lower_classes, earliest_arrival);
 	}
 	else if(desc->get_total_capacity() > 0)
 	{
@@ -3024,8 +3072,31 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 
 	if (file->is_version_ex_atleast(15, 3))
 	{
-		file->rdwr_short(loose_recipient_id);
-		file->rdwr_byte(loose_recipient_flags);
+		uint16 id_to_write = loose_recipient_id;
+		uint8 flags_to_write = loose_recipient_flags;
+		if (file->is_saving() && file->get_extended_version() == 15 && file->get_extended_revision() < 17)
+		{
+			// Revision 17 can retain the releasing service while an explicit Any
+			// override prevents collection filtering. Older targets have no such
+			// override, so write the legacy unrestricted value. The Same display
+			// flag can likewise be dropped without changing eligibility.
+			if (is_loose_recipient_any())
+			{
+				id_to_write = 0;
+				flags_to_write = 0;
+			}
+			else
+			{
+				flags_to_write &= loose_recipient_is_convoy;
+			}
+		}
+		file->rdwr_short(id_to_write);
+		file->rdwr_byte(flags_to_write);
+		if (file->is_loading())
+		{
+			loose_recipient_id = id_to_write;
+			loose_recipient_flags = flags_to_write;
+		}
 	}
 	else if (file->is_loading())
 	{
@@ -3107,6 +3178,77 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 		is_mothballed = false;
 		ticks_at_last_departure = 0ll;
 		overhauls = 0u;
+	}
+
+	if (file->is_version_ex_atleast(15, 16))
+	{
+		uint8 count = 0;
+		if (file->is_saving() && through_departures)
+		{
+			count = (uint8)min(through_departures->get_count(), 255u);
+		}
+		file->rdwr_byte(count);
+
+		if (file->is_saving())
+		{
+			for (uint8 i = 0; i < count; i++)
+			{
+				const through_departure_t &td = through_departures->get_element(i);
+				uint16 halt_id = td.halt_id;
+				file->rdwr_short(halt_id);
+				bool history_known = td.history_known;
+				file->rdwr_bool(history_known);
+				sint64 departure_time = td.departure.departure_time;
+				file->rdwr_longlong(departure_time);
+				for (uint8 p = 0; p < MAX_PLAYER_COUNT + 2; p++)
+				{
+					uint32 distance = td.departure.get_way_distance(p);
+					file->rdwr_long(distance);
+				}
+			}
+		}
+		else
+		{
+			clear_through_departures();
+			for (uint8 i = 0; i < count; i++)
+			{
+				uint16 halt_id;
+				file->rdwr_short(halt_id);
+				bool history_known;
+				file->rdwr_bool(history_known);
+				sint64 departure_time;
+				file->rdwr_longlong(departure_time);
+				departure_data_t dep;
+				dep.departure_time = departure_time;
+				for (uint8 p = 0; p < MAX_PLAYER_COUNT + 2; p++)
+				{
+					uint32 distance;
+					file->rdwr_long(distance);
+					dep.set_distance(p, distance);
+				}
+				if (halt_id != 0)
+				{
+					add_through_departure(halt_id, dep, history_known);
+				}
+			}
+		}
+	}
+	else if (file->is_loading())
+	{
+		clear_through_departures();
+	}
+
+	if (file->is_loading())
+	{
+		collection_credit_pending = false;
+		collection_loose_since = 0;
+		collection_time = 0;
+	}
+	if (file->is_version_ex_atleast(15, 17))
+	{
+		file->rdwr_bool(collection_credit_pending);
+		file->rdwr_longlong(collection_loose_since);
+		file->rdwr_longlong(collection_time);
 	}
 }
 
@@ -3204,6 +3346,102 @@ vehicle_t::~vehicle_t()
 
 	delete[] class_reassignments;
 	delete[] fracht;
+	delete through_departures;
+}
+
+bool vehicle_t::has_through_departure(uint16 halt_id) const
+{
+	if (!through_departures)
+	{
+		return false;
+	}
+	for (const through_departure_t &td : *through_departures)
+	{
+		if (td.halt_id == halt_id)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void vehicle_t::add_through_departure(uint16 halt_id, const departure_data_t &dep, bool history_known)
+{
+	if (!through_departures)
+	{
+		through_departures = new through_departures_t();
+	}
+	through_departure_t td;
+	td.halt_id = halt_id;
+	td.history_known = history_known;
+	td.departure = dep;
+	through_departures->append(td);
+}
+
+void vehicle_t::clear_through_departures()
+{
+	delete through_departures;
+	through_departures = nullptr;
+}
+
+void vehicle_t::advance_through_departures(uint32 distance)
+{
+	if (!through_departures)
+	{
+		return;
+	}
+	for (through_departure_t &td : *through_departures)
+	{
+		td.departure.add_overall_distance(distance);
+	}
+}
+
+void vehicle_t::advance_through_way_distances(uint8 player, uint32 steps)
+{
+	if (!through_departures)
+	{
+		return;
+	}
+	for (through_departure_t &td : *through_departures)
+	{
+		td.departure.increment_way_distance(player, steps);
+	}
+}
+
+void vehicle_t::prune_through_departures()
+{
+	if (!through_departures)
+	{
+		return;
+	}
+	for (uint32 i = 0; i < through_departures->get_count(); )
+	{
+		const uint16 halt_id = through_departures->get_element(i).halt_id;
+		bool still_carried = false;
+		for (uint8 c = 0; c < number_of_classes && !still_carried; c++)
+		{
+			for (const ware_t &w : fracht[c])
+			{
+				if (w.get_last_transfer().get_id() == halt_id)
+				{
+					still_carried = true;
+					break;
+				}
+			}
+		}
+		if (still_carried)
+		{
+			i++;
+		}
+		else
+		{
+			through_departures->remove_at(i);
+		}
+	}
+	if (through_departures->empty())
+	{
+		clear_through_departures();
+	}
 }
 
 void vehicle_t::set_class_reassignment(uint8 original_class, uint8 new_class)
@@ -3968,9 +4206,15 @@ bool vehicle_t::matches_consist_order_element(const consist_order_element_t& ele
 	}
 	const vehicle_description_element& vde = element.get_vehicle_description(priority);
 
+	if ((vde.load_requirement == vehicle_description_element::load_only_loaded && get_total_cargo() == 0)
+		|| (vde.load_requirement == vehicle_description_element::load_only_empty && get_total_cargo() != 0))
+	{
+		return false;
+	}
+
 	if (vde.empty && !vde.specific_vehicle)
 	{
-		// There are no requirements for this.
+		// This is a wildcard alternative, not an optional slot.
 		return true;
 	}
 

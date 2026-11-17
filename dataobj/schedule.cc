@@ -1663,9 +1663,9 @@ void schedule_t::parse_orders()
 
 			// A slot with no vehicle descriptions matches no vehicle at run time,
 			// so there is no first description whose must_carry_class could be
-			// read. The slot still declares its category, like a freight slot with
-			// no vehicle descriptions. A slot that may be left empty is a
-			// different case: its element has the empty flag set.
+			// read. The slot still declares its category. An optional slot can be
+			// omitted during matching; the alternative's empty flag is a wildcard
+			// and has no effect on this table.
 			if (slot.get_count() == 0) {
 				continue;
 			}

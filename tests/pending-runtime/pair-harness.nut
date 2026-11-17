@@ -368,7 +368,8 @@ function make_entry(pos, unique_entry_id)
 
 
 // Slot specifications are arrays of alternatives. A descriptor is a specific
-// vehicle alternative; a table with min_topspeed is a rule alternative.
+// vehicle alternative; a table with min_topspeed is a rule alternative. A table
+// with optional_slot set contributes no alternative and makes the slot optional.
 function make_order(slots)
 {
 	local order = consist_order_x()
@@ -383,9 +384,15 @@ function make_order(slots)
 			local alternative = vehicle_description_x()
 			if (typeof(spec) == "table")
 			{
+				if ("optional_slot" in spec && spec.optional_slot)
+				{
+					check(alternatives.len() == 0, "an optional-empty slot cannot also have alternatives")
+					slot.optional = true
+					continue
+				}
 				has_rule = true
-				// A rule alternative must be enforced; the element default is an
-				// optional (wildcard) slot.
+				// A rule alternative must be enforced; the element default is a
+				// wildcard alternative.
 				alternative.empty = false
 				if ("min_topspeed" in spec) { alternative.min_topspeed = spec.min_topspeed }
 				if ("min_power" in spec) { alternative.min_power = spec.min_power }
@@ -460,7 +467,9 @@ function receiver_order()
 	}
 	if (case_name == "already-at-end-state")
 	{
-		return [[fixture.loco_a], [fixture.coach_a]]
+		// loco_c is not present. The solver must omit the optional slot without
+		// moving either mandatory vehicle or applying a shunting delay.
+		return [[fixture.loco_a], [{ optional_slot = true }], [fixture.coach_a]]
 	}
 	if (case_name == "conflict-backtrack")
 	{
@@ -493,7 +502,7 @@ function target_order()
 	}
 	if (case_name == "already-at-end-state")
 	{
-		return [[fixture.loco_b], [fixture.coach_b]]
+		return [[fixture.loco_b], [{ optional_slot = true }], [fixture.coach_b]]
 	}
 	if (case_name == "conflict-backtrack")
 	{

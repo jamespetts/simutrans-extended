@@ -1932,9 +1932,36 @@ public:
 };
 
 
+class loose_recipient_scrollitem_t : public gui_scrolled_list_t::const_text_scrollitem_t
+{
+	plainstring text;
+
+public:
+	loose_recipient_scrollitem_t(plainstring const &text_) :
+		gui_scrolled_list_t::const_text_scrollitem_t("", SYSCOL_TEXT),
+		text(text_)
+	{
+		set_text_pointer(text);
+	}
+};
+
+
 gui_halt_loose_vehicles_t::gui_halt_loose_vehicles_t(halthandle_t halt)
 {
 	cached_signature = 0xFFFFFFFFul;
+	set_table_layout(1, 0);
+	set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_RIGHT, D_V_SPACE));
+	set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	new_component<gui_label_t>("Select loose wagons, choose their collecting service, then apply the recipient.");
+	bt_select_all.init(button_t::roundbox, "Select all loose wagons");
+	bt_select_all.add_listener(this);
+	add_component(&bt_select_all);
+	recipient_selector.add_listener(this);
+	add_component(&recipient_selector);
+	bt_apply_recipient.init(button_t::roundbox, "Apply recipient to selected wagons");
+	bt_apply_recipient.add_listener(this);
+	add_component(&bt_apply_recipient);
+	add_component(&vehicle_rows);
 	if (halt.is_bound())
 	{
 		init(halt);
@@ -1958,21 +1985,34 @@ void gui_halt_loose_vehicles_t::update_vehicles()
 {
 	if (!halt.is_bound())
 	{
-		// first call, or invalid handle
-		remove_all();
+		vehicle_rows.remove_all();
+		vehicle_refs.clear();
+		vehicle_selectors.clear();
+		bt_select_all.disable();
+		bt_apply_recipient.disable();
 		return;
 	}
 
-	vector_tpl<vehicle_t*> vehicles;
-	halt->get_loose_vehicles(vehicles);
-
-	// rebuild the rows only when the pool contents change
-	uint32 signature = vehicles.get_count();
+	// Keep convoy handles and indices; no vehicle pointer is retained by the UI.
+	uint32 signature = 0;
 	for (auto cnv : halt->get_laid_over())
 	{
-		if (cnv.is_bound())
+		if (!cnv.is_bound())
 		{
-			signature += cnv.get_id();
+			continue;
+		}
+		for (uint16 i = 0; i < cnv->get_vehicle_count(); i++)
+		{
+			vehicle_t *v = cnv->get_vehicle((uint8)i);
+			if (!v)
+			{
+				continue;
+			}
+			signature = signature * 33u + cnv.get_id() + i;
+			signature = signature * 33u + v->get_total_cargo();
+			signature = signature * 33u + v->get_loose_recipient_id();
+			signature = signature * 33u + (v->get_loose_recipient_is_convoy() ? 1u : 0u)
+				+ (v->get_loose_recipient_is_same() ? 2u : 0u) + (v->is_loose_recipient_any() ? 4u : 0u);
 		}
 	}
 	if (signature == cached_signature)
@@ -1981,37 +2021,220 @@ void gui_halt_loose_vehicles_t::update_vehicles()
 	}
 	cached_signature = signature;
 
-	remove_all();
-	set_table_layout(2, 0);
-	set_margin(scr_size(D_MARGIN_LEFT, D_V_SPACE), scr_size(D_MARGIN_RIGHT, D_V_SPACE));
-	set_spacing(scr_size(D_H_SPACE, 2));
-
-	new_component<gui_label_t>(translator::translate("Vehicle"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
-	new_component<gui_label_t>(translator::translate("Owner"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
-
-	if (vehicles.empty())
+	recipient_choice_t old_choice = { 0, 0 };
+	const sint32 old_selection = recipient_selector.get_selection();
+	if (old_selection >= 0 && (uint32)old_selection < recipient_choices.get_count())
 	{
-		new_component<gui_label_t>(translator::translate("None"), SYSCOL_TEXT_INACTIVE);
-		new_component<gui_empty_t>();
+		old_choice = recipient_choices[old_selection];
+	}
+	recipient_selector.clear_elements();
+	recipient_choices.clear();
+	recipient_choice_t choice = { 0, 0 };
+	recipient_selector.new_component<loose_recipient_scrollitem_t>(translator::translate("Same service that released the wagon"));
+	recipient_choices.append(choice);
+	choice.kind = 1;
+	recipient_selector.new_component<loose_recipient_scrollitem_t>(translator::translate("Any service"));
+	recipient_choices.append(choice);
+	for (auto cnv : halt->registered_convoys)
+	{
+		if (!cnv.is_bound())
+		{
+			continue;
+		}
+		cbuffer_t label;
+		label.printf("%s: %s", translator::translate("Consist"), cnv->get_name());
+		recipient_selector.new_component<loose_recipient_scrollitem_t>((const char *)label);
+		choice.kind = 3;
+		choice.id = cnv.get_id();
+		recipient_choices.append(choice);
+	}
+	for (auto line : halt->registered_lines)
+	{
+		if (!line.is_bound())
+		{
+			continue;
+		}
+		cbuffer_t label;
+		label.printf("%s: %s", translator::translate("Line"), line->get_name());
+		recipient_selector.new_component<loose_recipient_scrollitem_t>((const char *)label);
+		choice.kind = 2;
+		choice.id = line.get_id();
+		recipient_choices.append(choice);
+	}
+	sint32 selected_choice = 0;
+	for (uint32 i = 0; i < recipient_choices.get_count(); i++)
+	{
+		if (recipient_choices[i].kind == old_choice.kind && recipient_choices[i].id == old_choice.id)
+		{
+			selected_choice = (sint32)i;
+			break;
+		}
+	}
+	recipient_selector.set_selection(selected_choice);
+
+	vehicle_rows.remove_all();
+	vehicle_rows.set_table_layout(4, 0);
+	vehicle_rows.set_spacing(scr_size(D_H_SPACE, 2));
+	vehicle_refs.clear();
+	vehicle_selectors.clear();
+	vehicle_rows.new_component<gui_label_t>(translator::translate("Selected"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
+	vehicle_rows.new_component<gui_label_t>(translator::translate("Vehicle"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
+	vehicle_rows.new_component<gui_label_t>(translator::translate("Owner"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
+	vehicle_rows.new_component<gui_label_t>(translator::translate("State and collecting service"), SYSCOL_TEXT_UNUSED, gui_label_t::left);
+
+	bool have_vehicle = false;
+	for (auto cnv : halt->get_laid_over())
+	{
+		if (!cnv.is_bound())
+		{
+			continue;
+		}
+		for (uint16 i = 0; i < cnv->get_vehicle_count(); i++)
+		{
+			vehicle_t *v = cnv->get_vehicle((uint8)i);
+			if (!v)
+			{
+				continue;
+			}
+			have_vehicle = true;
+			loose_vehicle_ref_t ref = { cnv, i };
+			vehicle_refs.append(ref);
+			button_t *selector = vehicle_rows.new_component<button_t>();
+			selector->init(button_t::square_automatic, "");
+			selector->set_tooltip(translator::translate("Select this loose wagon"));
+			selector->add_listener(this);
+			vehicle_selectors.append(selector);
+			if (!player_t::check_owner(v->get_owner(), world()->get_active_player()))
+			{
+				selector->disable();
+			}
+
+			gui_label_buf_t *lb_name = vehicle_rows.new_component<gui_label_buf_t>();
+			lb_name->buf().printf("%s", translator::translate(v->get_desc()->get_name()));
+			if (v->get_is_mothballed())
+			{
+				lb_name->buf().printf(" (%s)", translator::translate("mothballed"));
+			}
+			lb_name->update();
+			player_t *owner = v->get_owner();
+			gui_label_buf_t *lb_owner = vehicle_rows.new_component<gui_label_buf_t>();
+			lb_owner->buf().printf("%s", owner ? owner->get_name() : translator::translate("Unowned"));
+			lb_owner->update();
+			lb_owner->set_color(owner ? color_idx_to_rgb(owner->get_player_color1() + env_t::gui_player_color_bright) : SYSCOL_TEXT);
+
+			gui_label_buf_t *lb_state = vehicle_rows.new_component<gui_label_buf_t>();
+			lb_state->buf().append(translator::translate(v->get_total_cargo() > 0 ? "Waiting loaded" : (v->get_is_mothballed() ? "Mothballed" : "Waiting empty")));
+			lb_state->buf().append("; ");
+			if (v->is_loose_recipient_any())
+			{
+				lb_state->buf().append(translator::translate("Any service"));
+			}
+			else
+			{
+				const uint16 recipient_id = v->get_loose_recipient_id();
+				bool named = false;
+				if (v->get_loose_recipient_is_convoy())
+				{
+					convoihandle_t recipient;
+					recipient.set_id(recipient_id);
+					if (recipient.is_bound())
+					{
+						lb_state->buf().printf("%s: %s", translator::translate("Consist"), recipient->get_name());
+						named = true;
+					}
+				}
+				else
+				{
+					linehandle_t recipient;
+					recipient.set_id(recipient_id);
+					if (recipient.is_bound())
+					{
+						lb_state->buf().printf("%s: %s", translator::translate("Line"), recipient->get_name());
+						named = true;
+					}
+				}
+				lb_state->buf().append(named ? "" : translator::translate("Recipient no longer exists"));
+				if (v->get_loose_recipient_is_same())
+				{
+					lb_state->buf().printf(" (%s)", translator::translate("Same as releasing service"));
+				}
+			}
+			lb_state->update();
+		}
+	}
+	if (!have_vehicle)
+	{
+		vehicle_rows.new_component<gui_label_t>(translator::translate("None"), SYSCOL_TEXT_INACTIVE);
+		for (uint8 i = 0; i < 3; i++)
+		{
+			vehicle_rows.new_component<gui_empty_t>();
+		}
+	}
+	vehicle_rows.set_size(vehicle_rows.get_min_size());
+	bt_select_all.enable(have_vehicle);
+	bt_apply_recipient.enable(have_vehicle);
+}
+
+void gui_halt_loose_vehicles_t::apply_recipient()
+{
+	const sint32 selection = recipient_selector.get_selection();
+	if (selection < 0 || (uint32)selection >= recipient_choices.get_count())
+	{
 		return;
 	}
-
-	for (vehicle_t* v : vehicles)
+	const recipient_choice_t choice = recipient_choices[selection];
+	for (sint32 i = 0; i < min((sint32)vehicle_selectors.get_count(), (sint32)vehicle_refs.get_count()); i++)
 	{
-		gui_label_buf_t *lb_name = new_component<gui_label_buf_t>();
-		lb_name->buf().printf("%s", v->get_desc()->get_name());
-		if (v->get_is_mothballed())
+		if (!vehicle_selectors[i]->pressed)
 		{
-			lb_name->buf().printf(" (%s)", translator::translate("mothballed"));
+			continue;
 		}
-		lb_name->update();
-
-		player_t *owner = v->get_owner();
-		gui_label_buf_t *lb_owner = new_component<gui_label_buf_t>();
-		lb_owner->buf().printf("%s", owner ? owner->get_name() : translator::translate("Unowned"));
-		lb_owner->update();
-		lb_owner->set_color(owner ? color_idx_to_rgb(owner->get_player_color1() + env_t::gui_player_color_bright) : SYSCOL_TEXT);
+		const loose_vehicle_ref_t ref = vehicle_refs[i];
+		if (!ref.convoy.is_bound() || ref.index >= ref.convoy->get_vehicle_count()
+			|| ref.convoy->get_state() != convoi_t::LAYOVER)
+		{
+			continue;
+		}
+		vehicle_t *const v = ref.convoy->get_vehicle((uint8)ref.index);
+		uint16 recipient_id = v->get_loose_recipient_id();
+		uint8 flags = v->get_loose_recipient_is_convoy() ? vehicle_t::loose_recipient_is_convoy : 0;
+		if (choice.kind == 0)
+		{
+			flags |= vehicle_t::loose_recipient_is_same;
+		}
+		else if (choice.kind == 1)
+		{
+			flags |= vehicle_t::loose_recipient_is_any;
+		}
+		else
+		{
+			recipient_id = choice.id;
+			flags = choice.kind == 3 ? vehicle_t::loose_recipient_is_convoy : 0;
+		}
+		cbuffer_t extra;
+		extra.printf("%u,%u,%u", (unsigned int)ref.index, (unsigned int)recipient_id, (unsigned int)flags);
+		ref.convoy->call_convoi_tool('r', extra);
 	}
+	cached_signature = 0xFFFFFFFFul;
+}
+
+bool gui_halt_loose_vehicles_t::action_triggered(gui_action_creator_t *comp, value_t)
+{
+	if (comp == &bt_apply_recipient)
+	{
+		apply_recipient();
+	}
+	else if (comp == &bt_select_all)
+	{
+		for (auto selector : vehicle_selectors)
+		{
+			if (selector->enabled())
+			{
+				selector->pressed = true;
+			}
+		}
+	}
+	return true;
 }
 
 

@@ -11,7 +11,8 @@
 #
 # Cases in cases/ are Y-division cases and use harness.nut. Cases in
 # pair-cases/ are paired H exchange cases and use pair-harness.nut. Cases in
-# choose-cases/ are choose-signal call-on cases and use choose-harness.nut. The forward
+# choose-cases/ are choose-signal call-on cases and use choose-harness.nut. Cases in
+# pickup-cases/ are pick-up goods cases and use pickup-harness.nut. The forward
 # case additionally prints the older Y DIVISION PASS and Y DIVISION FAIL
 # markers.
 #
@@ -22,6 +23,10 @@
 #
 # Environment:
 #   PENDING_RUNTIME_TIMEOUT        overall timeout per case, seconds (default 300)
+#   PENDING_RUNTIME_PICKUP_TIMEOUT overall timeout for a slow pick-up goods case
+#                                  (default 600: those cases build a consumer
+#                                  industry, several services and a wagon
+#                                  release sequence before the collection)
 #   PENDING_RUNTIME_STALL_TIMEOUT  no-output-progress timeout per case (default 120)
 #   PENDING_RUNTIME_BINARY         game binary, relative to simutrans/
 #                                  (default ../simutrans-extended)
@@ -38,6 +43,7 @@ binary=${PENDING_RUNTIME_BINARY:-../simutrans-extended}
 scenario_root="$workdir/$objects/scenario"
 
 timeout_seconds=${PENDING_RUNTIME_TIMEOUT:-300}
+pickup_timeout_seconds=${PENDING_RUNTIME_PICKUP_TIMEOUT:-600}
 stall_seconds=${PENDING_RUNTIME_STALL_TIMEOUT:-120}
 
 case_names=(forward)
@@ -58,6 +64,12 @@ for case_file in "$source_root"/choose-cases/*/scenario.nut
 do
 	[ -f "$case_file" ] || continue
 	choose_case_names+=("$(basename "$(dirname "$case_file")")")
+	case_names+=("$(basename "$(dirname "$case_file")")")
+done
+
+for case_file in "$source_root"/pickup-cases/*/scenario.nut
+do
+	[ -f "$case_file" ] || continue
 	case_names+=("$(basename "$(dirname "$case_file")")")
 done
 
@@ -137,6 +149,10 @@ run_case()
 	then
 		case_scenario="$source_root/pair-cases/$case_name/scenario.nut"
 		harness_file=$source_root/pair-harness.nut
+	elif [ -f "$source_root/pickup-cases/$case_name/scenario.nut" ]
+	then
+		case_scenario="$source_root/pickup-cases/$case_name/scenario.nut"
+		harness_file=$source_root/pickup-harness.nut
 	elif [ -f "$source_root/choose-cases/$case_name/scenario.nut" ]
 	then
 		case_scenario="$source_root/choose-cases/$case_name/scenario.nut"
@@ -180,6 +196,11 @@ run_case()
 	local start_time=$SECONDS
 	local last_size=-1
 	local last_progress=$SECONDS
+	local case_timeout=$timeout_seconds
+	case "$case_name" in
+		cargo-through|flash-full|flash-partial|flash-late)
+			case_timeout=$pickup_timeout_seconds ;;
+	esac
 
 	while :
 	do
@@ -246,9 +267,9 @@ run_case()
 			break
 		fi
 
-		if (( SECONDS - start_time >= timeout_seconds ))
+		if (( SECONDS - start_time >= case_timeout ))
 		then
-			echo "Case $case_name: FAILED (timed out after ${timeout_seconds} seconds) ($((SECONDS - start_time))s)"
+			echo "Case $case_name: FAILED (timed out after ${case_timeout} seconds) ($((SECONDS - start_time))s)"
 			result=1
 			break
 		fi

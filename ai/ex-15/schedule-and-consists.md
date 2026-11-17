@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -41,6 +41,13 @@ explorer's treatment of consist orders.
   no dedicated network command for consist orders. Vehicle-tag fields in saves from before
   Extended 15.4 (`vehicle_t::tags`, per-slot tag flags, per-order `tags_to_clear`) are read and
   discarded on load; older save targets are written with zeros.
+  `consist_order_element_t::optional` is one bool per slot and
+  `vehicle_description_element::load_requirement` is one byte per alternative; both use the same
+  read/write condition, `is_version_ex_atleast(15, 17)`, and default to mandatory and any load state
+  in older files. Schedule network tool strings carry both fields. The three pending collection-credit
+  fields (`collection_credit_pending`, `collection_loose_since` and `collection_time`) are one bool
+  and two sint64 tick values in `vehicle_t::rdwr_from_convoi`, also read and written under Extended 15
+  revision 17. Per-vehicle through-leg distance records use the revision 16 block.
 - Script interface: `schedule_x` contains all entry fields, schedule-level authoring settings,
   `current_stop` and an `orders` table keyed by `unique_entry_id`. Its consist-order objects cover
   ordered slots, prioritised specific/rule-based alternatives and recipient settings. Conversion
@@ -138,8 +145,8 @@ explorer's treatment of consist orders.
   pool draw. The search stops after 16,384 candidate placements; this is an implementation
   computation limit, not a game quantity, and exhaustion refuses the exchange.
   `convoi_t::commit_paired_exchange` commits both final consists as one operation: only vehicles
-  that leave both final consists are discharged and laid out as loose stock under the releasing
-  order's recipient setting; vehicles transferred directly between the two consists keep their
+  that leave both final consists retain through cargo and are laid out as loose stock under the
+  releasing order's recipient setting; vehicles transferred directly between the two consists keep their
   load; a laid-over donor emptied by the exchange is deregistered and destroyed. When the receiver
   reached the target's rear tile under a committed approach, the final consists are laid out on the
   tiles the pre-exchange vehicles occupied (front convoy first, loose stock behind both) with
@@ -178,15 +185,20 @@ explorer's treatment of consist orders.
   `consist_order_element_t` (slot: catg_index, prioritised alternatives) →
   `vehicle_description_element` (a specific vehicle, or rules: engine_type, min/max range,
   catering, classes, power, tractive effort, topspeed, weight, axle load, capacity, running/fixed
-  cost, fuel, staff, drivers). Hierarchy per
+  cost, fuel, staff, drivers). `consist_order_element_t::optional` controls whether the whole slot
+  may be omitted at any position; later mandatory slots shift forward. A rule alternative's
+  `vehicle_description_element::load_requirement` restricts the actual vehicle to loaded or empty.
+  The separate existing `empty` member makes a rule alternative a wildcard; it does not omit a slot.
+  Hierarchy per
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202971.html]. Alternatives carry no
   preference flags; priority is list order. `rule_flags` values in saves from before Extended
   15.2 are read and discarded on load. Solver:
   `convoi_t::process_consist_order` (single-pass heuristic matching with one pass-over retry) +
-  `commit_recombined_consist` (add/remove/substitute/move vehicles; removed vehicles force-unloaded
-  then collected into a new layover convoy; a vehicle substituted out of the consist is
-  discharged in the same way, and a split candidate defers that discharge in the same way that it
-  defers the discharge of the vehicles displaced by a division). Matching:
+  `commit_recombined_consist` (add/remove/substitute/move vehicles and collect displaced vehicles
+  into layover convoys). Vehicles not promoted to a schedule retain through cargo, while cargo for
+  the stop is delivered there. The shared destination, forward and explicit-discharge rules are in
+  [cargo-continuity](recombination-design/cargo-continuity.md). A split candidate is delivered only
+  after the target schedule has been assigned. Matching:
   `vehicle_t::matches_consist_order_element`
   (rules evaluated except preferences; enforces can_lead/can_follow). SHUNTING state with
   `shunting_time_seconds` setting. GUI `consist_order_frame_t`: order overview, consist copier
@@ -197,9 +209,10 @@ explorer's treatment of consist orders.
   unconstrained, OK/Cancel commit onto a working copy, any-traction option, goods category
   incl. an any-category wildcard (`consist_order_element_t::any_catg_index`, skipped in
   matching and in `parse_orders`' carried-category tables), named minimum-class dropdown,
-  per-alternative empty toggle, and pool matchability validation that greys OK with a
-  reason when no vehicle can satisfy a checked line). Picker authoring gates: per-slot goods-category consistency across a slot's
-  alternatives is IMPLEMENTED — the picker only offers vehicles of the target slot's category
+  separately labelled wildcard and optional-slot toggles, loaded/empty requirement selection, and
+  pool matchability validation that greys OK with a reason when no vehicle can satisfy a checked
+  line). Picker authoring gates: per-slot goods-category consistency across a slot's alternatives
+  is IMPLEMENTED — the picker only offers vehicles of the target slot's category
   (`is_filtered`), `consist_order_element_t::append_vehicle`/`set_catg_index` refuse category
   conflicts, and the rule editor offers only the established category and "Any" per slot.
   Behaviour-relevant because the value is read at runtime by rule matching
@@ -303,16 +316,15 @@ explorer's treatment of consist orders.
   convoy's step re-resolves and executes the exchange. A longer cycle (A waits for B, B for C,
   C for A) is not detected and jams; circular target graphs are refused only where the pair
   reciprocity validation reaches them. Platform blockage is accepted congestion.
-- **Freight/passenger continuity across splits/joins** — the discharge boundary is implemented for
-  the Y promoted portion and for vehicles transferred directly by a paired exchange: a vehicle that
-  remains in a scheduled consist keeps its load and only a vehicle that becomes loose stock is
-  discharged. The intended treatment for that discharged loose stock is that the discharge is an
-  accounting step only: the vehicle is treated as never having been unloaded, with preloading and
-  retrospective loading credit when a convoy collects it, while the path explorer keeps its current
-  model ([cargo-continuity](recombination-design/cargo-continuity.md)). That treatment is not
-  implemented. There is no deliberate transfer of cargo between portions, no re-routing correction
-  for cargo on moved vehicles, and no through fare ("passengers stay on the through portion" is not
-  modelled).
+- **Freight/passenger continuity across splits/joins** — vehicles moving between scheduled consists
+  and loaded vehicles retained in the loose pool keep their packets. `hat_gehalten` defers its
+  ordinary unload at a recombination entry until the final consists are known, repairs the first
+  onward transfer against the new carrier's schedule and uses the ordinary halt fallback only for a
+  destination or an unrepairable packet. Per-vehicle through recordings supply the full journey
+  distance and way-owner apportionment to `calc_revenue`; `last_transfer` is retained. What is not
+  modelled is deliberate load redistribution between portions or portion-class boarding rules.
+  Loading credit uses actual cargo/wagon availability rather than preloading. See
+  [cargo-continuity](recombination-design/cargo-continuity.md) for open passenger/grouping questions.
 - **Choose-signal call-on for coupling movements** — the choose-signal target decision, target-platform
   route and call-on admission are implemented. A committed target holds the mover at the signal.
   Before the signal routes to a stationary target it calls `convoi_t::can_approach_coupling_target`,
@@ -400,8 +412,6 @@ unbound/stale handles regardless.
   and how the target consists are selected. The ownership rule in
   [recombination-design](recombination-design.md) gives its semantics on mixed consists (own
   vehicles only, with the warning). Unrelated to re-combination, which never changes liveries.
-- "Empty slot" semantics (vehicle_description_element defaults empty=true; GUI produces
-  empty slots via the per-slot toggle but not rule-based slots).
 - Split composition: SETTLED — two end-state orders, one per portion (see
   [recombination-design](recombination-design.md)). Instance identity at a division remains open
   (same doc).

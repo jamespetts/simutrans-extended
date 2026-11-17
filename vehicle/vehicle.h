@@ -11,6 +11,7 @@
 #include <string>
 #include <atomic>
 #include "../simtypes.h"
+#include "../simdeparture.h"
 #include "../simworld.h"
 #include "../obj/simobj.h"
 #include "../halthandle_t.h"
@@ -325,7 +326,7 @@ private:
 
 	sint32 calc_modified_speed_limit(koord3d position, ribi_t::ribi current_direction, bool is_corner);
 
-	bool load_freight_internal(halthandle_t halt, bool overcrowd, bool *skip_vehicles, bool use_lower_classes);
+	bool load_freight_internal(halthandle_t halt, bool overcrowd, bool *skip_vehicles, bool use_lower_classes, sint64 *earliest_arrival);
 
 	// Cornering settings.
 
@@ -376,6 +377,15 @@ protected:
 	uint16 total_freight; // since the sum is needed quite often, it is cached (not differentiated by class)
 	slist_tpl<ware_t> *fracht;  // list of goods being transported (array for each class)
 
+	/**
+	 * Through journey records for cargo that crossed a consist recombination.
+	 * Allocated only when a loaded vehicle leaves a convoy, so that the
+	 * revenue lookup can find the boarding stop when it is no longer on the
+	 * delivering convoy's schedule. Kept current by the convoy that owns the
+	 * vehicle.
+	 */
+	through_departures_t *through_departures;
+
 	const vehicle_desc_t *desc;
 
 	convoi_t *cnv;  // != NULL if the vehicle is part of a Convoi
@@ -412,12 +422,19 @@ protected:
 	/*
 	* The recipient of this vehicle while it is loose, i.e. released from
 	* its consist by a consist order. loose_recipient_id is either a line
-	* ID or a convoy ID according to loose_recipient_flags. A zero id with
-	* zero flags means no named recipient: the vehicle is either not loose
-	* or was released for any line or consist.
+	* ID or a convoy ID according to loose_recipient_flags. Other flag bits
+	* distinguish an explicit Any override from Same, while retaining the
+	* resolved releasing service's identity for the per-vehicle editor.
+	* A zero id with zero flags is also Any.
 	*/
 	uint16 loose_recipient_id = 0;
 	uint8 loose_recipient_flags = 0;
+
+	// Time when this vehicle became loose. This is also recorded on vehicles
+	// added to an existing laid-over convoy, whose arrival_time may be older.
+	bool collection_credit_pending = false;
+	sint64 collection_loose_since = 0;
+	sint64 collection_time = 0;
 
 	void calc_image() OVERRIDE;
 
@@ -629,6 +646,18 @@ public:
 	static inline sint32 speed_unlimited() {return (std::numeric_limits<sint32>::max)(); }
 
 	const slist_tpl<ware_t> & get_cargo(uint8 a_class) const { return fracht[a_class];}   // list of goods being transported (indexed by accommodation class)
+	uint8 get_number_of_classes() const { return number_of_classes; }
+
+	// Through journey records (see through_departures).
+	through_departures_t *access_through_departures() { return through_departures; }
+	const through_departures_t *get_through_departures() const { return through_departures; }
+	bool has_through_departures() const { return through_departures != nullptr; }
+	bool has_through_departure(uint16 halt_id) const;
+	void add_through_departure(uint16 halt_id, const departure_data_t &dep, bool history_known);
+	void clear_through_departures();
+	void advance_through_departures(uint32 distance);
+	void advance_through_way_distances(uint8 player, uint32 steps);
+	void prune_through_departures();
 
 	/**
 	 * Rotate freight target coordinates, has to be called after rotating factories.
@@ -718,14 +747,14 @@ public:
 	 * @return sum of unloaded goods
 	 * If the layover parameter is true, unload all goods irrespective of the destination.
 	 */
-	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all = false );
+	uint16 unload_cargo(halthandle_t halt, sint64 & revenue_from_unloading, array_tpl<sint64> &apportioned_revenues, bool discharge_all = false, bool recombination_pass = false, bool destinations_only = false );
 
 	/**
 	 * Load freight from halt
 	 * @return amount loaded
 	 */
 	uint16 load_cargo(halthandle_t halt)  { bool dummy; (void)dummy; return load_cargo(halt, false, &dummy, &dummy, true); }
-	uint16 load_cargo(halthandle_t halt, bool overcrowd, bool *skip_convois, bool *skip_vehicles, bool use_lower_classes);
+	uint16 load_cargo(halthandle_t halt, bool overcrowd, bool *skip_convois, bool *skip_vehicles, bool use_lower_classes, sint64 *earliest_arrival = nullptr);
 
 	/**
 	* Remove freight that no longer can reach it's destination
@@ -821,21 +850,65 @@ public:
 	bool get_do_not_auto_upgrade() const { return do_not_auto_upgrade; }
 	const vehicle_desc_t* get_auto_upgrade() const;
 
-	enum { loose_recipient_is_convoy = 1u << 0u };
+	enum
+	{
+		loose_recipient_is_convoy = 1u << 0u,
+		loose_recipient_is_same = 1u << 1u,
+		loose_recipient_is_any = 1u << 2u
+	};
 
 	uint16 get_loose_recipient_id() const { return loose_recipient_id; }
 	bool get_loose_recipient_is_convoy() const { return (loose_recipient_flags & loose_recipient_is_convoy) != 0; }
+	bool get_loose_recipient_is_same() const { return (loose_recipient_flags & loose_recipient_is_same) != 0; }
+	bool is_loose_recipient_any() const { return loose_recipient_id == 0 || (loose_recipient_flags & loose_recipient_is_any) != 0; }
 
-	void set_loose_recipient(uint16 id, bool is_convoy)
+	void set_loose_recipient(uint16 id, bool is_convoy, bool same = false)
 	{
 		loose_recipient_id = id;
-		loose_recipient_flags = is_convoy ? (uint8)loose_recipient_is_convoy : 0;
+		loose_recipient_flags = (is_convoy ? (uint8)loose_recipient_is_convoy : 0u)
+			| (same ? (uint8)loose_recipient_is_same : 0u);
+	}
+	void set_loose_recipient_any()
+	{
+		// Retain the releasing service's identity so the player can return to
+		// Same without knowing that line's or convoy's numeric id.
+		loose_recipient_flags = (uint8)((loose_recipient_flags | loose_recipient_is_any) & ~loose_recipient_is_same);
+	}
+	void set_loose_recipient_same()
+	{
+		if (loose_recipient_id != 0)
+		{
+			loose_recipient_flags = (uint8)((loose_recipient_flags | loose_recipient_is_same) & ~loose_recipient_is_any);
+		}
 	}
 
 	void clear_loose_recipient()
 	{
 		loose_recipient_id = 0;
 		loose_recipient_flags = 0;
+	}
+
+	void mark_loose_at(sint64 time)
+	{
+		collection_loose_since = time;
+		collection_credit_pending = false;
+		collection_time = 0;
+	}
+	void record_loose_collection(sint64 collected_at, sint64 legacy_loose_since)
+	{
+		collection_credit_pending = true;
+		if (collection_loose_since == 0)
+		{
+			collection_loose_since = legacy_loose_since;
+		}
+		collection_time = collected_at;
+	}
+	void clear_loose_collection() { collection_credit_pending = false; }
+	bool get_collection_credit_times(sint64 &loose_since, sint64 &collected_at) const
+	{
+		loose_since = collection_loose_since;
+		collected_at = collection_time;
+		return collection_credit_pending;
 	}
 
 	bool get_is_mothballed() const { return is_mothballed; }

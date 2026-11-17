@@ -3431,6 +3431,101 @@ void haltestelle_t::add_ware_to_halt(ware_t ware, bool from_saved)
 	warray->append(ware);
 }
 
+
+bool haltestelle_t::add_cargo(const goods_desc_t *desc, uint32 amount, halthandle_t ziel, halthandle_t zwischenziel, sint64 arrival_time, halthandle_t origin, koord zielpos, uint8 g_class)
+{
+	if (desc == NULL || amount == 0 || !ziel.is_bound() || !is_enabled(desc) || !ziel->is_enabled(desc))
+	{
+		return false;
+	}
+	if (g_class >= desc->get_number_of_classes())
+	{
+		return false;
+	}
+	if (!zwischenziel.is_bound())
+	{
+		zwischenziel = ziel;
+	}
+	if (!origin.is_bound())
+	{
+		origin = self;
+	}
+	if (zielpos == koord::invalid)
+	{
+		zielpos = ziel->get_basis_pos();
+	}
+	if (!welt->is_within_limits(zielpos))
+	{
+		return false;
+	}
+
+	ware_t ware(desc);
+	ware.menge = amount;
+	ware.set_ziel(ziel);
+	ware.set_zwischenziel(zwischenziel);
+	ware.set_origin(origin);
+	ware.set_zielpos(zielpos);
+	ware.set_class(g_class);
+	ware.is_commuting_trip = false;
+	ware.arrival_time = arrival_time;
+
+	// from_saved preserves arrival_time and appends the packet instead of
+	// reusing an empty slot, so that repeated calls keep their own times.
+	add_ware_to_halt(ware, true);
+	// Balance the decrement that the halt destructor and clear_cargo() make
+	// for every packet whose delivery position is a factory.
+	fabrik_t::update_transit(ware, true);
+	recalc_status();
+	return true;
+}
+
+
+void haltestelle_t::clear_cargo()
+{
+	const uint8 max_categories = goods_manager_t::get_max_catg_index();
+	for (uint8 i = 0; i < max_categories; i++)
+	{
+		if (cargo[i] != NULL)
+		{
+			for (ware_t const &ware : *cargo[i])
+			{
+				fabrik_t::update_transit(ware, false);
+			}
+			// Keep the category allocated: gibt_ab() reports whether the halt
+			// handles the category, not whether packets are waiting.
+			cargo[i]->clear();
+		}
+	}
+
+	// The current-wait snapshot describes the packets just discarded. Retained
+	// waiting-time samples are history and are left alone.
+	if (current_waiting_times != NULL)
+	{
+		current_waiting_times->clear();
+	}
+
+#ifdef MULTI_THREAD
+	// Scenario callbacks run at the end of karte_t::step(), after the
+	// passenger/mail generation threads have been awaited, so no worker is
+	// appending to these buffers here.
+	const sint32 po = world()->get_parallel_operations() + 2;
+#else
+	const sint32 po = 1;
+#endif
+	for (sint32 i = 0; i < po; i++)
+	{
+		for (transferring_cargo_t const &tc : transferring_cargoes[i])
+		{
+			fabrik_t::update_transit(tc.ware, false);
+		}
+		transferring_cargoes[i].clear();
+	}
+
+	resort_freight_info = true;
+	recalc_status();
+}
+
+
 void haltestelle_t::add_to_waiting_list(ware_t ware, sint64 ready_time)
 {
 	transferring_cargo_t tc;

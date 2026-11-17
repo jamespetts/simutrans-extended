@@ -521,6 +521,14 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns capacity
 	 */
 	register_method(vm, &vehicle_desc_t::get_capacity, "get_capacity");
+	/** @returns total capacity across accommodation classes */
+	register_method(vm, &vehicle_desc_t::get_total_capacity, "get_total_capacity");
+	/** @returns additional overcrowded capacity */
+	register_method(vm, &vehicle_desc_t::get_overcrowded_capacity, "get_overcrowded_capacity");
+	/** @returns minimum loading time in simulation ticks */
+	register_method(vm, &vehicle_desc_t::get_min_loading_time, "get_min_loading_time");
+	/** @returns maximum loading time in simulation ticks */
+	register_method(vm, &vehicle_desc_t::get_max_loading_time, "get_max_loading_time");
 // 	/**
 // 	 * @returns running cost in 1/100 credits per tile
 // 	 */

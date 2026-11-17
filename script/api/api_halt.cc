@@ -13,6 +13,10 @@
 #include "../api_class.h"
 #include "../api_function.h"
 #include "../../simhalt.h"
+#include "../../simworld.h"
+#include "../../dataobj/environment.h"
+#include "../../dataobj/translator.h"
+#include "../../network/network_socket_list.h"
 
 halthandle_t get_halt_from_koord3d(koord3d pos, const player_t *player ); // api_schedule.cc, interfaces haltestelle_t::get_halt
 
@@ -197,6 +201,149 @@ SQInteger halt_compare(halthandle_t a, halthandle_t b)
 }
 
 
+/**
+ * A scenario script runs on the server only. The cargo methods below mutate
+ * the saved world directly instead of travelling as a network command, so a
+ * connected client would not apply them and would desynchronise. Refuse the
+ * call rather than create a silent desync. A client that joins later receives
+ * the server's complete saved state, so mutating the world is safe while no
+ * client is connected.
+ */
+static bool script_may_change_cargo()
+{
+	return !env_t::networkmode
+		|| (env_t::server
+			&& socket_list_t::get_connected_clients() == 0
+			&& socket_list_t::get_playing_clients() == 0);
+}
+
+
+/**
+ * Adds a normal cargo packet to this halt's waiting list.
+ *
+ * The packet is ordinary saved cargo: it participates in routing, loading,
+ * collection and the ordinary fare calculation, and it is written to savegames
+ * with the halt. The arrival time is preserved exactly as supplied, so a
+ * scenario can model cargo that has already waited for a chosen interval.
+ *
+ * Usage:
+ * @code
+ * local ok = halt.add_cargo(goods, 100, destination, next_transfer,
+ *                           world.get_time().ticks)
+ * // optional: origin, delivery position, class
+ * halt.add_cargo(goods, 100, destination, next_transfer, arrival_time,
+ *                origin, coord(9, 5), 0)
+ * @endcode
+ *
+ * @param goods goods type
+ * @param amount quantity in goods units; must be a positive 32-bit quantity
+ * @param destination ultimate destination halt
+ * @param next_transfer halt at which the packet must leave its next convoy;
+ *                      an unbound halt (for example halt_x(0)) means the destination
+ * @param arrival_time tick at which the packet arrived at this halt
+ * @param origin optional halt at which the journey began (default: this halt)
+ * @param destination_pos optional delivery position, normally a consumer
+ *                        industry position (default: the destination halt's position)
+ * @param class optional cargo class; zero for goods (default: 0)
+ * @returns true, or raises a script error if the arguments are not valid
+ */
+SQInteger halt_add_cargo(HSQUIRRELVM vm)
+{
+	if (!script_may_change_cargo())
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Cargo cannot be added while a network client is connected"));
+	}
+
+	const halthandle_t halt = param<halthandle_t>::get(vm, 1);
+	if (!halt.is_bound())
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Invalid halt"));
+	}
+	const goods_desc_t *desc = param<const goods_desc_t*>::get(vm, 2);
+	if (desc == NULL)
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Unknown goods type"));
+	}
+	const sint64 amount_value = param<sint64>::get(vm, 3);
+	if (amount_value <= 0 || amount_value > (sint64)UINT32_MAX_VALUE)
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Cargo amount must be a positive 32-bit quantity"));
+	}
+	const uint32 amount = (uint32)amount_value;
+	const halthandle_t ziel = param<halthandle_t>::get(vm, 4);
+	if (!ziel.is_bound())
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Invalid cargo destination halt"));
+	}
+	const halthandle_t zwischenziel = param<halthandle_t>::get(vm, 5);
+	const sint64 arrival_time = param<sint64>::get(vm, 6);
+	halthandle_t origin;
+	koord zielpos = koord::invalid;
+	sint64 class_value = 0;
+	const SQInteger argc = sq_gettop(vm);
+	if (argc >= 7)
+	{
+		origin = param<halthandle_t>::get(vm, 7);
+	}
+	if (argc >= 8)
+	{
+		zielpos = param<koord>::get(vm, 8);
+	}
+	if (argc >= 9)
+	{
+		class_value = param<sint64>::get(vm, 9);
+	}
+	if (!halt->is_enabled(desc))
+	{
+		return sq_raise_error(vm, "%s", translator::translate("This halt cannot store that cargo category"));
+	}
+	if (!ziel->is_enabled(desc))
+	{
+		return sq_raise_error(vm, "%s", translator::translate("The destination halt cannot receive that cargo category"));
+	}
+	if (class_value < 0 || class_value >= desc->get_number_of_classes())
+	{
+		return sq_raise_error(vm, translator::translate("Cargo class %lld is outside the range of the goods type"), (long long)class_value);
+	}
+	const uint8 g_class = (uint8)class_value;
+	if (zielpos != koord::invalid && !welt->is_within_limits(zielpos))
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Cargo destination position is outside the map"));
+	}
+	if (!halt->add_cargo(desc, amount, ziel, zwischenziel, arrival_time, origin, zielpos, g_class))
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Cannot add cargo with these arguments"));
+	}
+	return param<bool>::push(vm, true);
+}
+
+
+/**
+ * Discards all waiting and transferring cargo at this halt without booking
+ * revenue or refunds. Factory transit statistics are decremented for the
+ * discarded packets, and the current-wait snapshot is cleared while the
+ * retained waiting-time samples are left alone. This is for deterministic
+ * scenario setup.
+ *
+ * A scenario script runs on the server only, so this method is refused while a
+ * network client is connected. @see halt_add_cargo
+ */
+SQInteger halt_clear_cargo(HSQUIRRELVM vm)
+{
+	if (!script_may_change_cargo())
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Cargo cannot be cleared while a network client is connected"));
+	}
+	const halthandle_t halt = param<halthandle_t>::get(vm, 1);
+	if (!halt.is_bound())
+	{
+		return sq_raise_error(vm, "%s", translator::translate("Invalid halt"));
+	}
+	halt->clear_cargo();
+	return param<bool>::push(vm, true);
+}
+
+
 // vector_tpl<haltestelle_t::connection_t> const& halt_get_connections(const haltestelle_t *halt, const goods_desc_t* freight)
 // {
 // 	static vector_tpl<haltestelle_t::connection_t> dummy;
@@ -351,6 +498,31 @@ void export_halt(HSQUIRRELVM vm)
 	 * @param target coordinate of target
 	 */
 	register_method(vm, &haltestelle_t::get_ware_fuer_zielpos, "get_freight_to_dest");
+	/**
+	 * Adds a normal cargo packet to this halt's waiting list for scenario
+	 * setup. The arrival time is preserved. The packet is ordinary saved cargo.
+	 * Refused while a network client is connected, because this is not a
+	 * network command.
+	 * @param goods goods type
+	 * @param amount quantity; must be a positive 32-bit quantity
+	 * @param destination ultimate destination halt
+	 * @param next_transfer halt at which the packet leaves its next convoy;
+	 *                      an unbound halt (for example halt_x(0)) means the destination
+	 * @param arrival_time tick at which the packet arrived here
+	 * @param origin optional halt at which the journey began (default: this halt)
+	 * @param destination_pos optional delivery position (default: destination halt position)
+	 * @param class optional cargo class (default: 0)
+	 * @returns true; raises a script error on invalid arguments
+	 * @typemask bool(halt_x, good_desc_x, integer, halt_x, halt_x, integer, halt_x, coord, integer)
+	 */
+	register_function(vm, halt_add_cargo, "add_cargo", -6, "x t|x|y i t|x|y t|x|y i t|x|y t|x|y i");
+	/**
+	 * Discards all waiting and transferring cargo at this halt without booking
+	 * revenue or refunds, for deterministic scenario setup. Refused while a
+	 * network client is connected, because this is not a network command.
+	 * @returns true; raises a script error on an invalid halt
+	 */
+	register_function(vm, halt_clear_cargo, "clear_cargo", 1, "x");
 // 	/**
 // 	 * Returns amount of @p freight at this halt that scheduled to @p stop
 // 	 * @param freight freight type

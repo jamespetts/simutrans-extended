@@ -207,6 +207,7 @@ SQInteger push_vehicle_description(HSQUIRRELVM vm, const vehicle_description_ele
 		return SQ_ERROR;
 	}
 	set_slot(vm, "empty", e.empty);
+	set_slot(vm, "load_requirement", (SQInteger)e.load_requirement);
 	set_slot(vm, "engine_type", (SQInteger)e.engine_type);
 	set_slot(vm, "min_catering", (SQInteger)e.min_catering);
 	set_slot(vm, "max_catering", (SQInteger)e.max_catering);
@@ -259,6 +260,7 @@ SQInteger push_consist_order_element(HSQUIRRELVM vm, const consist_order_element
 	}
 	// stack: array, element
 	set_slot(vm, "catg", (SQInteger)element.get_catg_index());
+	set_slot(vm, "optional", element.is_optional());
 	sq_pushstring(vm, "alternatives", -1);
 	sq_push(vm, -3);
 	if (SQ_FAILED(sq_set(vm, -3))) {
@@ -398,6 +400,8 @@ bool read_vehicle_description(HSQUIRRELVM vm, SQInteger obj, vehicle_description
 	if (present) { out.empty = value; }
 
 	sint64 i = 0;
+	if (!read_integer(vm, obj, "load_requirement", vehicle_description_element::load_any, vehicle_description_element::load_only_empty, out.load_requirement, i)) { return false; }
+	out.load_requirement = (uint8)i;
 	if (!read_integer(vm, obj, "engine_type", 0, vehicle_desc_t::MAX_TRACTION_TYPE, out.engine_type, i)) { return false; }
 	out.engine_type = (uint8)i;
 	if (!read_integer(vm, obj, "min_catering", 0, 255, out.min_catering, i)) { return false; }
@@ -466,6 +470,10 @@ bool read_consist_order_element(HSQUIRRELVM vm, SQInteger obj, consist_order_ele
 {
 	sint64 catg = -1;
 	if (!read_integer(vm, obj, "catg", -1, consist_order_element_t::any_catg_index, -1, catg)) { return false; }
+	bool optional = false;
+	bool optional_present = false;
+	if (!read_boolean(vm, obj, "optional", optional, optional_present)) { return false; }
+	if (optional_present) { elem.set_optional(optional); }
 
 	if (get_field(vm, obj, "alternatives")) {
 		if (sq_gettype(vm, -1) != OT_ARRAY) {

@@ -257,8 +257,151 @@ static bool descriptors_couple(const vehicle_desc_t *rear, const vehicle_desc_t 
 }
 
 
+// Advisory reachability for an order that permits slots to be omitted. The
+// runtime matcher is authoritative; this check tests whether candidates can
+// connect across any run of optional slots and retains the existing end and
+// power checks.
+static consist_order_check_t check_order_with_optional(const consist_order_t &order, const vector_tpl<const vehicle_desc_t*> &pool)
+{
+	consist_order_check_t result;
+	const uint32 count = order.get_count();
+	vector_tpl<vector_tpl<const vehicle_desc_t*> > candidates;
+	bool unjudged = false;
+	for (uint32 i = 0; i < count; i++)
+	{
+		vector_tpl<const vehicle_desc_t*> slot;
+		collect_slot_candidates(order.get_order(i), pool, slot, unjudged);
+		if (slot.empty() && !order.get_order(i).is_optional())
+		{
+			if (unjudged)
+			{
+				result.unjudged = true;
+				return result;
+			}
+			result.reason = order.get_order(i).get_count() == 0
+				? consist_order_check_t::slot_without_vehicle
+				: consist_order_check_t::slot_without_available_vehicle;
+			result.slot = i;
+			return result;
+		}
+		candidates.append(slot);
+	}
+	if (unjudged)
+	{
+		result.unjudged = true;
+		return result;
+	}
+
+	vector_tpl<vector_tpl<const vehicle_desc_t*> > forward;
+	vector_tpl<vector_tpl<const vehicle_desc_t*> > backward;
+	forward.set_count(count);
+	backward.set_count(count);
+	for (uint32 i = 0; i < count; i++)
+	{
+		bool front_is_possible = true;
+		for (auto desc : candidates[i])
+		{
+			bool reachable = false;
+			sint32 previous = (sint32)i - 1;
+			for (; previous >= 0 && !reachable; previous--)
+			{
+				for (auto before : forward[previous])
+				{
+					if (descriptors_couple(before, desc))
+					{
+						reachable = true;
+						break;
+					}
+				}
+				if (!order.get_order(previous).is_optional())
+				{
+					front_is_possible = false;
+					break;
+				}
+			}
+			if (front_is_possible && desc->can_follow(nullptr))
+			{
+				reachable = true;
+			}
+			if (reachable && !forward[i].is_contained(desc))
+			{
+				forward[i].append(desc);
+			}
+		}
+		if (forward[i].empty() && !order.get_order(i).is_optional())
+		{
+			result.reason = front_is_possible && i == 0
+				? consist_order_check_t::front_cannot_lead
+				: consist_order_check_t::slot_does_not_connect;
+			result.slot = i;
+			return result;
+		}
+	}
+	for (uint32 reverse = count; reverse-- > 0;)
+	{
+		bool rear_is_possible = true;
+		for (auto desc : candidates[reverse])
+		{
+			bool reachable = false;
+			for (uint32 next = reverse + 1; next < count && !reachable; next++)
+			{
+				for (auto after : backward[next])
+				{
+					if (descriptors_couple(desc, after))
+					{
+						reachable = true;
+						break;
+					}
+				}
+				if (!order.get_order(next).is_optional())
+				{
+					rear_is_possible = false;
+					break;
+				}
+			}
+			if (rear_is_possible && desc->can_lead(nullptr))
+			{
+				reachable = true;
+			}
+			if (reachable && !backward[reverse].is_contained(desc))
+			{
+				backward[reverse].append(desc);
+			}
+		}
+		if (backward[reverse].empty() && !order.get_order(reverse).is_optional())
+		{
+			result.reason = rear_is_possible && reverse + 1 == count
+				? consist_order_check_t::rear_cannot_be_last
+				: consist_order_check_t::slot_does_not_connect;
+			result.slot = reverse;
+			return result;
+		}
+	}
+	for (uint32 i = 0; i < count; i++)
+	{
+		for (auto desc : forward[i])
+		{
+			if (desc->get_power() > 0 && backward[i].is_contained(desc))
+			{
+				return result;
+			}
+		}
+	}
+	result.reason = consist_order_check_t::no_power;
+	return result;
+}
+
+
 consist_order_check_t consist_order_t::check(const vector_tpl<const vehicle_desc_t*> &pool) const
 {
+	for (uint32 i = 0; i < orders.get_count(); i++)
+	{
+		if (orders[i].is_optional())
+		{
+			return check_order_with_optional(*this, pool);
+		}
+	}
+
 	consist_order_check_t result;
 	const uint32 count = orders.get_count();
 	if (count == 0)
@@ -461,6 +604,15 @@ void vehicle_description_element::rdwr(loadsave_t *file)
 	file->rdwr_long(max_drivers);
 	file->rdwr_long(min_drivers);
 
+	if (file->is_loading())
+	{
+		load_requirement = load_any;
+	}
+	if (file->is_version_ex_atleast(15, 17))
+	{
+		file->rdwr_byte(load_requirement);
+	}
+
 	if (old_rule_flags_shape) {
 		// Zeros for the removed preference flags (see above), so that older
 		// builds can still read saves written for an older target revision.
@@ -510,6 +662,10 @@ void consist_order_t::rdwr(loadsave_t* file)
 		for(auto order : orders)
 		{
 			file->rdwr_byte(order.catg_index);
+			if (file->is_version_ex_atleast(15, 17))
+			{
+				file->rdwr_bool(order.optional);
+			}
 
 			if (old_tag_shape)
 			{
@@ -540,6 +696,11 @@ void consist_order_t::rdwr(loadsave_t* file)
 			consist_order_element_t order;
 
 			file->rdwr_byte(order.catg_index);
+			order.optional = false;
+			if (file->is_version_ex_atleast(15, 17))
+			{
+				file->rdwr_bool(order.optional);
+			}
 
 			if (old_tag_shape)
 			{
@@ -575,12 +736,14 @@ void consist_order_t::sprintf_consist_order(cbuffer_t &buf) const
 	for (auto order : orders)
 	{
 		buf.append_fixed(order.catg_index);
+		buf.append_fixed((uint8)(order.optional ? 1 : 0));
 		buf.append_fixed(order.vehicle_description.get_count());
 		for(auto desc : order.vehicle_description)
 		{
 			buf.append(desc.specific_vehicle ? desc.specific_vehicle->get_name() : "NULL");
 			buf.append("|");
 			buf.append_fixed(desc.empty == true ? (uint8)1 : (uint8)0);
+			buf.append_fixed(desc.load_requirement);
 			buf.append_fixed(desc.engine_type);
 			buf.append_fixed(desc.min_catering);
 			buf.append_fixed(desc.max_catering);
@@ -632,6 +795,7 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 		consist_order_element_t element;
 
 		element.catg_index = cbuffer_t::decode_uint8(p);
+		element.optional = cbuffer_t::decode_uint8(p) != 0;
 
 		uint32 vehicle_description_count = cbuffer_t::decode_uint32(p);
 		for(uint32 j = 0; j < vehicle_description_count; j ++)
@@ -668,6 +832,7 @@ const char* consist_order_t::sscanf_consist_order(const char* ptr)
 			p++;
 
 			desc.empty = cbuffer_t::decode_uint8(p);
+			desc.load_requirement = cbuffer_t::decode_uint8(p);
 			desc.engine_type = cbuffer_t::decode_uint8(p);
 			desc.min_catering = cbuffer_t::decode_uint8(p);
 			desc.max_catering = cbuffer_t::decode_uint8(p);
@@ -732,7 +897,7 @@ bool consist_order_t::operator== (const consist_order_t& other) const
 
 bool consist_order_element_t::operator!= (const consist_order_element_t& other) const
 {
-	if (catg_index == other.catg_index && vehicle_description.get_count() == other.vehicle_description.get_count())
+	if (catg_index == other.catg_index && optional == other.optional && vehicle_description.get_count() == other.vehicle_description.get_count())
 	{
 		// Check each individual vehicle description element
 		// ...
@@ -763,6 +928,7 @@ bool vehicle_description_element::operator!= (const vehicle_description_element&
 	bool return_value =
 		specific_vehicle != other.specific_vehicle ||
 		empty != other.empty ||
+		load_requirement != other.load_requirement ||
 		engine_type != other.engine_type ||
 		min_catering != other.min_catering ||
 		max_catering != other.max_catering ||
