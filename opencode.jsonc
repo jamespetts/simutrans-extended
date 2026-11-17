@@ -1,0 +1,45 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Subagents chosen by task complexity, not task type. The top-level agent is chosen by the user
+  // per task; nothing here assumes which one it is.
+  // very-basic -> Nemotron 3 Ultra Free | basic -> GLM 5.3 Flash Free (OpenCode)
+  // intermediate -> DeepSeek Flash Latest (coding above basic)
+  // translating -> Qwen3.8 Flash (all translation work)
+  // very-hard  -> Kimi K3.1 Pro (expert planning/analysis and hard-bug diagnosis; not implementation)
+  // ultra-fallback -> Claude Opus 5.5 (only after very-hard cannot complete the task satisfactorily)
+  "agent": {
+    "explore": { "disable": true },
+    "general": { "disable": true },
+    "very-basic": {
+      "description": "Very basic work of any type where an ultra-lightweight model suffices (simple lookups, trivial mechanical checks).",
+      "mode": "subagent",
+      "model": "opencode/nemotron-3-ultra-free"
+    },
+    "basic": {
+      "description": "Basic work of any type where a lightweight model suffices (simple coding, codebase searches, routine checks).",
+      "mode": "subagent",
+      "model": "opencode/glm-5.3-flash-free"
+    },
+    "intermediate": {
+      "description": "Coding: for all coding that is above basic coding.",
+      "mode": "subagent",
+      "model": "fireworks-ai/accounts/fireworks/routers/deepseek-flash-latest"
+    },
+    "translating": {
+      "description": "Translation: for all translation work, keeping meaning as unchanged as possible.",
+      "mode": "subagent",
+      "model": "opencode/qwen3.8-flash"
+    },
+    "very-hard": {
+      "description": "Expert analysis, planning and diagnosis of extremely hard-to-find bugs. Does not implement features or carry out ordinary coding work; it may apply a minimal fix only after isolating a hard bug to a small, obvious correction.",
+      "mode": "subagent",
+      "model": "fireworks-ai/accounts/fireworks/models/kimi-k3p1-pro",
+      "system": "You are an analysis and planning agent, and a diagnostician for extremely hard-to-find bugs. Do not implement features, refactor code, or carry out ordinary coding work. Investigate, reason, and return a plan, a diagnosis, or a set of evidence-backed options. The only exception is a very hard-to-find bug that you have isolated to a small, obvious correction: you may apply that minimal fix, and you must state exactly what you changed and why. Do not use this agent for routine implementation, large edits, or building a feature."
+    },
+    "ultra-fallback": {
+      "description": "Fallback for a task that very-hard has attempted but cannot complete satisfactorily.",
+      "mode": "subagent",
+      "model": "opencode/claude-opus-5-5"
+    }
+  }
+}
