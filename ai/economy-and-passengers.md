@@ -1,6 +1,6 @@
 ---
-status: stub
-verified: none
+status: draft
+verified: cost-of-capital @ d80af444a (players and finance); master @ 206db8379 (city growth); ex-15 @ 422122533 (private cars)
 ---
 # Economy, finance & passengers
 
@@ -18,7 +18,7 @@ verified: none
 - Cities & growth (simcity; city buildings; passenger demand origins).
 - Passenger generation: Extended-specific mechanics & the efficiency work above [PRIOR → verify; ask the user].
 - Goods shipments (`simware_t`) in transit; the goods *descriptor* and category system live with the industry domain → [industry](industry.md).
-- Players & finance (player/): companies, public player, AI players (gui/ai_option as an indication), insolvency (local-only base-texts artefact "insolvency" as an indication).
+- Fares: how they are set and calibrated [TODO → verify].
 - Load/save coupling → [savegame-versioning](savegame-versioning.md).
 
 ## Verified facts (city growth config)
@@ -40,6 +40,79 @@ verified: none
 - `karte_t::generate_passengers_or_mail` draws one car type per packet that has access to a private car, before the mode choice, from the era-filtered, distribution-weighted pool for the packet's class (`private_car_t::pick_citycar_desc(g_class)`). A class whose pool is empty makes no private car journeys, whatever its ownership percentage. [CODE ex-15 @ 422122533 plus working-tree private-car class changes]
 - The pools are rebuilt monthly by `private_car_t::build_timeline_list` from the city-car descriptors the timeline makes available. Each descriptor's available classes come from the `class` key of its `.dat` file (comma-separated integer class indices, 0 lowest); a descriptor without the key is available to every class. [CODE ex-15 @ 422122533 plus working-tree private-car class changes]
 - Private car journey times are per class: a journey whose destination is the origin city uses the generic road time per tile at that class's average speed, and a routed journey to another city or to an industry or attraction uses the time recorded for each class along the actual road route. The model and its storage: [comfort-routing-integration](path-explorer-optimisation/comfort-routing-integration.md).
+
+## Players and finance
+
+Each company is a `player_t` (`player/simplay.h`) that owns a `finance_t`
+(`player/finance.h`). Player 0 is the human company and player 1 is the public service player
+(`player_t::is_public_service`), which is exempt from borrowing limits, insolvency and tax.
+[CODE cost-of-capital @ d80af444a]
+
+Money is held in Simucents, one hundredth of a Simucredit; `convert_money` divides by 100 for
+display. All money paths work in Simucents. [CODE]
+
+`finance_t` holds:
+
+- `account_balance`, the cash position, which may be negative;
+- the history arrays `com_month[26][ATC_MAX]`, `com_year[26][ATC_MAX]` for company-wide
+  entries and `veh_month[TT_MAX][26][ATV_MAX]`, `veh_year[TT_MAX][26][ATV_MAX]` for entries
+  distinguished by transport type (`finance_t::transport_type`, not `waytype_t`);
+- `maintenance[TT_MAX]`, the recurring infrastructure cost, rebuilt from the map objects on
+  load rather than saved ([way-maintenance-accounting](way-maintenance-accounting.md));
+- the Asset Ledger, Tax Written-Down Pool and Term Instruments described in
+  [cost-of-capital](cost-of-capital.md).
+
+[CODE]
+
+Booking methods are inline in `finance.h` (`book_revenue`, `book_running_costs`,
+`book_new_vehicle`, `book_construction_costs`, `book_maintenance`, `book_way_renewal`,
+`book_interest`, `book_tax`, ...). Each adjusts the current month and current year entry and,
+for a cash amount, `account_balance`. `player_t` wraps them for the paths that also need a
+Money Message ([cost-of-capital](cost-of-capital.md)) or an asset update. [CODE]
+
+`finance_t::new_month` performs, in order: `calc_finance_history` (derives the aggregate
+entries: revenue, expenditure, operating profit, profit, margin, net wealth), the monthly
+history roll, the yearly roll in January, the Term Instrument interest and principal, the
+Overdraft interest, corporation tax, infrastructure maintenance, asset depreciation and the tax
+allowance. `player_t::new_month` then recomputes the vehicle value with `player_t::calc_assets`,
+recalculates the Credit Limits and the Credit Rating, and raises the insolvency warnings.
+[CODE]
+
+Interest, tax and maintenance are booked as negative amounts, so an expense reduces
+`account_balance` and the profit entries directly. [CODE]
+
+**Credit Limits.** `finance_t::calc_credit_limits` sets a negative hard limit as the worse
+(more negative) of `credit_limit_by_profits` and `credit_limit_by_assets`, and a soft limit at
+half of it. The profit-based limit divides the last twelve months' `ATV_OPERATING_PROFIT` by
+the overdraft rate; the asset-based limit is the negative of `ATV_NON_FINANCIAL_ASSETS`.
+`finance_t::can_afford` compares the post-purchase balance with the soft limit and returns true
+in freeplay or when `allow_purchases_when_insolvent` is set. The finance window shows the soft
+limit as the Overdraft Limit and the hard limit as the Overdraft Solvency Limit. [CODE]
+
+**Insolvency.** `player_t::check_solvency` returns `solvent` when the game is in freeplay, when
+insolvency is disabled, or for the public service player; otherwise it counts the consecutive
+months in which `ATC_CASH` was below `ATC_HARD_CREDIT_LIMIT`
+(`finance_t::get_number_of_months_insolvent`). Up to twelve months gives `in_administration`
+and more gives `in_liquidation`. `player_t::begin_liquidation` locks the player, sends its
+convoys to depots and grants every other player access to its ways;
+`player_t::complete_liquidation` removes the convoys, stops, signals, way objects and buildings,
+takes the ways out of private ownership or downgrades them, and marks the player inactive.
+`player_t::new_month` completes the liquidation once the company has been insolvent for 24
+months. [CODE]
+
+**Takeover.** `player_t::can_take_over` requires `available_for_takeover` (voluntary, or not
+solvent) and affordability of `calc_takeover_cost`. The cost refunds the target's starting
+capital, subtracts its cash balance, subtracts its Secured Debt and adds its vehicle value.
+`player_t::take_over` books the price, transfers vehicles, ways, stops and lines, transfers the
+Term Instruments, and recalculates the acquirer's assets, Credit Limits, Credit Rating and
+history. [CODE]
+
+**Inflation and scale.** `karte_t::get_inflation_adjusted_price` converts a 1900-priced figure
+through the series in `config/prices.tab` for the current timeline month (identity when the
+timeline is off). Starting money is converted this way on construction of `finance_t`.
+`karte_t::calc_adjusted_monthly_figure` converts a per-month figure through `bits_per_month`,
+for costs that accrue per tick rather than once per month
+([scale-factoring](scale-factoring.md)). [CODE]
 
 ## Performance hotspots
 
