@@ -47,6 +47,7 @@ loan_frame_t::loan_frame_t(player_t *player) :
 	instrument_scroll(&instrument_cont, false, true),
 	selected_term(LOAN_TERM_5_YEARS),
 	selected_type(LOAN_TYPE_BANK),
+	quote_valid(false),
 	last_month(0xFFFFFFFF),
 	last_loan_count(0xFFFFFFFF)
 {
@@ -133,7 +134,7 @@ loan_frame_t::loan_frame_t(player_t *player) :
 
 	add_table(2, 2);
 	{
-		new_component<gui_label_t>("Amount");
+		new_component<gui_label_t>("Amount (Simucredits)");
 		amount.set_limits(0, 2000000000);
 		amount.set_value(100000);
 		amount.add_listener(this);
@@ -204,6 +205,7 @@ void loan_frame_t::update_quote()
 
 	lb_quote.buf().clear();
 	lb_status.buf().clear();
+	quote_valid = false;
 
 	if (amount_simucents <= 0 || !finance->is_term_available(selected_term, (uint8)selected_type, rating))
 	{
@@ -217,8 +219,11 @@ void loan_frame_t::update_quote()
 	{
 		lb_status.buf().printf("%s", translator::translate("That would exceed the term borrowing limit."));
 		lb_status.update();
+		lb_quote.update();
+		return;
 	}
 
+	quote_valid = true;
 	const sint32 rate_bp = finance->get_term_rate_bp(selected_term, rating, amount_simucents);
 	const sint64 monthly_interest = (amount_simucents * (sint64)rate_bp) / 120000ll;
 	const sint64 monthly_principal = proposed.get_principal_due_this_month();
@@ -346,6 +351,15 @@ void loan_frame_t::draw(scr_coord pos, scr_size size)
 	{
 		bt_repay.enable();
 		bt_refinance.enable();
+	}
+
+	if (quote_valid)
+	{
+		bt_borrow.enable();
+	}
+	else
+	{
+		bt_borrow.disable();
 	}
 
 	gui_frame_t::draw(pos, size);

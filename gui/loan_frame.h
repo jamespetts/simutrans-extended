@@ -65,6 +65,7 @@ class loan_frame_t : public gui_frame_t, private action_listener_t
 
 	loan_term_t selected_term;
 	uint16 selected_type;
+	bool quote_valid;
 
 	gui_chart_t chart;
 	sint64 chart_table[MAX_PLAYER_HISTORY_MONTHS][CHART_SERIES];

@@ -595,10 +595,11 @@ bool finance_t::is_term_available(loan_term_t term, uint8 type, uint8 rating) co
 		return false;
 	}
 
-	if (type == LOAN_TYPE_BOND && term == LOAN_TERM_25_YEARS)
+	if (term == LOAN_TERM_25_YEARS)
 	{
-		// A 25-year bond requires an investment-grade rating.
-		return rating <= CREDIT_RATING_BBB;
+		// The 25-year term is available only as a bond, and only at an
+		// investment-grade rating.
+		return type == LOAN_TYPE_BOND && rating <= CREDIT_RATING_BBB;
 	}
 
 	if (rating <= CREDIT_RATING_BBB)
