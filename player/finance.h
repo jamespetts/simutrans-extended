@@ -824,14 +824,42 @@ public:
 	sint64 get_financial_assets() const {return veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS];}
 
 	/**
-	 * Book value of the infrastructure ledger for a transport type.
+	 * Book value of the infrastructure ledger. With TT_ALL, the sum over every
+	 * transport type.
 	 */
-	sint64 get_asset_value(transport_type tt = TT_ALL) const { assert(tt < TT_MAX); return asset_value[tt]; }
+	sint64 get_asset_value(transport_type tt = TT_ALL) const
+	{
+		if (tt == TT_ALL)
+		{
+			sint64 total = 0;
+			for (int i = 0; i < TT_MAX; i++)
+			{
+				total += asset_value[i];
+			}
+			return total;
+		}
+		assert(tt < TT_MAX);
+		return asset_value[tt];
+	}
 
 	/**
-	 * Tax written-down value of the pooled assets for a transport type.
+	 * Tax written-down value of the pooled assets. With TT_ALL, the sum over
+	 * every transport type.
 	 */
-	sint64 get_tax_pool(transport_type tt = TT_ALL) const { assert(tt < TT_MAX); return tax_pool[tt]; }
+	sint64 get_tax_pool(transport_type tt = TT_ALL) const
+	{
+		if (tt == TT_ALL)
+		{
+			sint64 total = 0;
+			for (int i = 0; i < TT_MAX; i++)
+			{
+				total += tax_pool[i];
+			}
+			return total;
+		}
+		assert(tt < TT_MAX);
+		return tax_pool[tt];
+	}
 
 	/**
 	 * Total credit asset value: the infrastructure ledger plus the sale value
@@ -840,12 +868,7 @@ public:
 	 */
 	sint64 get_credit_asset_value() const
 	{
-		sint64 total = veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS];
-		for (int i = 0; i < TT_MAX; i++)
-		{
-			total += asset_value[i];
-		}
-		return total;
+		return veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS] + get_asset_value(TT_ALL);
 	}
 
 	bool get_asset_ledger_needs_initialisation() const { return asset_ledger_needs_initialisation; }
