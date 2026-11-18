@@ -802,6 +802,52 @@ fuel_unit_cost_divider = 1000
 # The base rate is set in prices.tab.
 overdraft_percent_above_base_rate = 2
 
+# Capital accounting settings.
+#
+# The credit asset ledger is the book value of the company's infrastructure,
+# used to value the security for borrowing. The tax written-down pool is the
+# undepreciated value of capital expenditure for corporation tax.
+#
+# Both tables are indexed by the accounting transport type:
+#   0 all, 1 road, 2 railway, 3 ship, 4 monorail, 5 maglev,
+#   6 tram, 7 narrow gauge, 8 air, 9 other, 10 powerline
+#
+# "asset_depreciation[i]" is the annual percentage by which the infrastructure
+# book value of that transport type is reduced. It has no cash effect.
+#
+# "tax_allowance[i]" is the annual percentage of the tax written-down pool that
+# is allowed against corporation tax.
+#
+# "legacy_way_asset_cost[i]" is the as-new asset value of one straight way tile
+# of that transport type. It is used only to initialise the ledger when loading
+# a savegame written before the ledger existed; 0 disables that approximation.
+#
+# Defaults: 2% depreciation, 4% tax allowance, no legacy cost.
+#asset_depreciation[0] = 2
+#asset_depreciation[1] = 2
+#asset_depreciation[2] = 2
+#asset_depreciation[3] = 2
+#asset_depreciation[4] = 2
+#asset_depreciation[5] = 2
+#asset_depreciation[6] = 2
+#asset_depreciation[7] = 2
+#asset_depreciation[8] = 2
+#asset_depreciation[9] = 2
+#asset_depreciation[10] = 2
+#tax_allowance[0] = 4
+#tax_allowance[1] = 4
+#tax_allowance[2] = 4
+#tax_allowance[3] = 4
+#tax_allowance[4] = 4
+#tax_allowance[5] = 4
+#tax_allowance[6] = 4
+#tax_allowance[7] = 4
+#tax_allowance[8] = 4
+#tax_allowance[9] = 4
+#tax_allowance[10] = 4
+#legacy_way_asset_cost[1] = 0
+#legacy_way_asset_cost[2] = 0
+
 # Insolvency settings
 #
 # These settings allow what happens when the player runs out of money and goes

@@ -1086,6 +1086,14 @@ void player_t::finish_rd()
 {
 	simlinemgmt.finish_rd();
 	display_set_player_color_scheme( player_nr, player_color_1, player_color_2 );
+
+	if (finance->get_asset_ledger_needs_initialisation())
+	{
+		// A savegame written before the asset ledger existed: approximate the
+		// ledger from the way length, which the ways have just rebuilt.
+		finance->initialise_legacy_asset_ledger();
+	}
+
 	// recalculate vehicle value
 	calc_assets();
 

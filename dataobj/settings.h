@@ -592,6 +592,34 @@ public:
 	bool allow_insolvency;
 	bool allow_purchases_when_insolvent;
 
+	/**
+	 * Number of entries in the per-transport-type capital-accounting tables.
+	 * The index is the numeric value of finance_t::transport_type; a
+	 * static assertion in finance.cc keeps the two in step.
+	 */
+	static const uint8 MAX_CAPITAL_ACCOUNTING_TYPES = 11;
+
+	/**
+	 * Annual depreciation rate in per cent for the credit asset ledger, per
+	 * transport type. The ledger value of each transport type is reduced by
+	 * this rate each month.
+	 */
+	sint16 asset_depreciation_percent[MAX_CAPITAL_ACCOUNTING_TYPES];
+
+	/**
+	 * Annual tax allowance rate in per cent for the tax written-down pool, per
+	 * transport type. The pool is reduced by the resulting allowance each
+	 * month.
+	 */
+	sint16 tax_allowance_percent[MAX_CAPITAL_ACCOUNTING_TYPES];
+
+	/**
+	 * Asset value of one straight way tile per transport type, used to
+	 * initialise the credit asset ledger when loading a savegame written
+	 * before the ledger existed. Zero disables the approximation.
+	 */
+	sint64 legacy_way_asset_cost[MAX_CAPITAL_ACCOUNTING_TYPES];
+
 	// Round-trip efficiency used to derive the electricity-based running cost of
 	// battery and fuel-cell traction (see config/fuel.tab). A global default;
 	// per-vehicle .dat values override it (vehicle_desc_t).
@@ -1156,6 +1184,10 @@ public:
 	uint8 get_fuel_cell_round_trip_efficiency() const { return fuel_cell_round_trip_efficiency; }
 	bool insolvency_allowed() const { return allow_insolvency; }
 	bool insolvent_purchases_allowed() const { return allow_purchases_when_insolvent; }
+
+	sint16 get_asset_depreciation_percent(uint8 transport_type) const { assert(transport_type < MAX_CAPITAL_ACCOUNTING_TYPES); return asset_depreciation_percent[transport_type]; }
+	sint16 get_tax_allowance_percent(uint8 transport_type) const { assert(transport_type < MAX_CAPITAL_ACCOUNTING_TYPES); return tax_allowance_percent[transport_type]; }
+	sint64 get_legacy_way_asset_cost(uint8 transport_type) const { assert(transport_type < MAX_CAPITAL_ACCOUNTING_TYPES); return legacy_way_asset_cost[transport_type]; }
 
 	uint32 get_unit_reverse_time() const { return unit_reverse_time; }
 	uint32 get_hauled_reverse_time() const { return hauled_reverse_time; }

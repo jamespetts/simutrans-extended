@@ -414,6 +414,15 @@ settings_t::settings_t() :
 	allow_insolvency  = 0;
 	allow_purchases_when_insolvent  = 0;
 
+	// Capital accounting settings. These are placeholders: paksets are expected
+	// to set the real values in simuconf.tab.
+	for (uint8 i = 0; i < MAX_CAPITAL_ACCOUNTING_TYPES; i++)
+	{
+		asset_depreciation_percent[i] = 2;
+		tax_allowance_percent[i] = 4;
+		legacy_way_asset_cost[i] = 0;
+	}
+
 	// Round-trip efficiencies used to derive the electricity-based running cost of
 	// battery and fuel-cell traction (see config/fuel.tab).
 	battery_round_trip_efficiency = 85;
@@ -2026,6 +2035,16 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_long(extended_maintenance_interval_months);
 			file->rdwr_long(fuel_unit_cost_divider);
 		}
+
+		if (file->is_version_ex_atleast(15, 18))
+		{
+			for (uint8 i = 0; i < MAX_CAPITAL_ACCOUNTING_TYPES; i++)
+			{
+				file->rdwr_short(asset_depreciation_percent[i]);
+				file->rdwr_short(tax_allowance_percent[i]);
+				file->rdwr_longlong(legacy_way_asset_cost[i]);
+			}
+		}
 	}
 
 	if (fuel_unit_cost_divider == 0)
@@ -2901,6 +2920,20 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	// Check for misspelled version
 	allow_purchases_when_insolvent = contents.get_int("allow_purhcases_when_insolvent", allow_purchases_when_insolvent);
 	allow_purchases_when_insolvent = contents.get_int("allow_purchases_when_insolvent", allow_purchases_when_insolvent);
+
+	// Capital accounting settings, indexed by the transport type index used by
+	// finance_t (0 all, 1 road, 2 railway, 3 ship, 4 monorail, 5 maglev,
+	// 6 tram, 7 narrow gauge, 8 air, 9 other, 10 powerline).
+	for (int i = 0; i < MAX_CAPITAL_ACCOUNTING_TYPES; i++)
+	{
+		char name[64];
+		sprintf(name, "asset_depreciation[%i]", i);
+		asset_depreciation_percent[i] = (sint16)contents.get_int_clamped(name, asset_depreciation_percent[i], 0, 100);
+		sprintf(name, "tax_allowance[%i]", i);
+		tax_allowance_percent[i] = (sint16)contents.get_int_clamped(name, tax_allowance_percent[i], 0, 100);
+		sprintf(name, "legacy_way_asset_cost[%i]", i);
+		legacy_way_asset_cost[i] = contents.get_int64(name, legacy_way_asset_cost[i]);
+	}
 
 	// Reversing settings
 	// @author: jamespetts

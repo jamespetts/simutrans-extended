@@ -115,6 +115,10 @@ enum accounting_type_common {
 	ATC_SOFT_CREDIT_LIMIT,		/// soft credit limit (player cannot spend money)
 	ATC_HARD_CREDIT_LIMIT,		/// hard credit limit (player is insolvent)
 	ATC_TAX,					/// Corporation tax paid
+	ATC_LOAN_REPAYMENT,			/// Principal repaid on term instruments (negative cash flow)
+	ATC_DEPRECIATION,			/// Pooled depreciation charge (accrual view only)
+	ATC_SECURED_DEBT,			/// Total outstanding secured principal at the month end
+	ATC_TAX_ALLOWANCE,			/// Pooled tax allowance for the period
 	ATC_MAX
 };
 
@@ -232,6 +236,24 @@ class finance_t {
 	sint64 maintenance[TT_MAX];
 
 	/**
+	 * Book value of the fixed assets used for the credit assessment, pooled
+	 * per transport type. Excludes vehicles, which are valued separately by
+	 * their sale value.
+	 */
+	sint64 asset_value[TT_MAX];
+
+	/**
+	 * Tax written-down value of the pooled assets, per transport type.
+	 */
+	sint64 tax_pool[TT_MAX];
+
+	/**
+	 * Set when the savegame predates the asset ledger, so that
+	 * player_t::finish_rd() initialises it from the way length.
+	 */
+	bool asset_ledger_needs_initialisation;
+
+	/**
 	 * Monthly vehicle maintenance cost per transport type.
 	 */
 	// Unused because vehicle maintenance varies monthly for each vehicle.
@@ -249,6 +271,10 @@ public:
 		transport_type tt = translate_waytype_to_tt(wt);
 		veh_year[tt][0][ATV_CONSTRUCTION_COST] += amount;
 		veh_month[tt][0][ATV_CONSTRUCTION_COST] += amount;
+
+		// A negative amount is capital expenditure; a positive amount is money
+		// received on removal.
+		book_infrastructure_capital(-amount, wt);
 
 		account_balance += amount;
 	}
@@ -283,6 +309,31 @@ public:
 		maintenance[tt] += change;
 		maintenance[TT_ALL] += change;
 		return maintenance[tt];
+	}
+
+	/**
+	 * Adds or removes the capital value of infrastructure. A positive amount is
+	 * a capital addition; a negative amount is a reduction on removal. Both the
+	 * credit asset ledger and the tax written-down pool are affected.
+	 */
+	inline void book_infrastructure_capital(const sint64 amount, const waytype_t wt)
+	{
+		const transport_type tt = translate_waytype_to_tt(wt);
+		asset_value[tt] += amount;
+		tax_pool[tt] += amount;
+		if (asset_value[tt] < 0) { asset_value[tt] = 0; }
+		if (tax_pool[tt] < 0) { tax_pool[tt] = 0; }
+	}
+
+	/**
+	 * Adds or removes the tax written-down value of vehicles. Vehicles are not
+	 * held in the credit asset ledger, which uses their sale value instead.
+	 */
+	inline void book_vehicle_capital(const sint64 amount, const waytype_t wt)
+	{
+		const transport_type tt = translate_waytype_to_tt(wt);
+		tax_pool[tt] += amount;
+		if (tax_pool[tt] < 0) { tax_pool[tt] = 0; }
 	}
 
 	/**
@@ -328,6 +379,7 @@ public:
 		veh_month[tt][0][ATV_NEW_VEHICLE] += amount;
 
 		update_assets(-amount, wt);
+		book_vehicle_capital(-amount, wt);
 
 		account_balance += amount;
 	}
@@ -553,6 +605,18 @@ public:
 	void book_interest_monthly();
 
 	/**
+	 * Reduces the credit asset ledger by the monthly depreciation charge and
+	 * records the charge in ATC_DEPRECIATION. This has no cash effect.
+	 */
+	void depreciate_assets_monthly();
+
+	/**
+	 * Reduces the tax written-down pools by the monthly allowance and records
+	 * the allowance in ATC_TAX_ALLOWANCE.
+	 */
+	void book_tax_allowance_monthly();
+
+	/**
 	 * Book corporation tax (monthy)
 	 */
 	void book_corporation_tax_monthly();
@@ -613,6 +677,39 @@ public:
 	}
 
 	sint64 get_financial_assets() const {return veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS];}
+
+	/**
+	 * Book value of the infrastructure ledger for a transport type.
+	 */
+	sint64 get_asset_value(transport_type tt = TT_ALL) const { assert(tt < TT_MAX); return asset_value[tt]; }
+
+	/**
+	 * Tax written-down value of the pooled assets for a transport type.
+	 */
+	sint64 get_tax_pool(transport_type tt = TT_ALL) const { assert(tt < TT_MAX); return tax_pool[tt]; }
+
+	/**
+	 * Total credit asset value: the infrastructure ledger plus the sale value
+	 * of the vehicles. This is the denominator of the secured gearing ratio and
+	 * the asset term of the leverage ratio.
+	 */
+	sint64 get_credit_asset_value() const
+	{
+		sint64 total = veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS];
+		for (int i = 0; i < TT_MAX; i++)
+		{
+			total += asset_value[i];
+		}
+		return total;
+	}
+
+	bool get_asset_ledger_needs_initialisation() const { return asset_ledger_needs_initialisation; }
+
+	/**
+	 * Initialises the asset ledger and tax pool of a savegame that predates
+	 * them, from the way length and the configured legacy asset cost.
+	 */
+	void initialise_legacy_asset_ledger();
 
 	sint64 get_scenario_completed() const { return com_month[0][ATC_SCENARIO_COMPLETED]; }
 

@@ -15,6 +15,11 @@
 #include "simplay.h"
 
 #include "finance.h"
+#include "../dataobj/settings.h"
+
+
+// The capital accounting settings are indexed by finance_t::transport_type.
+static_assert(TT_MAX == settings_t::MAX_CAPITAL_ACCOUNTING_TYPES, "The capital accounting settings must have one entry per transport type");
 
 
 /**
@@ -66,7 +71,11 @@ finance_t::finance_t(player_t * _player, karte_t * _world) :
 
 	for(int i=0; i<TT_MAX; ++i){
 		maintenance[i] = 0;
+		asset_value[i] = 0;
+		tax_pool[i] = 0;
 	}
+
+	asset_ledger_needs_initialisation = false;
 
 	// for(int i=0; i<TT_MAX_VEH; ++i){
 	//	vehicle_maintenance[i] = 0;
@@ -191,6 +200,85 @@ void finance_t::new_month()
 		veh_year [i][0][ATV_INFRASTRUCTURE_MAINTENANCE] -= get_maintenance_with_bits((transport_type)i);
 	}
 
+	// update the pooled asset values and the tax allowance
+	depreciate_assets_monthly();
+	book_tax_allowance_monthly();
+}
+
+void finance_t::depreciate_assets_monthly()
+{
+	const settings_t& settings = world->get_settings();
+	sint64 total_depreciation = 0;
+
+	for (int i = 0; i < TT_MAX; i++)
+	{
+		const sint16 rate = settings.get_asset_depreciation_percent((uint8)i);
+		if (rate <= 0 || asset_value[i] <= 0)
+		{
+			continue;
+		}
+
+		sint64 depreciation = (asset_value[i] * (sint64)rate) / 1200ll;
+		if (depreciation > asset_value[i])
+		{
+			depreciation = asset_value[i];
+		}
+		asset_value[i] -= depreciation;
+		total_depreciation += depreciation;
+	}
+
+	if (total_depreciation > 0)
+	{
+		// A negative amount, like the other expense entries.
+		com_month[0][ATC_DEPRECIATION] -= total_depreciation;
+		com_year[0][ATC_DEPRECIATION] -= total_depreciation;
+	}
+}
+
+void finance_t::book_tax_allowance_monthly()
+{
+	const settings_t& settings = world->get_settings();
+	sint64 total_allowance = 0;
+
+	for (int i = 0; i < TT_MAX; i++)
+	{
+		const sint16 rate = settings.get_tax_allowance_percent((uint8)i);
+		if (rate <= 0 || tax_pool[i] <= 0)
+		{
+			continue;
+		}
+
+		sint64 allowance = (tax_pool[i] * (sint64)rate) / 1200ll;
+		if (allowance > tax_pool[i])
+		{
+			allowance = tax_pool[i];
+		}
+		tax_pool[i] -= allowance;
+		total_allowance += allowance;
+	}
+
+	com_month[0][ATC_TAX_ALLOWANCE] += total_allowance;
+	com_year[0][ATC_TAX_ALLOWANCE] += total_allowance;
+}
+
+void finance_t::initialise_legacy_asset_ledger()
+{
+	const settings_t& settings = world->get_settings();
+
+	for (int i = 0; i < TT_MAX; i++)
+	{
+		const sint64 way_length = veh_month[i][0][ATV_WAY_LENGTH];
+		const sint64 cost_per_tile = settings.get_legacy_way_asset_cost((uint8)i);
+		if (way_length <= 0 || cost_per_tile <= 0)
+		{
+			continue;
+		}
+		// The way length statistic counts 10 units for a straight tile and 7
+		// for a diagonal tile, so dividing by 10 gives the straight-tile count.
+		asset_value[i] = (way_length * cost_per_tile) / 10ll;
+	}
+
+	asset_ledger_needs_initialisation = false;
 }
 
 /**
@@ -225,7 +313,13 @@ void finance_t::book_corporation_tax_monthly()
 	// do not have to pay any tax for the first year. In each month, players then pay corporation tax on 1/12th of the gross profit.
 	// from the previous year. The tax is given to the public player.
 
-	const sint64 taxable_profit_last_year = veh_year[TT_ALL][1][ATV_PROFIT];
+	// The tax base is the cash-flow profit with capital expenditure added back,
+	// less the pooled tax allowance of the year. ATV_PROFIT already deducts
+	// ATV_CONSTRUCTION_COST and ATV_NEW_VEHICLE, so adding capital expenditure
+	// back means subtracting those (negative) entries.
+	const sint64 capital_expenditure_last_year = veh_year[TT_ALL][1][ATV_CONSTRUCTION_COST] + veh_year[TT_ALL][1][ATV_NEW_VEHICLE];
+	const sint64 tax_allowance_last_year = com_year[1][ATC_TAX_ALLOWANCE];
+	const sint64 taxable_profit_last_year = veh_year[TT_ALL][1][ATV_PROFIT] - capital_expenditure_last_year - tax_allowance_last_year;
 
 	// Divide by months and 100s
 	sint64 tax_payable = (taxable_profit_last_year * tax_rate) / 1200ll;
@@ -431,6 +525,28 @@ void finance_t::rdwr(loadsave_t *file)
 		// The current value is calculated by finish_rd
 		veh_month[tt][0][ATV_WAY_LENGTH] = 0;
 		veh_year[tt][0][ATV_WAY_LENGTH] = 0;
+	}
+
+	if (file->is_version_ex_atleast(15, 18))
+	{
+		for (int i = 0; i < TT_MAX; i++)
+		{
+			file->rdwr_longlong(asset_value[i]);
+		}
+		for (int i = 0; i < TT_MAX; i++)
+		{
+			file->rdwr_longlong(tax_pool[i]);
+		}
+	}
+	else if (file->is_loading())
+	{
+		for (int i = 0; i < TT_MAX; i++)
+		{
+			asset_value[i] = 0;
+			tax_pool[i] = 0;
+		}
+		// Initialised by player_t::finish_rd(), once the way length is known.
+		asset_ledger_needs_initialisation = true;
 	}
 }
 
