@@ -472,6 +472,8 @@ void print_help()
 		" -use_hw             hardware double buffering, only for SDL\n"
 		" -debug NUM          enables debugging (1..5)\n"
 		" -easyserver         set up every for server (query own IP, port forwarding)\n"
+		" -fast_forward       start in fast-forward mode (unattended runs)\n"
+		"                     (ignored in network mode)\n"
 		" -freeplay           play with endless money\n"
 		" -fullscreen         starts simutrans in fullscreen mode\n"
 		" -fps COUNT          framerate (from 5 to 100)\n"
@@ -1736,6 +1738,14 @@ int simu_main(int argc, char** argv)
 	}
 
 	welt->set_fast_forward(false);
+
+	// Unattended runs, such as the automated test harnesses, can start in
+	// fast-forward mode. set_fast_forward ignores this in network mode, where
+	// frame timing is negotiated with the peers.
+	if(  args.has_arg("-fast_forward")  ) {
+		welt->set_fast_forward(true);
+	}
+
 	if(  fast_network_sync_factor > 0  &&  env_t::server  ) {
 		welt->change_time_multiplier(16 * (fast_network_sync_factor - 1));
 		dbg->warning("simu_main()", "Fast network sync test mode time multiplier: %i", welt->get_time_multiplier());

@@ -3,7 +3,11 @@ set -e
 
 
 pushd simutrans
-../simutrans-extended -use_workdir -objects pak128.britain-ex-nightly -lang en -scenario automated-tests -debug 2 2>&1 | ts -s | tee output.log &
+# -debug 1 keeps the suite's own prints and script errors but suppresses the
+# per-step warning log, which dominates load and run time. -fast_forward runs
+# the simulation as fast as the machine allows; the suite asserts API state, not
+# wall-clock timing.
+../simutrans-extended -use_workdir -objects pak128.britain-ex-nightly -lang en -scenario automated-tests -debug 1 -nomidi -nosound -fast_forward 2>&1 | ts -s | tee output.log &
 pid=$!
 
 result=1
