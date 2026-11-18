@@ -13,6 +13,45 @@ verified: cost-of-capital @ d80af444a (players and finance); master @ 206db8379 
 - `player/simplay.cc` receives periodic ex-15 attention [CODE].
 - The root contains local-only diagsession artefacts named "…passenger-gen-efficiency-changes-phase-1/2…" — passenger generation received performance work in the past; an indication, not a verified fact [local-only].
 
+## Money and currency
+
+- The currency unit is the **Simucredit** (plural **Simucredits**), abbreviated **Cr**. The
+  **Simucent** (plural **Simucents**) is its subunit: 1 Simucredit = 100 Simucents. This is the
+  traditional meaning of "cent" as one hundredth of the currency unit.
+  [RECOLLECTION:2026-11-17 user statement]
+- Engine money amounts are stored as signed integers in **Simucents** (1/100 Cr). The account
+  balance, finance history and starting money are `sint64`; some per-item costs are `sint32`,
+  for example `vehicle_t::get_running_cost`. [CODE ex-15 @ dafe7031e:
+  `player/finance.h` `finance_t::account_balance` and `convert_money`;
+  `dataobj/settings.h` `settings_t::starting_money`; `vehicle/vehicle.h`
+  `vehicle_t::get_running_cost`]
+- Display conversion: `convert_money(value)` returns `(value + 50) / 100`, which rounds a stored
+  Simucent amount to whole Simucredits. GUI code that needs decimals divides by 100.0.
+  `money_to_string` formats the resulting double and appends `$`. The `$` is the game's money
+  symbol for the Simucredit, not a US dollar. [CODE ex-15 @ dafe7031e:
+  `player/finance.h` `convert_money`; `utils/simstring.cc` `money_to_string`;
+  `utils/cbuffer_t.cc` `append_money`]
+- Code naming: `simuconf.tab` calls the stored unit "Credit cents (1/100 Cr)", which is correct;
+  the stored unit is the Simucent. `vehicle.h` calls the stored running cost "Simucents/km",
+  which is also correct for a stored amount. GUI code comments that say "convert to simucents"
+  before dividing by 100.0 are describing the stored unit; the division converts it to displayed
+  Simucredits. [CODE ex-15 @ dafe7031e: `simutrans/config/simuconf.tab` "starting_money";
+  `vehicle/vehicle.h`; `gui/goods_stats_t.cc`]
+- `simuconf.tab` money settings (`starting_money`, construction and purchase costs,
+  `minimum_loan_limit` and similar) are in **Simucents**, not Simucredits. A value of
+  30,000,000 is 300,000 Simucredits. [CODE ex-15 @ dafe7031e: `dataobj/settings.cc`
+  `settings_t::get_starting_money` and the "money (in 1/100 Cr)" comment]
+- Pakset sterling conversions are quoted per **Simucredit**, not per Simucent. In the PakBritain
+  New pakset in 1900, one Simucredit is about £0.005208 at the revenue conversion and about
+  £0.396 at the capital conversion; one Simucent is therefore about £0.00005208 or £0.003963
+  respectively. A `.dat` or `simuconf` amount in Simucents must be divided by 100 to obtain
+  Simucredits before applying a per-Simucredit rate. The revenue and capital conversions also
+  differ from each other by a factor of about 76 and must not be mixed. Both the
+  Simucent/Simucredit factor of 100 and the revenue/capital factor are known sources of cost
+  error in pakset work. Some pakset notes label the per-Simucredit sterling figure "1 SimuCent";
+  strictly that figure is per Simucredit and one Simucent is 1/100 of it.
+  [RECOLLECTION:2026-11-17 user statement; pakset pricing notes]
+
 ## Planned sections
 
 - Cities & growth (simcity; city buildings; passenger demand origins).
