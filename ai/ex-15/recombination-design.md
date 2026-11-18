@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, multi-owner access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, cargo continuity, through-wagon model, flash-load credit, optional slots and loaded/empty rules)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, Multi-Owner Access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, cargo continuity, through-wagon model, flash-load credit, optional slots and loaded/empty rules); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -77,8 +77,8 @@ entry carries B's order; `entry_has_consist_order(unique_id)`/`get_consist_order
 by id; the schedule GUI allows both on stop entries (only depot entries hide the order UI); all of it
 is serialised. The Y division reads those two orders in sequence: `convoi_t::hat_gehalten` applies the
 source entry's order to the retained portion and `convoi_t::form_divided_portion` applies the target
-entry's order to the split-off portion. A paired exchange reads both convoys' orders together in the
-joint solver (`paired_exchange_solver_t` in `simconvoi.cc`) and commits both results atomically
+entry's order to the split-off portion. A paired exchange reads both convoys' orders together in
+`paired_exchange_solver_t` in `simconvoi.cc` and commits both results atomically
 (IMPLEMENTED; see [schedule-and-consists](schedule-and-consists.md)).
 
 Residual questions inside the settled rule (runtime detail, not alternative composition rules):
@@ -106,10 +106,10 @@ exchange between two active consists.
 For a paired exchange, the receiver has `couple` + target + its order and the target has `uncouple`
 (receiver and target entry optional) + its order. The runtime evaluates both orders against the
 pre-exchange consists and commits both as one exchange
-[RECOLLECTION:2026-10-19]. The implemented rules — reciprocity validation, the joint solver, the
-receiver-only pool fallback, all-or-nothing failure and the once-only stop record (the stop is
-recorded in both convoys' `last_stop_id`, so neither treats the exchange as a fresh arrival) — are
-described in [schedule-and-consists](schedule-and-consists.md). A named couple target that has not
+[RECOLLECTION:2026-10-19]. The implemented rules — reciprocity validation,
+`paired_exchange_solver_t`, the receiver-only pool fallback, all-or-nothing failure and the once-only
+stop record (the stop is recorded in both convoys' `last_stop_id`, so neither treats the exchange as
+a fresh arrival) — are described in [schedule-and-consists](schedule-and-consists.md). A named couple target that has not
 arrived is awaited without substitution and deliberately without a timeout; the earlier timeout
 proposal is superseded [RECOLLECTION:2026-11-03 user statement].
 
@@ -189,17 +189,20 @@ a locomotive [FORUM:https://forum.simutrans.com/index.php/topic,11751.msg115948.
 - Recombination never changes liveries: through-worked stock keeps its owner's livery, and players
   cannot change other players' vehicles' liveries [RECOLLECTION:2026-11-01 user statement; CODE].
 
-A planned rule governs a consist whose vehicles belong to more than one player
+The Multi-Owner Access Rule governs a consist whose vehicles belong to more than one player
 [RECOLLECTION:2026-11-13 user statement]. For each final consist after a re-combination, let `L` be
 the first vehicle whose `vehicle_desc_t::get_power()` is greater than zero. For every vehicle `v` in
 that consist whose owner differs from the owner of `L`, the owner of `L` must permit that owner to
 use the ways owned by the owner of `L`: `owner(L)->allows_access_to(owner(v)->get_player_nr())`
 (`player_t::allows_access_to`, `player/simplay.h`). The check is at consist assembly and whenever
-the leading powered vehicle changes, not on every tile. `vehicle_t::check_access` continues to check
-the way owner's permission for the leading vehicle's owner on each tile. The rule is not current
-behaviour. A schedule pre-check must inspect every convoy that could serve the counterpart line and
-every pool vehicle that could be taken, collect their owners, and report a missing permission by
-naming both players; the runtime check is on the actual final consist.
+the first powered vehicle changes, not on every tile. `vehicle_t::check_access` continues to check
+the way owner's permission for the leading vehicle's owner on each tile. `paired_exchange_solver_t`
+enforces the rule while it searches, and `convoi_t::match_consist_order`, including the branch that
+handles optional slots, applies it to the final consist before accepting it. A denied assembly is
+reported through the ordinary consist-order failure warning. The schedule pre-check that inspects
+every convoy that could serve the counterpart line and every pool vehicle that could be taken,
+collects their owners and reports a missing permission by naming both players is not implemented;
+the runtime check is on the actual final consist.
 
 ### Path exploration
 
@@ -237,10 +240,10 @@ and apply the coupling-point stop. The implemented parts are:
   signal commitment, survive a deferred wait, and are saved.
 - resolvability pre-check: before the choose signal adopts a route to a stationary target, it calls
   `convoi_t::can_approach_coupling_target`. The check does not change state: a paired exchange runs
-  the joint solver and a one-sided receive runs the single-order matcher, both over the same
-  vehicles the arrival commit would use. A failure keeps the signal at danger, posts one warning
-  with `convoi_t::report_coupling_hold` naming both owners and the reason, and leaves the mover
-  waiting at the signal. The verdict is cached on
+  `paired_exchange_solver_t` and a one-sided receive runs `convoi_t::match_consist_order`, both over
+  the same vehicles the arrival commit would use. A failure keeps the signal at danger, posts one
+  warning with `convoi_t::report_coupling_hold` naming both owners and the reason, and leaves the
+  mover waiting at the signal. The verdict is cached on
   `convoi_t::recombination_precheck_signature` until either consist or the stop's laid-over pool
   changes. A failed check therefore prevents contact, so the normal path has no failure after
   physical contact and needs no reverse-out. A target whose consist changes after the route is
@@ -338,11 +341,11 @@ The proposed dependency order for the remaining runtime work is [UNVERIFIED]:
    ownership/access decisions and the remaining authoring validation. The editor's list verdict
    (`consist_order_t::check`, shown by `consist_order_frame_t::update_order_check`) reports the first
    problem with a list and names the position; it is advisory and cannot know a named vehicle's
-   availability. The single-order matcher (`convoi_t::process_consist_order`) and the joint solver
-   (`paired_exchange_solver_t`) choose a joining vehicle's facing, so the editor does not need to
-   know it. The choose-signal call-on core (target resolution, committed-target hold, target-platform
-   route and admission) is implemented. The approach link and shared contact tile are implemented;
-   the one-sided receive's layout and the paired layout are implemented. The resolvability pre-check
+   availability. `convoi_t::match_consist_order` and `paired_exchange_solver_t` choose a joining
+   vehicle's facing, so the editor does not need to know it. The choose-signal call-on core (target
+   resolution, committed-target hold, target-platform route and admission) is implemented. The
+   approach link and shared contact tile are implemented; the one-sided receive's layout and the
+   paired layout are implemented. The resolvability pre-check
    holds the signal and reports instead of contacting a target that cannot resolve, so the normal
    path has no failure after physical contact. The coupling point is carried back through every tile
    the rear vehicle's length covers.
@@ -394,7 +397,7 @@ the realised scripted cases and their assertions are in the same doc.
 - **Asynchronous dwell:** does measured through dwell include the full wait for a later collecting
   service, and how is it reconstructed before measurements exist? Do not silently charge either
   only the global shunting delay or an ordinary second wait plus walking transfer.
-- **Ownership/access/settlement:** the multi-owner access rule is decided: a final consist with
+- **Ownership/access/settlement:** the Multi-Owner Access Rule is decided: a final consist with
   vehicles from more than one player is permitted only when the owner of the leading powered vehicle
   allows every other vehicle owner (see the multi-player section). Remaining: hire and
   through-carriage settlement, and the treatment of an existing consist when a permission is

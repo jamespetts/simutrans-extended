@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly)
 ---
 # Consist recombination
 
@@ -150,7 +150,7 @@ the orders; a present counterpart makes the pair ready, an absent one is waited 
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md): a canonical universe of both
 forward-oriented consists plus the receiver's eligible laid-over pool, per-slot candidate priority,
 `convoi_t::check_validity()` coupling, power in both results, pairwise-disjoint final consists, the
-multi-owner access rule, the smallest possible pool draw, and a 16,384 candidate-placement compute
+Multi-Owner Access Rule, the smallest possible pool draw, and a 16,384 candidate-placement compute
 limit. Failure is all-or-nothing: neither consist changes, one warning is posted, the counterpart is
 released from `AWAITING_RECOMBINATION`, and both convoys continue.
 
@@ -160,23 +160,28 @@ released from `AWAITING_RECOMBINATION`, and both convoys continue.
 the failed slot: it fills slots in order, tries the vehicle already in the slot first, then the
 available vehicles, enforces the coupling predicates (head, adjacent and tail) in the orientation
 chosen for each vehicle, deduplicates a vehicle already used in an earlier slot, and accepts the
-result only when it is complete and powered. It does not backtrack; the paired exchange uses the
-joint solver instead.
+result only when it is complete, powered and permitted by the Multi-Owner Access Rule. It does not
+backtrack; the paired exchange uses `paired_exchange_solver_t` instead. The rule is that the owner
+of the first powered vehicle in the final consist (`L`) must permit every other vehicle's owner
+(`v`): `owner(L)->allows_access_to(owner(v)->get_player_nr())`. `convoi_t::match_consist_order`,
+including the branch that handles optional slots, applies it to the completed consist;
+`paired_exchange_solver_t` applies it incrementally while it searches. A denied assembly leaves the
+vehicles where they were.
 
 `consist_order_element_t::optional` permits a slot to be unfilled at any position; this is distinct
 from `vehicle_description_element::empty`, which makes a rule-based alternative a wildcard. The
-optional-slot matcher searches filled slots in their authored order, tries to fill optional slots
-first, applies the front/rear constraints to the actual chosen ends, and keeps mandatory vehicles such
-as a rear brake vehicle. The paired solver likewise searches optional-slot omissions. A slot
-alternative's `load_requirement` can demand `get_total_cargo() > 0`, demand zero cargo, or permit
-either state, in both matchers.
+`optional_consist_matcher_t` searches filled slots in their authored order, tries to fill optional
+slots first, applies the front/rear constraints to the actual chosen ends, and keeps mandatory
+vehicles such as a rear brake vehicle. `paired_exchange_solver_t` likewise searches optional-slot
+omissions. A slot alternative's `load_requirement` can demand `get_total_cargo() > 0`, demand
+zero cargo, or permit either state, in both matchers.
 
-The single-order matcher (`convoi_t::process_consist_order`) and the joint solver
-(`paired_exchange_solver_t`) choose an orientation for every vehicle they place. A candidate is
-tried in its current `is_reversed` orientation first; if it is bidirectional and that orientation
-does not fit, the other way round is tried. The chosen orientation is recorded per slot. The
-single-order matcher returns it in a vector parallel to the final consist, and the joint solver
-stores it per assigned slot. `convoi_t::commit_recombined_consist` and
+`convoi_t::match_consist_order` and `paired_exchange_solver_t` choose an orientation for every
+vehicle they place. A candidate is tried in its current `is_reversed` orientation first; if it is
+bidirectional and that orientation does not fit, the other way round is tried. The chosen
+orientation is recorded per slot. `convoi_t::match_consist_order` returns it in a vector parallel
+to the final consist, and
+`paired_exchange_solver_t` stores it per assigned slot. `convoi_t::commit_recombined_consist` and
 `convoi_t::commit_paired_exchange` apply the chosen value with `vehicle_t::set_reversed`, so a
 bidirectional vehicle can be turned during the shunt. For each bidirectional vehicle whose
 orientation changes, the commit adds `settings_t::get_unit_reverse_time()` when the vehicle is
@@ -252,10 +257,10 @@ target that is not yet committed, a target that has passed the last signal befor
 target stationary at the stop. A committed target holds the mover at the choose signal. An available
 target first passes `convoi_t::can_approach_coupling_target()`: the choose signal tests, without
 changing state, that the configured operation can produce valid powered consists. A paired exchange
-runs the joint solver; a one-sided receive runs the single-order matcher. A failure keeps the signal
-at danger and posts one warning with `convoi_t::report_coupling_hold()`, naming both owners and the
-reason, so a mover whose check fails is not routed to the target. The verdict is cached
-on `convoi_t::recombination_precheck_signature` and recomputed when either consist or the stop's
+runs `paired_exchange_solver_t`; a one-sided receive runs `convoi_t::match_consist_order`. A failure
+keeps the signal at danger and posts one warning with `convoi_t::report_coupling_hold()`, naming
+both owners and the reason, so a mover whose check fails is not routed to the target. The verdict
+is cached on `convoi_t::recombination_precheck_signature` and recomputed when either consist or the stop's
 laid-over pool changes. While the target is committed, every reservation pass keeps the mover held:
 the recorded approach link alone does not count as a selected route, because
 `rail_vehicle_t::has_selected_coupling_target_route` also requires the current route to end at the

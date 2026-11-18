@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -139,7 +139,7 @@ explorer's treatment of consist orders.
   of its convoy) jointly over the canonical universe of both forward-oriented pre-exchange consists
   and, for the receiver only, the stop's eligible laid-over vehicles. It enforces slot matching,
   the `convoi_t::check_validity()` coupling predicates, power in both results, pairwise-disjoint
-  final consists, and the multi-owner access rule (every vehicle's owner must be granted access by
+  final consists, and the Multi-Owner Access Rule (every vehicle's owner must be granted access by
   the owner of the first powered vehicle in that final consist). The receiver may draw on the
   laid-over pool only after a solve without it has failed, and the search starts with the smallest
   pool draw. The search stops after 16,384 candidate placements; this is an implementation
@@ -175,7 +175,10 @@ explorer's treatment of consist orders.
   `uncouple`, which selects the paired exchange instead (see IMPLEMENTED features); an entry carrying
   both flags is refused. A one-sided receive whose consist order fails with a present target remains
   unexecuted; `convoi_t::process_current_entry_consist_order` reports the failure once per stop with
-  `convoi_t::report_consist_order_failed`. A target that is stationary when the convoy is at a
+  `convoi_t::report_consist_order_failed`. `convoi_t::match_consist_order`, including the branch
+  that handles optional slots, also enforces the Multi-Owner Access Rule on the final consist: the
+  owner of the first powered vehicle must permit every other vehicle owner to use its ways. A denied
+  assembly fails like any other unmatched order. A target that is stationary when the convoy is at a
   choose signal is tested by the resolvability pre-check, which holds the convoy and reports the
   reason instead of routing it to the target. Detection of wait cycles longer than a direct pair is
   absent.
@@ -234,18 +237,17 @@ explorer's treatment of consist orders.
   divided or joined train must be able to run on its own, and states that the list runs from the
   front of the train to the rear in the direction it travels. The verdict is advisory: it marks
   the list and never blocks an edit or a save. `convoi_t::get_forward_consist` de-reverses the array
-  for matching without changing the vehicles' `is_reversed` flags. The single-order matcher
-  (`convoi_t::process_consist_order`) and the joint solver (`paired_exchange_solver_t`) try each
-  candidate in its current `is_reversed` orientation first and, when it is bidirectional, the other
-  way round if that does not fit. The chosen orientation is applied by
-  `convoi_t::commit_recombined_consist` and `convoi_t::commit_paired_exchange` with
+  for matching without changing the vehicles' `is_reversed` flags. `convoi_t::match_consist_order`
+  and `paired_exchange_solver_t` try each candidate in its current `is_reversed` orientation first
+  and, when it is bidirectional, the other way round if that does not fit. The chosen orientation
+  is applied by `convoi_t::commit_recombined_consist` and `convoi_t::commit_paired_exchange` with
   `vehicle_t::set_reversed`; each bidirectional vehicle whose orientation changes adds
   `settings_t::get_unit_reverse_time()` (powered) or `settings_t::get_turntable_reverse_time()`
   (hauled) to the shunting delay. The editor's verdict is facing-neutral because it cannot know
   which vehicle another consist will supply or which way round that vehicle will be. The
   verdict also cannot tell whether the two lists of a divide can both be satisfied from the same
-  vehicles; that is decided by the runtime matcher or the joint solver from the vehicles actually
-  available.
+  vehicles; that is decided by `convoi_t::match_consist_order` or `paired_exchange_solver_t` from
+  the vehicles actually available.
 - **Shunting completion** — a convoy completing a consist order passes through `check_departure`
   when its shunting delay expires (handled like LAYOVER), so minimum loading and spacing slots are
   honoured rather than departing immediately on the delay expiring.
@@ -328,8 +330,8 @@ explorer's treatment of consist orders.
 - **Choose-signal call-on for coupling movements** — the choose-signal target decision, target-platform
   route and call-on admission are implemented. A committed target holds the mover at the signal.
   Before the signal routes to a stationary target it calls `convoi_t::can_approach_coupling_target`,
-  which solves the configured operation without changing state: the joint paired solver or the
-  single-order matcher. A failure keeps the signal at danger, posts one warning through
+  which solves the configured operation without changing state: `paired_exchange_solver_t` or
+  `convoi_t::match_consist_order`. A failure keeps the signal at danger, posts one warning through
   `convoi_t::report_coupling_hold` and holds the receiver; the verdict is cached until either
   consist or the stop's laid-over pool changes. The shared contact tile, the coupling-point
   calculation, the reservation handoff (`rail_vehicle_t::hand_over_contact_reservation`), the

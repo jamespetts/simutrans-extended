@@ -110,7 +110,9 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
     The audit covers the whole changed passage, not only the newly added lines, because an
     edit can make existing text misleading. If any ambiguity remains, write an open
     question rather than a claim. State in the change summary that the audit was performed
-    and what it found.
+    and what it found. Invoke the `theory-of-mind` skill before writing or editing any
+    documentation; the skill holds the full procedure, including the Title Case and
+    definition convention for project terms.
 16. Describe how the code works directly. Do not refer to design decisions by number or
     letter in documentation, and do not describe past code: documentation covers current
     behaviour and planned future behaviour, while Git records past code. If planned behaviour
