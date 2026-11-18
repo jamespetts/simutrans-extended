@@ -775,7 +775,7 @@ char const *finance_t::issue_loan(uint8 type, sint64 amount, loan_term_t term)
 }
 
 
-char const *finance_t::repay_loan(uint32 id)
+char const *finance_t::settle_loan(uint32 id, bool replacing)
 {
 	loan_t * const loan = get_loan(id);
 	if (loan == NULL)
@@ -795,14 +795,17 @@ char const *finance_t::repay_loan(uint32 id)
 
 	const sint64 settlement = loan->get_early_repayment_settlement(discount_rate_bp);
 
-	if (!can_afford(settlement - loan->outstanding))
+	// A replacement draws the same principal again immediately, so only the
+	// break cost has to be affordable; a plain repayment has to fund the whole
+	// settlement.
+	const sint64 break_cost = settlement - loan->outstanding;
+	if (!can_afford(replacing ? break_cost : settlement))
 	{
 		return NOTICE_INSUFFICIENT_FUNDS;
 	}
 
 	// Book the principal as a repayment and any excess as a break cost, which
 	// is an interest expense.
-	const sint64 break_cost = settlement - loan->outstanding;
 	book_loan_repayment(-loan->outstanding);
 	if (break_cost > 0)
 	{
@@ -821,6 +824,12 @@ char const *finance_t::repay_loan(uint32 id)
 	}
 
 	return NULL;
+}
+
+
+char const *finance_t::repay_loan(uint32 id)
+{
+	return settle_loan(id, false);
 }
 
 
@@ -859,7 +868,7 @@ char const *finance_t::refinance_loan(uint32 id, loan_term_t term)
 
 	// Early refinancing settles the existing instrument at the make-whole
 	// amount, then draws the same principal again.
-	char const * const error = repay_loan(id);
+	char const * const error = settle_loan(id, true);
 	if (error != NULL)
 	{
 		return error;

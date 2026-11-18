@@ -729,6 +729,12 @@ public:
 	 */
 	char const *refinance_loan(uint32 id, loan_term_t term);
 
+	/**
+	 * Settles an instrument at the make-whole amount and removes it.
+	 * @param replacing true when the principal is drawn again immediately
+	 */
+	char const *settle_loan(uint32 id, bool replacing);
+
 	/// Books the monthly interest and principal of every instrument.
 	void book_loans_monthly();
 
