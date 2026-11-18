@@ -594,7 +594,7 @@ public:
 
 	/**
 	 * Number of entries in the per-transport-type capital-accounting tables.
-	 * The index is the numeric value of finance_t::transport_type; a
+	 * The index is the numeric value of transport_type; a
 	 * static assertion in finance.cc keeps the two in step.
 	 */
 	static const uint8 MAX_CAPITAL_ACCOUNTING_TYPES = 11;
@@ -622,7 +622,7 @@ public:
 
 	/**
 	 * Number of entries in the credit-rating table. The index is the numeric
-	 * value of finance_t::credit_rating_t, best band first; a static assertion
+	 * value of credit_rating_t, best band first; a static assertion
 	 * in finance.cc keeps the two in step.
 	 */
 	static const uint8 MAX_CREDIT_RATINGS = 9;

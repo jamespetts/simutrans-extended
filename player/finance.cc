@@ -19,7 +19,7 @@
 #include "../dataobj/settings.h"
 
 
-// The capital accounting settings are indexed by finance_t::transport_type.
+// The capital accounting settings are indexed by transport_type.
 static_assert(TT_MAX == settings_t::MAX_CAPITAL_ACCOUNTING_TYPES, "The capital accounting settings must have one entry per transport type");
 // The credit-rating settings are indexed by credit_rating_t.
 static_assert(CREDIT_RATING_MAX == settings_t::MAX_CREDIT_RATINGS, "The credit-rating settings must have one entry per rating band");
