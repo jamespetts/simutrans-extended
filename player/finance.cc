@@ -12,9 +12,23 @@
 #include "../descriptor/building_desc.h"
 #include "../dataobj/loadsave.h"
 #include "../dataobj/scenario.h"
+#include "../dataobj/translator.h"
 #include "simplay.h"
 
 #include "finance.h"
+#include "../dataobj/settings.h"
+
+
+// The capital accounting settings are indexed by transport_type.
+static_assert(TT_MAX == settings_t::MAX_CAPITAL_ACCOUNTING_TYPES, "The capital accounting settings must have one entry per transport type");
+// The credit-rating settings are indexed by credit_rating_t.
+static_assert(CREDIT_RATING_MAX == settings_t::MAX_CREDIT_RATINGS, "The credit-rating settings must have one entry per rating band");
+
+
+char const *const credit_rating_names[CREDIT_RATING_MAX] =
+{
+	"AAA", "AA", "A", "BBB", "BB", "B", "CCC", "CC", "C"
+};
 
 
 /**
@@ -66,7 +80,16 @@ finance_t::finance_t(player_t * _player, karte_t * _world) :
 
 	for(int i=0; i<TT_MAX; ++i){
 		maintenance[i] = 0;
+		asset_value[i] = 0;
+		tax_pool[i] = 0;
 	}
+
+	asset_ledger_needs_initialisation = false;
+
+	next_loan_id = 1;
+	credit_rating = CREDIT_RATING_BB;
+	// Negative means "not assessed yet"; month zero is a valid month.
+	credit_assessment_month = -1;
 
 	// for(int i=0; i<TT_MAX_VEH; ++i){
 	//	vehicle_maintenance[i] = 0;
@@ -153,6 +176,9 @@ void finance_t::calc_finance_history()
 	veh_month[TT_OTHER][0][ATV_PROFIT] += com_month[0][ATC_INTEREST];
 	veh_year[TT_OTHER][0][ATV_PROFIT] += com_year[0][ATC_INTEREST];
 
+	com_month[0][ATC_SECURED_DEBT] = get_total_secured_debt();
+	com_year[0][ATC_SECURED_DEBT] = get_total_secured_debt();
+
 	// undistinguishable by type of transport
 	com_month[0][ATC_CASH] = account_balance;
 	com_year [0][ATC_CASH] = account_balance;
@@ -177,6 +203,10 @@ void finance_t::new_month()
 		roll_history_year();
 	}
 
+	// Term-instrument interest and principal come before the overdraft
+	// interest, so that the overdraft is charged on the post-payment balance.
+	book_loans_monthly();
+
 	// subtract interest (before subtracting infrastructure maintenance)
 	book_interest_monthly();
 
@@ -191,6 +221,85 @@ void finance_t::new_month()
 		veh_year [i][0][ATV_INFRASTRUCTURE_MAINTENANCE] -= get_maintenance_with_bits((transport_type)i);
 	}
 
+	// update the pooled asset values and the tax allowance
+	depreciate_assets_monthly();
+	book_tax_allowance_monthly();
+}
+
+void finance_t::depreciate_assets_monthly()
+{
+	const settings_t& settings = world->get_settings();
+	sint64 total_depreciation = 0;
+
+	for (int i = 0; i < TT_MAX; i++)
+	{
+		const sint16 rate = settings.get_asset_depreciation_percent((uint8)i);
+		if (rate <= 0 || asset_value[i] <= 0)
+		{
+			continue;
+		}
+
+		sint64 depreciation = (asset_value[i] * (sint64)rate) / 1200ll;
+		if (depreciation > asset_value[i])
+		{
+			depreciation = asset_value[i];
+		}
+		asset_value[i] -= depreciation;
+		total_depreciation += depreciation;
+	}
+
+	if (total_depreciation > 0)
+	{
+		// A negative amount, like the other expense entries.
+		com_month[0][ATC_DEPRECIATION] -= total_depreciation;
+		com_year[0][ATC_DEPRECIATION] -= total_depreciation;
+	}
+}
+
+void finance_t::book_tax_allowance_monthly()
+{
+	const settings_t& settings = world->get_settings();
+	sint64 total_allowance = 0;
+
+	for (int i = 0; i < TT_MAX; i++)
+	{
+		const sint16 rate = settings.get_tax_allowance_percent((uint8)i);
+		if (rate <= 0 || tax_pool[i] <= 0)
+		{
+			continue;
+		}
+
+		sint64 allowance = (tax_pool[i] * (sint64)rate) / 1200ll;
+		if (allowance > tax_pool[i])
+		{
+			allowance = tax_pool[i];
+		}
+		tax_pool[i] -= allowance;
+		total_allowance += allowance;
+	}
+
+	com_month[0][ATC_TAX_ALLOWANCE] += total_allowance;
+	com_year[0][ATC_TAX_ALLOWANCE] += total_allowance;
+}
+
+void finance_t::initialise_legacy_asset_ledger()
+{
+	const settings_t& settings = world->get_settings();
+
+	for (int i = 0; i < TT_MAX; i++)
+	{
+		const sint64 way_length = veh_month[i][0][ATV_WAY_LENGTH];
+		const sint64 cost_per_tile = settings.get_legacy_way_asset_cost((uint8)i);
+		if (way_length <= 0 || cost_per_tile <= 0)
+		{
+			continue;
+		}
+		// The way length statistic counts 10 units for a straight tile and 7
+		// for a diagonal tile, so dividing by 10 gives the straight-tile count.
+		asset_value[i] = (way_length * cost_per_tile) / 10ll;
+	}
+
+	asset_ledger_needs_initialisation = false;
 }
 
 /**
@@ -200,13 +309,13 @@ void finance_t::new_month()
  */
 void finance_t::book_interest_monthly()
 {
-	const sint64 overdraft_rate = (sint64)world->get_overdraft_rate_percent();
-	if (overdraft_rate > 0)
+	const sint64 overdraft_rate_bp = get_overdraft_rate_bp();
+	if (overdraft_rate_bp > 0)
 	{
 		sint64 interest;
 		if(get_account_balance() < 0)
 		{
-			interest = (overdraft_rate * get_account_balance()) / 1200ll;
+			interest = (overdraft_rate_bp * get_account_balance()) / 120000ll;
 		}
 		else
 		{
@@ -214,6 +323,57 @@ void finance_t::book_interest_monthly()
 		}
 
 		book_interest(interest);
+	}
+}
+
+
+void finance_t::book_loans_monthly()
+{
+	const sint32 current_month = world->get_current_month();
+
+	for (uint32 i = 0; i < loans.get_count(); )
+	{
+		loan_t &loan = loans[i];
+
+		if (current_month - loan.start_month <= 0)
+		{
+			// The first payment falls due in the month after drawdown.
+			i++;
+			continue;
+		}
+
+		const sint64 interest = loan.get_interest_for_month();
+		if (interest > 0)
+		{
+			book_interest(-interest);
+		}
+
+		sint64 principal_due = loan.get_principal_due_this_month();
+		if (loan.type == LOAN_TYPE_BOND && loan.is_matured(current_month))
+		{
+			principal_due = loan.outstanding;
+		}
+
+		if (principal_due > 0)
+		{
+			if (principal_due > loan.outstanding)
+			{
+				principal_due = loan.outstanding;
+			}
+			book_loan_repayment(-principal_due);
+			loan.outstanding -= principal_due;
+		}
+
+		loan.payments_made++;
+
+		if (loan.outstanding <= 0)
+		{
+			loans.remove_at(i);
+		}
+		else
+		{
+			i++;
+		}
 	}
 }
 
@@ -225,7 +385,13 @@ void finance_t::book_corporation_tax_monthly()
 	// do not have to pay any tax for the first year. In each month, players then pay corporation tax on 1/12th of the gross profit.
 	// from the previous year. The tax is given to the public player.
 
-	const sint64 taxable_profit_last_year = veh_year[TT_ALL][1][ATV_PROFIT];
+	// The tax base is the cash-flow profit with capital expenditure added back,
+	// less the pooled tax allowance of the year. ATV_PROFIT already deducts
+	// ATV_CONSTRUCTION_COST and ATV_NEW_VEHICLE, so adding capital expenditure
+	// back means subtracting those (negative) entries.
+	const sint64 capital_expenditure_last_year = veh_year[TT_ALL][1][ATV_CONSTRUCTION_COST] + veh_year[TT_ALL][1][ATV_NEW_VEHICLE];
+	const sint64 tax_allowance_last_year = com_year[1][ATC_TAX_ALLOWANCE];
+	const sint64 taxable_profit_last_year = veh_year[TT_ALL][1][ATV_PROFIT] - capital_expenditure_last_year - tax_allowance_last_year;
 
 	// Divide by months and 100s
 	sint64 tax_payable = (taxable_profit_last_year * tax_rate) / 1200ll;
@@ -285,7 +451,7 @@ sint64 finance_t::credit_limit_by_profits() const
 		// This is before interst and before construction costs.
 		profit_total += get_history_veh_month(TT_ALL, month, ATV_OPERATING_PROFIT);
     }
-	sint64 overdraft_interest_rate = (sint64)world->get_overdraft_rate_percent();
+	const sint64 overdraft_interest_rate = (sint64)get_overdraft_rate_percent();
 
 	if(overdraft_interest_rate == 0)
 	{
@@ -318,6 +484,413 @@ sint64 finance_t::credit_limit_by_assets() const
         hard_limit_by_assets = 0;
     }
 	return hard_limit_by_assets;
+}
+
+
+sint64 finance_t::get_total_secured_debt() const
+{
+	sint64 total = 0;
+	for (uint32 i = 0; i < loans.get_count(); i++)
+	{
+		total += loans[i].outstanding;
+	}
+	return total;
+}
+
+
+sint64 finance_t::get_term_debt_limit() const
+{
+	const settings_t &settings = world->get_settings();
+	const sint64 minimum = world->get_inflation_adjusted_price(world->get_timeline_year_month(), settings.get_minimum_loan_limit(), general);
+	const sint64 gearing_limit = (get_credit_asset_value() * (sint64)settings.get_maximum_secured_gearing_percent()) / 100ll;
+	return max(minimum, gearing_limit);
+}
+
+
+sint64 finance_t::get_available_term_debt() const
+{
+	const sint64 available = get_term_debt_limit() - get_total_secured_debt();
+	return available > 0 ? available : 0;
+}
+
+
+sint32 finance_t::get_credit_spread_bp(uint8 rating) const
+{
+	if (rating >= CREDIT_RATING_MAX)
+	{
+		rating = CREDIT_RATING_C;
+	}
+	return world->get_settings().get_credit_spread_bp(rating);
+}
+
+
+sint32 finance_t::get_secured_gearing_premium_bp(sint64 total_secured_debt) const
+{
+	const settings_t &settings = world->get_settings();
+	const sint64 asset_value = get_credit_asset_value();
+
+	// Without a credit asset value every secured borrowing is at the highest
+	// band; the limit check prevents borrowing where none is available.
+	if (asset_value <= 0)
+	{
+		return settings.secured_gearing_premium[4].premium_bp;
+	}
+
+	const sint64 gearing_percent = (total_secured_debt * 100ll) / asset_value;
+	for (int i = 0; i < 5; i++)
+	{
+		if (gearing_percent <= (sint64)settings.secured_gearing_premium[i].max_gearing_percent)
+		{
+			return settings.secured_gearing_premium[i].premium_bp;
+		}
+	}
+	return settings.secured_gearing_premium[4].premium_bp;
+}
+
+
+sint32 finance_t::get_overdraft_rate_bp() const
+{
+	// The base rate in prices.tab is expressed in per cent, like the legacy
+	// overdraft calculation; convert it to basis points.
+	const sint32 base_rate_percent = (sint32)world->get_inflation_adjusted_price(world->get_timeline_year_month(), 100, price_type::base_rate);
+	return base_rate_percent * 100
+		+ (sint32)world->get_settings().get_overdraft_percent_above_base_rate() * 100
+		+ get_credit_spread_bp(credit_rating);
+}
+
+
+sint16 finance_t::get_overdraft_rate_percent() const
+{
+	return (sint16)((get_overdraft_rate_bp() + 50) / 100);
+}
+
+
+sint32 finance_t::get_term_rate_bp(loan_term_t term, uint8 rating, sint64 additional_principal) const
+{
+	const settings_t &settings = world->get_settings();
+	// The base rate in prices.tab is expressed in per cent, like the legacy
+	// overdraft calculation; convert it to basis points.
+	const sint32 base_rate_percent = (sint32)world->get_inflation_adjusted_price(world->get_timeline_year_month(), 100, price_type::base_rate);
+
+	sint32 rate = base_rate_percent * 100
+		+ (sint32)settings.get_term_lending_margin_bp()
+		+ (sint32)settings.get_term_offset_bp((uint8)term)
+		+ get_credit_spread_bp(rating)
+		+ get_secured_gearing_premium_bp(get_total_secured_debt() + additional_principal);
+
+	return rate > 0 ? rate : 0;
+}
+
+
+bool finance_t::is_term_available(loan_term_t term, uint8 type, uint8 rating) const
+{
+	if (!world->get_settings().term_loans_allowed() || term >= LOAN_TERM_MAX)
+	{
+		return false;
+	}
+
+	// CCC and below may issue no new term debt.
+	if (rating >= CREDIT_RATING_CCC)
+	{
+		return false;
+	}
+
+	if (type == LOAN_TYPE_BOND && term == LOAN_TERM_25_YEARS)
+	{
+		// A 25-year bond requires an investment-grade rating.
+		return rating <= CREDIT_RATING_BBB;
+	}
+
+	if (rating <= CREDIT_RATING_BBB)
+	{
+		return true;
+	}
+	if (rating == CREDIT_RATING_BB)
+	{
+		return term <= LOAN_TERM_10_YEARS;
+	}
+	// B
+	return term <= LOAN_TERM_5_YEARS;
+}
+
+
+loan_term_t finance_t::term_from_months(sint32 months)
+{
+	if (months <= 12) { return LOAN_TERM_1_YEAR; }
+	if (months <= 24) { return LOAN_TERM_2_YEARS; }
+	if (months <= 60) { return LOAN_TERM_5_YEARS; }
+	if (months <= 120) { return LOAN_TERM_10_YEARS; }
+	return LOAN_TERM_25_YEARS;
+}
+
+
+uint8 finance_t::assess_credit_rating(sint64 additional_principal, sint64 additional_debt_service) const
+{
+	const settings_t &settings = world->get_settings();
+
+	if (player != NULL && !player->is_public_service())
+	{
+		const player_t::solvency_status solvency = player->check_solvency();
+		if (solvency == player_t::in_liquidation)
+		{
+			return CREDIT_RATING_C;
+		}
+		if (solvency == player_t::in_administration)
+		{
+			return CREDIT_RATING_CC;
+		}
+	}
+
+	if (player != NULL && (sint16)player->get_player_age() < settings.get_new_company_credit_rating_months())
+	{
+		const sint16 rating = settings.get_new_company_credit_rating();
+		return (uint8)clamp<sint16>(rating, 0, CREDIT_RATING_MAX - 1);
+	}
+
+	// Debt-service cover: trailing twelve months of operating profit against the
+	// debt service of the next twelve months.
+	sint64 operating_profit = 0;
+	for (int month = 1; month <= 12 && month < MAX_PLAYER_HISTORY_MONTHS; month++)
+	{
+		operating_profit += get_history_veh_month(TT_ALL, month, ATV_OPERATING_PROFIT);
+	}
+
+	sint64 debt_service = additional_debt_service;
+	for (uint32 i = 0; i < loans.get_count(); i++)
+	{
+		debt_service += loans[i].get_debt_service_for_next_months(12);
+	}
+
+	uint8 cover_band = CREDIT_RATING_AAA;
+	if (debt_service > 0)
+	{
+		const sint64 cover_hundredths = (operating_profit * 100ll) / debt_service;
+		cover_band = CREDIT_RATING_CCC;
+		for (uint8 band = 0; band < CREDIT_RATING_MAX; band++)
+		{
+			if (cover_hundredths >= (sint64)settings.get_credit_min_debt_service_cover(band))
+			{
+				cover_band = band;
+				break;
+			}
+		}
+	}
+
+	// Leverage: total debt against total debt plus equity, where equity is cash
+	// plus the credit asset value less debt. The proposed instrument adds to
+	// both cash and debt, so the denominator gains the principal only.
+	const sint64 overdraft = account_balance < 0 ? -account_balance : 0;
+	const sint64 total_debt = get_total_secured_debt() + additional_principal + overdraft;
+	const sint64 capital = account_balance + additional_principal + get_credit_asset_value();
+
+	uint8 leverage_band = CREDIT_RATING_CCC;
+	if (capital > 0)
+	{
+		const sint64 leverage_percent = (total_debt * 100ll) / capital;
+		for (uint8 band = 0; band < CREDIT_RATING_MAX; band++)
+		{
+			if (leverage_percent <= (sint64)settings.get_credit_max_leverage_percent(band))
+			{
+				leverage_band = band;
+				break;
+			}
+		}
+	}
+
+	return max(cover_band, leverage_band);
+}
+
+
+void finance_t::update_credit_rating()
+{
+	credit_rating = assess_credit_rating();
+	credit_assessment_month = world->get_current_month();
+}
+
+
+loan_t * finance_t::get_loan(uint32 id)
+{
+	for (uint32 i = 0; i < loans.get_count(); i++)
+	{
+		if (loans[i].id == id)
+		{
+			return &loans[i];
+		}
+	}
+	return NULL;
+}
+
+
+char const *finance_t::issue_loan(uint8 type, sint64 amount, loan_term_t term)
+{
+	const settings_t &settings = world->get_settings();
+
+	if (!settings.term_loans_allowed())
+	{
+		return translator::translate("Term borrowing is not enabled in this game.");
+	}
+	if (type != LOAN_TYPE_BANK && type != LOAN_TYPE_BOND)
+	{
+		return translator::translate("Invalid instrument type.");
+	}
+	if (amount <= 0 || term >= LOAN_TERM_MAX)
+	{
+		return translator::translate("Invalid amount or term.");
+	}
+	if (player != NULL && player->check_solvency() != player_t::solvent)
+	{
+		return translator::translate("A company in administration or liquidation cannot borrow.");
+	}
+
+	const sint32 term_months = loan_term_months(term);
+	if (term_months <= 0)
+	{
+		return translator::translate("Invalid amount or term.");
+	}
+
+	// Provisional post-loan assessment, including the new principal and its
+	// debt service.
+	loan_t proposed(0, type, world->get_current_month(), term_months, amount, 0, credit_rating);
+	const uint8 rating = assess_credit_rating(amount, proposed.get_debt_service_for_next_months(12));
+
+	if (!is_term_available(term, type, rating))
+	{
+		return translator::translate("Your credit rating does not permit this term.");
+	}
+
+	if (amount > get_available_term_debt())
+	{
+		return translator::translate("That would exceed the term borrowing limit.");
+	}
+
+	const sint32 rate_bp = get_term_rate_bp(term, rating, amount);
+
+	loan_t loan(next_loan_id++, type, world->get_current_month(), term_months, amount, rate_bp, rating);
+	loans.append(loan);
+
+	// Draw down the principal.
+	book_account(amount);
+
+	return NULL;
+}
+
+
+char const *finance_t::settle_loan(uint32 id, bool replacing)
+{
+	loan_t * const loan = get_loan(id);
+	if (loan == NULL)
+	{
+		return translator::translate("No such instrument.");
+	}
+	if (player != NULL && player->check_solvency() != player_t::solvent)
+	{
+		return translator::translate("A company in administration or liquidation cannot repay instruments early.");
+	}
+
+	const settings_t &settings = world->get_settings();
+	const sint32 base_rate_percent = (sint32)world->get_inflation_adjusted_price(world->get_timeline_year_month(), 100, price_type::base_rate);
+	const sint32 discount_rate_bp = base_rate_percent * 100
+		+ (sint32)settings.get_term_offset_bp((uint8)term_from_months(loan->get_months_remaining(world->get_current_month())))
+		+ get_credit_spread_bp(loan->rating);
+
+	const sint64 settlement = loan->get_early_repayment_settlement(discount_rate_bp);
+
+	// A replacement draws the same principal again immediately, so only the
+	// break cost has to be affordable; a plain repayment has to fund the whole
+	// settlement.
+	const sint64 break_cost = settlement - loan->outstanding;
+	if (!can_afford(replacing ? break_cost : settlement))
+	{
+		return NOTICE_INSUFFICIENT_FUNDS;
+	}
+
+	// Book the principal as a repayment and any excess as a break cost, which
+	// is an interest expense.
+	book_loan_repayment(-loan->outstanding);
+	if (break_cost > 0)
+	{
+		book_interest(-break_cost);
+	}
+
+	loan->outstanding = 0;
+
+	for (uint32 i = 0; i < loans.get_count(); i++)
+	{
+		if (loans[i].id == id)
+		{
+			loans.remove_at(i);
+			break;
+		}
+	}
+
+	return NULL;
+}
+
+
+char const *finance_t::repay_loan(uint32 id)
+{
+	return settle_loan(id, false);
+}
+
+
+char const *finance_t::refinance_loan(uint32 id, loan_term_t term)
+{
+	loan_t * const loan = get_loan(id);
+	if (loan == NULL)
+	{
+		return translator::translate("No such instrument.");
+	}
+	if (player != NULL && player->check_solvency() != player_t::solvent)
+	{
+		return translator::translate("A company in administration or liquidation cannot refinance.");
+	}
+	if (term >= LOAN_TERM_MAX)
+	{
+		return translator::translate("Invalid amount or term.");
+	}
+
+	const sint64 outstanding = loan->outstanding;
+	const uint8 type = loan->type;
+
+	// The replacement carries the same outstanding principal, so the net
+	// secured debt after refinancing is unchanged. The existing instrument is
+	// replaced, so its debt service is removed from the assessment.
+	const loan_t proposed(0, type, world->get_current_month(), loan_term_months(term), outstanding, 0, credit_rating);
+	const sint64 debt_service_change = proposed.get_debt_service_for_next_months(12) - loan->get_debt_service_for_next_months(12);
+	const uint8 rating = assess_credit_rating(0, debt_service_change);
+
+	if (!is_term_available(term, type, rating))
+	{
+		return translator::translate("Your credit rating does not permit this term.");
+	}
+
+	const sint32 rate_bp = get_term_rate_bp(term, rating, 0);
+
+	// Early refinancing settles the existing instrument at the make-whole
+	// amount, then draws the same principal again.
+	char const * const error = settle_loan(id, true);
+	if (error != NULL)
+	{
+		return error;
+	}
+
+	loan_t replacement(next_loan_id++, type, world->get_current_month(), loan_term_months(term), outstanding, rate_bp, rating);
+	loans.append(replacement);
+	book_account(outstanding);
+
+	return NULL;
+}
+
+
+void finance_t::assume_loans(finance_t const *other)
+{
+	for (uint32 i = 0; i < other->loans.get_count(); i++)
+	{
+		loan_t loan = other->loans[i];
+		// Identifiers are unique only within a player.
+		loan.id = next_loan_id++;
+		loans.append(loan);
+	}
 }
 
 /* most recent savegame version: now with detailed finance statistics by type of transport */
@@ -431,6 +1004,63 @@ void finance_t::rdwr(loadsave_t *file)
 		// The current value is calculated by finish_rd
 		veh_month[tt][0][ATV_WAY_LENGTH] = 0;
 		veh_year[tt][0][ATV_WAY_LENGTH] = 0;
+	}
+
+	if (file->is_version_ex_atleast(15, 18))
+	{
+		for (int i = 0; i < TT_MAX; i++)
+		{
+			file->rdwr_longlong(asset_value[i]);
+		}
+		for (int i = 0; i < TT_MAX; i++)
+		{
+			file->rdwr_longlong(tax_pool[i]);
+		}
+
+		uint32 loan_count = loans.get_count();
+		file->rdwr_long(loan_count);
+		if (file->is_loading())
+		{
+			loans.clear();
+			for (uint32 i = 0; i < loan_count; i++)
+			{
+				loan_t loan;
+				loan.rdwr(file);
+				loans.append(loan);
+			}
+		}
+		else
+		{
+			for (uint32 i = 0; i < loan_count; i++)
+			{
+				loans[i].rdwr(file);
+			}
+		}
+
+		file->rdwr_long(next_loan_id);
+		file->rdwr_byte(credit_rating);
+		file->rdwr_long(credit_assessment_month);
+
+		if (file->is_loading() && credit_rating >= CREDIT_RATING_MAX)
+		{
+			credit_rating = CREDIT_RATING_C;
+		}
+	}
+	else if (file->is_loading())
+	{
+		for (int i = 0; i < TT_MAX; i++)
+		{
+			asset_value[i] = 0;
+			tax_pool[i] = 0;
+		}
+		// Initialised by player_t::finish_rd(), once the way length is known.
+		asset_ledger_needs_initialisation = true;
+
+		loans.clear();
+		next_loan_id = 1;
+		// Assessed by player_t::finish_rd().
+		credit_rating = CREDIT_RATING_BB;
+		credit_assessment_month = -1;
 	}
 }
 

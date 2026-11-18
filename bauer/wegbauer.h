@@ -53,6 +53,29 @@ public:
 	 */
 	static const way_desc_t * way_search_mothballed(const waytype_t wtyp, const systemtype_t system_type);
 
+	/**
+	 * Finds the cost of restoring a way to the design capability of the given
+	 * descriptor, using the least-cost descriptor available in the current
+	 * timeline. The capability measures are the way type, the system type, the
+	 * maximum speed, the maximum axle load and the wear capacity.
+	 * @return the restoration cost, or 0 if no descriptor qualifies.
+	 */
+	static sint64 calc_way_restoration_cost(const way_desc_t *old_desc);
+
+	/**
+	 * Splits a way replacement cost into the revenue renewal part and the
+	 * capital improvement part. The replacement is treated as a renewal only
+	 * where the installed descriptor is at least as capable as the replaced
+	 * descriptor on every capability measure; otherwise the whole cost is
+	 * treated as improvement.
+	 * @param old_desc descriptor of the way being replaced
+	 * @param new_desc descriptor of the way being installed
+	 * @param cost total replacement cost, a positive amount
+	 * @param renewal receives the revenue renewal part, a positive amount
+	 * @return the capital improvement part, a positive amount
+	 */
+	static sint64 split_way_replacement_cost(const way_desc_t *old_desc, const way_desc_t *new_desc, sint64 cost, sint64 &renewal);
+
 	static const way_desc_t *get_desc(const char *way_name,const uint16 time=0);
 
 	static stringhashtable_tpl <way_desc_t *, N_BAGS_LARGE> * get_all_ways();

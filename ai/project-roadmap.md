@@ -95,11 +95,20 @@ A. Carlotti has proposed an improved system for gradients here, the substance of
 
 ## Cost of capital
 
-Currently, players start with a large lump sum of free money. This under-estimates the cost of capital. Players should start either with nothing or a very small lump sum, and have to/be able to take out long-term loans to invest. The exact implementation of this is not so important, and there are many workable ways of doing it. One idea is to have bonds in a similar fashion to Railroad Tycoon, where a company could issue a bond for a certain period of time (say 1 year, 2 years, 5 years and 10 years, with the longer bonds having a higher annual rate of interest) if the company's credit rating was sufficiently good (some consideration would need to be given to how to calibrate this: poorer credit ratings should result in higher interest rates, and, if sufficiently bad, no bond issuing at all - new players should start with a moderate credit rating, such that they are able to borrow, but at fairly high rates), and would have to repay it in a lump sum at the end of the period. Another possibility would be a simple bank-loan, repayable in instalments starting a month after the loan is taken out (or perhaps with a three month repayment holiday) - this might be easier for a player to budget for.
+Long-term borrowing for human players is implemented in ex-15: bank loans and bonds, a Credit
+Rating, a Term-Debt Limit, an Asset Ledger and a Tax Written-Down Pool. The model is described
+in [cost-of-capital](cost-of-capital.md); the borrowing window is opened from the finance
+window.
 
-Some careful consideration would have to be given to the GUI for this, as there would be quite a bit of loan/bond specific information to display: the number of loans taken out/bonds issued, the dates first taken out, the dates of repayment, the rate of interest, a control for borrowing more, a control for repaying early (at a penalty, perhaps), and so forth. A new dialogue box would probably be needed, accessible by pressing a new button in the finances window. The cost of loan/bond repayments would need to be represented by a new graph in the finance window.
+Outstanding:
 
-Another issue is how to set a credit limit for a newly formed company or one that has not traded for very long. One good idea is to make this in part dependant on the weighted (by net wealth) aggregate success (measured by profit as a proportion of assets per annum) of other existing transport companies that have existed for some time (if available). This would have several features: it would allow players entering multi-player games late to displace dominant players more easily (as they would have access to more capital if a dominant player were very large and very profitable), and would also replicate to an extent the railway and canal manias of years past. If recent insolvencies were also taken into account negatively (weighted again by net wealth), it would also emulate the converse. There should be a minimum, however, below which the amount of credit available to a starting player will not fall, which should also be the default when starting a new map without other players.
+- AI borrowing is not implemented, because the current AI players are not suitable for
+  Extended.
+- Starting money is retained; a pakset may reduce it so that borrowing carries more of the
+  initial capital cost.
+- The calibration values are placeholders in code and are documented in
+  `simutrans/config/simuconf.tab`, but no pakset sets them yet.
+
 
 ## Waiting time limits and stop facilities
 

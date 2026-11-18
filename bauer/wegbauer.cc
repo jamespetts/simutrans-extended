@@ -267,6 +267,81 @@ const way_desc_t *way_builder_t::way_search_mothballed(const waytype_t wtyp, con
 	return NULL;
 }
 
+/**
+ * A way descriptor qualifies as a modern equivalent of the old descriptor when
+ * it has the same way type and system type and is no worse on the maximum
+ * speed, the maximum axle load and the wear capacity.
+ */
+static bool way_is_modern_equivalent(const way_desc_t* test, const way_desc_t* old_desc)
+{
+	return test->get_wtyp() == old_desc->get_wtyp()
+		&& test->get_styp() == old_desc->get_styp()
+		&& test->get_topspeed() >= old_desc->get_topspeed()
+		&& test->get_max_axle_load() >= old_desc->get_max_axle_load()
+		&& test->get_wear_capacity() >= old_desc->get_wear_capacity();
+}
+
+sint64 way_builder_t::calc_way_restoration_cost(const way_desc_t* old_desc)
+{
+	if (old_desc == NULL)
+	{
+		return 0;
+	}
+
+	const uint16 time = welt->get_timeline_year_month();
+	sint64 best_cost = 0;
+	bool found = false;
+
+	for (auto const& i : desc_table)
+	{
+		const way_desc_t* const test = i.value;
+		if (test->is_mothballed()
+			|| test->get_cursor()->get_image_id(1) == IMG_EMPTY
+			|| !test->is_available(time)
+			|| !way_is_modern_equivalent(test, old_desc))
+		{
+			continue;
+		}
+
+		// Charge the reference descriptor by the same rule as the replacement
+		// itself: the way-only cost where the upgrade group is unchanged,
+		// otherwise the full value including land.
+		const sint64 cost = old_desc->get_upgrade_group() == test->get_upgrade_group() ? test->get_way_only_cost() : test->get_value();
+		if (!found || cost < best_cost)
+		{
+			best_cost = cost;
+			found = true;
+		}
+	}
+
+	return best_cost;
+}
+
+sint64 way_builder_t::split_way_replacement_cost(const way_desc_t* old_desc, const way_desc_t* new_desc, sint64 cost, sint64& renewal)
+{
+	renewal = 0;
+	if (cost <= 0 || old_desc == NULL || new_desc == NULL)
+	{
+		return cost;
+	}
+
+	if (!way_is_modern_equivalent(new_desc, old_desc))
+	{
+		// A downgrade, or an improvement on one measure and a reduction on
+		// another, is not a restoration of the old capability.
+		return cost;
+	}
+
+	const sint64 restoration_cost = calc_way_restoration_cost(old_desc);
+	if (restoration_cost <= 0)
+	{
+		return cost;
+	}
+
+	renewal = min(cost, restoration_cost);
+	return cost - renewal;
+}
+
 const way_desc_t *way_builder_t::get_earliest_way(const waytype_t wtyp)
 {
 	const way_desc_t *desc = NULL;
@@ -2668,6 +2743,7 @@ void way_builder_t::build_road()
 		const koord k = route[i].get_2d();
 		grund_t* gr = welt->lookup(route[i]);
 		sint64 cost = 0;
+		sint64 renewal_cost = 0;
 
 		if(mark_way_for_upgrade_only)
 		{
@@ -2717,15 +2793,16 @@ void way_builder_t::build_road()
 				{
 					if (desc->is_mothballed() == false)
 					{
-						if (desc->get_upgrade_group() == str->get_desc()->get_upgrade_group())
-						{
-							cost -= desc->get_way_only_cost();
-						}
-						else
-						{
-							// Cost of downgrading is the cost of the inferior way (was previously the higher of the two costs in 10.15 and earlier, from Standard).
-							cost -= desc->get_value();
-						}
+						const way_desc_t* const old_desc = str->get_desc();
+						// Where the upgrade group is unchanged this is the way-only cost;
+						// otherwise it is the full value, which is the cost of the
+						// inferior way when the replacement is a downgrade.
+						const sint64 replacement_cost = desc->get_upgrade_group() == old_desc->get_upgrade_group() ? desc->get_way_only_cost() : desc->get_value();
+						cost -= replacement_cost;
+						const sint64 improvement_cost = split_way_replacement_cost(old_desc, desc, replacement_cost, renewal_cost);
+						// Leave only the improvement part in the construction booking;
+						// the renewal part is booked as infrastructure maintenance.
+						cost += replacement_cost - improvement_cost;
 					}
 
 					str->set_desc(desc);
@@ -2808,6 +2885,13 @@ void way_builder_t::build_road()
 			gr->calc_image();	// because it may be a crossing ...
 
 			minimap_t::get_instance()->calc_map_pixel(k);
+			if (renewal_cost > 0 && player_builder != NULL)
+			{
+				player_builder->book_way_renewal(renewal_cost, road_wt);
+				// Merge with the construction-cost money message so that the
+				// message shows the whole amount paid.
+				player_builder->add_money_message(-renewal_cost, k);
+			}
 			player_t::book_construction_costs(player_builder, cost, k, road_wt);
 		}
 		welt->set_recheck_road_connexions();
@@ -2824,6 +2908,7 @@ void way_builder_t::build_track()
 		// built tracks
 		for(  uint32 i=0;  i<get_count();  i++  ) {
 			sint64 cost = 0;
+			sint64 renewal_cost = 0;
 			grund_t* gr = welt->lookup(route[i]);
 			ribi_t::ribi ribi = route.get_short_ribi(i);
 
@@ -2893,7 +2978,13 @@ void way_builder_t::build_track()
 
 					if(  change_desc  ) {
 						// we take ownership => we take care to maintain the roads completely ...
-						cost -= weg->get_desc()->get_upgrade_group() == desc->get_upgrade_group() ? desc->get_way_only_cost() : desc->get_value();
+						const way_desc_t* const old_desc = weg->get_desc();
+						const sint64 replacement_cost = old_desc->get_upgrade_group() == desc->get_upgrade_group() ? desc->get_way_only_cost() : desc->get_value();
+						cost -= replacement_cost;
+						const sint64 improvement_cost = split_way_replacement_cost(old_desc, desc, replacement_cost, renewal_cost);
+						// Leave only the improvement part in the construction booking;
+						// the renewal part is booked as infrastructure maintenance.
+						cost += replacement_cost - improvement_cost;
 
 						if (!desc->is_mothballed())
 						{
@@ -2969,6 +3060,13 @@ void way_builder_t::build_track()
 					player_builder->add_undo( route[i] );
 				}
 
+				if (renewal_cost > 0 && player_builder != NULL)
+				{
+					player_builder->book_way_renewal(renewal_cost, desc->get_finance_waytype());
+					// Merge with the construction-cost money message so that the
+					// message shows the whole amount paid.
+					player_builder->add_money_message(-renewal_cost, gr->get_pos().get_2d());
+				}
 				player_t::book_construction_costs(player_builder, cost, gr->get_pos().get_2d(), desc->get_finance_waytype());
 			}
 

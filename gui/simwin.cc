@@ -80,6 +80,7 @@
 #include "vehicle_class_manager.h"
 #include "player_ranking_frame.h"
 #include "prices_frame.h"
+#include "loan_frame.h"
 
 #include "../simversion.h"
 
@@ -691,6 +692,7 @@ void rdwr_all_win(loadsave_t *file)
 					case magic_signal_connector_gui_t: w = new optionen_gui_t(); break;
 					case magic_player_ranking: w = new player_ranking_frame_t(); break;
 					case magic_prices_frame:   w = new prices_frame_t(); break;
+					case magic_loan_frame:     w = new loan_frame_t(wl->get_active_player()); break;
 					case magic_consist_order_rdwr_dummy: w = new consist_order_frame_t(); break;
 					case magic_consist_rule_editor: w = new consist_rule_editor_t(); break;
 

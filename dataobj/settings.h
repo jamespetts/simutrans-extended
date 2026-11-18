@@ -592,6 +592,76 @@ public:
 	bool allow_insolvency;
 	bool allow_purchases_when_insolvent;
 
+	/**
+	 * Number of entries in the per-transport-type capital-accounting tables.
+	 * The index is the numeric value of transport_type; a
+	 * static assertion in finance.cc keeps the two in step.
+	 */
+	static const uint8 MAX_CAPITAL_ACCOUNTING_TYPES = 11;
+
+	/**
+	 * Annual depreciation rate in per cent for the credit asset ledger, per
+	 * transport type. The ledger value of each transport type is reduced by
+	 * this rate each month.
+	 */
+	sint16 asset_depreciation_percent[MAX_CAPITAL_ACCOUNTING_TYPES];
+
+	/**
+	 * Annual tax allowance rate in per cent for the tax written-down pool, per
+	 * transport type. The pool is reduced by the resulting allowance each
+	 * month.
+	 */
+	sint16 tax_allowance_percent[MAX_CAPITAL_ACCOUNTING_TYPES];
+
+	/**
+	 * Asset value of one straight way tile per transport type, used to
+	 * initialise the credit asset ledger when loading a savegame written
+	 * before the ledger existed. Zero disables the approximation.
+	 */
+	sint64 legacy_way_asset_cost[MAX_CAPITAL_ACCOUNTING_TYPES];
+
+	/**
+	 * Number of entries in the credit-rating table. The index is the numeric
+	 * value of credit_rating_t, best band first; a static assertion
+	 * in finance.cc keeps the two in step.
+	 */
+	static const uint8 MAX_CREDIT_RATINGS = 9;
+
+	/// Minimum debt-service cover for each rating band, in hundredths.
+	sint16 credit_min_debt_service_cover[MAX_CREDIT_RATINGS];
+	/// Maximum leverage for each rating band, in per cent.
+	sint16 credit_max_leverage_percent[MAX_CREDIT_RATINGS];
+	/// Interest-rate spread for each rating band, in basis points.
+	sint16 credit_spread_bp[MAX_CREDIT_RATINGS];
+
+	/// Rating band of a newly founded company.
+	sint16 new_company_credit_rating;
+	/// Months for which a newly founded company keeps that band.
+	sint16 new_company_credit_rating_months;
+
+	/// Fixed margin of term lending over the base rate, in basis points.
+	sint16 term_lending_margin_bp;
+	/// Term offset from the reference term, in basis points, indexed by
+	/// loan_term_t.
+	sint16 term_offset_bp[5];
+
+	/// One band of the secured-gearing premium table.
+	struct gearing_premium_t
+	{
+		sint16 max_gearing_percent;
+		sint16 premium_bp;
+	};
+
+	/// Secured-gearing premium bands, ascending by gearing.
+	gearing_premium_t secured_gearing_premium[5];
+
+	/// Maximum secured gearing permitted for new term borrowing, per cent.
+	sint16 maximum_secured_gearing_percent;
+	/// Minimum term-debt facility in Simucents at 1900 prices.
+	sint64 minimum_loan_limit;
+	/// Whether term instruments may be issued at all.
+	bool allow_term_loans;
+
 	// Round-trip efficiency used to derive the electricity-based running cost of
 	// battery and fuel-cell traction (see config/fuel.tab). A global default;
 	// per-vehicle .dat values override it (vehicle_desc_t).
@@ -1156,6 +1226,21 @@ public:
 	uint8 get_fuel_cell_round_trip_efficiency() const { return fuel_cell_round_trip_efficiency; }
 	bool insolvency_allowed() const { return allow_insolvency; }
 	bool insolvent_purchases_allowed() const { return allow_purchases_when_insolvent; }
+
+	sint16 get_asset_depreciation_percent(uint8 transport_type) const { assert(transport_type < MAX_CAPITAL_ACCOUNTING_TYPES); return asset_depreciation_percent[transport_type]; }
+	sint16 get_tax_allowance_percent(uint8 transport_type) const { assert(transport_type < MAX_CAPITAL_ACCOUNTING_TYPES); return tax_allowance_percent[transport_type]; }
+	sint64 get_legacy_way_asset_cost(uint8 transport_type) const { assert(transport_type < MAX_CAPITAL_ACCOUNTING_TYPES); return legacy_way_asset_cost[transport_type]; }
+
+	sint16 get_credit_min_debt_service_cover(uint8 rating) const { assert(rating < MAX_CREDIT_RATINGS); return credit_min_debt_service_cover[rating]; }
+	sint16 get_credit_max_leverage_percent(uint8 rating) const { assert(rating < MAX_CREDIT_RATINGS); return credit_max_leverage_percent[rating]; }
+	sint16 get_credit_spread_bp(uint8 rating) const { assert(rating < MAX_CREDIT_RATINGS); return credit_spread_bp[rating]; }
+	sint16 get_new_company_credit_rating() const { return new_company_credit_rating; }
+	sint16 get_new_company_credit_rating_months() const { return new_company_credit_rating_months; }
+	sint16 get_term_lending_margin_bp() const { return term_lending_margin_bp; }
+	sint16 get_term_offset_bp(uint8 term) const { assert(term < 5); return term_offset_bp[term]; }
+	bool term_loans_allowed() const { return allow_term_loans; }
+	sint16 get_maximum_secured_gearing_percent() const { return maximum_secured_gearing_percent; }
+	sint64 get_minimum_loan_limit() const { return minimum_loan_limit; }
 
 	uint32 get_unit_reverse_time() const { return unit_reverse_time; }
 	uint32 get_hauled_reverse_time() const { return hauled_reverse_time; }

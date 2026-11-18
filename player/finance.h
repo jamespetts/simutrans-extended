@@ -11,6 +11,7 @@
 
 #include "../simtypes.h"
 #include "../simworld.h"
+#include "loan.h"
 
  /****************************************** notification strings **************************************/
 
@@ -115,6 +116,10 @@ enum accounting_type_common {
 	ATC_SOFT_CREDIT_LIMIT,		/// soft credit limit (player cannot spend money)
 	ATC_HARD_CREDIT_LIMIT,		/// hard credit limit (player is insolvent)
 	ATC_TAX,					/// Corporation tax paid
+	ATC_LOAN_REPAYMENT,			/// Principal repaid on term instruments (negative cash flow)
+	ATC_DEPRECIATION,			/// Pooled depreciation charge (accrual view only)
+	ATC_SECURED_DEBT,			/// Total outstanding secured principal at the month end
+	ATC_TAX_ALLOWANCE,			/// Pooled tax allowance for the period
 	ATC_MAX
 };
 
@@ -159,6 +164,28 @@ enum accounting_type_vehicles {
 
 	ATV_MAX
 };
+
+
+/**
+ * The credit-rating scale, best band first. The numeric values index the
+ * rating tables in the settings, so the order must not change.
+ */
+enum credit_rating_t
+{
+	CREDIT_RATING_AAA = 0,
+	CREDIT_RATING_AA,
+	CREDIT_RATING_A,
+	CREDIT_RATING_BBB,
+	CREDIT_RATING_BB,
+	CREDIT_RATING_B,
+	CREDIT_RATING_CCC,
+	CREDIT_RATING_CC,
+	CREDIT_RATING_C,
+	CREDIT_RATING_MAX
+};
+
+/// The rating labels, indexed by credit_rating_t. Callers translate them.
+extern char const *const credit_rating_names[CREDIT_RATING_MAX];
 
 
 class loadsave_t;
@@ -232,6 +259,38 @@ class finance_t {
 	sint64 maintenance[TT_MAX];
 
 	/**
+	 * Book value of the fixed assets used for the credit assessment, pooled
+	 * per transport type. Excludes vehicles, which are valued separately by
+	 * their sale value.
+	 */
+	sint64 asset_value[TT_MAX];
+
+	/**
+	 * Tax written-down value of the pooled assets, per transport type.
+	 */
+	sint64 tax_pool[TT_MAX];
+
+	/**
+	 * Set when the savegame predates the asset ledger, so that
+	 * player_t::finish_rd() initialises it from the way length.
+	 */
+	bool asset_ledger_needs_initialisation;
+
+	/**
+	 * Term instruments: bank loans and bonds.
+	 */
+	vector_tpl<loan_t> loans;
+
+	/// Next identifier to assign to a new instrument.
+	uint32 next_loan_id;
+
+	/// The stored credit rating, one of credit_rating_t.
+	uint8 credit_rating;
+
+	/// The month in which the stored credit rating was assessed.
+	sint32 credit_assessment_month;
+
+	/**
 	 * Monthly vehicle maintenance cost per transport type.
 	 */
 	// Unused because vehicle maintenance varies monthly for each vehicle.
@@ -249,6 +308,10 @@ public:
 		transport_type tt = translate_waytype_to_tt(wt);
 		veh_year[tt][0][ATV_CONSTRUCTION_COST] += amount;
 		veh_month[tt][0][ATV_CONSTRUCTION_COST] += amount;
+
+		// A negative amount is capital expenditure; a positive amount is money
+		// received on removal.
+		book_infrastructure_capital(-amount, wt);
 
 		account_balance += amount;
 	}
@@ -283,6 +346,31 @@ public:
 		maintenance[tt] += change;
 		maintenance[TT_ALL] += change;
 		return maintenance[tt];
+	}
+
+	/**
+	 * Adds or removes the capital value of infrastructure. A positive amount is
+	 * a capital addition; a negative amount is a reduction on removal. Both the
+	 * credit asset ledger and the tax written-down pool are affected.
+	 */
+	inline void book_infrastructure_capital(const sint64 amount, const waytype_t wt)
+	{
+		const transport_type tt = translate_waytype_to_tt(wt);
+		asset_value[tt] += amount;
+		tax_pool[tt] += amount;
+		if (asset_value[tt] < 0) { asset_value[tt] = 0; }
+		if (tax_pool[tt] < 0) { tax_pool[tt] = 0; }
+	}
+
+	/**
+	 * Adds or removes the tax written-down value of vehicles. Vehicles are not
+	 * held in the credit asset ledger, which uses their sale value instead.
+	 */
+	inline void book_vehicle_capital(const sint64 amount, const waytype_t wt)
+	{
+		const transport_type tt = translate_waytype_to_tt(wt);
+		tax_pool[tt] += amount;
+		if (tax_pool[tt] < 0) { tax_pool[tt] = 0; }
 	}
 
 	/**
@@ -328,6 +416,7 @@ public:
 		veh_month[tt][0][ATV_NEW_VEHICLE] += amount;
 
 		update_assets(-amount, wt);
+		book_vehicle_capital(-amount, wt);
 
 		account_balance += amount;
 	}
@@ -378,6 +467,16 @@ public:
 	{
 		com_year[0][ATC_INTEREST] += amount;
 		com_month[0][ATC_INTEREST] += amount;
+		account_balance += amount;
+	}
+
+	/**
+	* Books repayment of term-instrument principal.
+	*/
+	void book_loan_repayment(const sint64 amount)
+	{
+		com_year[0][ATC_LOAN_REPAYMENT] += amount;
+		com_month[0][ATC_LOAN_REPAYMENT] += amount;
 		account_balance += amount;
 	}
 
@@ -548,9 +647,119 @@ public:
 	void calc_credit_limits();
 
 	/**
+	 * Total outstanding principal of all term instruments.
+	 */
+	sint64 get_total_secured_debt() const;
+
+	/**
+	 * Total term-debt limit: the greater of the configured minimum facility and
+	 * the maximum secured gearing of the credit asset value, both in Simucents.
+	 */
+	sint64 get_term_debt_limit() const;
+
+	/**
+	 * Amount available for a new term instrument.
+	 */
+	sint64 get_available_term_debt() const;
+
+	/// The stored credit rating, one of credit_rating_t.
+	uint8 get_credit_rating() const { return credit_rating; }
+
+	/// The stored credit rating as an integer, for the scripting API.
+	sint32 get_credit_rating_index() const { return credit_rating; }
+
+	/// Number of term instruments outstanding.
+	uint32 get_loan_count() const { return loans.get_count(); }
+
+	sint32 get_credit_assessment_month() const { return credit_assessment_month; }
+
+	/**
+	 * Assesses the credit rating from the debt-service cover and the leverage,
+	 * taking the worse of the two. A provisional assessment includes an
+	 * instrument that has not been issued yet.
+	 * @param additional_principal principal of a proposed instrument
+	 * @param additional_debt_service its debt service over the next year
+	 */
+	uint8 assess_credit_rating(sint64 additional_principal = 0, sint64 additional_debt_service = 0) const;
+
+	/// Reassesses and stores the credit rating. Called once a month.
+	void update_credit_rating();
+
+	/// Spread over the base rate for a rating band, in basis points.
+	sint32 get_credit_spread_bp(uint8 rating) const;
+
+	/// Secured-gearing premium for a post-loan secured debt, in basis points.
+	sint32 get_secured_gearing_premium_bp(sint64 total_secured_debt) const;
+
+	/// Overdraft rate in basis points, including the rating spread.
+	sint32 get_overdraft_rate_bp() const;
+
+	/// Overdraft rate in per cent, rounded to the nearest per cent.
+	sint16 get_overdraft_rate_percent() const;
+
+	/// Annual rate in basis points for a new term instrument.
+	sint32 get_term_rate_bp(loan_term_t term, uint8 rating, sint64 additional_principal) const;
+
+	/// Whether the rating allows this term and instrument type.
+	bool is_term_available(loan_term_t term, uint8 type, uint8 rating) const;
+
+	/// The term index whose length is nearest to a number of months.
+	static loan_term_t term_from_months(sint32 months);
+
+	const vector_tpl<loan_t> & get_loans() const { return loans; }
+
+	/// Finds an instrument by identifier, or NULL.
+	loan_t * get_loan(uint32 id);
+
+	/**
+	 * Issues a term instrument and books the proceeds.
+	 * @return NULL on success, or a translated reason for refusal.
+	 */
+	char const *issue_loan(uint8 type, sint64 amount, loan_term_t term);
+
+	/**
+	 * Repays an instrument early at the make-whole settlement.
+	 * @return NULL on success, or a translated reason for refusal.
+	 */
+	char const *repay_loan(uint32 id);
+
+	/**
+	 * Replaces an instrument with a new one for the same outstanding principal.
+	 * @return NULL on success, or a translated reason for refusal.
+	 */
+	char const *refinance_loan(uint32 id, loan_term_t term);
+
+	/**
+	 * Settles an instrument at the make-whole amount and removes it.
+	 * @param replacing true when the principal is drawn again immediately
+	 */
+	char const *settle_loan(uint32 id, bool replacing);
+
+	/// Books the monthly interest and principal of every instrument.
+	void book_loans_monthly();
+
+	/**
+	 * Takes over the term instruments of another company on a takeover. The
+	 * instruments keep their fixed rates but are renumbered within this player.
+	 */
+	void assume_loans(finance_t const *other);
+
+	/**
 	 * Book interest (once a month, please!)
 	 */
 	void book_interest_monthly();
+
+	/**
+	 * Reduces the credit asset ledger by the monthly depreciation charge and
+	 * records the charge in ATC_DEPRECIATION. This has no cash effect.
+	 */
+	void depreciate_assets_monthly();
+
+	/**
+	 * Reduces the tax written-down pools by the monthly allowance and records
+	 * the allowance in ATC_TAX_ALLOWANCE.
+	 */
+	void book_tax_allowance_monthly();
 
 	/**
 	 * Book corporation tax (monthy)
@@ -613,6 +822,62 @@ public:
 	}
 
 	sint64 get_financial_assets() const {return veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS];}
+
+	/**
+	 * Book value of the infrastructure ledger. With TT_ALL, the sum over every
+	 * transport type.
+	 */
+	sint64 get_asset_value(transport_type tt = TT_ALL) const
+	{
+		if (tt == TT_ALL)
+		{
+			sint64 total = 0;
+			for (int i = 0; i < TT_MAX; i++)
+			{
+				total += asset_value[i];
+			}
+			return total;
+		}
+		assert(tt < TT_MAX);
+		return asset_value[tt];
+	}
+
+	/**
+	 * Tax written-down value of the pooled assets. With TT_ALL, the sum over
+	 * every transport type.
+	 */
+	sint64 get_tax_pool(transport_type tt = TT_ALL) const
+	{
+		if (tt == TT_ALL)
+		{
+			sint64 total = 0;
+			for (int i = 0; i < TT_MAX; i++)
+			{
+				total += tax_pool[i];
+			}
+			return total;
+		}
+		assert(tt < TT_MAX);
+		return tax_pool[tt];
+	}
+
+	/**
+	 * Total credit asset value: the infrastructure ledger plus the sale value
+	 * of the vehicles. This is the denominator of the secured gearing ratio and
+	 * the asset term of the leverage ratio.
+	 */
+	sint64 get_credit_asset_value() const
+	{
+		return veh_month[TT_ALL][0][ATV_NON_FINANCIAL_ASSETS] + get_asset_value(TT_ALL);
+	}
+
+	bool get_asset_ledger_needs_initialisation() const { return asset_ledger_needs_initialisation; }
+
+	/**
+	 * Initialises the asset ledger and tax pool of a savegame that predates
+	 * them, from the way length and the configured legacy asset cost.
+	 */
+	void initialise_legacy_asset_ledger();
 
 	sint64 get_scenario_completed() const { return com_month[0][ATC_SCENARIO_COMPLETED]; }
 

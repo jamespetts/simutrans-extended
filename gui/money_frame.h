@@ -41,6 +41,16 @@ private:
 	gui_label_buf_t scenario_completion;
 	gui_label_buf_t warn;
 
+	// Total secured debt, shown under the borrowing controls.
+	gui_label_buf_t lb_debt;
+
+	// The accrual view: pooled depreciation, the profit after depreciation and
+	// tax, and the current balance sheet.
+	static const uint8 ACCRUAL_ROWS = 14;
+	gui_aligned_container_t cont_accrual;
+	gui_label_buf_t accrual_values[ACCRUAL_ROWS];
+	void update_accrual();
+
 	gui_aligned_container_t container_year, container_month, cont_stats;
 	gui_scrollpane_t scrolly_stats;
 
@@ -52,7 +62,7 @@ private:
 
 	gui_tab_panel_t year_month_tabs;
 
-	button_t headquarter, bt_open_ranking, bt_open_prices;
+	button_t headquarter, bt_open_ranking, bt_open_prices, bt_open_loans;
 	cbuffer_t headquarter_tooltip;
 
 	/// Helper method to query data from players statistics

@@ -427,6 +427,10 @@ bool player_t::new_month()
 	// Credit limits are NEGATIVE numbers
 	finance->calc_credit_limits();
 
+	// After recalculating the assets, reassess the credit rating, which
+	// depends on the credit asset value.
+	finance->update_credit_rating();
+
 	finance->calc_finance_history(); // Recalc after calc_assets
 
 	simlinemgmt.new_month();
@@ -461,7 +465,7 @@ bool player_t::new_month()
 					{
 						buf.printf("%s", translator::translate("You have been overdrawn\nfor one month"));
 					}
-					const sint16 overdraft_interest_rate_percent = welt->get_overdraft_rate_percent();
+					const sint16 overdraft_interest_rate_percent = finance->get_overdraft_rate_percent();
 					if (overdraft_interest_rate_percent > 0)
 					{
 						buf.printf(translator::translate("\n\nInterest on your debt is\naccumulating at %i %%"), overdraft_interest_rate_percent);
@@ -1086,8 +1090,22 @@ void player_t::finish_rd()
 {
 	simlinemgmt.finish_rd();
 	display_set_player_color_scheme( player_nr, player_color_1, player_color_2 );
+
+	if (finance->get_asset_ledger_needs_initialisation())
+	{
+		// A savegame written before the asset ledger existed: approximate the
+		// ledger from the way length, which the ways have just rebuilt.
+		finance->initialise_legacy_asset_ledger();
+	}
+
 	// recalculate vehicle value
 	calc_assets();
+
+	if (finance->get_credit_assessment_month() < 0)
+	{
+		// A savegame written before the credit rating was stored.
+		finance->update_credit_rating();
+	}
 
 	finance->calc_finance_history();
 
@@ -1389,7 +1407,13 @@ sint64 player_t::calc_takeover_cost() const
 	if (adopt_liabilities || finance->get_account_balance() > 0) {
 		cost -= finance->get_account_balance();
 	}
-	// TODO: Add any liability for longer term loans here whenever longer term loans come to be implemented.
+
+	// The acquirer assumes the target's term instruments, so the price is
+	// reduced by their outstanding principal. Instruments of a company in
+	// liquidation are written off and not transferred.
+	if (adopt_liabilities) {
+		cost -= finance->get_total_secured_debt();
+	}
 
 
 	// TODO: Consider a more sophisticated system here; but where can we get the data for this?
@@ -1590,11 +1614,20 @@ void player_t::take_over(player_t* target_player)
 		}
 	}
 
+	// Assume the target's term instruments at their fixed rates. The price
+	// already allowed for them in calc_takeover_cost().
+	if (target_player->check_solvency() != player_t::in_liquidation)
+	{
+		finance->assume_loans(target_player->get_finance());
+	}
+
 	calc_assets();
 
 	// After recalculating the assets, recalculate the credit limits
 	// Credit limits are NEGATIVE numbers
 	finance->calc_credit_limits();
+
+	finance->update_credit_rating();
 
 	finance->calc_finance_history();
 

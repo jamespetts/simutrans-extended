@@ -196,6 +196,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/message_stats_t.cc
 	gui/minimap.cc
 	gui/money_frame.cc
+	gui/loan_frame.cc
 	gui/obj_info.cc
 	gui/onewaysign_info.cc
 	gui/optionen.cc
@@ -282,6 +283,7 @@ target_sources(simutrans-extended PRIVATE
 	player/ai_goods.cc
 	player/ai_passenger.cc
 	player/finance.cc
+	player/loan.cc
 	player/simplay.cc
 	script/api/api_city.cc
 	script/api/api_command.cc

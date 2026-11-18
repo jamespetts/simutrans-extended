@@ -60,6 +60,7 @@ Note: the documents may be nested. Only top level documents are shown here.
 - [consist-recombination](consist-recombination.md) - read when touching coupling, uncoupling, consist orders, locomotive changes, through coaches, pick-up goods wagon collection, or the runtime re-formation of consists. **ex-15 hotspot.**
 - [industry](industry.md) — read when touching factories/industries: factory descriptors & goods, the industry-density system, chain building and inter-factory linking, contracts mode, the production/consumption model, closure & upgrade, or industry generation. Keys its own nested docs.
 - [economy-and-passengers](economy-and-passengers.md) — read when touching cities & city growth, passenger/mail generation, players/finance, or fares. Factories/industries and goods → [industry](industry.md).
+- [cost-of-capital](cost-of-capital.md) — read when touching company borrowing, the Credit Rating, loans and bonds, the Asset Ledger or Tax Written-Down Pool, or the split of way replacement costs between Revenue Renewal and Capital Improvement.
 - [routing-and-scheduling](routing-and-scheduling.md) — read when touching path exploration, routing, stops (halts), connections, or schedules. **ex-15 hotspot.**
 - [signals-and-blocks](signals-and-blocks.md) — read when touching signals, signalboxes, reservations, block working, or train movement authority. Sync-sensitive (AGENTS.md rule 5).
 

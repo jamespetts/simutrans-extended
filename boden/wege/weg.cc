@@ -1540,11 +1540,20 @@ bool weg_t::renew()
 	{
 		// Unowned ways in cities are assumed to be owned by the city and will be renewed by it.
 		replacement_way = new_way;
+		sint64 renewal_cost;
+		const sint64 improvement_cost = way_builder_t::split_way_replacement_cost(desc, new_way, price, renewal_cost);
 		set_desc(new_way);
 		success = true;
 		if(owner)
 		{
-			owner->book_way_renewal(price, new_way->get_waytype());
+			if(renewal_cost > 0)
+			{
+				owner->book_way_renewal(renewal_cost, new_way->get_waytype());
+			}
+			if(improvement_cost > 0)
+			{
+				player_t::book_construction_costs(owner, -improvement_cost, get_pos().get_2d(), new_way->get_finance_waytype());
+			}
 		}
 	}
 

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 61d022204
+verified: cost-of-capital @ 307321fb (revenue-renewal section); master @ 61d022204 (rest)
 ---
 # Way maintenance accounting
 
@@ -49,8 +49,7 @@ side of the array is documented in [economy-and-passengers](economy-and-passenge
 ## Booking paths
 
 - `weg_t::set_desc()`: removes the old desc's contribution and adds the new desc's, for the
-  owner current at the time it runs. Used by renewals, upgrades and city road changes.
-- `weg_t::finish_rd()`: adds the current desc's contribution for the current owner. Called by
+  owner current at the time it runs. Used by renewals, upgrades and city road changes.- `weg_t::finish_rd()`: adds the current desc's contribution for the current owner. Called by
   the load rebuild and by `grund_t::neuen_weg_bauen()` for new ways.
 - `weg_t::~weg_t()`: removes the contribution. It uses the stored diagonal flag rather than
   recomputing it, because the way may already be detached from the map.
@@ -67,6 +66,25 @@ side of the array is documented in [economy-and-passengers](economy-and-passenge
 - `obj_t::set_owner()` (or `set_owner_nr()` on load) remains correct where the booking must not
   move: the load path uses `set_owner_nr()`, and new ways are booked by
   `neuen_weg_bauen()`/`finish_rd()`.
+
+## Revenue renewal versus capital improvement
+
+A way replacement is split between the recurring maintenance account and the construction
+account, so that restoring a way's existing capability is an operating cost while improving it
+is capital expenditure. `way_builder_t::split_way_replacement_cost` performs the split; the
+capability measures, the reference-descriptor search and the callers are in
+[way-renewal-classification](cost-of-capital/way-renewal-classification.md).
+
+- The Revenue Renewal part is booked with `player_t::book_way_renewal` to
+  `ATV_INFRASTRUCTURE_MAINTENANCE`.
+- The Capital Improvement part is booked with `player_t::book_construction_costs` to
+  `ATV_CONSTRUCTION_COST`, which also adds it to the Asset Ledger and the Tax Written-Down
+  Pool ([cost-of-capital](cost-of-capital.md)).
+- Because `player_t::book_way_renewal` raises no Money Message, `way_builder_t::build_road` and
+  `way_builder_t::build_track` raise one for the Revenue Renewal part themselves; the message
+  therefore coalesces with the construction-cost message into the whole amount paid.
+- No disclosure of the classification is shown anywhere in the game.
+
 
 ## Invariant and special cases
 

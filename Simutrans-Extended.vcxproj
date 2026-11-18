@@ -2247,6 +2247,7 @@
     <ClCompile Include="gui\building_info.cc" />
     <ClCompile Include="descriptor\reader\building_reader.cc" />
     <ClCompile Include="player\finance.cc" />
+<ClCompile Include="player\loan.cc" />
     <ClCompile Include="script\api\api_city.cc" />
     <ClCompile Include="script\api\api_command.cc" />
     <ClCompile Include="script\api\api_const.cc" />
@@ -2538,6 +2539,7 @@
     <ClCompile Include="gui\messagebox.cc" />
     <ClCompile Include="gui\minimap.cc" />
     <ClCompile Include="gui\money_frame.cc" />
+    <ClCompile Include="gui\loan_frame.cc" />
     <ClCompile Include="boden\wege\monorail.cc" />
     <ClCompile Include="boden\monorailboden.cc" />
     <ClCompile Include="utils\simrandom.cc" />
@@ -2842,6 +2844,7 @@
     <ClInclude Include="player\ai_goods.h" />
     <ClInclude Include="player\ai_passenger.h" />
     <ClInclude Include="player\finance.h" />
+<ClInclude Include="player\loan.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="revision.h" />
     <ClInclude Include="script\api\api.h" />
@@ -3051,6 +3054,7 @@
     <ClInclude Include="gui\minimap.h" />
     <ClInclude Include="tpl\minivec_tpl.h" />
     <ClInclude Include="gui\money_frame.h" />
+    <ClInclude Include="gui\loan_frame.h" />
     <ClInclude Include="boden\wege\monorail.h" />
     <ClInclude Include="boden\monorailboden.h" />
     <ClInclude Include="utils\simrandom.h" />

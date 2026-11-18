@@ -802,6 +802,105 @@ fuel_unit_cost_divider = 1000
 # The base rate is set in prices.tab.
 overdraft_percent_above_base_rate = 2
 
+# Capital accounting settings.
+#
+# The credit asset ledger is the book value of the company's infrastructure,
+# used to value the security for borrowing. The tax written-down pool is the
+# undepreciated value of capital expenditure for corporation tax.
+#
+# Both tables are indexed by the accounting transport type:
+#   0 all, 1 road, 2 railway, 3 ship, 4 monorail, 5 maglev,
+#   6 tram, 7 narrow gauge, 8 air, 9 other, 10 powerline
+#
+# "asset_depreciation[i]" is the annual percentage by which the infrastructure
+# book value of that transport type is reduced. It has no cash effect.
+#
+# "tax_allowance[i]" is the annual percentage of the tax written-down pool that
+# is allowed against corporation tax.
+#
+# "legacy_way_asset_cost[i]" is the as-new asset value of one straight way tile
+# of that transport type. It is used only to initialise the ledger when loading
+# a savegame written before the ledger existed; 0 disables that approximation.
+#
+# Defaults: 2% depreciation, 4% tax allowance, no legacy cost.
+#asset_depreciation[0] = 2
+#asset_depreciation[1] = 2
+#asset_depreciation[2] = 2
+#asset_depreciation[3] = 2
+#asset_depreciation[4] = 2
+#asset_depreciation[5] = 2
+#asset_depreciation[6] = 2
+#asset_depreciation[7] = 2
+#asset_depreciation[8] = 2
+#asset_depreciation[9] = 2
+#asset_depreciation[10] = 2
+#tax_allowance[0] = 4
+#tax_allowance[1] = 4
+#tax_allowance[2] = 4
+#tax_allowance[3] = 4
+#tax_allowance[4] = 4
+#tax_allowance[5] = 4
+#tax_allowance[6] = 4
+#tax_allowance[7] = 4
+#tax_allowance[8] = 4
+#tax_allowance[9] = 4
+#tax_allowance[10] = 4
+#legacy_way_asset_cost[1] = 0
+#legacy_way_asset_cost[2] = 0
+
+# Credit rating and term lending settings.
+#
+# The credit rating has nine bands, best first: AAA, AA, A, BBB, BB, B, CCC,
+# CC, C. A solvent company is placed in the first band whose minimum
+# debt-service cover and maximum leverage it meets; the worse of the two bands
+# is used. CC is used for a company in administration and C for a company in
+# liquidation. CCC and below may issue no new term debt.
+#
+# "credit_min_debt_service_cover[i]" is the minimum ratio, in hundredths, of
+# the trailing twelve months' operating profit to the next twelve months' debt
+# service. 125 means 1.25 times.
+#
+# "credit_max_leverage[i]" is the maximum total debt as a percentage of total
+# debt plus equity.
+#
+# "credit_spread[i]" is the addition to the interest rate, in basis points
+# (100 basis points = 1 percentage point). These are game constructs, not
+# agency ratings.
+#
+# "new_company_credit_rating" and "new_company_credit_rating_months" give a
+# newly founded company a fixed band for its first months.
+#
+# "term_lending_margin" is the fixed margin of term lending over the base rate,
+# in basis points. The base rate in prices.tab is the only year-varying rate.
+#
+# "term_offset[i]" is the addition, in basis points, for the terms 1, 2, 5, 10
+# and 25 years. The five-year term is the reference and has a zero offset.
+#
+# "secured_gearing_premium[i] = gearing,premium" gives the addition, in basis
+# points, for post-loan secured gearing up to the stated percentage.
+#
+# "maximum_secured_gearing" caps new secured borrowing at that percentage of
+# the credit asset value. "minimum_loan_limit" is a floor on the total
+# term-debt facility in Simucents at 1900 prices, like starting_money.
+#
+# "allow_term_loans" enables term borrowing; 0 disables it.
+#new_company_credit_rating = 4
+#new_company_credit_rating_months = 24
+#term_lending_margin = 150
+#term_offset[0] = -50
+#term_offset[1] = -35
+#term_offset[2] = 0
+#term_offset[3] = 40
+#term_offset[4] = 75
+#secured_gearing_premium[0] = 25,0
+#secured_gearing_premium[1] = 50,25
+#secured_gearing_premium[2] = 75,75
+#secured_gearing_premium[3] = 90,150
+#secured_gearing_premium[4] = 100,300
+#maximum_secured_gearing = 70
+#minimum_loan_limit = 20000000
+#allow_term_loans = 1
+
 # Insolvency settings
 #
 # These settings allow what happens when the player runs out of money and goes
