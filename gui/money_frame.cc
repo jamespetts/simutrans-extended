@@ -75,8 +75,8 @@ static const char *cost_type_name[MAX_PLAYER_COST_BUTTON] =
 	"Cash",
 	"Assets",
 	"Net Wealth",
-	"Credit Limit",
-	"Solvency Limit",
+	"Overdraft limit",
+	"Overdraft solvency limit",
 	"Margin (%%)",
 	"Mail-km",
 	"Freight-km"
@@ -98,8 +98,8 @@ static const char *cost_tooltip[MAX_PLAYER_COST_BUTTON] =
   "Total liquid assets",
   "Total capital assets, excluding liabilities",
   "Total assets less total liabilities",
-  "The maximum amount that can be borrowed without prohibiting further capital outlays",
-  "The maximum amount that can be borrowed without going bankrupt",
+  "The maximum overdraft that can be used without prohibiting further capital outlays",
+  "The overdraft at which the company would be insolvent",
   "Percentage of revenue retained as profit",
   "A measure of the amount of mail transported, expressed in tonne-kilometre",
   "A measure of the amount of freight transported, expressed in tonne-kilometre"
@@ -634,6 +634,14 @@ money_frame_t::money_frame_t(player_t *player) :
 	}
 	end_table();
 
+	// Total secured debt, the detailed borrowing being in the borrowing window.
+	{
+		add_table(2, 1);
+		new_component<gui_label_t>("Debt");
+		add_component(&lb_debt);
+		end_table();
+	}
+
 	// company founding date, derived from the company age (exact, so set once here)
 	{
 		add_table(2, 1);
@@ -657,6 +665,26 @@ money_frame_t::money_frame_t(player_t *player) :
 
 	year_month_tabs.add_listener(this);
 	add_component(&year_month_tabs);
+
+	// The accrual view: cash-flow accounts adjusted by the pooled depreciation
+	// charge, and a current balance sheet.
+	{
+		cont_accrual.set_table_layout(2, ACCRUAL_ROWS);
+		static const char *const accrual_labels[ACCRUAL_ROWS] =
+		{
+			"Revenue", "Operating costs", "Operating profit", "Depreciation",
+			"Operating profit after depreciation", "Interest", "Tax paid",
+			"Profit after depreciation and tax", "Cash", "Vehicles at sale value",
+			"Infrastructure at book value", "Secured debt", "Overdraft", "Equity"
+		};
+		for (uint8 i = 0; i < ACCRUAL_ROWS; i++)
+		{
+			cont_accrual.new_component<gui_label_t>(accrual_labels[i]);
+			cont_accrual.add_component(&accrual_values[i]);
+		}
+		cont_accrual.end_table();
+		year_month_tabs.add_tab(&cont_accrual, translator::translate("Accrual"));
+	}
 
 	// fill both containers
 	gui_aligned_container_t *current = &container_year;
@@ -1190,6 +1218,43 @@ void money_frame_t::update_stats()
 	lb_signalbox_maint.update();
 }
 
+void money_frame_t::update_accrual()
+{
+	finance_t *const finance = player->get_finance();
+
+	const sint64 revenue = finance->get_history_veh_month(TT_ALL, 0, ATV_REVENUE_TRANSPORT);
+	const sint64 operating_costs = finance->get_history_veh_month(TT_ALL, 0, ATV_EXPENDITURE);
+	const sint64 operating_profit = finance->get_history_veh_month(TT_ALL, 0, ATV_OPERATING_PROFIT);
+	const sint64 depreciation = finance->get_history_com_month(0, ATC_DEPRECIATION);
+	const sint64 interest = finance->get_history_com_month(0, ATC_INTEREST);
+	const sint64 tax = finance->get_history_com_month(0, ATC_TAX);
+	const sint64 cash = finance->get_account_balance();
+	const sint64 vehicles = finance->get_financial_assets();
+	const sint64 infrastructure = finance->get_asset_value(TT_ALL);
+	const sint64 secured_debt = finance->get_total_secured_debt();
+	const sint64 overdraft = cash < 0 ? -cash : 0;
+
+	const sint64 profit_after_depreciation = operating_profit + depreciation;
+	const sint64 profit_after_tax = profit_after_depreciation + interest + tax;
+	const sint64 equity = cash + vehicles + infrastructure - secured_debt;
+
+	const sint64 values[ACCRUAL_ROWS] =
+	{
+		revenue, operating_costs, operating_profit, depreciation,
+		profit_after_depreciation, interest, tax, profit_after_tax,
+		cash, vehicles, infrastructure, -secured_debt, -overdraft, equity
+	};
+
+	for (uint8 i = 0; i < ACCRUAL_ROWS; i++)
+	{
+		char buffer[64];
+		money_to_string(buffer, (double)values[i] / 100.0);
+		accrual_values[i].buf().printf("%s", buffer);
+		accrual_values[i].update();
+	}
+}
+
+
 void money_frame_t::set_windowsize(scr_size size)
 {
 	gui_frame_t::set_windowsize(size);
@@ -1215,6 +1280,16 @@ void money_frame_t::draw(scr_coord pos, scr_size size)
 
 	if (year_month_tabs.get_active_tab_index() == 2) {
 		update_stats();
+	}
+	else if (year_month_tabs.get_active_tab_index() == 3) {
+		update_accrual();
+	}
+
+	{
+		char buffer[64];
+		money_to_string(buffer, (double)player->get_finance()->get_total_secured_debt() / 100.0);
+		lb_debt.buf().printf("%s", buffer);
+		lb_debt.update();
 	}
 
 	bt_open_ranking.pressed = win_get_magic(magic_player_ranking);

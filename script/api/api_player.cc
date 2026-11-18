@@ -297,6 +297,26 @@ void export_player(HSQUIRRELVM vm, bool scenario)
 	 */
 	register_method_fv(vm, &finance_t::get_maintenance_with_bits, "get_current_maintenance", freevariable<uint8>(TT_ALL));
 	/**
+	 * Returns the total outstanding secured debt [in 1/100 cr].
+	 */
+	register_method(vm, &finance_t::get_total_secured_debt, "get_debt");
+	/**
+	 * Returns the credit rating band (0 = AAA, 4 = BB, 8 = C).
+	 */
+	register_method(vm, &finance_t::get_credit_rating_index, "get_credit_rating");
+	/**
+	 * Returns the number of term instruments outstanding.
+	 */
+	register_method(vm, &finance_t::get_loan_count, "get_loan_count");
+	/**
+	 * Returns the term-debt limit [in 1/100 cr].
+	 */
+	register_method(vm, &finance_t::get_term_debt_limit, "get_loan_limit");
+	/**
+	 * Returns the credit asset value, the security for term borrowing [in 1/100 cr].
+	 */
+	register_method(vm, &finance_t::get_credit_asset_value, "get_asset_value");
+	/**
 	 * Returns whether the player (still) exists in the game.
 	 *
 	 * @deprecated Only available for api versions less than 120.1, see @ref get_api_version.

@@ -665,6 +665,12 @@ public:
 	/// The stored credit rating, one of credit_rating_t.
 	uint8 get_credit_rating() const { return credit_rating; }
 
+	/// The stored credit rating as an integer, for the scripting API.
+	sint32 get_credit_rating_index() const { return credit_rating; }
+
+	/// Number of term instruments outstanding.
+	uint32 get_loan_count() const { return loans.get_count(); }
+
 	sint32 get_credit_assessment_month() const { return credit_assessment_month; }
 
 	/**
