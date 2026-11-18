@@ -28,6 +28,11 @@
 
 local case_name = ::case_kind
 
+// The runner's stall watchdog uses log growth. Engine per-step logging is
+// suppressed at low debug levels, so print a heartbeat that does not depend on
+// the engine log level.
+local heartbeat_steps = 0
+
 map.file = case_name == "moving-block" ? "empty-16x16-1992.sve" : "empty-16x16.sve"
 
 scenario.short_description = "Choose-signal call-on runtime case: " + case_name
@@ -2015,6 +2020,11 @@ function is_scenario_completed(pl)
 	if (pl != 0)
 	{
 		return 0
+	}
+	++heartbeat_steps
+	if ((heartbeat_steps % 200) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": heartbeat step " + heartbeat_steps)
 	}
 	if (fixture.phase == "awaiting-reload")
 	{

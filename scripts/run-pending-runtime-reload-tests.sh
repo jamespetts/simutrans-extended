@@ -41,14 +41,23 @@
 #  6. the preserved join save loads offline and prints RESTORED then PASS, with
 #     no failure marker.
 #
-# shunting_time_seconds is set to 600 in the user-directory simuconf.tab of
+# shunting_time_seconds is set to 300 in the user-directory simuconf.tab of
 # each role's work directory so that the case has not advanced past its reload
 # point while the client starts. This is a real settings value, not an
 # artificial state: settings_t::rdwr only reads shunting_time_seconds for
 # Extended 15 and later saves (dataobj/settings.cc), the fixture map
 # (tests/pending-runtime/empty-16x16.sve) is an Extended 14 save, and both the
 # server reload and the offline load read the value from the ex-15 save written
-# during the join.
+# during the join. At the server's game-time rate this is about 55 wall-clock
+# seconds, which leaves a wide margin over the client join; if a slow client
+# outlasts it, the case fails with a message naming this setting.
+#
+# The server runs with one frame per simulation step rather than four. The game
+# time per wall-clock second is unchanged, but the case performs four times as
+# many simulation steps, so its scripted setup reaches the reload point sooner.
+# The joining client receives the frame count from the server. The fresh offline
+# load runs in fast-forward mode: it has no peers, and the case asserts
+# game-time state.
 #
 # The server, the joining client and the offline reload all run the same
 # headless binary. The binary MUST be a MULTI_THREAD build for the checklist
@@ -72,7 +81,11 @@ SERVER_READY_TIMEOUT_S=900
 CLIENT_TIMEOUT_S=420
 OFFLINE_TIMEOUT_S=420
 OBSERVE_S=20
-SHUNTING_SECONDS=600
+SHUNTING_SECONDS=300
+# One frame per step keeps the game-time rate unchanged while giving four times
+# as many simulation steps per wall-clock second as the previous default of
+# four.
+SERVER_FRAMES_PER_STEP=1
 DEBUG_LEVEL=2
 SAVE_FORMAT="bzip2"
 MARKERS="FATAL ERROR|AddressSanitizer|ThreadSanitizer|runtime error|rendezvous released with work outstanding"
@@ -297,7 +310,7 @@ setup_role() {
 		printf 'pause_server_no_clients = 0\n'
 		printf 'server_save_game_on_quit = 1\n'
 		printf 'reload_and_save_on_quit = 0\n'
-		printf 'server_frames_per_step = 4\n'
+		printf 'server_frames_per_step = %s\n' "$SERVER_FRAMES_PER_STEP"
 		printf 'server_frames_between_checks = 1\n'
 	} > "$dir/config/simuconf.tab"
 	# Read after the pakset's own simuconf, which also sets
@@ -553,7 +566,7 @@ cp -- "$PRESERVED_SAVE" "$OFF_DIR/save/server$SERVER_PORT-network.sve" || fail_n
 echo "Starting offline reload: $EXE (-load server$SERVER_PORT-network.sve)"
 timeout -k 5 "$OFFLINE_TIMEOUT_S" "$EXE" \
 	-set_workdir "$OFF_DIR" -singleuser -objects "$OBJECTS" \
-	-load "server$SERVER_PORT-network.sve" \
+	-load "server$SERVER_PORT-network.sve" -fast_forward \
 	-debug "$DEBUG_LEVEL" -lang en -fps 100 -nosound -nomidi \
 	> "$o_out" 2> "$o_err" &
 offline_pid=$!

@@ -8,6 +8,11 @@ scenario.author = "Simutrans-Extended automated tests"
 scenario.version = "0.1"
 
 local case_name = ::case_kind
+
+// The runner's stall watchdog uses log growth. Engine per-step logging is
+// suppressed at low debug levels, so print a heartbeat that does not depend on
+// the engine log level.
+local heartbeat_steps = 0
 local uses_cargo = case_name != "empty-distribution" && case_name != "recipient-same"
 local A = coord3d(3, 2, 0)
 local B = coord3d(5, 2, 0)
@@ -1102,6 +1107,8 @@ function get_result_text(pl) { return get_info_text(pl) }
 function is_scenario_completed(pl)
 {
 	if (pl != 0) { return 0 }
+	++heartbeat_steps
+	if ((heartbeat_steps % 200) == 0) { print("RUNTIME CASE " + case_name + ": heartbeat step " + heartbeat_steps) }
 	if (!f.setup_started)
 	{
 		f.setup_started = true

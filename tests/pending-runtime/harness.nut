@@ -35,6 +35,11 @@ scenario.version = "0.3"
 
 local case_name = ::case_kind
 
+// The runner's stall watchdog uses log growth. Engine per-step logging is
+// suppressed at low debug levels, so print a heartbeat that does not depend on
+// the engine log level.
+local heartbeat_steps = 0
+
 local TRUNK_POS = coord3d(3, 2, 0)
 local JUNCTION_POS = coord3d(5, 2, 0)
 local JUNCTION_LOOP_POS = coord3d(5, 3, 0)
@@ -81,13 +86,13 @@ local DEPARTURE_STEP_LIMIT = 1000
 // The reload case holds the split-off portion at target entry 21 until the
 // runner has joined a network client and the saved state has been loaded
 // again. scripts/run-pending-runtime-reload-tests.sh sets
-// shunting_time_seconds to 600, and the fixture's pakset (pak128.Britain-Ex)
+// shunting_time_seconds to 300, and the fixture's pakset (pak128.Britain-Ex)
 // sets meters_per_tile to 125, so seconds_to_ticks (simunits.h) makes the
-// shunting delay 109267 simulation ticks. With the runner's 100 frames per
-// second and four frames per simulation step the network server advances 40
-// simulation ticks per step, so the delay lasts about 109 real seconds and
-// produces about 2700 scenario observations. The larger limit covers that wait
-// plus the advance to the next target entry.
+// shunting delay 54633 simulation ticks. The runner starts the server at 100
+// frames per second with one frame per simulation step, so the network server
+// advances 10 simulation ticks per step at 100 steps per second; the delay
+// lasts about 55 real seconds and produces about 5460 scenario observations.
+// The larger limit covers that wait plus the advance to the next target entry.
 local RELOAD_DEPARTURE_STEP_LIMIT = 8000
 
 local fixture = {
@@ -2040,6 +2045,11 @@ function is_scenario_completed(pl)
 	if (pl != 0)
 	{
 		return 0
+	}
+	++heartbeat_steps
+	if ((heartbeat_steps % 200) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": heartbeat step " + heartbeat_steps)
 	}
 	if (!fixture.setup_started)
 	{

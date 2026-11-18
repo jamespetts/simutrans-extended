@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); test-harness facts as cited; suite count 81/81 (2026-11-14)
+verified: ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14)
 ---
 # Scripting & tests
 
@@ -220,11 +220,20 @@ importing Standard-only mechanics. Remaining work includes:
   runner reports the first `TEST FAILED:` result and stops because subsequent tests would see the
   world modified by the failed test. The optional `AUTOMATED_TESTS_TIMEOUT` environment variable
   controls its overall watchdog.
+- Suite runs use `-fast_forward`, which starts the simulation in fast-forward mode instead of
+  advancing it at wall-clock speed; the `fast_forward` simuconf setting
+  (`env_t::max_acceleration`) caps the step rate. The tests assert game-time state, so this changes
+  only how long a run takes; `karte_t::set_fast_forward` ignores the flag in network mode.
+  `-debug 1` keeps the
+  script's own `print` output and the engine's error lines, but suppresses the per-step warning
+  log; the suite does not assert warning text. A full run took about 4 seconds end to end,
+  including the pakset load, against about 56 seconds at `-debug 2` without fast-forward
+  [EXECUTION-VERIFIED:2026-11-18, ex-15 @ dafe7031e plus working-tree test tooling, Debug x64].
 - The direct Windows recipe uses a `simutrans/pak128.Britain-Ex/scenario/automated-tests`
   directory junction pointing to the repository's `tests/` directory. With working directory
   `simutrans/`, invoke `Simutrans-Extended-debug.exe -use_workdir -objects pak128.Britain-Ex
-  -lang en -scenario automated-tests -debug 2 -nomidi`. Standard error contains the test progress
-  and assertion markers. Remove the directory junction after the run.
+  -lang en -scenario automated-tests -debug 1 -nomidi -nosound -fast_forward`. Standard error
+  contains the test progress and assertion markers. Remove the directory junction after the run.
 - CI: the Squirrel scenario jobs in `run-tests.yml` (ASan/UBSan and TSan, via
   `scripts/run-automated-tests.sh`) run only on demand (`workflow_dispatch`, `squirrel_tests`
   input). The current Squirrel runner has not had a complete Linux sanitizer run since tool-call
@@ -258,9 +267,12 @@ importing Standard-only mechanics. Remaining work includes:
 
 A suite is a gate, not an edit loop:
 
-- During iteration, run only the case or the smallest subset that can observe the changed branch,
-  and run one game process at a time. Overlapping processes make the watchdog and the result markers
-  unreliable.
+- During iteration, run only the case or the smallest subset that can observe the changed branch.
+  The pending-runtime fixture runner starts several cases at once because its worlds are tiny and
+  each case has its own process, log and watchdog; do not start two separate runner invocations at
+  once, because the work directory, ports and watchdog ownership are shared between invocations.
+  The selection rules and measured costs are in
+  [consist-recombination](scripting-and-tests/consist-recombination.md).
 - Run the full suite for a package once, when the package's behaviour is complete and before it is
   committed or pushed. Do not repeat a full suite that already passed in the same session when only
   test or scenario code has changed since; record the earlier result instead.
@@ -321,7 +333,9 @@ and the build source lists. The signalling API additions are `signalbox_x`, the 
 signal-descriptor, convoy, way and vehicle-slot getters, the signal-construction commands, the
 signalbox site-validity and price queries, and the signed object-type parameter handling.
 The API breadth is a code inventory; only the explicitly marked tests and fixture outcomes are
-execution-verified. Fixture-specific provenance is in
-[consist-recombination](scripting-and-tests/consist-recombination.md).
+execution-verified. The `-fast_forward` command-line option is in `simmain.cc` (after the world is
+loaded, `args.has_arg("-fast_forward")` calls `karte_t::set_fast_forward(true)`);
+`scripts/run-automated-tests.sh` passes it with `-debug 1` and `-nosound`. Fixture-specific
+provenance is in [consist-recombination](scripting-and-tests/consist-recombination.md).
 Other test-harness and CI facts retain their cited provenance (master @ 78a4bb3b9 / ex-15 @
 91d9b252e; mapgen @ 0954e8c3c; smoke/join facts as cited there).

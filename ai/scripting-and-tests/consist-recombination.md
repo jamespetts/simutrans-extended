@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -26,7 +26,8 @@ splitting into two portions), paired H exchange (two convoys exchanging vehicles
 call-on and a targetless order that turns a vehicle to reverse a consist. It is not part of the
 default Squirrel suite
 ([scripting-and-tests](../scripting-and-tests.md)) and no CI job runs it. Every case runs in its own
-game process, so cases cannot contaminate one another.
+game process, so cases cannot contaminate one another; the runner starts several processes at once
+because the fixture worlds are tiny and each process has its own log and watchdog.
 
 ## Fixture layout
 
@@ -259,24 +260,50 @@ tests\pending-runtime\pair-reload\scenario.nut -Harness tests\pending-runtime\pa
 `tests/pending-runtime/choose-harness.nut` and `choose-harness`. The PowerShell runner stages the
 scenario through a directory junction and removes the junction without following it.
 
+Both runners set `shunting_time_seconds` to 300, which is about 55 wall-clock seconds at the
+server's game-time rate and leaves a wide margin over the client join; the case fails with an
+explicit message if the join outlasts it. The server runs at 100 frames per second with one frame
+per simulation step. That keeps the game-time rate unchanged but gives four times as many
+simulation steps per wall-clock second as four frames per step, so the scripted setup reaches the
+reload point sooner. The fresh offline load uses `-fast_forward`. On the maintainer's machine the
+division reload reached READY after 37 seconds and PASS after 76 seconds, with the client joining
+after 14 seconds [EXECUTION-VERIFIED:2026-11-18, ex-15 @ dafe7031e plus working-tree test tooling,
+Debug x64].
+
 ## Runner
 
-`scripts/run-pending-runtime-tests.sh` stages the selected case in the pakset scenario directory with
-its harness and all fixture maps, runs one process per case with `-nomidi`, and requires a printed
-PASS marker plus any case-specific log assertion. A script error, a process exit before a marker, no
-log progress for the stall timeout, the overall timeout and a crash all fail the case. It selects
-`harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/`, `choose-harness.nut` for
+`scripts/run-pending-runtime-tests.sh` stages each selected case in the pakset scenario directory with
+its harness and all fixture maps, runs one process per case with `-nomidi -nosound -fast_forward`,
+and requires a printed PASS marker plus any case-specific log assertion. Each case has its own
+process, scenario directory, log and watchdog; up to `PENDING_RUNTIME_JOBS` cases run at once
+(default: the processor count, capped at 8). A script error, a process exit before a marker, no
+output progress for the stall timeout, the overall timeout and a crash all fail the case. The runner
+selects `harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/`, `choose-harness.nut` for
 `choose-cases/` and `pickup-harness.nut` for `pickup-cases/`.
 
-Environment: `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_PICKUP_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
-`PENDING_RUNTIME_BINARY`, `PENDING_RUNTIME_OBJECTS` and `PENDING_RUNTIME_CASES`. `PENDING_RUNTIME_CASES` is a
-space-separated subset of case names; the runner rejects a name that is not a committed case. The slow
-`pickup-cases/` cases (`cargo-through` and the `flash-*` cases) use `PENDING_RUNTIME_PICKUP_TIMEOUT`
-(default 600 seconds, against 300 for the others) because each of them builds a consumer industry,
-several services and a wagon release sequence, and then waits for the scheduled collection. The
-pick-up reload cases use the reload runner's `-ServerReadyTimeout`, `-ClientTimeout` and
-`-OfflineTimeout` instead. Each result line carries the case's wall-clock duration. Exit code 0 means
-every case passed its marker and case-specific assertions.
+The default engine debug level is 1, which keeps the script's `print` output and the engine's error
+lines but suppresses the per-step warning log. The three cases that assert an in-game warning
+message (`target-unreachable`, `unresolvable-order` and `pair-unresolvable`) use level 3, because
+`message_t::add_message` logs the message text through `DBG_MESSAGE`, which is emitted only at
+`LEVEL_MSG`. Each harness prints `RUNTIME CASE <case>: heartbeat step <n>` every 200 observation
+steps, so the stall watchdog does not depend on engine per-step logging.
+
+Environment: `PENDING_RUNTIME_GROUPS`, `PENDING_RUNTIME_CASES`, `PENDING_RUNTIME_JOBS`,
+`PENDING_RUNTIME_FAST_FORWARD`, `PENDING_RUNTIME_DEBUG`, `PENDING_RUNTIME_LIST`,
+`PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_PICKUP_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
+`PENDING_RUNTIME_BINARY` and `PENDING_RUNTIME_OBJECTS`. `PENDING_RUNTIME_CASES` is a space-separated
+subset of case names and overrides `PENDING_RUNTIME_GROUPS`; the runner rejects a name that is not a
+committed case. `PENDING_RUNTIME_GROUPS` is a space-separated subset of `division`, `pair`, `choose`
+and `pickup`; the groups map to `cases/`, `pair-cases/`, `choose-cases/` and `pickup-cases/`.
+`PENDING_RUNTIME_LIST=1` prints the selected cases and exits. `PENDING_RUNTIME_FAST_FORWARD=0` runs
+at wall-clock speed; the default is 1. `PENDING_RUNTIME_DEBUG` sets the engine level for the cases
+that do not require level 3; the default is 1. The slow `pickup-cases/` cases (`cargo-through` and the
+`flash-*` cases) use `PENDING_RUNTIME_PICKUP_TIMEOUT` (default 600 seconds, against 300 for the
+others) because each of them builds a consumer industry, several services and a wagon release
+sequence, and then waits for the scheduled collection. The pick-up reload cases use the reload
+runner's `-ServerReadyTimeout`, `-ClientTimeout` and `-OfflineTimeout` instead. Each result line
+carries the case's wall-clock duration. Exit code 0 means every case passed its marker and
+case-specific assertions.
 
 The fixture uses `is_equal` for vehicle-descriptor and loose-stock identity. Sampled
 `vehicle_desc_x` names are invalid immediately after map load (open bug in
@@ -286,7 +313,7 @@ identities and vehicle counts, not descriptor names.
 ## Test cadence
 
 The fixture is outside the default suite, and the full set is an integration gate rather than an
-edit loop. Run only the cases that can observe the change, one case at a time:
+edit loop. Run only the cases that can observe the change:
 
 - **Iteration.** Run the case or cases that exercise the changed branch. A change to
   `choose-harness.nut` can affect every choose case, but only `target-present`,
@@ -310,21 +337,22 @@ edit loop. Run only the cases that can observe the change, one case at a time:
   not part of the pending-runtime set. A full set that already passed in the same session need not
   be repeated when only test or scenario code has changed since; record the earlier result.
 - **Stop redundant runs.** Stop a run that can no longer produce new evidence, keep its partial log,
-  and kill stale game processes before the next case. Do not overlap game processes: the per-case
-  watchdog and the result markers assume one process per case.
+  and kill stale game processes before the next invocation. One runner invocation may run several
+  cases at once; do not start a second invocation while the first is running.
 - **Prefer a deterministic fixture.** A cargo case should inject the packet it needs instead of
   waiting for factory production, and a loaded-wagon case should build the load through an explicit
   order sequence. The fixture does not preload a loose wagon physically: no public script call
   places freight into a stationary unscheduled vehicle, and the loading credit is the mechanism
   that the case asserts.
 
-Do not run the fixture for documentation, comments, translation strings or help text. A choose case
-takes 14-53 seconds, a Y case 26-51 seconds and a paired case 40-76 seconds; the 35-case set took
-about 23 minutes in total [EXECUTION-VERIFIED:2026-11-16]. A pick-up goods case takes between about 1
-and 5.5 minutes, the cargo cases being the slowest at about 3-5.5 minutes, because each runs several
-complete service cycles; the whole pick-up group cost about 25 minutes [EXECUTION-VERIFIED:2026-11-17].
-That cost is the reason for the targeted policy above: one pick-up case is affordable during
-iteration, a repeated group is not.
+Do not run the fixture for documentation, comments, translation strings or help text. Measured with
+the default runner settings on the maintainer's machine (24 logical processors, Debug x64,
+`-debug 1 -fast_forward`): a choose case takes 3-7 seconds, or 16-18 seconds for the three hold
+cases at `-debug 3`; a Y case takes 4-6 seconds and a paired case 4-6 seconds; the 35-case standard
+set took 46 seconds with 8 jobs [EXECUTION-VERIFIED:2026-11-18]. A pick-up goods case takes 5-11
+seconds and the whole pick-up group took 12 seconds with 6 jobs [EXECUTION-VERIFIED:2026-11-18].
+The pakset load, about 5 seconds per process at `-debug 1`, is now the largest per-case cost, so
+the job count matters more than case selection for the whole set.
 
 `PENDING_RUNTIME_CASES` selects a subset, for example:
 
@@ -334,6 +362,9 @@ PENDING_RUNTIME_BINARY='./Simutrans-Extended-debug.exe' \
 PENDING_RUNTIME_OBJECTS='pak128.Britain-Ex' \
 scripts/run-pending-runtime-tests.sh
 ```
+
+`PENDING_RUNTIME_GROUPS` selects a whole group without naming every case, for example
+`PENDING_RUNTIME_GROUPS='choose'` or `PENDING_RUNTIME_GROUPS='division pair'`.
 
 ## Planned coverage
 
@@ -407,5 +438,13 @@ diagnosed checklist-pair mismatch; the parsed pair count depends on the observat
 verification parsed 604). After the API-validation rebuild, `cargo-through` passed again in 275
 seconds; after the through-wagon rebuild, `pickup-reload` passed again with the narrowed layover
 exemption (READY 143 s, server PASS 179 s, offline RESTORED 16 s). All runs used the Debug x64 build with
-`-nomidi` [EXECUTION-VERIFIED:2026-11-17, DEBUG build, working tree]. The planned coverage list is
-the operation-scope record from [ex-15/recombination-design](../ex-15/recombination-design.md).
+`-nomidi` [EXECUTION-VERIFIED:2026-11-17, DEBUG build, working tree]. On 2026-11-18 the runner
+defaults changed to parallel processes at `-debug 1 -fast_forward`, and the harnesses gained the
+progress heartbeat; the 35 standard cases then passed in 46 seconds with 8 jobs, and the six
+pick-up cases in 12 seconds with 6 jobs. The reload runner's new defaults (300 shunting seconds,
+one frame per step, offline fast-forward) reached READY after 37 seconds and PASS after 76 seconds,
+with the client joining after 14 seconds, 840 parsed checklist pairs out of the server and client
+logs, no mismatch, and the offline load RESTORED after 14 seconds. All runs used the Debug x64
+build with `-nomidi -nosound` [EXECUTION-VERIFIED:2026-11-18, ex-15 @ dafe7031e plus working-tree
+test tooling]. The planned coverage list is the operation-scope record from
+[ex-15/recombination-design](../ex-15/recombination-design.md).

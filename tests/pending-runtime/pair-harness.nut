@@ -35,6 +35,11 @@ scenario.version = "0.1"
 
 local case_name = ::case_kind
 
+// The runner's stall watchdog uses log growth. Engine per-step logging is
+// suppressed at low debug levels, so print a heartbeat that does not depend on
+// the engine log level.
+local heartbeat_steps = 0
+
 local MAIN_POS = coord3d(5, 2, 0)
 local LOOP_POS = coord3d(5, 3, 0)
 local EAST_POS = coord3d(9, 2, 0)
@@ -55,7 +60,7 @@ local DONOR_EAST_ENTRY_ID = 32
 local TRAVEL_STEP_LIMIT = 6000
 local EXCHANGE_STEP_LIMIT = 1000
 local DEPARTURE_STEP_LIMIT = 3000
-// The reload runner sets shunting_time_seconds to 600 so that the case has not
+// The reload runner sets shunting_time_seconds to 300 so that the case has not
 // advanced while the client joins; the post-reload departure limit must cover
 // that delay.
 local RELOAD_DEPARTURE_STEP_LIMIT = 16000
@@ -1331,6 +1336,11 @@ function is_scenario_completed(pl)
 	if (pl != 0)
 	{
 		return 0
+	}
+	++heartbeat_steps
+	if ((heartbeat_steps % 200) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": heartbeat step " + heartbeat_steps)
 	}
 	if (!fixture.setup_started)
 	{

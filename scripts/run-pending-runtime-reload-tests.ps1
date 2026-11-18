@@ -47,7 +47,17 @@ settings_t::rdwr only reads shunting_time_seconds for Extended 15 and later
 saves (dataobj/settings.cc), the fixture map
 (tests/pending-runtime/empty-16x16.sve) is an Extended 14 save, and both the
 server reload and the offline load read the value from the ex-15 save written
-during the join.
+during the join. The default is 300 game seconds, which is about 55 wall-clock
+seconds at the server's game-time rate and leaves a wide margin over the
+client join; if a slow client outlasts it, the case fails with a message naming
+this setting.
+
+The server runs with one frame per simulation step rather than four. The game
+time per wall-clock second is unchanged, but the case performs four times as
+many simulation steps, so its scripted setup and observation reach the reload
+point sooner. The joining client receives the frame count from the server. The
+fresh offline load runs in fast-forward mode: it has no peers, and the case
+asserts game-time state.
 
 Windows arrangement:
 - Each role work directory (server, client, offline) gets junctions named
@@ -94,7 +104,12 @@ param(
   # Joined-play observation window after the server's PASS.
   [int]$ObserveSeconds = 20,
   # shunting_time_seconds written to each role's user-directory simuconf.tab.
-  [int]$ShuntingSeconds = 600,
+  [int]$ShuntingSeconds = 300,
+  # Server frames per simulation step. One frame per step gives four times as
+  # many steps per wall-clock second as the previous default of four, at the
+  # same game-time rate, so the case reaches its reload point sooner. The
+  # client receives the value from the server.
+  [int]$ServerFramesPerStep = 1,
   [int]$DebugLevel = 2,
   [string[]]$Markers = @("FATAL ERROR", "AddressSanitizer", "ThreadSanitizer", "runtime error", "rendezvous released with work outstanding"),
   [switch]$Clean
@@ -455,7 +470,7 @@ function Initialize-Role {
     "pause_server_no_clients = 0"
     "server_save_game_on_quit = 1"
     "reload_and_save_on_quit = 0"
-    "server_frames_per_step = 4"
+    "server_frames_per_step = $ServerFramesPerStep"
     "server_frames_between_checks = 1"
   )
   Set-Content -LiteralPath (Join-Path $Dir "config\simuconf.tab") -Value ($configLines -join "`r`n") -Encoding ASCII
@@ -735,8 +750,9 @@ try {
         Initialize-Role $OfflineDir
         Copy-Item -LiteralPath $PreservedSave -Destination (Join-Path $OfflineDir "save\server$ServerPort-network.sve") -Force
         Write-Output "Starting offline reload: $Exe (-load server$ServerPort-network.sve)"
+        # The offline load has no peers, so it can run in fast-forward mode.
         $offline = Start-GameProcess -Dir $OfflineDir -OutLog $offlineOut -ErrLog $offlineErr `
-          -ExtraArgs "-load `"server$ServerPort-network.sve`""
+          -ExtraArgs "-load `"server$ServerPort-network.sve`" -fast_forward"
         $offlineWatch = [System.Diagnostics.Stopwatch]::StartNew()
         $offlineRestored = $false
         $offlinePass = $false
