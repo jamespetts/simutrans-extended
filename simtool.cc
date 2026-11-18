@@ -10854,6 +10854,78 @@ bool tool_change_player_t::init( player_t *player_in)
 		case 'a': // WAS: activate/deactivate AI
 			dbg->error( "tool_change_player_t::init()", "deprecated command called" );
 			break;
+
+		case 'b': // Issue a term instrument: b,<player>,<type>,<term>,<amount>
+		{
+			int type = 0;
+			int term = 0;
+			sint64 amount = 0;
+			if (player && player == player_in && sscanf(p, "%c,%i,%i,%i,%lld", &tool, &id, &type, &term, &amount) == 5)
+			{
+				const char *err = NULL;
+				if (player->is_locked())
+				{
+					err = translator::translate("You are not logged in as this company.");
+				}
+				else
+				{
+					err = player->get_finance()->issue_loan((uint8)type, amount, (loan_term_t)term);
+				}
+				if (err != NULL)
+				{
+					message.printf("%s", err);
+					welt->get_message()->add_message(message, koord::invalid, message_t::problems, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
+				}
+			}
+			break;
+		}
+
+		case 'p': // Repay an instrument early: p,<player>,<instrument>
+		{
+			int instrument = 0;
+			if (player && player == player_in && sscanf(p, "%c,%i,%i", &tool, &id, &instrument) == 3)
+			{
+				const char *err = NULL;
+				if (player->is_locked())
+				{
+					err = translator::translate("You are not logged in as this company.");
+				}
+				else
+				{
+					err = player->get_finance()->repay_loan((uint32)instrument);
+				}
+				if (err != NULL)
+				{
+					message.printf("%s", err);
+					welt->get_message()->add_message(message, koord::invalid, message_t::problems, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
+				}
+			}
+			break;
+		}
+
+		case 'e': // Refinance an instrument: e,<player>,<instrument>,<term>
+		{
+			int instrument = 0;
+			int term = 0;
+			if (player && player == player_in && sscanf(p, "%c,%i,%i,%i", &tool, &id, &instrument, &term) == 4)
+			{
+				const char *err = NULL;
+				if (player->is_locked())
+				{
+					err = translator::translate("You are not logged in as this company.");
+				}
+				else
+				{
+					err = player->get_finance()->refinance_loan((uint32)instrument, (loan_term_t)term);
+				}
+				if (err != NULL)
+				{
+					message.printf("%s", err);
+					welt->get_message()->add_message(message, koord::invalid, message_t::problems, color_idx_to_rgb(player->get_player_color1() + env_t::gui_player_color_dark));
+				}
+			}
+			break;
+		}
 	}
 
 	// update the window

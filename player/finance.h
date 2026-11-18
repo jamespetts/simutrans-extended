@@ -11,6 +11,7 @@
 
 #include "../simtypes.h"
 #include "../simworld.h"
+#include "loan.h"
 
  /****************************************** notification strings **************************************/
 
@@ -165,6 +166,28 @@ enum accounting_type_vehicles {
 };
 
 
+/**
+ * The credit-rating scale, best band first. The numeric values index the
+ * rating tables in the settings, so the order must not change.
+ */
+enum credit_rating_t
+{
+	CREDIT_RATING_AAA = 0,
+	CREDIT_RATING_AA,
+	CREDIT_RATING_A,
+	CREDIT_RATING_BBB,
+	CREDIT_RATING_BB,
+	CREDIT_RATING_B,
+	CREDIT_RATING_CCC,
+	CREDIT_RATING_CC,
+	CREDIT_RATING_C,
+	CREDIT_RATING_MAX
+};
+
+/// The rating labels, indexed by credit_rating_t. Callers translate them.
+extern char const *const credit_rating_names[CREDIT_RATING_MAX];
+
+
 class loadsave_t;
 class karte_t;
 class player_t;
@@ -252,6 +275,20 @@ class finance_t {
 	 * player_t::finish_rd() initialises it from the way length.
 	 */
 	bool asset_ledger_needs_initialisation;
+
+	/**
+	 * Term instruments: bank loans and bonds.
+	 */
+	vector_tpl<loan_t> loans;
+
+	/// Next identifier to assign to a new instrument.
+	uint32 next_loan_id;
+
+	/// The stored credit rating, one of credit_rating_t.
+	uint8 credit_rating;
+
+	/// The month in which the stored credit rating was assessed.
+	sint32 credit_assessment_month;
 
 	/**
 	 * Monthly vehicle maintenance cost per transport type.
@@ -434,6 +471,16 @@ public:
 	}
 
 	/**
+	* Books repayment of term-instrument principal.
+	*/
+	void book_loan_repayment(const sint64 amount)
+	{
+		com_year[0][ATC_LOAN_REPAYMENT] += amount;
+		com_month[0][ATC_LOAN_REPAYMENT] += amount;
+		account_balance += amount;
+	}
+
+	/**
 	 * Accounts distance-based running costs
 	 * @param amount sum of money
 	 * @param wt way type
@@ -598,6 +645,92 @@ public:
 	 * Should not be called more than once a month.
 	 */
 	void calc_credit_limits();
+
+	/**
+	 * Total outstanding principal of all term instruments.
+	 */
+	sint64 get_total_secured_debt() const;
+
+	/**
+	 * Total term-debt limit: the greater of the configured minimum facility and
+	 * the maximum secured gearing of the credit asset value, both in Simucents.
+	 */
+	sint64 get_term_debt_limit() const;
+
+	/**
+	 * Amount available for a new term instrument.
+	 */
+	sint64 get_available_term_debt() const;
+
+	/// The stored credit rating, one of credit_rating_t.
+	uint8 get_credit_rating() const { return credit_rating; }
+
+	sint32 get_credit_assessment_month() const { return credit_assessment_month; }
+
+	/**
+	 * Assesses the credit rating from the debt-service cover and the leverage,
+	 * taking the worse of the two. A provisional assessment includes an
+	 * instrument that has not been issued yet.
+	 * @param additional_principal principal of a proposed instrument
+	 * @param additional_debt_service its debt service over the next year
+	 */
+	uint8 assess_credit_rating(sint64 additional_principal = 0, sint64 additional_debt_service = 0) const;
+
+	/// Reassesses and stores the credit rating. Called once a month.
+	void update_credit_rating();
+
+	/// Spread over the base rate for a rating band, in basis points.
+	sint32 get_credit_spread_bp(uint8 rating) const;
+
+	/// Secured-gearing premium for a post-loan secured debt, in basis points.
+	sint32 get_secured_gearing_premium_bp(sint64 total_secured_debt) const;
+
+	/// Overdraft rate in basis points, including the rating spread.
+	sint32 get_overdraft_rate_bp() const;
+
+	/// Overdraft rate in per cent, rounded to the nearest per cent.
+	sint16 get_overdraft_rate_percent() const;
+
+	/// Annual rate in basis points for a new term instrument.
+	sint32 get_term_rate_bp(loan_term_t term, uint8 rating, sint64 additional_principal) const;
+
+	/// Whether the rating allows this term and instrument type.
+	bool is_term_available(loan_term_t term, uint8 type, uint8 rating) const;
+
+	/// The term index whose length is nearest to a number of months.
+	static loan_term_t term_from_months(sint32 months);
+
+	const vector_tpl<loan_t> & get_loans() const { return loans; }
+
+	/// Finds an instrument by identifier, or NULL.
+	loan_t * get_loan(uint32 id);
+
+	/**
+	 * Issues a term instrument and books the proceeds.
+	 * @return NULL on success, or a translated reason for refusal.
+	 */
+	char const *issue_loan(uint8 type, sint64 amount, loan_term_t term);
+
+	/**
+	 * Repays an instrument early at the make-whole settlement.
+	 * @return NULL on success, or a translated reason for refusal.
+	 */
+	char const *repay_loan(uint32 id);
+
+	/**
+	 * Replaces an instrument with a new one for the same outstanding principal.
+	 * @return NULL on success, or a translated reason for refusal.
+	 */
+	char const *refinance_loan(uint32 id, loan_term_t term);
+
+	/// Books the monthly interest and principal of every instrument.
+	void book_loans_monthly();
+
+	/**
+	 * Takes over the term instruments of another company on a takeover. The
+	 * instruments keep their fixed rates but are renumbered within this player.
+	 */
+	void assume_loans(finance_t const *other);
 
 	/**
 	 * Book interest (once a month, please!)

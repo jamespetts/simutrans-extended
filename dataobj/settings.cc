@@ -423,6 +423,39 @@ settings_t::settings_t() :
 		legacy_way_asset_cost[i] = 0;
 	}
 
+	// Credit rating and term lending settings. Placeholders; a pakset sets the
+	// real calibration.
+	const sint16 debt_service_cover[MAX_CREDIT_RATINGS] = { 300, 225, 175, 125, 100, 75, 0, 0, 0 };
+	const sint16 leverage_limit[MAX_CREDIT_RATINGS] = { 20, 30, 40, 50, 60, 70, 100, 100, 100 };
+	const sint16 spread[MAX_CREDIT_RATINGS] = { -70, -55, -35, 0, 80, 200, 800, 1200, 1600 };
+	for (uint8 i = 0; i < MAX_CREDIT_RATINGS; i++)
+	{
+		credit_min_debt_service_cover[i] = debt_service_cover[i];
+		credit_max_leverage_percent[i] = leverage_limit[i];
+		credit_spread_bp[i] = spread[i];
+	}
+	new_company_credit_rating = 4; // BB
+	new_company_credit_rating_months = 24;
+
+	term_lending_margin_bp = 150;
+	const sint16 offsets[5] = { -50, -35, 0, 40, 75 };
+	for (uint8 i = 0; i < 5; i++)
+	{
+		term_offset_bp[i] = offsets[i];
+	}
+
+	const sint16 gearing_limits[5] = { 25, 50, 75, 90, 100 };
+	const sint16 gearing_premiums[5] = { 0, 25, 75, 150, 300 };
+	for (uint8 i = 0; i < 5; i++)
+	{
+		secured_gearing_premium[i].max_gearing_percent = gearing_limits[i];
+		secured_gearing_premium[i].premium_bp = gearing_premiums[i];
+	}
+
+	maximum_secured_gearing_percent = 70;
+	minimum_loan_limit = 20000000;
+	allow_term_loans = true;
+
 	// Round-trip efficiencies used to derive the electricity-based running cost of
 	// battery and fuel-cell traction (see config/fuel.tab).
 	battery_round_trip_efficiency = 85;
@@ -2044,6 +2077,27 @@ void settings_t::rdwr(loadsave_t *file)
 				file->rdwr_short(tax_allowance_percent[i]);
 				file->rdwr_longlong(legacy_way_asset_cost[i]);
 			}
+			for (uint8 i = 0; i < MAX_CREDIT_RATINGS; i++)
+			{
+				file->rdwr_short(credit_min_debt_service_cover[i]);
+				file->rdwr_short(credit_max_leverage_percent[i]);
+				file->rdwr_short(credit_spread_bp[i]);
+			}
+			file->rdwr_short(new_company_credit_rating);
+			file->rdwr_short(new_company_credit_rating_months);
+			file->rdwr_short(term_lending_margin_bp);
+			for (uint8 i = 0; i < 5; i++)
+			{
+				file->rdwr_short(term_offset_bp[i]);
+			}
+			for (uint8 i = 0; i < 5; i++)
+			{
+				file->rdwr_short(secured_gearing_premium[i].max_gearing_percent);
+				file->rdwr_short(secured_gearing_premium[i].premium_bp);
+			}
+			file->rdwr_short(maximum_secured_gearing_percent);
+			file->rdwr_longlong(minimum_loan_limit);
+			file->rdwr_bool(allow_term_loans);
 		}
 	}
 
@@ -2934,6 +2988,42 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 		sprintf(name, "legacy_way_asset_cost[%i]", i);
 		legacy_way_asset_cost[i] = contents.get_int64(name, legacy_way_asset_cost[i]);
 	}
+
+	for (int i = 0; i < MAX_CREDIT_RATINGS; i++)
+	{
+		char name[64];
+		sprintf(name, "credit_min_debt_service_cover[%i]", i);
+		credit_min_debt_service_cover[i] = (sint16)contents.get_int(name, credit_min_debt_service_cover[i]);
+		sprintf(name, "credit_max_leverage[%i]", i);
+		credit_max_leverage_percent[i] = (sint16)contents.get_int(name, credit_max_leverage_percent[i]);
+		sprintf(name, "credit_spread[%i]", i);
+		credit_spread_bp[i] = (sint16)contents.get_int(name, credit_spread_bp[i]);
+	}
+	new_company_credit_rating = (sint16)contents.get_int("new_company_credit_rating", new_company_credit_rating);
+	new_company_credit_rating_months = (sint16)contents.get_int("new_company_credit_rating_months", new_company_credit_rating_months);
+
+	term_lending_margin_bp = (sint16)contents.get_int("term_lending_margin", term_lending_margin_bp);
+	for (int i = 0; i < 5; i++)
+	{
+		char name[64];
+		sprintf(name, "term_offset[%i]", i);
+		term_offset_bp[i] = (sint16)contents.get_int(name, term_offset_bp[i]);
+	}
+	for (int i = 0; i < 5; i++)
+	{
+		char name[64];
+		sprintf(name, "secured_gearing_premium[%i]", i);
+		const sint64* const values = contents.get_sint64s(name);
+		if (values[0] == 2)
+		{
+			secured_gearing_premium[i].max_gearing_percent = (sint16)values[1];
+			secured_gearing_premium[i].premium_bp = (sint16)values[2];
+		}
+		delete[] values;
+	}
+	maximum_secured_gearing_percent = (sint16)contents.get_int("maximum_secured_gearing", maximum_secured_gearing_percent);
+	minimum_loan_limit = contents.get_int64("minimum_loan_limit", minimum_loan_limit);
+	allow_term_loans = contents.get_int("allow_term_loans", allow_term_loans) != 0;
 
 	// Reversing settings
 	// @author: jamespetts

@@ -50,6 +50,7 @@
 #include "../simsignalbox.h"
 #include "player_ranking_frame.h"
 #include "prices_frame.h"
+#include "loan_frame.h"
 
 // remembers last settings
 static vector_tpl<sint32> bFilterStates;
@@ -618,6 +619,14 @@ money_frame_t::money_frame_t(player_t *player) :
 		}	bt_open_prices.add_listener(this);
 		bt_open_prices.set_tooltip(translator::translate("Open the prices and rates dialog"));
 		add_component(&bt_open_prices);
+
+		bt_open_loans.init(button_t::roundbox_state, "Borrowing");
+		if (skinverwaltung_t::open_window) {
+			bt_open_loans.set_image(skinverwaltung_t::open_window->get_image_id(0));
+			bt_open_loans.set_image_position_right(true);
+		}	bt_open_loans.add_listener(this);
+		bt_open_loans.set_tooltip(translator::translate("Open the borrowing dialog"));
+		add_component(&bt_open_loans);
 
 		add_component(&headquarter);
 		headquarter.init(button_t::roundbox, "", scr_coord(0,0), D_BUTTON_SIZE);
@@ -1210,6 +1219,7 @@ void money_frame_t::draw(scr_coord pos, scr_size size)
 
 	bt_open_ranking.pressed = win_get_magic(magic_player_ranking);
 	bt_open_prices.pressed = win_get_magic(magic_prices_frame);
+	bt_open_loans.pressed = win_get_magic(magic_loan_frame);
 
 	gui_frame_t::draw(pos, size);
 }
@@ -1272,6 +1282,10 @@ bool money_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 	}
 	else if ( comp==&bt_open_prices ) {
 		create_win(new prices_frame_t(), w_info, magic_prices_frame);
+		return true;
+	}
+	else if ( comp==&bt_open_loans ) {
+		create_win(new loan_frame_t(player), w_info, magic_loan_frame);
 		return true;
 	}
 	return false;
