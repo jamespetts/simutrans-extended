@@ -10909,6 +10909,38 @@ void convoi_t::get_forward_consist(vector_tpl<vehicle_t*> &consist) const
 }
 
 
+// The multi-owner rule for an assembled consist: the owner of the first
+// powered vehicle that has an owner must permit every other vehicle owner to
+// use its ways. The paired solver applies the same rule incrementally while it
+// searches; this check covers the single-order matcher and its optional-slot
+// variant.
+static bool consist_owners_permitted(const vector_tpl<vehicle_t*> &consist)
+{
+	player_t *operator_owner = nullptr;
+	for (vehicle_t *const v : consist)
+	{
+		if (v->get_desc()->get_power() > 0 && v->get_owner())
+		{
+			operator_owner = v->get_owner();
+			break;
+		}
+	}
+	if (!operator_owner)
+	{
+		return true;
+	}
+	for (vehicle_t *const v : consist)
+	{
+		player_t *const owner = v->get_owner();
+		if (owner && owner != operator_owner && !operator_owner->allows_access_to(owner->get_player_nr()))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+
 convoi_t::consist_order_process_result convoi_t::match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available_vehicles, const vector_tpl<vehicle_t*> &shadow_consist, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed) const
 {
 	convoi_t::consist_order_process_result success = fail;
@@ -10935,6 +10967,10 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 			{
 				unchanged = final_consist.get_element(i) == shadow_consist.get_element(i)
 					&& final_reversed.get_element(i) == final_consist.get_element(i)->is_reversed();
+			}
+			if (!unchanged && !consist_owners_permitted(final_consist))
+			{
+				return fail;
 			}
 			return unchanged ? no_change_needed : succeed;
 		}
@@ -11034,7 +11070,7 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 				}
 			}
 
-			if (has_power)
+			if (has_power && consist_owners_permitted(final_consist))
 			{
 				success = succeed;
 			}
