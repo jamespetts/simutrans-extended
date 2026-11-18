@@ -27,8 +27,8 @@ writing the Revenue Renewal part to its output parameter:
 
 - the replacement is split only when the installed Way Descriptor is at least as good as the
   replaced Way Descriptor on every capability measure: way type, system type
-  (`way_desc_t::get_styp`), maximum speed (`way_desc_t::get_topspeed`), maximum axle load
-  (`way_desc_t::get_max_axle_load`) and wear capacity (`way_desc_t::get_wear_capacity`);
+  (`way_desc_t::get_styp`), maximum speed (`obj_base_desc_t::get_topspeed`), maximum axle load
+  (`way_desc_t::get_max_axle_load`) and wear capacity (`obj_base_desc_t::get_wear_capacity`);
 - otherwise (a downgrade, or better on one measure and worse on another) the whole cost is
   Capital Improvement;
 - the Revenue Renewal part is the lower of the actual cost and

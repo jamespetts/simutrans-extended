@@ -52,7 +52,7 @@ Each term below has one meaning throughout this document.
 - **Capital Improvement**: the part of a way replacement cost that exceeds Revenue Renewal.
 - **Way Descriptor**: the pakset definition of a way type, represented by `way_desc_t`.
 - **Upgrade Group**: the pakset grouping of interchangeable Way Descriptors, read by
-  `way_desc_t::get_upgrade_group`. A replacement within one group is charged the way-only
+  `obj_base_desc_t::get_upgrade_group`. A replacement within one group is charged the way-only
   cost, which excludes land.
 - **Mothballed**: marked as out of use, read by `way_desc_t::is_mothballed`. A Mothballed Way
   Descriptor has no cost, speed limit or maintenance.
