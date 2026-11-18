@@ -1,12 +1,12 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
 **Covers:** `tests/pending-runtime/` (`harness.nut`, `pair-harness.nut`, `choose-harness.nut`,
-`pickup-harness.nut`, `cases/`, `pair-cases/`, `choose-cases/`, `pickup-cases/` and the reload
-scenarios),
+`pickup-harness.nut`, `ownership-harness.nut`, `cases/`, `pair-cases/`, `choose-cases/`,
+`pickup-cases/`, `ownership-cases/` and the reload scenarios),
 `scripts/run-pending-runtime-tests.sh`, `scripts/run-pending-runtime-reload-tests.sh` and
 `scripts/run-pending-runtime-reload-tests.ps1`. Parent:
 [scripting-and-tests](../scripting-and-tests.md). Feature and runtime:
@@ -23,8 +23,8 @@ defined in [consist-recombination](../consist-recombination.md#terms).
 
 `tests/pending-runtime/` is a separate fixture for the recombination runtime: Y division (one convoy
 splitting into two portions), paired H exchange (two convoys exchanging vehicles), choose-signal
-call-on and a targetless order that turns a vehicle to reverse a consist. It is not part of the
-default Squirrel suite
+call-on, the Multi-Owner Access Rule at assembly and a targetless order that turns a vehicle to
+reverse a consist. It is not part of the default Squirrel suite
 ([scripting-and-tests](../scripting-and-tests.md)) and no CI job runs it. Every case runs in its own
 game process, so cases cannot contaminate one another; the runner starts several processes at once
 because the fixture worlds are tiny and each process has its own log and watchdog.
@@ -47,12 +47,18 @@ because the fixture worlds are tiny and each process has its own log and watchdo
   loose-stock sequence.
   `pickup-reload/` and `flash-reload/` use that harness with the ordinary network-join reload
   runner.
-- All four harnesses read a case selector from the `case_kind` global that the case's
+- `ownership-harness.nut` creates a second player. Player 2 builds a branch and a depot, runs a
+  donor convoy to the junction and leaves a vehicle in the laid-over pool; player 0's collector
+  then tries to take it. The case decides whether player 0 permits player 2 before the collector
+  reaches the junction.
+- All five harnesses read a case selector from the `case_kind` global that the case's
   `scenario.nut` sets, and print `RUNTIME CASE <case> PASS` or
   `RUNTIME CASE <case> FAIL: <assertion>`.
 - `scenario.nut` selects the forward Y case; `cases/<case>/scenario.nut` selects each further Y
   case; `pair-cases/<case>/scenario.nut` selects each paired case;
-  `choose-cases/<case>/scenario.nut` selects each choose-signal call-on case.
+  `choose-cases/<case>/scenario.nut` selects each choose-signal call-on case;
+  `pickup-cases/<case>/scenario.nut` selects each pick-up goods case;
+  `ownership-cases/<case>/scenario.nut` selects each Multi-Owner Access Rule case.
 
 ## Y-division and targetless cases (`cases/`)
 
@@ -89,8 +95,8 @@ stock (`one-way-to-receiver`), an already-satisfied pair (`already-at-end-state`
 backtracking conflict (`conflict-backtrack`), an unsatisfiable pair refused all-or-nothing
 (`unsatisfiable`), and a receiver that collects a coach from the stop's laid-over pool while the
 emptied donor is destroyed (`pool-fallback`). The `already-at-end-state` orders place an optional
-empty slot between the locomotive and the coach, so the joint solver must omit that slot without
-moving either mandatory vehicle or charging a shunting delay.
+empty slot between the locomotive and the coach, so `paired_exchange_solver_t` must omit that slot
+without moving either mandatory vehicle or charging a shunting delay.
 
 ## Choose-signal call-on cases (`choose-cases/`)
 
@@ -161,6 +167,25 @@ Assertions:
 - The signalling cases use a satisfiable receiver order that restates the receiver's own consist,
   so the receive changes nothing; the two hold cases use an order that cannot be completed.
   `committed-target` and `contact-reservation` use the same no-change order.
+
+## Ownership cases (`ownership-cases/`)
+
+`ownership-harness.nut` creates player 2 and a second depot on its own branch, connected to
+player 0's trunk at (2, 2). Player 0 grants player 2 access before the donor starts, so the donor
+can use player 0's trunk and stops; the donor is player 2's convoy and leaves the donor's second
+vehicle in the junction's laid-over pool. The donor is destroyed after the release, and player 0's
+collector then runs to the junction with a targetless order that asks for its own locomotive and
+the pooled vehicle.
+
+- `ownership-allowed`: player 0 permits player 2, so the order takes the pooled vehicle. The final
+  consist is mixed-owner, and the collected vehicle keeps player 2's ownership.
+- `ownership-denied`: player 0 withdraws player 2's access after the release and before the
+  collector arrives, so the order must fail. The collector keeps its original consist and player
+  2's vehicle stays in the pool.
+
+The only difference between the cases is the access grant. The allowed case shows that the pooled
+vehicle is otherwise collectable, so the denied case isolates the Multi-Owner Access Rule from the
+other matching conditions.
 
 ## Pick-up goods cases (`pickup-cases/`)
 
@@ -279,7 +304,8 @@ process, scenario directory, log and watchdog; up to `PENDING_RUNTIME_JOBS` case
 (default: the processor count, capped at 8). A script error, a process exit before a marker, no
 output progress for the stall timeout, the overall timeout and a crash all fail the case. The runner
 selects `harness.nut` for `cases/`, `pair-harness.nut` for `pair-cases/`, `choose-harness.nut` for
-`choose-cases/` and `pickup-harness.nut` for `pickup-cases/`.
+`choose-cases/`, `pickup-harness.nut` for `pickup-cases/` and `ownership-harness.nut` for
+`ownership-cases/`.
 
 The default engine debug level is 1, which keeps the script's `print` output and the engine's error
 lines but suppresses the per-step warning log. The three cases that assert an in-game warning
@@ -293,8 +319,9 @@ Environment: `PENDING_RUNTIME_GROUPS`, `PENDING_RUNTIME_CASES`, `PENDING_RUNTIME
 `PENDING_RUNTIME_TIMEOUT`, `PENDING_RUNTIME_PICKUP_TIMEOUT`, `PENDING_RUNTIME_STALL_TIMEOUT`,
 `PENDING_RUNTIME_BINARY` and `PENDING_RUNTIME_OBJECTS`. `PENDING_RUNTIME_CASES` is a space-separated
 subset of case names and overrides `PENDING_RUNTIME_GROUPS`; the runner rejects a name that is not a
-committed case. `PENDING_RUNTIME_GROUPS` is a space-separated subset of `division`, `pair`, `choose`
-and `pickup`; the groups map to `cases/`, `pair-cases/`, `choose-cases/` and `pickup-cases/`.
+committed case. `PENDING_RUNTIME_GROUPS` is a space-separated subset of `division`, `pair`, `choose`,
+`pickup` and `ownership`; the groups map to `cases/`, `pair-cases/`, `choose-cases/`,
+`pickup-cases/` and `ownership-cases/`.
 `PENDING_RUNTIME_LIST=1` prints the selected cases and exits. `PENDING_RUNTIME_FAST_FORWARD=0` runs
 at wall-clock speed; the default is 1. `PENDING_RUNTIME_DEBUG` sets the engine level for the cases
 that do not require level 3; the default is 1. The slow `pickup-cases/` cases (`cargo-through` and the
@@ -326,10 +353,13 @@ edit loop. Run only the cases that can observe the change:
   unit/turntable reversal delay must run `facing` and the paired cases. A change to the cargo API,
   the loading credit or the route repair must run `cargo-through`, one of the `flash-*` cases and
   the matching reload case (`pickup-reload` or `flash-reload`) rather than the whole pick-up group.
+  A change to `convoi_t::match_consist_order`, including the branch that handles optional slots, or
+  to the Multi-Owner Access Rule must run both `ownership-*` cases; a change to the incremental
+  access check in `paired_exchange_solver_t` must run the paired cases.
 - **Package.** Run the whole group once the package's behaviour is complete and before committing
   it: `forward` plus `cases/` (the division and targetless cases), `pair-cases/` (the paired
-  exchanges), `choose-cases/` (the choose-signal cases) or `pickup-cases/` (the pick-up goods
-  cases).
+  exchanges), `choose-cases/` (the choose-signal cases), `pickup-cases/` (the pick-up goods
+  cases) or `ownership-cases/` (the Multi-Owner Access Rule cases).
 - **Integration.** Run the whole pending-runtime set plus the reload cases before pushing or merging
   a package, and after any change to save/load code, track reservation ownership
   ([signals-and-blocks](../signals-and-blocks.md)), the network checklist, convoy state transitions,
@@ -351,8 +381,9 @@ the default runner settings on the maintainer's machine (24 logical processors, 
 cases at `-debug 3`; a Y case takes 4-6 seconds and a paired case 4-6 seconds; the 35-case standard
 set took 46 seconds with 8 jobs [EXECUTION-VERIFIED:2026-11-18]. A pick-up goods case takes 5-11
 seconds and the whole pick-up group took 12 seconds with 6 jobs [EXECUTION-VERIFIED:2026-11-18].
-The pakset load, about 5 seconds per process at `-debug 1`, is now the largest per-case cost, so
-the job count matters more than case selection for the whole set.
+An ownership case takes 6 seconds; the 43-case full set took 47 seconds with 8 jobs
+[EXECUTION-VERIFIED:2026-11-18]. The pakset load, about 5 seconds per process at `-debug 1`, is now
+the largest per-case cost, so the job count matters more than case selection for the whole set.
 
 `PENDING_RUNTIME_CASES` selects a subset, for example:
 
@@ -381,6 +412,10 @@ The `pickup-cases/` set extends the base fixture to cargo continuity, optional c
 loaded/empty predicates and loading credit. It is listed in a separate section below. The general
 cargo and fare rules are in
 [cargo-continuity](../ex-15/recombination-design/cargo-continuity.md).
+
+The `ownership-cases/` set covers the Multi-Owner Access Rule for a targetless pool collection. The
+cross-player part of the planned locomotive-replacement case and a cross-player paired exchange
+remain unscripted.
 
 ## Open questions
 
@@ -417,6 +452,14 @@ cargo and fare rules are in
   delay. A facility-gated model has no scripted case because the facility model does not exist.
 - No CI job runs either pending-runtime fixture. The fixture map is an Extended 14 save loaded and
   re-saved by ex-15; whether that is an adequate substitute for an ex-15-native save remains open.
+- After the 2026-11-18 reload-runner change to one server frame per simulation step, the `pair-reload`
+  and `flash-reload` cases do not complete under the reload runner's current defaults. The pair
+  reload's `EXCHANGE_STEP_LIMIT` (1,000 observations) expires while the receiver is at its pair
+  entry in the driving state, before it enters `convoi_t::AWAITING_RECOMBINATION`; the flash reload's
+  15,000-observation limit expires before its scheduled collection. The pair reload failed in the
+  same way on the binary built without the Multi-Owner Access Rule change, so this is a test-fixture
+  timing limit rather than a runtime regression. The division, choose and pick-up reloads pass
+  under the same runner.
 
 ## Provenance
 
@@ -446,5 +489,10 @@ one frame per step, offline fast-forward) reached READY after 37 seconds and PAS
 with the client joining after 14 seconds, 840 parsed checklist pairs out of the server and client
 logs, no mismatch, and the offline load RESTORED after 14 seconds. All runs used the Debug x64
 build with `-nomidi -nosound` [EXECUTION-VERIFIED:2026-11-18, ex-15 @ dafe7031e plus working-tree
-test tooling]. The planned coverage list is the operation-scope record from
+test tooling]. On 2026-11-18 the Multi-Owner Access Rule was added to
+`convoi_t::match_consist_order`, the two `ownership-*` cases were added, and the 43-case set passed
+in 47 seconds with 8 jobs. The division, choose and pick-up reloads passed under the same runner;
+the pair and flash reloads stopped at the timing limits recorded in the open questions
+[EXECUTION-VERIFIED:2026-11-18, ex-15 @ 93da398e6, DEBUG build].
+The planned coverage list is the operation-scope record from
 [ex-15/recombination-design](../ex-15/recombination-design.md).
