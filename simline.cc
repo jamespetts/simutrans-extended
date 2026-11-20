@@ -548,6 +548,9 @@ void simline_t::rdwr(loadsave_t *file)
 
 	if(file->get_extended_version() >= 10)
 	{
+		// Line journey-time totals were saved as 16-bit values before
+		// revision 19. The wider form preserves long journeys.
+		const bool wide_journey_times = file->is_version_ex_atleast(15, 19);
 		if(file->is_saving())
 		{
 			uint32 count = average_journey_times.get_count();
@@ -558,10 +561,20 @@ void simline_t::rdwr(loadsave_t *file)
 				id_pair idp = iter.key;
 				file->rdwr_short(idp.x);
 				file->rdwr_short(idp.y);
-				sint16 value = iter.value.count;
-				file->rdwr_short(value);
-				value = iter.value.total;
-				file->rdwr_short(value);
+				if(wide_journey_times)
+				{
+					uint32 value = iter.value.count;
+					file->rdwr_long(value);
+					value = iter.value.total;
+					file->rdwr_long(value);
+				}
+				else
+				{
+					sint16 value = (sint16)iter.value.count;
+					file->rdwr_short(value);
+					value = (sint16)iter.value.total;
+					file->rdwr_short(value);
+				}
 			}
 		}
 		else
@@ -576,14 +589,25 @@ void simline_t::rdwr(loadsave_t *file)
 				file->rdwr_short(idp.x);
 				file->rdwr_short(idp.y);
 
-				uint16 count;
-				uint16 total;
-				file->rdwr_short(count);
-				file->rdwr_short(total);
-
 				average_tpl<uint32> average;
-				average.count = count;
-				average.total = total;
+				if(wide_journey_times)
+				{
+					uint32 value_count;
+					uint32 value_total;
+					file->rdwr_long(value_count);
+					file->rdwr_long(value_total);
+					average.count = value_count;
+					average.total = value_total;
+				}
+				else
+				{
+					uint16 value_count;
+					uint16 value_total;
+					file->rdwr_short(value_count);
+					file->rdwr_short(value_total);
+					average.count = value_count;
+					average.total = value_total;
+				}
 
 				average_journey_times.put(idp, average);
 			}

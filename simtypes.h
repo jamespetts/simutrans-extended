@@ -8,6 +8,7 @@
 
 
 #include <climits>
+#include <limits>
 #include <stdlib.h>
 
 #include "utils/for.h"
@@ -323,12 +324,15 @@ public:
 			count /= 2;
 		}
 
-		while(new_total > 65535ll)
+		// Use the width of T: a fixed 16-bit limit would truncate
+		// 32-bit journey-time totals.
+		const sint64 max_total = (sint64)(std::numeric_limits<T>::max)();
+		while(new_total > max_total)
 		{
 			new_total /= 2;
 			count /= 2;
 		}
-		total = (uint16)new_total;
+		total = static_cast<T>(new_total);
 	}
 
 	inline T get_average() const
