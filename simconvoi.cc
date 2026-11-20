@@ -5490,39 +5490,41 @@ void convoi_t::rdwr(loadsave_t *file)
 	{
 		if(file->is_saving())
 		{
-			uint32 count = average_journey_times.get_count();
+			vector_tpl<journey_times_map::entry_t> entries;
+			average_journey_times.get_sorted_entries(entries);
+			uint32 count = entries.get_count();
 			file->rdwr_long(count);
 
 			if (file->get_extended_version() >= 13 || file->get_extended_revision() >= 14)
 			{
 				// New 32-bit journey times
-				for (auto iter : average_journey_times)
+				for (auto const &entry : entries)
 				{
-					id_pair idp = iter.key;
+					id_pair idp = entry.key;
 					file->rdwr_short(idp.x);
 					file->rdwr_short(idp.y);
-					uint32 value = iter.value.count;
+					uint32 value = entry.value.count;
 					file->rdwr_long(value);
-					value = iter.value.total;
+					value = entry.value.total;
 					file->rdwr_long(value);
 				}
 			}
 			else
 			{
-				for (auto iter : average_journey_times)
+				for (auto const &entry : entries)
 				{
-					id_pair idp = iter.key;
+					id_pair idp = entry.key;
 					file->rdwr_short(idp.x);
 					file->rdwr_short(idp.y);
-					sint16 value = (sint16)iter.value.count;
+					sint16 value = (sint16)entry.value.count;
 					file->rdwr_short(value);
-					if (iter.value.total == UINT32_MAX_VALUE)
+					if (entry.value.total == UINT32_MAX_VALUE)
 					{
 						value = -1;
 					}
 					else
 					{
-						value = (sint16)iter.value.total;
+						value = (sint16)entry.value.total;
 					}
 					file->rdwr_short(value);
 				}
@@ -6103,6 +6105,70 @@ void convoi_t::laden() //"load" (Babelfish)
 			}
 		}
 
+		// Point-to-point journey time across a consist recombination.
+		// A through record starts at the halt where its vehicle boarded, which
+		// need not be on this convoy's schedule, so the schedule-based booking
+		// above cannot represent it. The pair uses the halt at the convoy's
+		// current position, not the halt at the scheduled entry's position.
+		// Only a line-bound convoy records the time, into its line's table; a
+		// lineless convoy's own table is not written. The path explorer reads a
+		// line's pair times from that table for every convoy of the line
+		// (path_explorer_t::compartment_t::get_recorded_pair_time).
+		if(line.is_bound())
+		{
+			// Several vehicles can carry a record from the same boarding halt;
+			// one arrival must contribute one sample per pair.
+			vector_tpl<uint16> recorded_boarding_halts;
+			for(uint8 i = 0; i < vehicle_count; i++)
+			{
+				const through_departures_t *const through = vehicle[i]->get_through_departures();
+				if(through == NULL)
+				{
+					continue;
+				}
+				for(const through_departure_t &record : *through)
+				{
+					if(!record.history_known
+						|| record.departure.departure_time == 0
+						|| record.halt_id == this_halt_id
+						|| recorded_boarding_halts.is_contained(record.halt_id))
+					{
+						continue;
+					}
+					const sint64 journey_time_ticks = arrival_time - record.departure.departure_time;
+					if(journey_time_ticks <= 0)
+					{
+						continue;
+					}
+					halthandle_t boarding_halt;
+					boarding_halt.set_id(record.halt_id);
+					if(!boarding_halt.is_bound())
+					{
+						continue;
+					}
+					const uint32 this_journey_time = (uint32)welt->ticks_to_tenths_of_minutes(journey_time_ticks);
+					if(this_journey_time == 0)
+					{
+						// A journey shorter than a tenth of a minute would store
+						// a zero time, which the path explorer treats as absent.
+						continue;
+					}
+					recorded_boarding_halts.append(record.halt_id);
+					const id_pair pair(record.halt_id, this_halt_id);
+					average_tpl<uint32> *const average = line->get_average_journey_times().access(pair);
+					if(average == NULL)
+					{
+						average_tpl<uint32> average_new;
+						average_new.add(this_journey_time);
+						line->get_average_journey_times().put(pair, average_new);
+					}
+					else
+					{
+						average->add_autoreduce(this_journey_time, timings_reduction_point);
+					}
+				}
+			}
+		}
 
 		// Recalculate comfort
 		// This is an average of comfort for all classes,

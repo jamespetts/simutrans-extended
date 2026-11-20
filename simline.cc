@@ -553,26 +553,28 @@ void simline_t::rdwr(loadsave_t *file)
 		const bool wide_journey_times = file->is_version_ex_atleast(15, 19);
 		if(file->is_saving())
 		{
-			uint32 count = average_journey_times.get_count();
+			vector_tpl<journey_times_map::entry_t> entries;
+			average_journey_times.get_sorted_entries(entries);
+			uint32 count = entries.get_count();
 			file->rdwr_long(count);
 
-			for(auto const iter : average_journey_times)
+			for(auto const &entry : entries)
 			{
-				id_pair idp = iter.key;
+				id_pair idp = entry.key;
 				file->rdwr_short(idp.x);
 				file->rdwr_short(idp.y);
 				if(wide_journey_times)
 				{
-					uint32 value = iter.value.count;
+					uint32 value = entry.value.count;
 					file->rdwr_long(value);
-					value = iter.value.total;
+					value = entry.value.total;
 					file->rdwr_long(value);
 				}
 				else
 				{
-					sint16 value = (sint16)iter.value.count;
+					sint16 value = (sint16)entry.value.count;
 					file->rdwr_short(value);
-					value = (sint16)iter.value.total;
+					value = (sint16)entry.value.total;
 					file->rdwr_short(value);
 				}
 			}

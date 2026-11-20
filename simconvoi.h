@@ -22,8 +22,9 @@
 #include "vehicle/overtaker.h"
 #include "tpl/array_tpl.h"
 #include "tpl/fixed_list_tpl.h"
-#include "tpl/koordhashtable_tpl.h"
 #include "tpl/inthashtable_tpl.h"
+#include "tpl/journey_times_map.h"
+#include "tpl/koordhashtable_tpl.h"
 #include "tpl/minivec_tpl.h"
 
 #include "convoihandle_t.h"
@@ -52,12 +53,6 @@ class cbuffer_t;
 class ware_t;
 class replace_data_t;
 class departure_point_t;
-
-/**
-* The table of point-to-point average journey times.
-* @author jamespetts
-*/
-typedef koordhashtable_tpl<id_pair, average_tpl<uint32>, N_BAGS_SMALL> journey_times_map;
 
 /**
  * Base class for all vehicle consists. Convoys can be referenced by handles, see halthandle_t.
