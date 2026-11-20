@@ -58,6 +58,7 @@ private:
 	bool b_enabled : 1;
 	bool no_tooltip : 1;
 	bool has_custom_color : 1;
+	bool formatted : 1;
 
 	PIXVAL custom_color = 0;
 
@@ -108,6 +109,12 @@ public:
 	 */
 
 	void set_increment_mode( sint32 m ) { step_mode = m; }
+
+	/**
+	 * Display the value with the language's thousand separator, and accept the
+	 * separator when parsing edited text.
+	 */
+	void set_formatted(bool yesno);
 
 	// true, if the component wraps around
 	bool wrap_mode( bool new_mode ) {

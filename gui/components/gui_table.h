@@ -83,6 +83,8 @@ public:
 	}
 
 	void set_border_color(PIXVAL color) { border_bottom_right = true; border_color = color; }
+	void set_bgcolor(PIXVAL color) { bgcolor = color; }
+	void set_border_bottom_right(bool yesno) { border_bottom_right = yesno; }
 	void set_flexible(bool horizontally, bool vertically = true) { fixed_width = !horizontally; fixed_height = !vertically; }
 
 	void draw(scr_coord offset) OVERRIDE;

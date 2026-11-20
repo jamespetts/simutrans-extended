@@ -15,11 +15,25 @@
 #include "components/gui_label.h"
 #include "components/gui_numberinput.h"
 #include "components/gui_scrollpane.h"
+#include "components/gui_table.h"
 
 #include "../player/finance.h"
+#include "../utils/cbuffer_t.h"
 
 
 class player_t;
+
+
+/**
+ * Instrument table: reports a non-zero scroll minimum so that
+ * gui_scrollpane_t::get_min_size() uses the table's own minimum size instead of
+ * collapsing to the scrollbar width.
+ */
+class loan_instrument_table_t : public gui_aligned_container_t
+{
+public:
+	scr_size get_min_scroll_size() const OVERRIDE { return scr_size(1, 1); }
+};
 
 
 /**
@@ -34,12 +48,12 @@ class loan_frame_t : public gui_frame_t, private action_listener_t
 
 	player_t *player;
 
-	gui_aligned_container_t instrument_cont;
+	loan_instrument_table_t instrument_cont;
 	gui_scrollpane_t instrument_scroll;
 
 	/// Rows of the instrument table: type, start, maturity, rate, original
 	/// principal, outstanding principal, next payment, interest remaining.
-	gui_label_buf_t instrument_rows[MAX_INSTRUMENT_ROWS][INSTRUMENT_COLUMNS];
+	gui_table_cell_buf_t instrument_rows[MAX_INSTRUMENT_ROWS][INSTRUMENT_COLUMNS];
 
 	/// Storage for the instrument selection list; the combobox stores pointers.
 	char instrument_names[MAX_INSTRUMENT_ROWS][64];
@@ -62,10 +76,12 @@ class loan_frame_t : public gui_frame_t, private action_listener_t
 	button_t bt_refinance;
 	gui_label_buf_t lb_quote;
 	gui_label_buf_t lb_status;
+	cbuffer_t repay_tooltip;
 
 	loan_term_t selected_term;
 	uint16 selected_type;
 	bool quote_valid;
+	bool credit_blocked;
 
 	gui_chart_t chart;
 	sint64 chart_table[MAX_PLAYER_HISTORY_MONTHS][CHART_SERIES];
@@ -78,6 +94,7 @@ class loan_frame_t : public gui_frame_t, private action_listener_t
 	void update_data();
 	void update_quote();
 	void update_instrument_choices();
+	void update_repay_tooltip();
 
 public:
 	loan_frame_t(player_t *player);

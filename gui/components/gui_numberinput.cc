@@ -5,11 +5,14 @@
 
 #include "gui_numberinput.h"
 
+#include <string.h>
+
 #include "../gui_frame.h"
 #include "../simwin.h"
 #include "../../display/simgraph.h"
 #include "../../macros.h"
 #include "../../dataobj/translator.h"
+#include "../../utils/simstring.h"
 
 
 uint32 log10( uint32 ); // simrandom.h
@@ -40,6 +43,7 @@ gui_numberinput_t::gui_numberinput_t() :
 	b_enabled = true;
 	no_tooltip = false;
 	has_custom_color = false;
+	formatted = false;
 	digits = 5;
 
 	set_size( scr_size( D_BUTTON_WIDTH, D_EDIT_HEIGHT ) );
@@ -96,7 +100,15 @@ void gui_numberinput_t::set_value(sint32 new_value)
 		new_value = value;
 	}
 	// To preserve cursor position if text was edited, only set new text if changed (or empty before)
-	if(  textbuffer[0]<32  ||  new_value != get_text_value()  ) {
+	if (formatted) {
+		char formatted_text[20];
+		number_to_string(formatted_text, (double)new_value, 0);
+		if (strcmp(textinp.get_text(), formatted_text) != 0) {
+			strcpy(textbuffer, formatted_text);
+			textinp.set_text(textbuffer, 20);
+		}
+	}
+	else if(  textbuffer[0]<32  ||  new_value != get_text_value()  ) {
 		sprintf(textbuffer, "%d", new_value);
 		textinp.set_text(textbuffer, 20);
 	}
@@ -113,7 +125,23 @@ void gui_numberinput_t::set_value(sint32 new_value)
 
 sint32 gui_numberinput_t::get_text_value()
 {
-	return (sint32)atol( textinp.get_text() );
+	if (!formatted) {
+		return (sint32)atol( textinp.get_text() );
+	}
+	// Accept the language's thousand separators (and any other non-digits)
+	// while the user is editing the field.
+	const char* text = textinp.get_text();
+	sint64 parsed = 0;
+	bool negative = false;
+	for ( ; *text != 0; text++) {
+		if (*text == '-') {
+			negative = true;
+		}
+		else if (*text >= '0'  &&  *text <= '9') {
+			parsed = parsed * 10 + (*text - '0');
+		}
+	}
+	return (sint32)(negative ? -parsed : parsed);
 }
 
 
@@ -150,6 +178,7 @@ void gui_numberinput_t::set_limits(sint32 _min, sint32 _max)
 	if (min_value < 0  &&  (uint32) (-min_value) > max_abs) {
 		max_abs = -min_value;
 	}
+	const uint32 max_abs_value = max_abs;
 	// width of digits
 	uint8 digit_width = 0;
 	while (*digits) {
@@ -162,6 +191,25 @@ void gui_numberinput_t::set_limits(sint32 _min, sint32 _max)
 		max_numbertext_width += digit_width;
 		max_abs /= 10;
 	}
+	if (formatted) {
+		// Measure the grouped representation, including separators.
+		char buffer[32];
+		number_to_string(buffer, (double)max_abs_value, 0);
+		max_numbertext_width = proportional_string_width(buffer);
+		if (min_value < 0) {
+			max_numbertext_width += proportional_string_width("-");
+		}
+	}
+}
+
+
+void gui_numberinput_t::set_formatted(bool yesno)
+{
+	formatted = yesno;
+	// Force set_value() to rewrite the text in the new format.
+	textbuffer[0] = 0;
+	set_limits(min_value, max_value);
+	set_value(value);
 }
 
 
@@ -402,7 +450,15 @@ void gui_numberinput_t::draw(scr_coord offset)
 	bt_right.draw(new_offset);
 
 	if(!no_tooltip  &&  getroffen( get_mouse_pos() - offset )) {
-		sprintf( tooltip, translator::translate("enter a value between %i and %i"), min_value, max_value );
+		if (formatted) {
+			char min_buffer[32], max_buffer[32];
+			number_to_string(min_buffer, (double)min_value, 0);
+			number_to_string(max_buffer, (double)max_value, 0);
+			sprintf( tooltip, translator::translate("enter a value between %s and %s"), min_buffer, max_buffer );
+		}
+		else {
+			sprintf( tooltip, translator::translate("enter a value between %i and %i"), min_value, max_value );
+		}
 		const scr_coord tooltip_base_pos{ get_mouse_pos().x, new_offset.y + size.h };
 		win_set_tooltip(tooltip_base_pos + TOOLTIP_MOUSE_OFFSET, tooltip, this);
 	}

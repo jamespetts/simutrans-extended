@@ -258,6 +258,7 @@ DBG_MESSAGE("gui_combobox_t::infowin_event()", "scroll selected %i", selection);
  */
 void gui_combobox_t::draw(scr_coord offset)
 {
+	const scr_coord parent_offset = offset;
 	last_draw_offset = offset;
 	// text changed? Then update it
 	gui_scrolled_list_t::scrollitem_t *item = droplist.get_selected_item();
@@ -276,6 +277,10 @@ void gui_combobox_t::draw(scr_coord offset)
 	else {
 		bt_prev.draw(offset);
 		bt_next.draw(offset);
+	}
+
+	if(  tooltip != NULL  &&  getroffen(get_mouse_pos() - parent_offset)  ) {
+		win_set_tooltip(scr_coord(get_mouse_pos().x, parent_offset.y + pos.y + size.h) + TOOLTIP_MOUSE_OFFSET, translator::translate(tooltip), this);
 	}
 }
 

@@ -19,6 +19,11 @@
 static const uint8 chart_series_color[3] = { 132, 36, 44 };
 
 static const char *const loan_type_text[2] = { "Bank loan", "Bond" };
+static const char *const loan_type_tooltip[2] =
+{
+	"Bank loan: principal repaid in monthly instalments.",
+	"Bond: interest only until maturity, when the principal is repaid; a 25-year term is available only for bonds."
+};
 static const char *const loan_term_text[LOAN_TERM_MAX] = { "1 year", "2 years", "5 years", "10 years", "25 years" };
 
 
@@ -44,10 +49,11 @@ static void set_money(gui_label_buf_t &label, sint64 simucents)
 
 loan_frame_t::loan_frame_t(player_t *player) :
 	gui_frame_t(translator::translate("Borrowing"), player),
-	instrument_scroll(&instrument_cont, false, true),
+	instrument_scroll(&instrument_cont, true, true),
 	selected_term(LOAN_TERM_5_YEARS),
 	selected_type(LOAN_TYPE_BANK),
 	quote_valid(false),
+	credit_blocked(false),
 	last_month(0xFFFFFFFF),
 	last_loan_count(0xFFFFFFFF)
 {
@@ -75,6 +81,10 @@ loan_frame_t::loan_frame_t(player_t *player) :
 	}
 	end_table();
 
+	// Breathing room between the lender summary and the graph, including the
+	// space the chart uses for its top axis label.
+	new_component<gui_margin_t>(0, 2 * LINESPACE);
+
 	// The debt history graph.
 	chart.set_min_size(scr_size(0, 100));
 	chart.set_dimension(MAX_PLAYER_HISTORY_MONTHS, 10000);
@@ -84,32 +94,40 @@ loan_frame_t::loan_frame_t(player_t *player) :
 	{
 		chart.add_curve(color_idx_to_rgb(chart_series_color[i]), *chart_table, CHART_SERIES, i, MAX_PLAYER_HISTORY_MONTHS, gui_chart_t::MONEY, true, true, 2);
 	}
+	add_table(2, 1);
 	add_component(&chart);
+	new_component<gui_margin_t>(45);
+	end_table();
 
 	// The instrument table.
 	instrument_cont.set_table_layout(INSTRUMENT_COLUMNS, MAX_INSTRUMENT_ROWS + 1);
-	instrument_cont.new_component<gui_label_t>("Type", SYSCOL_TEXT_HIGHLIGHT);
-	instrument_cont.new_component<gui_label_t>("Start", SYSCOL_TEXT_HIGHLIGHT);
-	instrument_cont.new_component<gui_label_t>("Maturity", SYSCOL_TEXT_HIGHLIGHT);
-	instrument_cont.new_component<gui_label_t>("Rate", SYSCOL_TEXT_HIGHLIGHT);
-	instrument_cont.new_component<gui_label_t>("Original principal", SYSCOL_TEXT_HIGHLIGHT);
-	instrument_cont.new_component<gui_label_t>("Outstanding", SYSCOL_TEXT_HIGHLIGHT);
-	instrument_cont.new_component<gui_label_t>("Next payment", SYSCOL_TEXT_HIGHLIGHT);
-	instrument_cont.new_component<gui_label_t>("Interest remaining", SYSCOL_TEXT_HIGHLIGHT);
+	instrument_cont.set_spacing(scr_size(0, 0));
+	instrument_cont.new_component<gui_table_header_t>("Type", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+	instrument_cont.new_component<gui_table_header_t>("Start", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+	instrument_cont.new_component<gui_table_header_t>("Matures", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+	instrument_cont.new_component<gui_table_header_t>("Rate", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+	instrument_cont.new_component<gui_table_header_t>("Principal", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true)->set_tooltip(translator::translate("Original principal"));
+	instrument_cont.new_component<gui_table_header_t>("Balance", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true)->set_tooltip(translator::translate("Outstanding principal"));
+	instrument_cont.new_component<gui_table_header_t>("Payment", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true)->set_tooltip(translator::translate("Next payment, interest plus principal"));
+	instrument_cont.new_component<gui_table_header_t>("Interest", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true)->set_tooltip(translator::translate("Interest remaining"));
 	for (uint8 row = 0; row < MAX_INSTRUMENT_ROWS; row++)
 	{
+		const PIXVAL band = (row & 1) ? SYSCOL_TD_BACKGROUND_SUM : SYSCOL_TD_BACKGROUND;
 		for (uint8 column = 0; column < INSTRUMENT_COLUMNS; column++)
 		{
+			instrument_rows[row][column].set_bgcolor(band);
+			instrument_rows[row][column].set_border_bottom_right(true);
+			instrument_rows[row][column].set_align(column >= 3 ? gui_label_t::right : gui_label_t::left);
 			instrument_cont.add_component(&instrument_rows[row][column]);
 		}
 	}
-	instrument_cont.end_table();
+	new_component<gui_label_t>("Existing instruments", SYSCOL_TEXT_HIGHLIGHT);
 	add_component(&instrument_scroll);
 
-	// The borrowing form.
-	add_table(2, 1);
+	// The borrowing form: a new instrument, then the existing instruments.
+	add_table(4, 1);
 	{
-		new_component<gui_label_t>("Instrument");
+		new_component<gui_label_t>("New instrument");
 		add_component(&type_c);
 		for (uint8 i = 0; i < 2; i++)
 		{
@@ -117,57 +135,63 @@ loan_frame_t::loan_frame_t(player_t *player) :
 		}
 		type_c.set_selection(0);
 		type_c.add_listener(this);
+
+		new_component<gui_label_t>("Amount");
+		amount.init(100000, 0, 2000000000, 100000, false, 12, true);
+		amount.set_formatted(true);
+		amount.add_listener(this);
+		add_component(&amount);
 	}
 	end_table();
 
-	add_table(LOAN_TERM_MAX + 1, 1);
+	add_table(LOAN_TERM_MAX + 3, 1);
 	{
 		new_component<gui_label_t>("Term");
 		for (uint8 i = 0; i < LOAN_TERM_MAX; i++)
 		{
-			term_buttons[i].init(button_t::roundbox_state, loan_term_text[i]);
+			term_buttons[i].init(button_t::box_state, loan_term_text[i]);
 			term_buttons[i].add_listener(this);
 			add_component(&term_buttons[i]);
 		}
+
+		new_component<gui_margin_t>(D_H_SPACE * 2);
+
+		bt_borrow.init(button_t::roundbox, "Borrow");
+		bt_borrow.add_listener(this);
+		bt_borrow.set_tooltip("Commit the selected term and amount");
+		add_component(&bt_borrow);
 	}
 	end_table();
 
-	add_table(2, 2);
-	{
-		new_component<gui_label_t>("Amount (Simucredits)");
-		amount.set_limits(0, 2000000000);
-		amount.set_value(100000);
-		amount.add_listener(this);
-		add_component(&amount);
-
-		add_component(&lb_quote);
-		new_component<gui_label_t>("");
-		add_component(&lb_status);
-	}
-	end_table();
+	add_component(&lb_quote);
+	add_component(&lb_status);
 
 	add_table(4, 1);
 	{
-		bt_borrow.init(button_t::roundbox, "Borrow");
-		bt_borrow.add_listener(this);
-		add_component(&bt_borrow);
-
-		new_component<gui_label_t>("Selected instrument");
+		new_component<gui_label_t>("Existing instrument");
 		add_component(&instrument_c);
 		instrument_c.add_listener(this);
 
 		bt_repay.init(button_t::roundbox, "Repay early");
 		bt_repay.add_listener(this);
+		bt_repay.set_no_translate(true);
 		add_component(&bt_repay);
 
 		bt_refinance.init(button_t::roundbox, "Refinance");
 		bt_refinance.add_listener(this);
+		bt_refinance.set_tooltip("Replace the selected instrument with a new one on the selected term.");
 		add_component(&bt_refinance);
 	}
 	end_table();
 
 	update_instrument_choices();
 	update_data();
+	instrument_scroll.set_min_width(instrument_cont.get_min_size().w);
+
+	reset_min_windowsize();
+	set_windowsize(get_min_windowsize());
+	set_resizemode(diagonal_resize);
+	resize(scr_size(0,0));
 }
 
 
@@ -210,6 +234,14 @@ void loan_frame_t::update_quote()
 	if (amount_simucents <= 0 || !finance->is_term_available(selected_term, (uint8)selected_type, rating))
 	{
 		lb_status.buf().printf("%s", translator::translate("This term is not available at your credit rating."));
+		lb_status.update();
+		lb_quote.update();
+		return;
+	}
+
+	if (finance->get_available_term_debt() <= 0)
+	{
+		lb_status.buf().printf("%s", translator::translate("No further borrowing is available within the term borrowing limit."));
 		lb_status.update();
 		lb_quote.update();
 		return;
@@ -260,19 +292,28 @@ void loan_frame_t::update_data()
 
 	// The instrument table.
 	const vector_tpl<loan_t> &loans = finance->get_loans();
+	const bool none = loans.get_count() == 0;
 	for (uint8 row = 0; row < MAX_INSTRUMENT_ROWS; row++)
 	{
+		const bool used = none ? (row == 0) : (row < loans.get_count());
 		for (uint8 column = 0; column < INSTRUMENT_COLUMNS; column++)
 		{
 			instrument_rows[row][column].buf().clear();
+			instrument_rows[row][column].set_visible(used);
 		}
-		if (row >= loans.get_count())
+		if (!used)
 		{
 			continue;
 		}
 
+		gui_table_cell_buf_t *const cells = instrument_rows[row];
+		if (none)
+		{
+			cells[0].buf().append(translator::translate("None"));
+			continue;
+		}
+
 		const loan_t &loan = loans[row];
-		gui_label_buf_t *const cells = instrument_rows[row];
 		cells[0].buf().printf("%s", translator::translate(loan.type == LOAN_TYPE_BOND ? "Bond" : "Bank loan"));
 		cells[1].buf().printf("%u/%u", loan.start_month % 12, loan.start_month / 12);
 		const sint32 maturity = loan.start_month + loan.term_months;
@@ -307,6 +348,31 @@ void loan_frame_t::update_data()
 	}
 
 	update_quote();
+
+	instrument_scroll.set_min_width(instrument_cont.get_min_size().w);
+	update_repay_tooltip();
+}
+
+
+void loan_frame_t::update_repay_tooltip()
+{
+	const vector_tpl<loan_t> &loans = get_finance()->get_loans();
+	const int selection = instrument_c.get_selection();
+	if (selection < 0 || (uint32)selection >= loans.get_count())
+	{
+		bt_repay.set_tooltip(translator::translate("Select an existing instrument to repay early."));
+		return;
+	}
+
+	const loan_t &loan = loans[selection];
+	const sint64 settlement = get_finance()->get_early_repayment_settlement(loan);
+	const sint64 charge = settlement - loan.outstanding;
+	char charge_text[64];
+	money_to_string(charge_text, (double)charge / 100.0);
+
+	repay_tooltip.clear();
+	repay_tooltip.printf(translator::translate("Repay the selected instrument early, including the early repayment charge of %s."), charge_text);
+	bt_repay.set_tooltip(repay_tooltip);
 }
 
 
@@ -318,28 +384,53 @@ void loan_frame_t::draw(scr_coord pos, scr_size size)
 		last_loan_count = get_finance()->get_loans().get_count();
 		update_instrument_choices();
 		update_data();
+		reset_min_windowsize();
 	}
 	else if (get_finance()->get_loans().get_count() != last_loan_count)
 	{
 		last_loan_count = get_finance()->get_loans().get_count();
 		update_instrument_choices();
 		update_data();
+		reset_min_windowsize();
 	}
+
+	// The instrument-type tooltip describes the currently selected type only.
+	const int type_selection = type_c.get_selection();
+	type_c.set_tooltip(loan_type_tooltip[type_selection == 1 ? 1 : 0]);
 
 	// Term availability and the selected-instrument controls depend on the
 	// company state, which changes outside the month turn.
 	const uint8 rating = get_finance()->assess_credit_rating();
+	bool any_term_available = false;
 	for (uint8 i = 0; i < LOAN_TERM_MAX; i++)
 	{
-		if (get_finance()->is_term_available((loan_term_t)i, (uint8)selected_type, rating))
+		const loan_term_t term = (loan_term_t)i;
+		const bool available = get_finance()->is_term_available(term, (uint8)selected_type, rating);
+		if (available)
 		{
+			any_term_available = true;
 			term_buttons[i].enable();
+			term_buttons[i].set_tooltip(NULL);
 		}
 		else
 		{
 			term_buttons[i].disable();
+			if (!welt->get_settings().term_loans_allowed())
+			{
+				term_buttons[i].set_tooltip("Term borrowing is disabled.");
+			}
+			else if (selected_type == LOAN_TYPE_BANK && term == LOAN_TERM_25_YEARS)
+			{
+				term_buttons[i].set_tooltip("A 25-year term is available only for bonds.");
+			}
+			else
+			{
+				term_buttons[i].set_tooltip("This term is not available at your credit rating.");
+			}
 		}
-		term_buttons[i].pressed = (selected_term == (loan_term_t)i);
+		// Never show an unavailable term as the selected term: the pressed
+		// state would otherwise look like an active choice.
+		term_buttons[i].pressed = available && selected_term == term;
 	}
 
 	if (get_finance()->get_loans().get_count() == 0)
@@ -351,6 +442,72 @@ void loan_frame_t::draw(scr_coord pos, scr_size size)
 	{
 		bt_repay.enable();
 		bt_refinance.enable();
+	}
+
+	// A fully used term-debt limit blocks new borrowing entirely, so disable the
+	// new-instrument controls and say why on the commit button.
+	const sint64 available_credit = get_finance()->get_available_term_debt();
+	const sint64 requested = (sint64)amount.get_value() * 100ll;
+	const bool no_credit = available_credit <= 0;
+	if (no_credit != credit_blocked)
+	{
+		credit_blocked = no_credit;
+		if (no_credit)
+		{
+			type_c.disable();
+			amount.disable();
+		}
+		else
+		{
+			type_c.enable();
+			amount.enable();
+		}
+		update_quote();
+	}
+	if (no_credit)
+	{
+		quote_valid = false;
+		bt_borrow.set_tooltip("No further borrowing is available within the term borrowing limit.");
+	}
+	else if (!welt->get_settings().term_loans_allowed())
+	{
+		quote_valid = false;
+		bt_borrow.set_tooltip("Term borrowing is disabled.");
+	}
+	else if (!any_term_available)
+	{
+		quote_valid = false;
+		bt_borrow.set_tooltip("Your credit rating does not permit new term borrowing.");
+	}
+	else if (!get_finance()->is_term_available(selected_term, (uint8)selected_type, rating))
+	{
+		quote_valid = false;
+		if (selected_type == LOAN_TYPE_BANK && selected_term == LOAN_TERM_25_YEARS)
+		{
+			bt_borrow.set_tooltip("A 25-year term is available only for bonds.");
+		}
+		else
+		{
+			bt_borrow.set_tooltip("The selected term is not available at your credit rating.");
+		}
+	}
+	else if (requested <= 0)
+	{
+		quote_valid = false;
+		bt_borrow.set_tooltip("Enter an amount greater than zero.");
+	}
+	else if (requested > available_credit)
+	{
+		quote_valid = false;
+		bt_borrow.set_tooltip("The amount exceeds the remaining term borrowing limit.");
+	}
+	else if (!quote_valid)
+	{
+		bt_borrow.set_tooltip("The proposed borrowing is not available on the selected term.");
+	}
+	else
+	{
+		bt_borrow.set_tooltip("Commit the selected term and amount");
 	}
 
 	if (quote_valid)
@@ -402,6 +559,12 @@ bool loan_frame_t::action_triggered(gui_action_creator_t *comp, value_t)
 		welt->set_tool(tool, player);
 		// The tool always returns false from init, so it is safe to delete now.
 		delete tool;
+		return true;
+	}
+
+	if (comp == &instrument_c)
+	{
+		update_repay_tooltip();
 		return true;
 	}
 

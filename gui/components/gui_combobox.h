@@ -72,6 +72,9 @@ private:
 	// Reverses the operation of the prev next button
 	bool inverse_sidebutton_action=false;
 
+	// Tooltip shown while the mouse is over the closed box.
+	const char *tooltip = NULL;
+
 public:
 	gui_combobox_t(gui_scrolled_list_t::item_compare_func cmp = 0);
 
@@ -182,6 +185,8 @@ public:
 
 	void enable();
 	void disable();
+
+	void set_tooltip(const char *t) { tooltip = t; }
 
 	void enable( bool yesno ) {
 		if( yesno && !is_focusable() ) {
