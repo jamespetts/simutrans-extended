@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, through-wagon model, collection credit and optional slots)
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, through-wagon model, collection credit and optional slots); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording in `convoi_t::laden`)
 ---
 # ex-15: re-combination - cargo and passenger continuity
 
@@ -90,6 +90,28 @@ No through packet is booked as a completed leg merely because its vehicle detach
 stop or is collected, and collection itself does not change `last_transfer`. The packet is booked when
 it reaches its destination or a genuine halt-transfer fallback. Per-player apportionment uses the
 accumulated way distances, including travel before the recombination.
+
+## Line-level journey-time recording
+
+`convoi_t::laden` also reads the same per-vehicle `through_departures` record for the path explorer's
+line-level journey time. At each scheduled arrival with a non-zero journey distance, while the convoy
+is in `LOADING`, it adds one sample of the through pair (the boarding halt and the halt at the convoy's
+position; the term is defined in [yh-path-explorer](../yh-path-explorer.md#definitions)) to the line's
+`average_journey_times`, in tenths of minutes. Only a convoy on a line records, and it writes only to
+the line's table; the convoy's own `average_journey_times` receives no through pair. A lineless convoy
+therefore produces no line-level pair, and the path explorer times its through connexions from the
+accumulated legs.
+
+The record is not consumed and revenue is unchanged: `convoi_t::calc_revenue` reads the record's
+accumulated distance and per-player way distances, `convoi_t::laden` advances that distance in the same
+call, and `vehicle_t::prune_through_departures` removes the record only when no packet that boarded at
+that halt remains aboard. One arrival contributes at most one sample per boarding halt. A record with
+unknown history, a zero departure time, a boarding halt equal to the arrival halt, a non-positive
+elapsed time, a converted time of zero, or a deleted boarding halt is skipped.
+
+The path explorer reads the pair from the destination linkage's `average_journey_times` when it builds
+a through connexion, so a recorded pair replaces the accumulated-leg fallback. The explorer's use of
+the pair, and the recording's place in the design, are in [yh-path-explorer](../yh-path-explorer.md).
 
 ## Collection and flash-load credit
 

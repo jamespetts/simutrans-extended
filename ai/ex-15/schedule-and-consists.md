@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -296,9 +296,15 @@ explorer's treatment of consist orders.
 
 - **Through-journey path-explorer traversal** — the connexion-rebuild generation reads couple/uncouple
   targets and records through connexions as direct candidates whose time is the actual recorded
-  through pair, with the existing accumulated-leg fallback. There is no routing-search substitution.
-  The Y division supplies the runtime divider and the schedule handover; the explorer does not
-  consume a handover's departure history, so a through pair is timed from the accumulated legs.
+  through pair (defined in [yh-path-explorer](yh-path-explorer.md#definitions)), with the existing
+  accumulated-leg fallback. There is no routing-search substitution.
+  The Y division supplies the runtime divider and the schedule handover. A convoy that is on a line
+  records the actual through pair at each arrival in `convoi_t::laden`, into the line's
+  `average_journey_times`, so a through connexion takes the recorded pair when the destination
+  linkage's table holds one. A lineless convoy records no through pair, so its through connexions
+  are timed from the accumulated legs. The recording does not affect revenue, which uses the
+  vehicle's `through_departures` record. The recording's case is `through-pair`, in
+  [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md).
   Design:
   [yh-path-explorer](yh-path-explorer.md). `target_unique_entry_couple` and
   `couple_target_sch_is_reversed` are fields of `schedule_entry_t`. The

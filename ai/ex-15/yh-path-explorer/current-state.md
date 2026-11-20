@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine); waiting-time estimates and connexion weighting @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12); recombination runtime @ ex-15 @ 684d570f9 plus working-tree runtime (2026-11-13)
+verified: ex-15 @ f4f6fd2b5 (through-journey implementation); ex-15 @ a203862c1 (routing-search engine); waiting-time estimates and connexion weighting @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12); recombination runtime @ ex-15 @ 684d570f9 plus working-tree runtime (2026-11-13); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair booking)
 ---
 # ex-15: through-journey path explorer — current state
 
@@ -28,9 +28,10 @@ frontmatter value.
   `couple`/`uncouple` entries, the joint solver (`paired_exchange_solver_t` in `simconvoi.cc`)
   resolves both end-state orders together, and `convoi_t::commit_paired_exchange` replaces both
   consists atomically; failure is all-or-nothing and reported once. The join path is reachable in
-  play and paired. The explorer still does not consume a handover's departure history, so a through
-  pair is timed from the accumulated legs [rechecked ex-15 @ 684d570f9 plus working-tree
-  recombination runtime].
+  play and paired. A convoy that is on a line records each through pair at its arrivals, so the
+  explorer reads the handover's journey time from the line's `average_journey_times` rather than
+  timing the pair from the accumulated legs; a lineless convoy still uses the accumulated legs
+  [rechecked ex-15 @ 9d2b75ecea].
 - Budget and parity: `limit_set_t` holds per-phase iteration limits that a feedback controller
   recalibrates toward `path_explorer_time_midpoint` (simuconf; default 64 ms). In network mode
   peers write local limits and `nwc_routesearch_t` broadcasts the minimum set, so all peers
@@ -58,6 +59,12 @@ frontmatter value.
   departure at the previous stop and the arrival here; because departure is
   booked at departure, the recorded leg time excludes the dwell at the stop. A
   distance-and-speed estimate replaces the table when no history exists.
+  `convoi_t::laden` also books a through pair from the vehicle's `through_departures`
+  record into the line's `average_journey_times` when the convoy is on a line; the boarding halt need
+  not be on the convoy's schedule. The exclusion of the dwell at the boarding halt does not apply to a
+  record that `convoi_t::capture_through_departures` created at that halt: that record's
+  `departure_time` is the packet's `ware_t::arrival_time`, so the interval includes the packet's wait
+  there. A lineless convoy books no through pair.
   Waiting time comes from `haltestelle_t::get_average_waiting_time`, which
   pools retained samples with current-wait snapshot observations, or uses the
   airport/service-frequency fallback when neither source has observations

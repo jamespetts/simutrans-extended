@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -17,7 +17,9 @@ verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17,
 ## Terms
 
 The vocabulary used here — target, mover, contact tile, coupling point and approach link — is
-defined in [consist-recombination](../consist-recombination.md#terms).
+defined in [consist-recombination](../consist-recombination.md#terms). The through pair (the halt
+pair under which a recorded journey time is stored) and the line-bound convoy (a convoy that runs
+for a line) are defined in [yh-path-explorer](../ex-15/yh-path-explorer.md#definitions).
 
 ## Scope
 
@@ -218,6 +220,15 @@ saved halt cargo; no factory-produced packet takes part in any assertion. `empty
   load. The collector must book the whole fare when it unloads at D. Way-toll apportionment to the
   second way owner is not observable here: the fixture map's saved settings carry no toll revenue
   percentage, so no payment reaches a way owner however the journey is apportioned.
+- `through-pair` checks the line-level through-pair recording. A line-bound collecting convoy carries
+  the through packet from the recombination to D, so `convoi_t::laden` records the pair from the
+  packet's boarding halt A to D. The case reads the collecting line's table (the destination line of
+  the through journey) with `line_x.get_recorded_journey_time(halt_x from, halt_x to)` and the
+  collecting convoy's own table with `convoy_x.get_own_recorded_journey_time(halt_x from, halt_x to)`;
+  both return the recorded average in tenths of minutes, or `-1` when the pair is absent. The
+  assertions are that the line has a positive `(A, D)` time and that the convoy's own table has no
+  `(A, D)` pair. `through-pair` is the recording's non-reload case; `pickup-reload` repeats the two
+  assertions after its loopback join and again after the fresh offline load.
 - `flash-full`, `flash-partial` and `flash-late` release one empty wagon at B and inject a full
   wagon load at B for D. These cases test the empty-wagon loading credit: the cargo waits at the
   halt, the empty wagon is collected, and the cargo is loaded into it with the credit. The collector
@@ -243,7 +254,9 @@ saved halt cargo; no factory-produced packet takes part in any assertion. `empty
 - `pickup-reload/` holds the loaded loose wagon for a loopback client join and a fresh offline load of
   the join save; it also names the collecting line as the wagon's recipient and checks that choice
   after both loads. It is the named-recipient through-wagon case: the cargo stays aboard the wagon
-  across the reload and the named collector takes both. `flash-reload/` holds the collected, fully credited wagon during its departure
+  across the reload and the named collector takes both. It also re-asserts the `(A, D)` through pair
+  recorded on the collecting line, and its absence from the collecting convoy's own table, after each
+  load. `flash-reload/` holds the collected, fully credited wagon during its departure
   interval and repeats the delivery observation after both loads. Use the existing PowerShell reload
   runner with `-Harness tests\pending-runtime\pickup-harness.nut -HarnessName pickup-harness` and
   `-CaseName pickup-reload -ScenarioName pending-runtime-pickup-reload -Selector
@@ -361,7 +374,10 @@ editing; run the full set only before pushing or merging a package:
   unit/turntable reversal delay must run `facing` and the paired cases. A change to the cargo API,
   the loading credit or the route repair must run `cargo-through`, one of the `flash-*` cases and
   the matching reload case (`pickup-reload` or `flash-reload`) rather than the whole pick-up group.
-  A change to `convoi_t::match_consist_order`, including the branch that handles optional slots, or
+  A change to the through-pair recording in `convoi_t::laden` or to
+  `path_explorer_t::compartment_t::get_recorded_pair_time` must run `through-pair`; if the change
+  touches the saved journey-time table, run `pickup-reload` as well. A change to
+  `convoi_t::match_consist_order`, including the branch that handles optional slots, or
   to the Multi-Owner Access Rule must run both `ownership-*` cases; a change to the incremental
   access check in `paired_exchange_solver_t` must run the paired cases.
 - **Package.** Run the whole group once the package's behaviour is complete and before committing
@@ -417,8 +433,8 @@ and server/client determinism checks [RECOLLECTION:2026-11-03 operational scope;
 composition].
 
 The `pickup-cases/` set extends the base fixture to cargo continuity, optional collection slots,
-loaded/empty predicates and loading credit. It is listed in a separate section below. The general
-cargo and fare rules are in
+loaded/empty predicates, loading credit and the line-level through-pair recording. It is described
+above. The general cargo and fare rules are in
 [cargo-continuity](../ex-15/recombination-design/cargo-continuity.md).
 
 The `ownership-cases/` set covers the Multi-Owner Access Rule for a targetless pool collection. The
@@ -511,5 +527,11 @@ pick-up reloads also passed with the same runner on 2026-11-20, each completing 
 fresh offline load with no checklist mismatch. The 43-case pending-runtime set passed in
 116 seconds with 8 jobs on the same day
 [EXECUTION-VERIFIED:2026-11-20, ex-15 @ db8bb34e5a].
+The `through-pair` case and the two script accessors it calls are committed at ex-15 @ e74fb897d0
+(2026-11-20); the line-level recording they assert is committed at ex-15 @ 9d2b75ecea. The 44-case
+pending-runtime set passed in 129 seconds with 8 jobs, and `through-pair` passed in 24 seconds. The
+division reload passed with 6,709 checklist pairs and 0 mismatches; `pickup-reload` passed with 15,272
+checklist pairs and 0 mismatches, including the through-pair assertion after the join and after the
+fresh offline load [EXECUTION-VERIFIED:2026-11-20, ex-15 @ e74fb897d0].
 The planned coverage list is the operation-scope record from
 [ex-15/recombination-design](../ex-15/recombination-design.md).

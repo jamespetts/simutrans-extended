@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; intended loose-stock treatment 2026-11-14; loose-stock recipient at pickup @ b501f13f3 (2026-11-15); paired reload fixture @ fa85a59b8 (2026-11-14)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; through-wagon model 2026-11-17; loose-stock recipient at pickup @ b501f13f3 (2026-11-15); paired reload fixture @ fa85a59b8 (2026-11-14); ex-15 @ 9d2b75ecea (2026-11-20, runtime through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case)
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -21,7 +21,9 @@ passengers or goods that stay aboard the same vehicles across the coupling. This
 are the authority.
 
 The connexion-rebuild exploration and the GUI are implemented. The Y division (split), the
-one-sided coupling receive and the atomic two-party H exchange are implemented. All
+one-sided coupling receive and the atomic two-party H exchange are implemented. A line-bound convoy
+records the actual through pair at each arrival, into its line's `average_journey_times`; a
+lineless convoy keeps the accumulated-leg fallback. All
 decisions marked [RECOLLECTION:2026-09-19] were taken by the user in the planning session of
 that date.
 
@@ -49,6 +51,16 @@ Sub-documents (read-when):
 - **Through journey** — a journey whose passengers or goods remain in the same vehicles across a
   split or join. This is what the explorer must record; a journey requiring a change of vehicle
   is an ordinary transfer that the existing system already handles.
+- **Through pair** — the ordered pair of halts `(from, to)` under which one recorded average
+  journey time is stored. `from` is the halt at which a packet boarded its vehicle and `to` is a
+  halt at which that vehicle arrives with the packet still aboard. For a journey that crosses a
+  coupling, the pair therefore spans a stop on the source schedule and a stop on the destination
+  schedule.
+- **Line-bound convoy** — a convoy whose `convoi_t::get_line()` is bound, that is, one that runs
+  for a line. A convoy with no line is lineless.
+- **Linkage** — one line or one lineless convoy whose schedule the explorer walks, held as the
+  `linkage_t` pair of a `linehandle_t` and a `convoihandle_t` (path_explorer.h); exactly one of the
+  two is bound.
 
 ## Design history and its bearing on this work
 
@@ -83,7 +95,9 @@ superseded parts must not be reintroduced:
 Record cross-schedule through journeys as direct connexion records at the exits of a
 splitting/joining section, using the existing matrix search. A record's time is the actual
 through pair time recorded by the consist that carries the passengers or goods across the
-coupling, including the coupling stop.
+coupling, including the coupling stop. A line-bound convoy records that time at runtime (see
+Recording the through pair at runtime); when no time is recorded, the record uses the accumulated
+legs.
 
 ### Inputs the explorer may read
 
@@ -126,6 +140,10 @@ Each record's time is:
    schedules, using the existing fallback (recorded consecutive pair, else distance-and-speed; the
    layover/discharge transfer penalty applies exactly as it does within one schedule).
 
+A line-bound destination linkage's table is filled at runtime by `convoi_t::laden` (see Recording
+the through pair at runtime). A lineless convoy's own table never receives a through pair, so a
+lineless destination linkage always uses the second source.
+
 The origin stop's waiting time and transfer time are stored as for any other connexion. An
 actual pair time already includes the interval at every intermediate stop, and the
 accumulated-leg fallback omits it exactly as it does at every other intermediate stop.
@@ -165,12 +183,39 @@ interactive game. The picker window id is shared with the uncouple picker
 (`magic_uncouple_entry_picker`), so opening one closes the other; a distinct id would require a
 change in `gui/simwin.h`.
 
-The runtime requirement remains separate: the consist that arrives at the destination must book
-the actual through pair across the schedule handover. `convoi_t::departures` is keyed by schedule
-entry index and `convoi_t::set_schedule` clears it, so a handover must carry the pre-split
-departure times by halt ID. The Y division performs the schedule handover but does not carry those
-departures, so the explorer still uses the accumulated-leg fallback for a through pair whose
-handover has run; tests inject the pair times directly.
+### Recording the through pair at runtime
+
+`convoi_t::laden` records the pair when a consist arrives with a vehicle whose `through_departures`
+record is present. The first halt is the record's boarding halt; the second is the halt at the
+convoy's position at that arrival. The sample is
+`arrival_time - record.departure.departure_time`, converted to tenths of minutes, and it is added to
+the line's `average_journey_times` (for a through journey that crosses a coupling, the destination
+line's table). The start of the interval depends on how the record was made. When
+`convoi_t::capture_through_departures` found the boarding halt's departure in `convoi_t::departures`
+(a `departure_data_t` record with a non-zero `departure_time` or overall distance), the interval
+starts at that `departure_time`, which was booked at departure; a pair booked from the schedule starts
+its interval the same way, so the dwell at the boarding halt is excluded. When
+`convoi_t::capture_through_departures` found no such record and the vehicle was still at the boarding
+halt, it set `departure_time` to the packet's `ware_t::arrival_time`, so the interval starts at the
+packet's arrival and includes its wait at that halt before departure.
+
+Only a line-bound convoy records, and it writes only to the line's table, never to the convoy's own
+table. A lineless convoy records no through pair, so a lineless destination linkage keeps the
+accumulated-leg fallback above. The recording runs at each scheduled arrival with a non-zero journey
+distance, while the convoy is in `LOADING`.
+
+One arrival contributes at most one sample per boarding halt, so several vehicles that boarded at
+the same halt do not weight the pair several times. A record is skipped when
+`record.history_known` is false, when `record.departure.departure_time` is zero, when its boarding
+halt is the arrival halt, when `arrival_time - record.departure.departure_time` is not positive, when
+the sample is zero (samples are whole tenths of minutes and the explorer treats a zero time as
+absent), or when the boarding halt no longer exists.
+
+The record is not consumed and revenue is unaffected. The vehicle's `through_departures` record
+remains the revenue source: the same `convoi_t::laden` call advances its accumulated distance, and
+`convoi_t::calc_revenue` uses that distance and the per-player way distances before it falls back to
+the delivering convoy's schedule. `vehicle_t::prune_through_departures` removes a record only when no
+packet that boarded at that halt remains aboard the vehicle.
 
 ### Verification status
 
@@ -198,38 +243,42 @@ cross-process determinism of saves containing couplings, and interactive GUI ope
 The recombination runtime fixture is described in
 [scripting-and-tests/consist-recombination](../scripting-and-tests/consist-recombination.md). It is
 the runtime fixture for recombination, not for the explorer: its cases exercise the division, paired
-exchange and choose-signal call-on paths, and its reload cases exercise the loopback join, the
-save/transfer/reload and a fresh offline load of the preserved join save.
+exchange and choose-signal call-on paths, its reload cases exercise the loopback join, the
+save/transfer/reload and a fresh offline load of the preserved join save, and its `through-pair` case
+asserts the line-level recording described above.
 
-The runtime fixture does not cover cargo or passenger continuity. A vehicle that becomes loose stock through the
-Y division's deferred discharge, or through a paired exchange, is force-unloaded at the stop
-(`convoi_t::unload_individual_vehicle_at`); a vehicle that remains in a scheduled consist, including
-one transferred directly between the two convoys of a pair, keeps its load. No through fare or
-journey-time history is recorded across the handover, because `convoi_t::calc_revenue` cannot find
-the boarding halt in the portion's schedule (recorded in
-[cargo-continuity](recombination-design/cargo-continuity.md)). The intended loose-stock treatment
-would supply that history retrospectively when the vehicle is collected (see below); it is not
-implemented.
+The recombination cases do not themselves cover cargo or passenger continuity; the pick-up goods
+cases in the same fixture cover the cargo side. A vehicle that remains in a scheduled consist,
+including one transferred directly between the two convoys of a pair, keeps its load, and a loaded
+vehicle that becomes loose stock also keeps its load under the through-wagon model (see Loose
+vehicles and discharge). Revenue uses the vehicle's `through_departures` record, which
+`convoi_t::calc_revenue` tries before the delivering convoy's schedule, so a boarding halt that is
+not on the receiving convoy's schedule does not defeat the fare. The rules, the loading credit and
+the open questions are in [cargo-continuity](recombination-design/cargo-continuity.md).
 
 ### Loose vehicles and discharge
 
-The decided discharge boundary is that a vehicle which remains in a scheduled consist keeps its
-load, and a vehicle which becomes loose stock is physically discharged at the stop; the boundary is
-recorded in [cargo-continuity](recombination-design/cargo-continuity.md) and may be revisited after
-play testing. The Y division implements it by deferring the discharge of the split candidate until
-promotion fails, so a promoted portion keeps its load; a paired exchange discharges only vehicles
-that leave both final consists. The through connexions in this document assume the decided boundary.
-Under the current runtime treatment a packet in a vehicle that becomes loose stock joins the
-ordinary halt transfer process and is not recorded as a through journey.
+The discharge boundary is that a vehicle which remains in a scheduled consist keeps its load, and a
+loaded vehicle that becomes loose stock also keeps its load: the **through-wagon model**, in which the
+wagon is the unit of collection [RECOLLECTION:2026-11-17 user decision]. The boundary, the loading
+credit, the capacity consequence and the collection rules are in
+[cargo-continuity](recombination-design/cargo-continuity.md). The Y division implements the boundary
+by deferring the discharge of the split candidate until promotion fails, so a promoted portion keeps
+its load; a paired exchange discharges only vehicles that leave both final consists. The through
+connexions in this document assume the boundary.
 
-The intended treatment for that loose stock is that the discharge is an accounting step only: the
-vehicle is treated as never having been unloaded, so its packets do not enter the halt transfer
-process. Cargo may be preloaded into the waiting vehicle, and its recorded arrival time supplies
-retrospective loading credit when a convoy collects it. This keeps the explorer's current model; the
-explorer does not gain a loaded-loose-wait through edge. The implications of the discharge —
-collection eligibility, capacity, waiting time and fare apportionment across the collector — are
-adjusted by these mechanisms instead. The treatment is not implemented; it is the next work on loose
-stock. [RECOLLECTION:2026-11-14 user statement]
+A newly loose loaded vehicle is unloaded only for packets whose destination is the stop, because
+`convoi_t::unload_cargo_for_stop` passes `destinations_only` for newly loose stock. The remaining load
+waits in the laid-over pool aboard the wagon, and the vehicle's `through_departures` record stays with
+it, so the load and its journey history survive a save and reload. An explicit `discharge_payload`
+entry is a full discharge: the packets go to the halt, the completed leg is booked, and they become
+ordinary halt cargo.
+
+The explorer generates through connexions only from couple and uncouple entries, so a collection by a
+targetless consist order is not itself a through connexion. A journey that continues by collection
+nevertheless gains a line-level pair time when the collecting convoy is line-bound: on its arrival
+with that vehicle, `convoi_t::laden` records the pair `(original boarding halt, arrival halt)` against
+the collecting line's table.
 
 ### Rebuild triggers
 
@@ -280,9 +329,11 @@ and tile re-reservation), two-party timed joining with specified waiting/retry/f
 freight and passenger continuity across portions, and platform and home-depot handling (registry:
 [schedule-and-consists](schedule-and-consists.md)). The division and handover, including the
 reversed case and tile re-reservation, are implemented and pass the runtime fixture; the paired
-exchange runtime is also implemented and passes its fixture. The editor checks each list for
-completeness, power and valid ends and shows which part of a divided or joined train it describes.
-The rest is outstanding.
+exchange runtime is also implemented and passes its fixture. Freight continuity and the retention of a
+load in a vehicle that changes consist follow the through-wagon model and the loading credit in
+[cargo-continuity](recombination-design/cargo-continuity.md); passenger portion grouping remains
+outstanding. The editor checks each list for completeness, power and valid ends and shows which part
+of a divided or joined train it describes. The remaining co-requirements are outstanding.
 
 ## Implementation stages
 
@@ -356,3 +407,9 @@ mirrored-source reverse pass, nested couplings to depth 64, broken target, block
 repeated-refresh determinism. The temporary verification hook was removed before commit; the
 runner scripts require the test functions to be re-added before they can run again. Interactive
 GUI operation and cross-process determinism with couplings present remain to be verified.
+
+The runtime through-pair recording was checked at ex-15 @ 9d2b75ecea (2026-11-20): `convoi_t::laden`
+adds the sample to the line's `average_journey_times` for a line-bound convoy only, and
+`path_explorer_t::compartment_t::get_recorded_pair_time` reads the destination linkage's table before
+falling back to the legs. The `through-pair` case and the two script accessors it uses are committed
+at ex-15 @ e74fb897d0 (2026-11-20).

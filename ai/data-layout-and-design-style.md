@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 075d540f3
+verified: master @ 075d540f3; ex-15 @ 9d2b75ecea (2026-11-20, `journey_times_map` layout)
 ---
 # Data layout & design style
 
@@ -80,6 +80,20 @@ codebase-specific structural patterns are recorded here.
   and a compact per-origin edge list plus an expanded `(halt, arriving transport)` state graph
   rather than per-object state ([utilities](utilities.md),
   [routing-and-scheduling](routing-and-scheduling.md)).
+- **Flat open-addressed journey-time table.** `journey_times_map` (tpl/journey_times_map.h) keeps
+  `entry_t` records (an `id_pair` key and an `average_tpl<uint32>` value) in one contiguous array,
+  with one state byte per slot in a separate `uint8` array (`SLOT_EMPTY`, `SLOT_OCCUPIED`,
+  `SLOT_TOMBSTONE`). A collision is stored in the next free slot (linear probing), so no halt-pair
+  key is reserved to mark an unused slot. The capacity is zero while the table is empty and otherwise
+  a power of two, and occupied slots plus tombstones stay at or below three quarters of it, which
+  guarantees that a search for an absent key reaches an empty slot. Growth doubles the array; a table
+  crowded only by tombstones is rebuilt at the same size, which drops them. At the three-quarter limit
+  a stored pair costs about 17.3 bytes (a 12-byte `entry_t` plus one state byte per slot), against
+  about 24 bytes for the `koordhashtable_tpl` it replaced. Iteration is in slot order and depends on
+  insertion and removal history; serialisation writes the entries sorted by key, so the saved byte
+  order does not. The type backs the `average_journey_times` tables of `simline_t` and `convoi_t`; it
+  is a local memory optimisation for those tables, not a data-oriented redesign of the surrounding
+  code.
 - **Value summaries.** `vehicle_summary_t`, `weight_summary_t`, `freight_summary_t` and
   `nearby_halt_t` are plain data computed from the entity graph and passed/aggregated by value
   (convoy.h). The path explorer uses flat structure-of-arrays blocks (`finished_times` /
@@ -148,5 +162,7 @@ Not a target: `route_t` A\* is already the data-oriented part of routing (node p
 
 All structural claims and symbol anchors are `[CODE master @ fd4a025a2]`; the same structures are
 present on `mapgen-perf-fixes`. The SIMD annotation in the convoy row is `[CODE master @ 075d540f3]`.
-Measured costs are referenced from [performance](performance.md), not copied. The DOD directions are
+The `journey_times_map` layout, its three-quarter limit, the entry and state sizes and the key-sorted
+serialisation are `[CODE ex-15 @ 9d2b75ecea]`. Measured costs are referenced from
+[performance](performance.md), not copied. The DOD directions are
 [UNVERIFIED] inference and require measurement before adoption.
