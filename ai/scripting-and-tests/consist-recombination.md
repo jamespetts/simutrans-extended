@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ 2dae2b7d81 plus working-tree reload fixes (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -510,6 +510,6 @@ RESTORED 16 s. Both used the Debug x64 build with `-nomidi -nosound`. The divisi
 pick-up reloads also passed with the same runner on 2026-11-20, each completing the join and the
 fresh offline load with no checklist mismatch. The 43-case pending-runtime set passed in
 116 seconds with 8 jobs on the same day
-[EXECUTION-VERIFIED:2026-11-20, ex-15 @ 2dae2b7d81 plus working-tree reload fixes].
+[EXECUTION-VERIFIED:2026-11-20, ex-15 @ db8bb34e5a].
 The planned coverage list is the operation-scope record from
 [ex-15/recombination-design](../ex-15/recombination-design.md).
