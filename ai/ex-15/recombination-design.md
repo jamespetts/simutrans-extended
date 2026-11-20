@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, Multi-Owner Access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, cargo continuity, through-wagon model, flash-load credit, optional slots and loaded/empty rules); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, Multi-Owner Access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, cargo continuity, through-wagon model, flash-load credit, optional slots and loaded/empty rules); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ b53e370911 (2026-11-20, no-prediction economics subdocument link)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -25,6 +25,10 @@ Sub-documents (read-when):
   realism, player cognitive overhead, performance and anomaly/exploit implications (R/C/P/A items);
   read before settling the cargo/instance or fare-booking decisions and before finalising the
   through-journey stages.
+- [no-prediction-economics](recombination-design/no-prediction-economics.md) — the economic scope
+  and exploit potential of the design that does not fix the vehicle-to-portion assignment before
+  boarding; read when assessing the cost of costless rearrangement, the fixed-cost and demand
+  effects, or whether a committed formation is required.
 
 ## Operational scope
 
