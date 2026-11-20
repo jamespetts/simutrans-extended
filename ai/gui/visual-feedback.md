@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d6bf8f3e7 (rest); ex-15 @ edd49a130 (scripting note)
+verified: ex-15 @ d6bf8f3e7 (rest); ex-15 @ edd49a130 (scripting note); ex-15 @ 2d592ca226 (2026-11-20, window pinning and display size)
 ---
 # Visual feedback for GUI work
 
@@ -41,10 +41,15 @@ All variables are read in the simmain.cc main loop (`while (!env_t::quit_simutra
   else is a no-op. Tool ids: simmenu.h (`DIALOG_PRICES` = 130). Dialogue tools only, so
   opening the window never alters game state.
 - `SIMUTRANS_UI_SHOT` (any value) — once `welt->interactive()` returns in the main loop:
-  dismiss transient `news_img` boxes left on top by loading, force a redraw
+  dismiss transient `news_img` boxes left on top by loading, move the top window to
+  `(0, 120)` so it clears the in-game toolbar (the strip of tool icons at the top of the
+  screen) and any secondary tool strip that toolbar has opened (the strip that appears when a
+  toolbar group is selected), force a redraw
   (`view->display(true)`, `intr_refresh_display(true)`), call `display_snapshot()` on the
   top window's rect (full screen if no window is open), then set
-  `env_t::quit_simutrans = true` (clean exit; no savegame is written).
+  `env_t::quit_simutrans = true` (clean exit; no savegame is written). The toolbar and those
+  secondary strips draw above windows and consume clicks in their area, so a window left at
+  a cascaded position can be obscured and clicks can reach the toolbar instead.
 - `SIMUTRANS_UI_SHOT_CLICKS="x,y;x,y;..."` — optional. Window-relative left-click points
   injected as paired EVENT_CLICK + EVENT_RELEASE events via `queue_event`, pumped through
   `eventmanager->check_events()` synchronously in the same pass, then captured. Use it to
@@ -52,7 +57,8 @@ All variables are read in the simmain.cc main loop (`while (!env_t::quit_simutra
   Coordinates are window-relative from the window's top-left INCLUDING the title bar, so
   read them off the previous screenshot PNG (the crop is anchored at `win_get_pos(top)` and
   PNG pixels equal click coordinates). Re-derive them from each fresh PNG; estimates from
-  older screenshots drift.
+  older screenshots drift. The top window is pinned to `(0, 120)` before the clicks; a window
+  opened by a click is pinned to the same point before the redraw.
 
 Clicks are processed synchronously before the snapshot in the same loop pass. An earlier
 revision deferred the shot by one extra `interactive()` pass via `continue`; that never
@@ -62,7 +68,8 @@ GUI events. Do not reintroduce the extra-pass design.
 
 The snapshot rect is computed AFTER `view->display(true)`/`intr_refresh_display(true)`, not
 before: a frame may resize itself during its first draw (e.g. `prices_frame_t` fits to its
-content), and a rect read earlier would capture the pre-fit size.
+content), and a rect read earlier would capture the pre-fit size. The pin to `(0, 120)` is
+applied before that redraw, so the back buffer and the snapshot rect agree.
 
 ## Run recipe (verified on Windows, Profile|x64)
 
@@ -77,6 +84,10 @@ content), and a rect read earlier would capture the pre-fit size.
 - `-objects` path is relative to the data dir: use `pak128.Britain-Ex/`, NOT
   `simutrans\pak128.Britain-Ex\` (the latter double-resolves and silently fails to load
   the pakset).
+- Pass `-screensize 1280x720` or larger. `display_snapshot()` clips the capture to the
+  display, so a dialog wider than the display is silently cropped on the right. In the
+  default theme the finance window needs 780 pixels on the cash basis and 875 on the accrual
+  basis.
 - With `-singleuser` the user dir is the data dir, so screenshots land in
   `simutrans\screenshot\simscrNN.png` (NN = lowest unused index in the current process)
   and settings write to `simutrans\settings-extended.xml`. Delete `simscr*.png` before each
@@ -91,7 +102,7 @@ Remove-Item simutrans\screenshot\simscr*.png -ErrorAction SilentlyContinue
 $env:SIMUTRANS_UI_SHOT = "1"
 $env:SIMUTRANS_UI_SHOT_TOOL = "130"          # DIALOG_PRICES
 $env:SIMUTRANS_UI_SHOT_CLICKS = "60,25;255,40"  # optional: Graphs tab, then Fuel prices sub-tab
-$p = Start-Process .\simutrans\Simutrans-Extended-Profile.exe -ArgumentList "-singleuser","-objects","pak128.Britain-Ex/","-load","bb6-apr-2010.sve","-until","1900.1","-lang","en","-debug","1","-fps","100","-nosound" -PassThru -RedirectStandardOutput ai\temp\shot-out.log -RedirectStandardError ai\temp\shot-err.log
+$p = Start-Process .\simutrans\Simutrans-Extended-Profile.exe -ArgumentList "-singleuser","-objects","pak128.Britain-Ex/","-load","bb6-apr-2010.sve","-until","1900.1","-lang","en","-debug","1","-fps","100","-nosound","-nomidi","-screensize","1280x720" -PassThru -RedirectStandardOutput ai\temp\shot-out.log -RedirectStandardError ai\temp\shot-err.log
 $p.WaitForExit(180000); if (-not $ok) { $p.Kill() }
 ```
 
@@ -131,8 +142,8 @@ geometry is theme- and content-dependent; re-derive for other dialogs.
 
 - Only the TOP window is captured; runs show a real window on the desktop during fast forward
   (GDI; overlap is harmless — the shot reads the back buffer, not the desktop).
-- The captured rect is clipped to screen size; a dialog taller than the screen is cut off at
-  the bottom — check `min_windowsize` against the default viewport.
+- The captured rect is clipped to screen size; a dialog taller or wider than the display is
+  cut off at the bottom or right — check `min_windowsize` against `-screensize`.
 - `-generate_map` opens a modal banner that blocks the loop; always use `-load`.
 - `SIMUTRANS_UI_SHOT_CLICKS` is consumed once per run; multi-view inspection means multiple
   runs (several clicks per run are fine).

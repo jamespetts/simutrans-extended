@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: cost-of-capital @ d80af444a
+verified: ex-15 @ 0126363d04 (2026-11-20, finance basis selector and borrowing-window notes)
 ---
 # Cost of capital
 
@@ -312,13 +312,20 @@ window (`gui/money_frame.cc`) and identified by `magic_loan_frame`. It shows the
 Rating, the Credit Asset Value, Secured Debt, Secured Gearing and the Term-Debt Limit; a graph
 of Secured Debt, interest and principal repaid; a table of Term Instruments; and a form to
 issue a Term Instrument, with buttons to repay the selected one early or refinance it. Terms
-that the current Credit Rating does not permit are disabled.
+that the current Credit Rating does not permit are disabled, and their tooltips give the
+reason. The `Repay early` button's tooltip states the early repayment charge for the selected
+Term Instrument.
 
-The finance window has a Debt line in the cash-flow views and an Accrual tab showing
-revenue, operating costs, operating profit, the pooled depreciation charge, operating profit
-after depreciation, interest, tax paid, profit after depreciation and tax, and a current
-balance sheet of cash, vehicles at sale value, infrastructure at book value, Secured Debt,
-Overdraft and equity. The Net Wealth line is cash plus vehicle value and does not deduct debt.
+The finance window has a `Debt` row above its tabs. Two buttons, `Cash accounting` and
+`Accrual accounting`, select the accounting basis and swap the contents of the same Years and
+Months tabs. On the cash basis the tabs show the cash-flow table and its graph. On the accrual
+basis the tabs show revenue, operating costs, operating profit, the pooled depreciation
+charge, operating profit after depreciation, interest, tax paid, and profit after depreciation
+and tax for the selected year or month and the previous one. The accrual table also has a
+`Current` column with cash balance, vehicles at sale value, infrastructure at book value,
+Secured Debt, Overdraft and equity. Each profit-and-loss row has a button that toggles that series on the
+accrual graph. The transport-type selector applies only to the cash basis and is disabled on
+the accrual basis. The Net Wealth line is cash plus vehicle value and does not deduct debt.
 
 ## Open questions
 
