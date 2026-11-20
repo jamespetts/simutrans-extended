@@ -1885,6 +1885,14 @@ int simu_main(int argc, char** argv)
 				destroy_win(news);
 				top = win_get_top();
 			}
+			// Pin the captured window below the game toolbar and its subtool
+			// strips, which draw above windows and swallow clicks in their area.
+			// Created windows can also be cascaded partly off the right edge;
+			// display_snapshot clips the rect to the display, silently cropping the
+			// right side and putting click coordinates on the wrong pixels.
+			if(  top != NULL  ) {
+				win_set_pos(top, scr_coord(0, 120));
+			}
 			if(  !ui_shot_clicks_queued  &&  getenv("SIMUTRANS_UI_SHOT_CLICKS") != NULL  ) {
 				// Inject synthetic left clicks at window-relative positions from
 				// SIMUTRANS_UI_SHOT_CLICKS ("x,y;x,y;...") and pump them through the
@@ -1936,6 +1944,12 @@ int simu_main(int argc, char** argv)
 				fflush(stdout);
 			}
 			// `top` already points at the first non-news window (dismissed above).
+			// A click may have opened a new top window at a cascade position; pin
+			// it before rendering so the back buffer matches the capture rect.
+			top = win_get_top();
+			if(  top != NULL  ) {
+				win_set_pos(top, scr_coord(0, 120));
+			}
 			// Render first: a frame may resize itself during its first draw (see
 			// prices_frame_t::fit_to_content()), and the snapshot rect must reflect
 			// the size the window actually ends up with.
