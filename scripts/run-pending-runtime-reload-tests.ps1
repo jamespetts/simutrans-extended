@@ -52,10 +52,14 @@ seconds at the server's game-time rate and leaves a wide margin over the
 client join; if a slow client outlasts it, the case fails with a message naming
 this setting.
 
-The server runs with one frame per simulation step rather than four. The game
-time per wall-clock second is unchanged, but the case performs four times as
-many simulation steps, so its scripted setup and observation reach the reload
-point sooner. The joining client receives the frame count from the server. The
+The server runs with one frame per simulation step for the division, paired,
+choose and pick-up reloads, and four frames per simulation step for the flash
+reload. One frame per step gives the division, paired, choose and pick-up cases
+four times as many simulation steps per wall-clock second as four frames per
+step. The flash reload
+waits for game time (`world.get_time().ticks`), so four frames per step advances
+four times as much game time per observation and reaches its collection in one
+quarter of the observations. The joining client receives the frame count from the server. The
 fresh offline load runs in fast-forward mode: it has no peers, and the case
 asserts game-time state.
 
@@ -105,11 +109,12 @@ param(
   [int]$ObserveSeconds = 20,
   # shunting_time_seconds written to each role's user-directory simuconf.tab.
   [int]$ShuntingSeconds = 300,
-  # Server frames per simulation step. One frame per step gives four times as
-  # many steps per wall-clock second as the previous default of four, at the
-  # same game-time rate, so the case reaches its reload point sooner. The
-  # client receives the value from the server.
-  [int]$ServerFramesPerStep = 1,
+  # Server frames per simulation step. 0 selects the case default: one frame per
+  # step for the division, paired, choose and pick-up reloads, and four for the
+  # flash reload, whose collection waits for game time and needs fewer
+  # observations at the wider step. The client receives the value from the
+  # server.
+  [int]$ServerFramesPerStep = 0,
   [int]$DebugLevel = 2,
   [string[]]$Markers = @("FATAL ERROR", "AddressSanitizer", "ThreadSanitizer", "runtime error", "rendezvous released with work outstanding"),
   [switch]$Clean
@@ -118,6 +123,10 @@ param(
 $ErrorActionPreference = "Stop"
 if (-not $PSScriptRoot) { Write-Output "FAIL: run via powershell -File"; exit 1 }
 $repo = Split-Path -Parent $PSScriptRoot
+
+if ($ServerFramesPerStep -le 0) {
+  $ServerFramesPerStep = if ($CaseName -eq "flash-reload") { 4 } else { 1 }
+}
 
 function Resolve-RepoPath {
   param([string]$Path)

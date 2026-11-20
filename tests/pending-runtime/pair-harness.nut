@@ -59,6 +59,11 @@ local DONOR_EAST_ENTRY_ID = 32
 // configured shunting delay.
 local TRAVEL_STEP_LIMIT = 6000
 local EXCHANGE_STEP_LIMIT = 1000
+// The reload runner's server advances one simulation step per observation and
+// the target's run to the junction takes longer in game time than the
+// fast-forward runner reaches in the same observation count. The pair-reload
+// case therefore uses a wider limit for both the wait and the exchange.
+local RELOAD_EXCHANGE_STEP_LIMIT = 8000
 local DEPARTURE_STEP_LIMIT = 3000
 // The reload runner sets shunting_time_seconds to 300 so that the case has not
 // advanced while the client joins; the post-reload departure limit must cover
@@ -1010,7 +1015,7 @@ function wait_first()
 	// with the second convoy if the schedule was edited, or the convoy may be
 	// loading before the resolver runs. Keep observing.
 	++fixture.exchange_steps
-	if (fixture.exchange_steps > EXCHANGE_STEP_LIMIT)
+	if (fixture.exchange_steps > (case_name == "pair-reload" ? RELOAD_EXCHANGE_STEP_LIMIT : EXCHANGE_STEP_LIMIT))
 	{
 		fail("timed out waiting for the " + fixture.first_kind + " convoy at its pair entry to wait for the counterpart: " + depict_state(first.get_state()))
 	}
@@ -1095,7 +1100,7 @@ function detect_exchange()
 	}
 
 	++fixture.exchange_steps
-	if (fixture.exchange_steps > EXCHANGE_STEP_LIMIT)
+	if (fixture.exchange_steps > (case_name == "pair-reload" ? RELOAD_EXCHANGE_STEP_LIMIT : EXCHANGE_STEP_LIMIT))
 	{
 		local receiver = receiver_convoy()
 		local target = target_convoy()

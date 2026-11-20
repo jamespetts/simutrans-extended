@@ -680,8 +680,6 @@ function setup_flash_load(pl)
 
 function observe_flash_load()
 {
-	if (case_name == "flash-reload" && f.phase == "awaiting-reload") { return }
-
 	local collector = convoy_x(f.collector_id)
 	if (f.phase == "calibrate-donor" || f.phase == "calibrate-remove-donor" || f.phase == "calibrate-cleanup")
 	{
@@ -1015,6 +1013,12 @@ function setup()
 
 function observe()
 {
+	// flash-reload holds in this phase while the runner joins the client; the
+	// observation limit must not count the hold.
+	if (case_name == "flash-reload" && f.phase == "awaiting-reload")
+	{
+		return
+	}
 	if (case_name == "recipient-same")
 	{
 		observe_recipient_same()

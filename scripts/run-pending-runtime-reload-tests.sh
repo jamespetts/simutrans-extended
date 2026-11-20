@@ -52,12 +52,16 @@
 # seconds, which leaves a wide margin over the client join; if a slow client
 # outlasts it, the case fails with a message naming this setting.
 #
-# The server runs with one frame per simulation step rather than four. The game
-# time per wall-clock second is unchanged, but the case performs four times as
-# many simulation steps, so its scripted setup reaches the reload point sooner.
-# The joining client receives the frame count from the server. The fresh offline
-# load runs in fast-forward mode: it has no peers, and the case asserts
-# game-time state.
+# The server runs with one frame per simulation step for the division, paired,
+# choose and pick-up reloads, and four frames per simulation step for the flash
+# reload. One frame per step gives the division, paired, choose and pick-up
+# cases four times as many simulation steps per wall-clock second as four frames
+# per step. The flash
+# reload waits for game time (`world.get_time().ticks`), so four frames per step
+# advances four times as much game time per observation and reaches its
+# collection in one quarter of the observations. The joining client receives the frame count from the server.
+# The fresh offline load runs in fast-forward mode: it has no peers, and the
+# case asserts game-time state.
 #
 # The server, the joining client and the offline reload all run the same
 # headless binary. The binary MUST be a MULTI_THREAD build for the checklist
@@ -82,10 +86,10 @@ CLIENT_TIMEOUT_S=420
 OFFLINE_TIMEOUT_S=420
 OBSERVE_S=20
 SHUNTING_SECONDS=300
-# One frame per step keeps the game-time rate unchanged while giving four times
-# as many simulation steps per wall-clock second as the previous default of
-# four.
-SERVER_FRAMES_PER_STEP=1
+# 0 selects the case default: one frame per step for the division, paired,
+# choose and pick-up reloads, and four for the flash reload, whose collection
+# waits for game time and needs fewer observations at the wider step.
+SERVER_FRAMES_PER_STEP=0
 DEBUG_LEVEL=2
 SAVE_FORMAT="bzip2"
 MARKERS="FATAL ERROR|AddressSanitizer|ThreadSanitizer|runtime error|rendezvous released with work outstanding"
@@ -141,6 +145,8 @@ Usage: run-pending-runtime-reload-tests.sh [options]
                              (default: $SHUNTING_SECONDS)
   --debug-level N            engine -debug level, >= 2 for checklist pairs
                              (default: $DEBUG_LEVEL)
+  --server-frames-per-step N server frames per simulation step; 0 selects the
+                             case default (default: $SERVER_FRAMES_PER_STEP)
   --markers REGEX            ERE of failure markers to grep in the run logs
                              (default: "$MARKERS")
   --clean                    remove the workdir and staging directory, then exit
@@ -169,12 +175,21 @@ while [[ $# -gt 0 ]]; do
 		--observe-seconds) OBSERVE_S="$2"; shift 2 ;;
 		--shunting-seconds) SHUNTING_SECONDS="$2"; shift 2 ;;
 		--debug-level) DEBUG_LEVEL="$2"; shift 2 ;;
+		--server-frames-per-step) SERVER_FRAMES_PER_STEP="$2"; shift 2 ;;
 		--markers) MARKERS="$2"; shift 2 ;;
 		--clean) CLEAN=1; shift ;;
 		-h|--help) usage; exit 0 ;;
 		*) echo "FAIL: unknown argument: $1"; usage; exit 1 ;;
 	esac
 done
+
+if (( SERVER_FRAMES_PER_STEP <= 0 )); then
+	if [[ "$CASE_NAME" == "flash-reload" ]]; then
+		SERVER_FRAMES_PER_STEP=4
+	else
+		SERVER_FRAMES_PER_STEP=1
+	fi
+fi
 
 [[ -n "$EXE" ]]     || EXE="$repo/simutrans-extended"
 [[ -n "$WORKDIR" ]] || WORKDIR="$repo/ai/temp/pending-runtime-$CASE_NAME"
