@@ -67,6 +67,20 @@ sint32 convoy_get_kmh(convoi_t const* cnv)
 	return cnv ? speed_to_kmh(cnv->get_akt_speed()) : -1;
 }
 
+// Returns the value that
+// convoi_t::get_average_journey_times_this_convoy_only() holds for the pair
+// (from, to), in tenths of minutes, or -1 if the table holds no such pair.
+// This is the convoy's own average_journey_times table, not the line table that
+// convoi_t::get_average_journey_times() returns when the convoy has a line.
+sint32 convoy_get_own_recorded_journey_time(convoi_t *cnv, halthandle_t from, halthandle_t to)
+{
+	if (cnv == NULL || !from.is_bound() || !to.is_bound()) { return -1; }
+	const average_tpl<uint32> *average = cnv->get_average_journey_times_this_convoy_only().access(id_pair(from.get_id(), to.get_id()));
+	if (average == NULL) { return -1; }
+	const uint32 value = average->get_average();
+	return value > (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)value;
+}
+
 
 vector_tpl<convoihandle_t> const* generic_get_convoy_list(HSQUIRRELVM vm, SQInteger index)
 {
@@ -579,6 +593,21 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns returns the number of station tiles covered by the convoy.
 	 */
 	register_method(vm, &convoi_t::get_tile_length, "get_tile_length");
+	/**
+	 * Returns the average journey time that this convoy has recorded in its own
+	 * table for the journey from @p from to @p to, in tenths of minutes. The
+	 * convoy's own table is separate from the table of the line to which the
+	 * convoy is assigned: a journey that a vehicle started on another convoy is
+	 * recorded in the table of the line that collected the vehicle, not in the
+	 * convoy's own table, so this method returns -1 for that pair. The method
+	 * reads the convoy's own table and does not change it.
+	 * @typemask integer(halt_x, halt_x)
+	 * @param from the halt where the journey started
+	 * @param to the halt where the journey ended
+	 * @returns the average time in tenths of minutes, or -1 if the convoy's own
+	 * table has no record for the pair
+	 */
+	register_method(vm, &convoy_get_own_recorded_journey_time, "get_own_recorded_journey_time", true);
 	/**
 	 * Change schedule of convoy.
 	 * Schedule should not contain doubled entries and more than two entries.

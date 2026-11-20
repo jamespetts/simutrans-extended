@@ -578,6 +578,21 @@ function observe_cargo_through()
 		foreach (v in collector.get_vehicle_snapshot()) { cargo += v.cargo }
 		if (cargo != 0) { return }
 		if (!check(collector.get_revenue()[0] > 0, "delivery did not book the through fare")) { return }
+		if (case_name == "through-pair" || case_name == "pickup-reload")
+		{
+			// The collecting line stores the pair from the halt where the wagon
+			// boarded (A) to the halt where the convoy arrived (D). A journey that
+			// a vehicle started on another convoy is stored only in the line's
+			// table, never in the collecting convoy's own table.
+			local from = halt_at(A);
+			local to = halt_at(D);
+			local line = collector.get_line();
+			if (!check(line != null && line.is_valid(), "the collecting convoy has no line")) { return }
+			if (!check(line.get_recorded_journey_time(from, to) > 0,
+				"the collecting line did not record a positive A-D through pair time")) { return }
+			if (!check(collector.get_own_recorded_journey_time(from, to) == -1,
+				"the collecting convoy's own table holds the A-D through pair")) { return }
+		}
 		// Way tolls cannot be observed in this fixture: the saved world stores
 		// toll_revenue_percentage as zero, so no apportioned revenue is paid to
 		// a way owner however the journey is apportioned.
@@ -1006,7 +1021,7 @@ function setup()
 	if (!select_stock(case_name.slice(0, 6) == "flash-")) { return false }
 	if (case_name == "empty-distribution") { return setup_empty_distribution(pl) }
 	if (case_name == "recipient-same") { return setup_recipient_same(pl) }
-	if (case_name == "cargo-through" || case_name == "pickup-reload") { return setup_cargo_through(pl) }
+	if (case_name == "cargo-through" || case_name == "pickup-reload" || case_name == "through-pair") { return setup_cargo_through(pl) }
 	if (case_name.slice(0, 6) == "flash-") { return setup_flash_load(pl) }
 	return fail("unknown pick-up goods case " + case_name)
 }
@@ -1027,7 +1042,7 @@ function observe()
 	{
 		observe_empty_distribution()
 	}
-	else if (case_name == "cargo-through" || case_name == "pickup-reload")
+	else if (case_name == "cargo-through" || case_name == "pickup-reload" || case_name == "through-pair")
 	{
 		if (case_name == "pickup-reload" && f.phase == "awaiting-reload") { return }
 		observe_cargo_through()

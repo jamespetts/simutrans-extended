@@ -39,6 +39,18 @@ vector_tpl<sint64> const& get_line_stat(simline_t *line, sint32 INDEX)
 }
 
 
+// Returns the value that simline_t::get_average_journey_times() holds for the
+// pair (from, to), in tenths of minutes, or -1 if the table holds no such pair.
+// This function only reads the table.
+sint32 line_get_recorded_journey_time(simline_t *line, halthandle_t from, halthandle_t to)
+{
+	if (line == NULL || !from.is_bound() || !to.is_bound()) { return -1; }
+	const average_tpl<uint32> *average = line->get_average_journey_times().access(id_pair(from.get_id(), to.get_id()));
+	if (average == NULL) { return -1; }
+	const uint32 value = average->get_average();
+	return value > (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)value;
+}
+
 waytype_t line_way_type(simline_t *line)
 {
 	if (line) {
@@ -265,6 +277,21 @@ void export_line(HSQUIRRELVM vm)
 	 * @typemask convoy_list_x()
 	 */
 	register_function(vm, &line_export_convoy_list, "get_convoy_list", 1, param<linehandle_t>::typemask());
+
+	/**
+	 * Returns the average journey time that this line has recorded for the
+	 * journey from @p from to @p to, in tenths of minutes. The pair starts at
+	 * the halt where the vehicle boarded, which need not be a stop on this
+	 * line's schedule: a vehicle can join a convoy on this line after another
+	 * convoy has already carried it. The method reads the line's journey-time
+	 * table and does not change it.
+	 * @typemask integer(halt_x, halt_x)
+	 * @param from the halt where the journey started
+	 * @param to the halt where the journey ended
+	 * @returns the average time in tenths of minutes, or -1 if the line has no
+	 * record for the pair
+	 */
+	register_method(vm, &line_get_recorded_journey_time, "get_recorded_journey_time", true);
 
 	/**
 	 * @return waytype of the line

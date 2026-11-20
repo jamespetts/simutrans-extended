@@ -175,6 +175,13 @@ public:
 		return index == capacity ? NULL : &slots[index].value;
 	}
 
+	/// Read-only form of access(), for a table that is only available as const.
+	const average_tpl<uint32> *access(const id_pair key) const
+	{
+		const uint32 index = find(key);
+		return index == capacity ? NULL : &slots[index].value;
+	}
+
 	bool is_contained(const id_pair key) const
 	{
 		return find(key) != capacity;
