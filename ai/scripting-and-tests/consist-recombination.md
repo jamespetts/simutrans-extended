@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ 2dae2b7d81 plus working-tree reload fixes (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -251,12 +251,13 @@ saved halt cargo; no factory-produced packet takes part in any assertion. `empty
   `-ScenarioName pending-runtime-flash-reload` and
   `-Selector tests\pending-runtime\flash-reload\scenario.nut`.
 
-## Reload cases (`reload/`, `pair-reload/`, `choose-reload/`)
+## Reload cases (`reload/`, `pair-reload/`, `choose-reload/`, `pickup-reload/`, `flash-reload/`)
 
 These are deliberately outside `cases/`, so the baseline runner does not select them. Each runs on a
 loopback server, joins a client so that the server saves, transfers and reloads its state
 (`nwc_sync_t`), re-asserts the restored state from the loaded world, and then loads the preserved
-join save in a fresh offline process and repeats the assertions.
+join save in a fresh offline process and repeats the assertions. The two pick-up reload cases are
+described under Pick-up goods cases.
 
 - `reload` runs the forward division, holds after the split-off portion forms, re-asserts the
   divided state in `resume_game()` and advances the portion.
@@ -264,7 +265,10 @@ join save in a fresh offline process and repeats the assertions.
   laid-over vehicle from a string of each expected vehicle descriptor's scalar `vehicle_desc_x`
   properties (`get_power()`, `get_topspeed()`, `get_weight()`, `get_length()` and the coupling and
   electrification flags), because descriptor names are not reliable after a load, and then observes
-  both convoys advance.
+  both convoys advance. The pair harness uses `RELOAD_EXCHANGE_STEP_LIMIT` (8,000 observations)
+  instead of the ordinary `EXCHANGE_STEP_LIMIT` (1,000 observations) for this case: the reload
+  runner's server reaches the wait for the counterpart and the exchange in more observations than
+  the fast-forward pending-runtime runner.
 - `choose-reload` holds the receiver at the choose signal with the approach link bound, asserts the
   reciprocal link and the hold after the reload, and advances.
 
@@ -287,10 +291,14 @@ scenario through a directory junction and removes the junction without following
 
 Both runners set `shunting_time_seconds` to 300, which is about 55 wall-clock seconds at the
 server's game-time rate and leaves a wide margin over the client join; the case fails with an
-explicit message if the join outlasts it. The server runs at 100 frames per second with one frame
-per simulation step. That keeps the game-time rate unchanged but gives four times as many
-simulation steps per wall-clock second as four frames per step, so the scripted setup reaches the
-reload point sooner. The fresh offline load uses `-fast_forward`. On the maintainer's machine the
+explicit message if the join outlasts it. The server runs at 100 frames per second. It uses one
+frame per simulation step for the division, paired, choose and pick-up reloads, and four frames per
+simulation step for the flash reload. One frame per step gives those four cases four times as many
+simulation steps per wall-clock second as four frames per step. The flash reload is timed in game
+time (`world.get_time().ticks`), so four frames per step advances four times as much game time per
+observation and reaches its collection in one quarter of the observations. The
+`-ServerFramesPerStep` (PowerShell) and `--server-frames-per-step` (POSIX) options override the
+case default. The fresh offline load uses `-fast_forward`. On the maintainer's machine the
 division reload reached READY after 37 seconds and PASS after 76 seconds, with the client joining
 after 14 seconds [EXECUTION-VERIFIED:2026-11-18, ex-15 @ dafe7031e plus working-tree test tooling,
 Debug x64].
@@ -339,8 +347,8 @@ identities and vehicle counts, not descriptor names.
 
 ## Test cadence
 
-The fixture is outside the default suite, and the full set is an integration gate rather than an
-edit loop. Run only the cases that can observe the change:
+The fixture is outside the default suite. Run only the cases that can observe the change during
+editing; run the full set only before pushing or merging a package:
 
 - **Iteration.** Run the case or cases that exercise the changed branch. A change to
   `choose-harness.nut` can affect every choose case, but only `target-present`,
@@ -452,14 +460,14 @@ remain unscripted.
   delay. A facility-gated model has no scripted case because the facility model does not exist.
 - No CI job runs either pending-runtime fixture. The fixture map is an Extended 14 save loaded and
   re-saved by ex-15; whether that is an adequate substitute for an ex-15-native save remains open.
-- After the 2026-11-18 reload-runner change to one server frame per simulation step, the `pair-reload`
-  and `flash-reload` cases do not complete under the reload runner's current defaults. The pair
-  reload's `EXCHANGE_STEP_LIMIT` (1,000 observations) expires while the receiver is at its pair
-  entry in the driving state, before it enters `convoi_t::AWAITING_RECOMBINATION`; the flash reload's
-  15,000-observation limit expires before its scheduled collection. The pair reload failed in the
-  same way on the binary built without the Multi-Owner Access Rule change, so this is a test-fixture
-  timing limit rather than a runtime regression. The division, choose and pick-up reloads pass
-  under the same runner.
+- The flash collection logs `vehicle_base_t::leave_tile()` with `'typ 67' ... could not be removed
+  from 5 2` once per collection. The log line means `gr->obj_remove(this)` failed for the ground at
+  the vehicle's position. The function then checks the plan square and returns without reaching the
+  whole-map search; the log contains no warning that it removed the vehicle from another ground
+  there. The log therefore does not establish whether the vehicle was in any tile's object list.
+  The case passes, but that does not prove the object list is consistent. The cause is not
+  identified; a future investigation should identify the vehicle, its convoy state and the ground
+  that holds it, and repeat the check after `convoi_t::commit_recombined_consist`.
 
 ## Provenance
 
@@ -491,8 +499,17 @@ logs, no mismatch, and the offline load RESTORED after 14 seconds. All runs used
 build with `-nomidi -nosound` [EXECUTION-VERIFIED:2026-11-18, ex-15 @ dafe7031e plus working-tree
 test tooling]. On 2026-11-18 the Multi-Owner Access Rule was added to
 `convoi_t::match_consist_order`, the two `ownership-*` cases were added, and the 43-case set passed
-in 47 seconds with 8 jobs. The division, choose and pick-up reloads passed under the same runner;
-the pair and flash reloads stopped at the timing limits recorded in the open questions
-[EXECUTION-VERIFIED:2026-11-18, ex-15 @ 93da398e6, DEBUG build].
+in 47 seconds with 8 jobs. The division, choose and pick-up reloads passed under the same runner
+[EXECUTION-VERIFIED:2026-11-18, ex-15 @ 93da398e6, DEBUG build]. On 2026-11-20 the pair harness
+gained `RELOAD_EXCHANGE_STEP_LIMIT` and the reload runner selected four server frames per
+simulation step for `flash-reload`; the observation limit no longer counts the flash reload's
+`awaiting-reload` hold. `pair-reload` passed READY 44 s, client join 14 s, server PASS 61 s,
+6,742 checklist pairs with 0 mismatches, and offline RESTORED 14 s. `flash-reload` passed READY
+260 s, client join 16 s, server PASS 43 s, 4,855 checklist pairs with 0 mismatches, and offline
+RESTORED 16 s. Both used the Debug x64 build with `-nomidi -nosound`. The division, choose and
+pick-up reloads also passed with the same runner on 2026-11-20, each completing the join and the
+fresh offline load with no checklist mismatch. The 43-case pending-runtime set passed in
+116 seconds with 8 jobs on the same day
+[EXECUTION-VERIFIED:2026-11-20, ex-15 @ 2dae2b7d81 plus working-tree reload fixes].
 The planned coverage list is the operation-scope record from
 [ex-15/recombination-design](../ex-15/recombination-design.md).
