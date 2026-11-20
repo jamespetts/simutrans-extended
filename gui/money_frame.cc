@@ -291,6 +291,281 @@ public:
 };
 
 
+static const char *const accrual_pl_name[money_frame_t::ACCRUAL_PL_ROWS] =
+{
+	"Revenue", "Operating costs", "Operating profit", "Depreciation",
+	"Operating profit after depreciation", "Interest", "Tax paid",
+	"Profit after depreciation and tax"
+};
+
+static const uint8 accrual_pl_color[money_frame_t::ACCRUAL_PL_ROWS] =
+{
+	COL_REVENUE, COL_OPERATION, COL_PROFIT, COL_MAINTENANCE,
+	COL_CASH_FLOW, COL_INTEREST, COL_LIGHT_PURPLE, COL_WEALTH
+};
+
+static const char *const accrual_pl_tooltip[money_frame_t::ACCRUAL_PL_ROWS] =
+{
+	"Operating revenue from passenger, mail and goods transport",
+	"Running costs, vehicle maintenance, infrastructure maintenance and tolls",
+	"Revenue less operating costs",
+	"Pooled depreciation charge; no cash effect",
+	"Operating profit less the depreciation charge",
+	"Interest paid on secured debt and the overdraft, less interest received",
+	"Corporation tax paid in the period",
+	"Operating profit after depreciation, interest and tax"
+};
+
+static const char *const balance_sheet_name[money_frame_t::ACCRUAL_BS_ROWS] =
+{
+	"Cash balance", "Vehicles at sale value", "Infrastructure at book value",
+	"Secured debt", "Overdraft", "Equity"
+};
+
+
+/// A profit-and-loss figure for the current or previous year/month.
+class accrual_frame_label_t : public gui_label_buf_t
+{
+	uint8 row;
+	uint8 period;
+	bool monthly;
+
+public:
+	accrual_frame_label_t(uint8 row_, uint8 period_, bool monthly_)
+	: gui_label_buf_t(MONEY_PLUS, gui_label_t::money_right)
+	, row(row_), period(period_), monthly(monthly_)
+	{
+	}
+
+	void update(money_frame_t *mf)
+	{
+		buf().append_money(mf->get_accrual_value(row, period, monthly) / 100.0);
+		gui_label_buf_t::update();
+	}
+};
+
+
+/// A current balance-sheet figure.
+class balance_frame_label_t : public gui_label_buf_t
+{
+	uint8 row;
+
+public:
+	balance_frame_label_t(uint8 row_)
+	: gui_label_buf_t(MONEY_PLUS, gui_label_t::money_right)
+	, row(row_)
+	{
+	}
+
+	void update(money_frame_t *mf)
+	{
+		buf().append_money(mf->get_balance_sheet_value(row) / 100.0);
+		gui_label_buf_t::update();
+	}
+};
+
+
+sint64 money_frame_t::get_accrual_value(uint8 row, int period, bool monthly) const
+{
+	const finance_t *const finance = player->get_finance();
+	const sint64 revenue = monthly ? finance->get_history_veh_month(TT_ALL, period, ATV_REVENUE_TRANSPORT)
+	                               : finance->get_history_veh_year (TT_ALL, period, ATV_REVENUE_TRANSPORT);
+	const sint64 operating_costs = monthly ? finance->get_history_veh_month(TT_ALL, period, ATV_EXPENDITURE)
+	                                      : finance->get_history_veh_year (TT_ALL, period, ATV_EXPENDITURE);
+	const sint64 operating_profit = monthly ? finance->get_history_veh_month(TT_ALL, period, ATV_OPERATING_PROFIT)
+	                                       : finance->get_history_veh_year (TT_ALL, period, ATV_OPERATING_PROFIT);
+	const sint64 depreciation = monthly ? finance->get_history_com_month(period, ATC_DEPRECIATION)
+	                                   : finance->get_history_com_year (period, ATC_DEPRECIATION);
+	const sint64 interest = monthly ? finance->get_history_com_month(period, ATC_INTEREST)
+	                               : finance->get_history_com_year (period, ATC_INTEREST);
+	const sint64 tax = monthly ? finance->get_history_com_month(period, ATC_TAX)
+	                          : finance->get_history_com_year (period, ATC_TAX);
+
+	switch (row)
+	{
+		case 0: return revenue;
+		case 1: return operating_costs;
+		case 2: return operating_profit;
+		case 3: return depreciation;
+		case 4: return operating_profit + depreciation;
+		case 5: return interest;
+		case 6: return tax;
+		case 7: return operating_profit + depreciation + interest + tax;
+		default: return 0;
+	}
+}
+
+
+sint64 money_frame_t::get_balance_sheet_value(uint8 row)
+{
+	finance_t *const finance = player->get_finance();
+	const sint64 cash = finance->get_history_com_month(0, ATC_CASH);
+	const sint64 vehicles = finance->get_financial_assets();
+	const sint64 infrastructure = finance->get_asset_value(TT_ALL);
+	const sint64 secured_debt = finance->get_total_secured_debt();
+
+	switch (row)
+	{
+		case 0: return cash;
+		case 1: return vehicles;
+		case 2: return infrastructure;
+		case 3: return -secured_debt;
+		case 4: return cash < 0 ? cash : 0;
+		case 5: return cash + vehicles + infrastructure - secured_debt;
+		default: return 0;
+	}
+}
+
+
+void money_frame_t::fill_accrual_chart_tables()
+{
+	for (uint8 i = 0; i < money_frame_t::ACCRUAL_PL_ROWS; i++)
+	{
+		for (int j = 0; j < MAX_PLAYER_HISTORY_MONTHS; j++)
+		{
+			accrual_table_month[j][i] = get_accrual_value(i, j, true);
+		}
+		for (int j = 0; j < MAX_PLAYER_HISTORY_YEARS; j++)
+		{
+			accrual_table_year[j][i] = get_accrual_value(i, j, false);
+		}
+	}
+}
+
+
+void money_frame_t::build_cash_view(gui_aligned_container_t *view, gui_chart_t *view_chart, sint64 (*table)[MAX_PLAYER_COST_BUTTON], bool monthly, button_t *buttons[])
+{
+	view->set_table_layout(1, 0);
+	view->add_table(5, FINANCE_TABLE_ROWS + 1);
+
+	view->new_component<gui_empty_t>();
+	view->new_component<gui_label_t>(monthly ? "This Month" : "This Year", SYSCOL_TEXT_HIGHLIGHT);
+	view->new_component<gui_label_t>(monthly ? "Last Month" : "Last Year", SYSCOL_TEXT_HIGHLIGHT);
+	view->new_component<gui_empty_t>();
+	view->new_component<gui_empty_t>();
+
+	uint8 k = 0;
+	for (uint8 r = 0; r < FINANCE_TABLE_ROWS; r++)
+	{
+		for (uint8 c = 0; c < 5; c++, k++)
+		{
+			const sint8 cost = cell_to_buttons[k];
+			const sint8 l = cell_to_moneylabel[k];
+			if (cost >= 0)
+			{
+				const int curve_type = cost_type[3*cost+2];
+				const int curve_precision = (curve_type == gui_chart_t::STANDARD) ? 0 : (curve_type == gui_chart_t::MONEY || curve_type == gui_chart_t::PERCENT) ? 2 : (curve_type == gui_chart_t::TON_KM_MAIL) ? 3 : 1;
+				const sint16 curve = view_chart->add_curve(color_idx_to_rgb(cost_type_color[cost]), *table, MAX_PLAYER_COST_BUTTON, cost,
+					monthly ? MAX_PLAYER_HISTORY_MONTHS : MAX_PLAYER_HISTORY_YEARS, curve_type, false, true, curve_precision);
+
+				button_t *b;
+				if (!monthly)
+				{
+					b = view->new_component<button_t>();
+					b->init(button_t::box_state_automatic | button_t::flexible, cost_type_name[cost]);
+					b->set_tooltip(cost_tooltip[cost]);
+					b->background_color = color_idx_to_rgb(cost_type_color[cost]);
+					b->pressed = false;
+					buttons[cost] = b;
+				}
+				else
+				{
+					b = buttons[cost];
+					view->add_component(b);
+				}
+				button_to_chart.append(b, view_chart, curve);
+			}
+			else if (l >= 0)
+			{
+				money_labels.append(view->new_component<money_frame_label_t>(label_type[4*l], label_type[4*l+1], label_type[4*l+3], label_type[4*l+2], monthly));
+			}
+			else
+			{
+				if (monthly && r == 2 && c == 3)
+				{
+					view->new_component<gui_label_t>("Next Month", SYSCOL_TEXT_HIGHLIGHT);
+				}
+				else if (monthly && r == 3 && c == 3)
+				{
+					view->add_component(&maintenance_money);
+				}
+				else if (r == 5 && c == 4)
+				{
+					view->new_component<gui_label_t>("This Year", SYSCOL_TEXT_HIGHLIGHT);
+				}
+				else
+				{
+					view->new_component<gui_empty_t>();
+				}
+			}
+		}
+	}
+	view->end_table();
+	view->new_component<gui_margin_t>(LINESPACE / 2);
+	view->add_component(view_chart);
+}
+
+
+void money_frame_t::build_accrual_view(gui_aligned_container_t *view, gui_chart_t *view_chart, sint64 (*table)[ACCRUAL_SERIES], bool monthly, button_t *buttons[])
+{
+	view->set_table_layout(1, 0);
+	view->add_table(5, money_frame_t::ACCRUAL_PL_ROWS + 1);
+
+	view->new_component<gui_empty_t>();
+	view->new_component<gui_label_t>(monthly ? "This Month" : "This Year", SYSCOL_TEXT_HIGHLIGHT);
+	view->new_component<gui_label_t>(monthly ? "Last Month" : "Last Year", SYSCOL_TEXT_HIGHLIGHT);
+	view->new_component<gui_label_t>("Current", SYSCOL_TEXT_HIGHLIGHT);
+	view->new_component<gui_empty_t>();
+
+	for (uint8 r = 0; r < money_frame_t::ACCRUAL_PL_ROWS; r++)
+	{
+		const sint16 curve = view_chart->add_curve(color_idx_to_rgb(accrual_pl_color[r]), *table, ACCRUAL_SERIES, r,
+			monthly ? MAX_PLAYER_HISTORY_MONTHS : MAX_PLAYER_HISTORY_YEARS, gui_chart_t::MONEY, false, true, 2);
+
+		button_t *b;
+		if (!monthly)
+		{
+			b = view->new_component<button_t>();
+			b->init(button_t::box_state_automatic | button_t::flexible, accrual_pl_name[r]);
+			b->set_tooltip(accrual_pl_tooltip[r]);
+			b->background_color = color_idx_to_rgb(accrual_pl_color[r]);
+			b->pressed = false;
+			buttons[r] = b;
+		}
+		else
+		{
+			b = buttons[r];
+			view->add_component(b);
+		}
+		accrual_button_to_chart.append(b, view_chart, curve);
+
+		accrual_labels.append(view->new_component<accrual_frame_label_t>(r, 0, monthly));
+		accrual_labels.append(view->new_component<accrual_frame_label_t>(r, 1, monthly));
+
+		if (r < money_frame_t::ACCRUAL_BS_ROWS)
+		{
+			view->new_component<gui_label_t>(balance_sheet_name[r]);
+			balance_labels.append(view->new_component<balance_frame_label_t>(r));
+		}
+		else
+		{
+			view->new_component<gui_empty_t>();
+			view->new_component<gui_empty_t>();
+		}
+	}
+	view->end_table();
+	view->new_component<gui_margin_t>(LINESPACE / 2);
+
+	// The accrual table is wider than the cash table. Keep the chart at the
+	// cash chart's effective width so the year labels do not crowd together.
+	view->add_table(2, 1);
+	view->add_component(view_chart);
+	view->new_component<gui_margin_t>(80);
+	view->end_table();
+}
+
+
+
 void money_frame_t::fill_chart_tables()
 {
 	// fill tables for chart curves
@@ -305,6 +580,8 @@ void money_frame_t::fill_chart_tables()
 			chart_table_year[j][i] =  get_statistics_value(tt, cost_type[3*i], j, false);
 		}
 	}
+
+	fill_accrual_chart_tables();
 }
 
 
@@ -560,7 +837,8 @@ money_frame_t::money_frame_t(player_t *player) :
 	scenario_completion(SYSCOL_TEXT, gui_label_t::left),
 	warn(SYSCOL_TEXT_STRONG, gui_label_t::centered),
 	scrolly_stats(&cont_stats, true),
-	transport_type_option(0)
+	transport_type_option(0),
+	accounting_basis(0)
 {
 	if(welt->get_player(0)!=player) {
 		money_frame_title.printf(translator::translate("Finances of %s"), translator::translate(player->get_name()) );
@@ -582,9 +860,9 @@ money_frame_t::money_frame_t(player_t *player) :
 	}
 
 	// select transport type
-	gui_aligned_container_t *top = add_table(6,1);
+	gui_aligned_container_t *top = add_table(7,1);
 	{
-		new_component<gui_label_t>("Show finances for transport type");
+		transport_type_label = new_component<gui_label_t>("Show finances for transport type");
 
 		transport_type_c.set_focusable( false );
 
@@ -634,17 +912,12 @@ money_frame_t::money_frame_t(player_t *player) :
 	}
 	end_table();
 
-	// Total secured debt, the detailed borrowing being in the borrowing window.
+	// Total secured debt, the detailed borrowing being in the borrowing window,
+	// and the company founding date derived from the company age.
 	{
-		add_table(2, 1);
+		add_table(4, 1);
 		new_component<gui_label_t>("Debt");
 		add_component(&lb_debt);
-		end_table();
-	}
-
-	// company founding date, derived from the company age (exact, so set once here)
-	{
-		add_table(2, 1);
 		new_component<gui_label_t>("Estd.");
 		gui_label_buf_t *founding = new_component<gui_label_buf_t>();
 		const uint32 founding_month = welt->get_current_month() - player->get_player_age();
@@ -652,6 +925,41 @@ money_frame_t::money_frame_t(player_t *player) :
 		founding->update();
 		end_table();
 	}
+
+	// Accounting basis: cash flow or accruals, applied to both tabs.
+	{
+		add_table(4, 1);
+		new_component<gui_label_t>("Accounting basis");
+		bt_basis_cash.init(button_t::roundbox_state, "Cash accounting");
+		bt_basis_cash.add_listener(this);
+		bt_basis_cash.set_tooltip(translator::translate("Show cash received and paid in the period"));
+		add_component(&bt_basis_cash);
+
+		bt_basis_accruals.init(button_t::roundbox_state, "Accrual accounting");
+		bt_basis_accruals.add_listener(this);
+		bt_basis_accruals.set_tooltip(translator::translate("Show revenue and costs when earned and incurred, including depreciation"));
+		add_component(&bt_basis_accruals);
+
+		new_component<gui_fill_t>();
+		end_table();
+	}
+
+	// The Years and Months tabs each hold a cash view and an accrual view; the
+	// accounting basis buttons show one pair at a time.
+	container_year.set_table_layout(1, 0);
+	container_month.set_table_layout(1, 0);
+	container_year.add_component(&cash_year);
+	container_year.add_component(&accrual_year);
+	container_month.add_component(&cash_month);
+	container_month.add_component(&accrual_month);
+
+	// .. put the same buttons in both containers
+	button_t* buttons[MAX_PLAYER_COST_BUTTON];
+	button_t* accrual_buttons[money_frame_t::ACCRUAL_PL_ROWS];
+	build_cash_view(&cash_year, &chart, chart_table_year, false, buttons);
+	build_cash_view(&cash_month, &mchart, chart_table_month, true, buttons);
+	build_accrual_view(&accrual_year, &accrual_chart, accrual_table_year, false, accrual_buttons);
+	build_accrual_view(&accrual_month, &accrual_mchart, accrual_table_month, true, accrual_buttons);
 
 	// tab panels
 	// tab (month/year)
@@ -664,108 +972,12 @@ money_frame_t::money_frame_t(player_t *player) :
 	year_month_tabs.add_tab( &scrolly_stats, translator::translate("player_stats"));
 
 	year_month_tabs.add_listener(this);
+
+	// bankruptcy notice, common to both accounting bases
+	add_component(&warn);
+	warn.set_visible(false);
+
 	add_component(&year_month_tabs);
-
-	// The accrual view: cash-flow accounts adjusted by the pooled depreciation
-	// charge, and a current balance sheet.
-	{
-		cont_accrual.set_table_layout(2, ACCRUAL_ROWS);
-		static const char *const accrual_labels[ACCRUAL_ROWS] =
-		{
-			"Revenue", "Operating costs", "Operating profit", "Depreciation",
-			"Operating profit after depreciation", "Interest", "Tax paid",
-			"Profit after depreciation and tax", "Cash", "Vehicles at sale value",
-			"Infrastructure at book value", "Secured debt", "Overdraft", "Equity"
-		};
-		for (uint8 i = 0; i < ACCRUAL_ROWS; i++)
-		{
-			cont_accrual.new_component<gui_label_t>(accrual_labels[i]);
-			cont_accrual.add_component(&accrual_values[i]);
-		}
-		cont_accrual.end_table();
-		year_month_tabs.add_tab(&cont_accrual, translator::translate("Accrual"));
-	}
-
-	// fill both containers
-	gui_aligned_container_t *current = &container_year;
-	gui_chart_t *current_chart = &chart;
-	// .. put the same buttons in both containers
-	button_t* buttons[MAX_PLAYER_COST_BUTTON];
-
-	for(uint8 i = 0; i < 2 ; i++) {
-		uint8 k = 0;
-		current->set_table_layout(1,0);
-
-		current->add_table(5, FINANCE_TABLE_ROWS+1);
-
-		// first row: some labels
-		current->new_component<gui_empty_t>();
-		current->new_component<gui_label_t>(i==0 ? "This Year" : "This Month", SYSCOL_TEXT_HIGHLIGHT);
-		current->new_component<gui_label_t>(i==0 ? "Last Year" : "Last Month", SYSCOL_TEXT_HIGHLIGHT);
-		current->new_component<gui_empty_t>();
-		current->new_component<gui_empty_t>();
-
-		// all other rows: mix of buttons and money-labels
-		for(uint8 r = 0; r < FINANCE_TABLE_ROWS; r++) {
-			for(uint8 c = 0; c < 5; c++, k++) {
-				sint8 cost = cell_to_buttons[k];
-				sint8 l = cell_to_moneylabel[k];
-				// button + chart line
-				if (cost >=0 ) {
-					// add chart line
-					const int curve_type = cost_type[3*cost+2];
-					const int curve_precision = (curve_type==gui_chart_t::STANDARD) ? 0 : (curve_type==gui_chart_t::MONEY||curve_type==gui_chart_t::PERCENT) ? 2: (curve_type == gui_chart_t::TON_KM_MAIL) ? 3 : 1;
-					sint16 curve = i == 0
-					? chart.add_curve(  color_idx_to_rgb(cost_type_color[cost]), *chart_table_year,  MAX_PLAYER_COST_BUTTON, cost, MAX_PLAYER_HISTORY_YEARS,  curve_type, false, true, curve_precision)
-					: mchart.add_curve( color_idx_to_rgb(cost_type_color[cost]), *chart_table_month, MAX_PLAYER_COST_BUTTON, cost, MAX_PLAYER_HISTORY_MONTHS, curve_type, false, true, curve_precision);
-					// add button
-					button_t *b;
-					if (i == 0) {
-						b = current->new_component<button_t>();
-						b->init(button_t::box_state_automatic | button_t::flexible, cost_type_name[cost]);
-						b->set_tooltip(cost_tooltip[cost]);
-						b->background_color = color_idx_to_rgb(cost_type_color[cost]);
-						b->pressed = false;
-						buttons[cost] = b;
-					}
-					else {
-						b = buttons[cost];
-						current->add_component(b);
-					}
-					button_to_chart.append(b, current_chart, curve);
-				}
-				else if (l >= 0) {
-					// money_frame_label_t(uint8 tt, uint8 t, uint8 lt, uint8 i, bool mon)
-					money_labels.append( current->new_component<money_frame_label_t>(label_type[4*l], label_type[4*l+1], label_type[4*l+3], label_type[4*l+2], i==1) );
-				}
-				else {
-					if (i == 1 && r == 2 && c == 3) {
-						current->new_component<gui_label_t>("Next Month", SYSCOL_TEXT_HIGHLIGHT);
-					}
-					else if (i == 1 && r == 3 && c == 3) {
-						current->add_component(&maintenance_money);
-					}
-					else if (r == 5 && c == 4) {
-						current->new_component<gui_label_t>("This Year", SYSCOL_TEXT_HIGHLIGHT);
-					}
-					else {
-						current->new_component<gui_empty_t>();
-					}
-				}
-			}
-		}
-		current->end_table();
-
-		// bankruptcy notice
-		current->add_component(&warn);
-		warn.set_visible(false);
-
-		current->new_component<gui_margin_t>(LINESPACE/2);
-
-		current->add_component(current_chart);
-		current = &container_month;
-		current_chart = &mchart;
-	}
 
 	// recover button states
 	if (bFilterStates.get_count() > 0) {
@@ -785,7 +997,20 @@ money_frame_t::money_frame_t(player_t *player) :
 	mchart.set_seed(0);
 	mchart.set_background(SYSCOL_CHART_BACKGROUND);
 
+	accrual_chart.set_min_size(scr_size(0, 8*BUTTONSPACE));
+	accrual_chart.set_dimension(MAX_PLAYER_HISTORY_YEARS, 10000);
+	accrual_chart.set_seed(welt->get_last_year());
+	accrual_chart.set_background(SYSCOL_CHART_BACKGROUND);
+
+	accrual_mchart.set_min_size(scr_size(0, 8*BUTTONSPACE));
+	accrual_mchart.set_dimension(MAX_PLAYER_HISTORY_MONTHS, 10000);
+	accrual_mchart.set_seed(0);
+	accrual_mchart.set_background(SYSCOL_CHART_BACKGROUND);
+
+	player->get_finance()->calc_finance_history();
+	fill_chart_tables();
 	update_labels();
+	apply_accounting_basis();
 
 	reset_min_windowsize();
 	set_windowsize(get_min_windowsize());
@@ -806,6 +1031,14 @@ money_frame_t::~money_frame_t()
 void money_frame_t::update_labels()
 {
 	for(money_frame_label_t* lb : money_labels) {
+		lb->update(this);
+	}
+
+	for(accrual_frame_label_t* lb : accrual_labels) {
+		lb->update(this);
+	}
+
+	for(balance_frame_label_t* lb : balance_labels) {
 		lb->update(this);
 	}
 
@@ -1218,40 +1451,32 @@ void money_frame_t::update_stats()
 	lb_signalbox_maint.update();
 }
 
-void money_frame_t::update_accrual()
+void money_frame_t::apply_accounting_basis()
 {
-	finance_t *const finance = player->get_finance();
+	bt_basis_cash.pressed = accounting_basis == 0;
+	bt_basis_accruals.pressed = accounting_basis == 1;
 
-	const sint64 revenue = finance->get_history_veh_month(TT_ALL, 0, ATV_REVENUE_TRANSPORT);
-	const sint64 operating_costs = finance->get_history_veh_month(TT_ALL, 0, ATV_EXPENDITURE);
-	const sint64 operating_profit = finance->get_history_veh_month(TT_ALL, 0, ATV_OPERATING_PROFIT);
-	const sint64 depreciation = finance->get_history_com_month(0, ATC_DEPRECIATION);
-	const sint64 interest = finance->get_history_com_month(0, ATC_INTEREST);
-	const sint64 tax = finance->get_history_com_month(0, ATC_TAX);
-	const sint64 cash = finance->get_account_balance();
-	const sint64 vehicles = finance->get_financial_assets();
-	const sint64 infrastructure = finance->get_asset_value(TT_ALL);
-	const sint64 secured_debt = finance->get_total_secured_debt();
-	const sint64 overdraft = cash < 0 ? -cash : 0;
+	cash_year.set_visible(accounting_basis == 0);
+	cash_month.set_visible(accounting_basis == 0);
+	accrual_year.set_visible(accounting_basis == 1);
+	accrual_month.set_visible(accounting_basis == 1);
 
-	const sint64 profit_after_depreciation = operating_profit + depreciation;
-	const sint64 profit_after_tax = profit_after_depreciation + interest + tax;
-	const sint64 equity = cash + vehicles + infrastructure - secured_debt;
-
-	const sint64 values[ACCRUAL_ROWS] =
-	{
-		revenue, operating_costs, operating_profit, depreciation,
-		profit_after_depreciation, interest, tax, profit_after_tax,
-		cash, vehicles, infrastructure, -secured_debt, -overdraft, equity
-	};
-
-	for (uint8 i = 0; i < ACCRUAL_ROWS; i++)
-	{
-		char buffer[64];
-		money_to_string(buffer, (double)values[i] / 100.0);
-		accrual_values[i].buf().printf("%s", buffer);
-		accrual_values[i].update();
+	// The transport-type selector filters the cash views only. Disable it on the
+	// accrual basis, keeping its selection for the return to cash.
+	if (accounting_basis == 0) {
+		transport_type_c.enable();
+		transport_type_c.set_focusable(false);
+		transport_type_label->set_color(SYSCOL_TEXT);
+		transport_type_label->set_tooltip(NULL);
 	}
+	else {
+		transport_type_c.disable();
+		transport_type_label->set_color(SYSCOL_TEXT_INACTIVE);
+		transport_type_label->set_tooltip(translator::translate("Only the cash views can be filtered by transport type."));
+	}
+
+	reset_min_windowsize();
+	resize(scr_size(0, 0));
 }
 
 
@@ -1277,12 +1502,10 @@ void money_frame_t::draw(scr_coord pos, scr_size size)
 
 	// update chart seed
 	chart.set_seed(welt->get_last_year());
+	accrual_chart.set_seed(welt->get_last_year());
 
 	if (year_month_tabs.get_active_tab_index() == 2) {
 		update_stats();
-	}
-	else if (year_month_tabs.get_active_tab_index() == 3) {
-		update_accrual();
 	}
 
 	{
@@ -1302,6 +1525,15 @@ void money_frame_t::draw(scr_coord pos, scr_size size)
 
 bool money_frame_t::action_triggered( gui_action_creator_t *comp,value_t /* */)
 {
+	if (comp == &bt_basis_cash  ||  comp == &bt_basis_accruals) {
+		const uint8 new_basis = comp == &bt_basis_accruals ? 1 : 0;
+		if (new_basis != accounting_basis) {
+			accounting_basis = new_basis;
+			apply_accounting_basis();
+		}
+		return true;
+	}
+
 	if(  comp == &headquarter  ) {
 		if(  player->get_ai_id()!=player_t::HUMAN  ) {
 			create_win( new ai_option_t(player), w_info, magic_ai_options_t+player->get_player_nr() );

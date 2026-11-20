@@ -24,6 +24,8 @@
 #define MAX_PLAYER_COST_BUTTON (19)
 
 class money_frame_label_t;
+class accrual_frame_label_t;
+class balance_frame_label_t;
 
 /**
  * Finances dialog
@@ -31,10 +33,17 @@ class money_frame_label_t;
 class money_frame_t : public gui_frame_t, private action_listener_t
 {
 	friend class money_frame_label_t;
+	friend class accrual_frame_label_t;
+	friend class balance_frame_label_t;
+public:
+	static const uint8 ACCRUAL_PL_ROWS = 8;
+	static const uint8 ACCRUAL_BS_ROWS = 6;
+	static const uint8 ACCRUAL_SERIES = ACCRUAL_PL_ROWS;
 private:
 	cbuffer_t money_frame_title;
 
 	gui_chart_t chart, mchart;
+	gui_chart_t accrual_chart, accrual_mchart;
 
 	gui_label_buf_t maintenance_money;
 	gui_label_buf_t scenario_desc;
@@ -44,12 +53,24 @@ private:
 	// Total secured debt, shown under the borrowing controls.
 	gui_label_buf_t lb_debt;
 
-	// The accrual view: pooled depreciation, the profit after depreciation and
-	// tax, and the current balance sheet.
-	static const uint8 ACCRUAL_ROWS = 14;
-	gui_aligned_container_t cont_accrual;
-	gui_label_buf_t accrual_values[ACCRUAL_ROWS];
-	void update_accrual();
+	// Cash and accrual views of the same Years and Months tabs. Only one pair
+	// is visible at a time; the accounting basis buttons swap them.
+	gui_aligned_container_t cash_year, cash_month, accrual_year, accrual_month;
+	sint64 accrual_table_year[MAX_PLAYER_HISTORY_YEARS][ACCRUAL_SERIES];
+	sint64 accrual_table_month[MAX_PLAYER_HISTORY_MONTHS][ACCRUAL_SERIES];
+	gui_button_to_chart_array_t accrual_button_to_chart;
+	vector_tpl<accrual_frame_label_t*> accrual_labels;
+	vector_tpl<balance_frame_label_t*> balance_labels;
+
+	uint8 accounting_basis; // 0 = cash, 1 = accruals
+	button_t bt_basis_cash, bt_basis_accruals;
+
+	sint64 get_accrual_value(uint8 row, int period, bool monthly) const;
+	sint64 get_balance_sheet_value(uint8 row);
+	void fill_accrual_chart_tables();
+	void build_cash_view(gui_aligned_container_t *view, gui_chart_t *chart, sint64 (*table)[MAX_PLAYER_COST_BUTTON], bool monthly, button_t *buttons[]);
+	void build_accrual_view(gui_aligned_container_t *view, gui_chart_t *chart, sint64 (*table)[ACCRUAL_SERIES], bool monthly, button_t *buttons[]);
+	void apply_accounting_basis();
 
 	gui_aligned_container_t container_year, container_month, cont_stats;
 	gui_scrollpane_t scrolly_stats;
@@ -57,6 +78,7 @@ private:
 	uint16 transport_types[TT_MAX];
 	uint16 transport_type_option;
 	gui_combobox_t transport_type_c;
+	gui_label_t *transport_type_label;
 
 	player_t *player;
 
