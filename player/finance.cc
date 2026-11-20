@@ -776,6 +776,18 @@ char const *finance_t::issue_loan(uint8 type, sint64 amount, loan_term_t term)
 }
 
 
+sint64 finance_t::get_early_repayment_settlement(const loan_t &loan) const
+{
+	const settings_t &settings = world->get_settings();
+	const sint32 base_rate_percent = (sint32)world->get_inflation_adjusted_price(world->get_timeline_year_month(), 100, price_type::base_rate);
+	const sint32 discount_rate_bp = base_rate_percent * 100
+		+ (sint32)settings.get_term_offset_bp((uint8)term_from_months(loan.get_months_remaining(world->get_current_month())))
+		+ get_credit_spread_bp(loan.rating);
+
+	return loan.get_early_repayment_settlement(discount_rate_bp);
+}
+
+
 char const *finance_t::settle_loan(uint32 id, bool replacing)
 {
 	loan_t * const loan = get_loan(id);
@@ -788,13 +800,7 @@ char const *finance_t::settle_loan(uint32 id, bool replacing)
 		return translator::translate("A company in administration or liquidation cannot repay instruments early.");
 	}
 
-	const settings_t &settings = world->get_settings();
-	const sint32 base_rate_percent = (sint32)world->get_inflation_adjusted_price(world->get_timeline_year_month(), 100, price_type::base_rate);
-	const sint32 discount_rate_bp = base_rate_percent * 100
-		+ (sint32)settings.get_term_offset_bp((uint8)term_from_months(loan->get_months_remaining(world->get_current_month())))
-		+ get_credit_spread_bp(loan->rating);
-
-	const sint64 settlement = loan->get_early_repayment_settlement(discount_rate_bp);
+	const sint64 settlement = get_early_repayment_settlement(*loan);
 
 	// A replacement draws the same principal again immediately, so only the
 	// break cost has to be affordable; a plain repayment has to fund the whole

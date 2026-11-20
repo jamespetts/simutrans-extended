@@ -662,6 +662,12 @@ public:
 	 */
 	sint64 get_available_term_debt() const;
 
+	/**
+	 * Settlement amount for repaying an instrument early, using the current
+	 * discount rate. Includes any amount above the outstanding principal.
+	 */
+	sint64 get_early_repayment_settlement(const loan_t &loan) const;
+
 	/// The stored credit rating, one of credit_rating_t.
 	uint8 get_credit_rating() const { return credit_rating; }
 
