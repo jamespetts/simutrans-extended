@@ -462,6 +462,27 @@ bool private_car_t::class_list_empty(uint8 g_class)
 }
 
 
+bool private_car_t::class_has_capacity(uint8 g_class)
+{
+	if (class_list_empty(g_class))
+	{
+		return false;
+	}
+	const weighted_vector_tpl<const citycar_desc_t*> &list = liste_timeline_by_class[g_class];
+	for (uint32 i = 0; i < list.get_count(); i++)
+	{
+		// Only an entry with a non-zero draw weight can be chosen, so only
+		// those entries describe the pool's data.
+		const uint32 weight = (i + 1 < list.get_count() ? list.weight_at(i + 1) : list.get_sum_weight()) - list.weight_at(i);
+		if (weight != 0 && list[i]->has_capacity())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
 const citycar_desc_t *private_car_t::pick_citycar_desc(uint8 g_class)
 {
 	if (class_list_empty(g_class))

@@ -5160,10 +5160,12 @@ sint32 stadt_t::generate_private_cars(koord pos, uint32 journey_tenths_of_minute
 		return 0;
 	}
 
-	// The per-car fill mode needs capacity data in the pakset. A pakset without
-	// it keeps the historic traffic-level formula, so that loading an existing
-	// pakset does not change the traffic volume.
-	const bool per_car = welt->get_settings().get_citycar_fill_mode() == 1 && car_type->has_capacity();
+	// The per-car fill mode needs capacity data in the packet's class pool. A
+	// pool with no capacity data at all keeps the historic traffic-level
+	// formula, so that loading an existing pakset does not change the traffic
+	// volume. A mixed pool uses per-car fill: a car without capacity carries
+	// one passenger.
+	const bool per_car = welt->get_settings().get_citycar_fill_mode() == 1 && private_car_t::class_has_capacity(g_class);
 
 	sint32 cars_to_create;
 	sint32 remaining = number_of_passengers;
