@@ -327,6 +327,9 @@ SQInteger convoy_get_vehicle_snapshot(HSQUIRRELVM vm)
 		// True only for a road vehicle that is loading or laid over at a stop
 		// stand beside the travel lane. Any other vehicle reports false.
 		set_slot(vm, "pulled_over", rv != NULL && rv->is_pulled_over());
+		// True when a road convoy is travelling in the passing lane (overtaking).
+		// Any other vehicle type reports false.
+		set_slot(vm, "overtaking", v->get_waytype() == road_wt && cnv->is_overtaking());
 		sq_arrayappend(vm, -2);
 	}
 	return 1;

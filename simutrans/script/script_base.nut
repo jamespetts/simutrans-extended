@@ -712,6 +712,8 @@ class vehicle_slot_x {
 	stand_mask = 0
 	/// true only for a road vehicle loading at a stop stand beside the travel lane
 	pulled_over = false
+	/// true when a road convoy is travelling in the passing lane (overtaking)
+	overtaking = false
 }
 
 class dir {
