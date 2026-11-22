@@ -113,6 +113,15 @@ private:
 
 	void calc_disp_lane();
 
+	// Clears a blocker that this car may follow onto a queueing tile.
+	void apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const;
+
+public:
+	uint32 do_drive(uint32 distance) OVERRIDE;
+
+	/// Length of this car in vehicle steps.
+	uint32 get_length_in_steps() const { return VEHICLE_STEPS_PER_CARUNIT; }
+
 protected:
 	void rdwr(loadsave_t *file) OVERRIDE;
 
