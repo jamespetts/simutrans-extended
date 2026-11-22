@@ -42,6 +42,19 @@ local JUNCTION_BRANCH_END = coord3d(7, 1, 0)
 local JUNCTION_DEPOT_POS = coord3d(1, 5, 0)
 local JUNCTION_SECOND_STOP = coord3d(3, 5, 0)
 
+// The through-pass-oncoming case uses a two-way road between two depots, with
+// a through stop in the middle, a second stop west of it for the westbound
+// stream's first entry, and a terminal on a branch at each end.
+local ONCOMING_ROAD_WEST = coord3d(1, 2, 0)
+local ONCOMING_ROAD_EAST = coord3d(14, 2, 0)
+local ONCOMING_STOP = coord3d(5, 2, 0)
+local ONCOMING_WEST_STOP = coord3d(2, 2, 0)
+local ONCOMING_EAST_BRANCH = coord3d(12, 2, 0)
+local ONCOMING_EAST_TERMINAL = coord3d(12, 0, 0)
+local ONCOMING_WEST_BRANCH = coord3d(3, 2, 0)
+local ONCOMING_WEST_TERMINAL = coord3d(3, 0, 0)
+local ONCOMING_STREAM_CONVOYS = 10
+
 // Vehicle steps per carunit, from simunits.h. A vehicle descriptor's length is
 // in carunits.
 local VEHICLE_STEPS_PER_CARUNIT = 16
@@ -82,7 +95,15 @@ local fixture = {
 	fifth_started = false,
 	holder_seen = false,
 	four_seen = false,
-	distinct_on_terminal = {}
+	distinct_on_terminal = {},
+	// through-pass-oncoming
+	stream = [],
+	holder_ready = false,
+	stream_started = false,
+	passer_started = false,
+	cross_seen = false,
+	holder_held = false,
+	distinct_oncoming = {}
 }
 
 
@@ -1480,6 +1501,225 @@ function resume_game()
 }
 
 
+function setup_through_pass_oncoming(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, ONCOMING_ROAD_WEST, ONCOMING_ROAD_EAST, road, true), "build the two-way road"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, ONCOMING_EAST_BRANCH, ONCOMING_EAST_TERMINAL, road, true), "build the east terminal branch"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, ONCOMING_WEST_BRANCH, ONCOMING_WEST_TERMINAL, road, true), "build the west terminal branch"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ONCOMING_EAST_TERMINAL), "build the east terminal"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ONCOMING_WEST_TERMINAL), "build the west terminal"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, ONCOMING_STOP), "build the through stop"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, ONCOMING_WEST_STOP), "build the westbound stream stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, ONCOMING_ROAD_WEST, depot_desc_for(wt_road)), "build the eastbound depot"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, ONCOMING_ROAD_EAST, depot_desc_for(wt_road)), "build the westbound depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(ONCOMING_ROAD_WEST.x, ONCOMING_ROAD_WEST.y, ONCOMING_ROAD_WEST.z)
+	fixture.second_depot = depot_x(ONCOMING_ROAD_EAST.x, ONCOMING_ROAD_EAST.y, ONCOMING_ROAD_EAST.z)
+	if (!check(fixture.depot != null && fixture.second_depot != null, "an oncoming-case depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// The holder waits for a full load, which never arrives, so it holds the
+	// through stop and stays pulled over for the whole observation window.
+	local holder = make_convoy_at(fixture.depot, pl, desc,
+		[make_entry(ONCOMING_STOP, 151, 100), make_entry(ONCOMING_EAST_TERMINAL, 152, 0)], "eastbound holder")
+	// The passer starts behind the holder and crosses the stop tile on its way
+	// to the east terminal.
+	local passer = make_convoy_at(fixture.depot, pl, desc,
+		[make_entry(ONCOMING_EAST_TERMINAL, 153, 0), make_entry(ONCOMING_WEST_STOP, 154, 0)], "eastbound passer")
+	if (holder == null || passer == null)
+	{
+		return false
+	}
+	// The westbound stream leaves the far depot, passes the through stop
+	// without stopping and stows briefly at the west stop before turning to
+	// the west terminal. Ten convoys give a platoon long enough to cover the
+	// passer's crossing of the stop tile.
+	for (local i = 0; i < ONCOMING_STREAM_CONVOYS; i++)
+	{
+		local cnv = make_convoy_at(fixture.second_depot, pl, desc,
+			[make_entry(ONCOMING_WEST_STOP, 161 + i, 0), make_entry(ONCOMING_WEST_TERMINAL, 181 + i, 0)], "westbound stream " + (i + 1))
+		if (cnv == null)
+		{
+			return false
+		}
+		fixture.stream.append(cnv)
+	}
+	fixture.convoys = [holder, passer]
+	if (!check_tool(fixture.depot.start_convoy(pl, holder), "start the eastbound holder"))
+	{
+		return false
+	}
+	fixture.started = [true, false]
+	return true
+}
+
+
+function observe_through_pass_oncoming()
+{
+	local holder = fixture.convoys[0]
+	local passer = fixture.convoys[1]
+	local a = front_slot(holder)
+	local b = front_slot(passer)
+	if (a == null || b == null)
+	{
+		return
+	}
+	if (!fixture.holder_ready)
+	{
+		if (same_pos(a.pos, ONCOMING_STOP) && holder.is_loading() && a.pulled_over)
+		{
+			fixture.holder_ready = true
+			print("RUNTIME CASE " + case_name + ": holder is loading, pulled over at " + pos_text(ONCOMING_STOP))
+		}
+		return
+	}
+	if (!fixture.stream_started)
+	{
+		fixture.stream_started = true
+		foreach (cnv in fixture.stream)
+		{
+			if (!check_tool(fixture.second_depot.start_convoy(player_x(0), cnv), "start a westbound stream convoy"))
+			{
+				return
+			}
+		}
+		print("RUNTIME CASE " + case_name + ": westbound stream started (" + fixture.stream.len() + " convoys)")
+		return
+	}
+	if (!fixture.passer_started)
+	{
+		// Start the passer when the leading westbound convoy is about to
+		// reach the stop, so that the platoon covers the stop while the
+		// passer crosses it. The stream travels west, so the leading convoy
+		// has the smallest x among the moving convoys that have left the
+		// depot.
+		local lead_x = -1
+		foreach (cnv in fixture.stream)
+		{
+			local s = front_slot(cnv)
+			if (s != null && cnv.get_speed() > 0 && !on_depot_tile(s.pos)
+				&& (lead_x < 0 || s.pos.x < lead_x))
+			{
+				lead_x = s.pos.x
+			}
+		}
+		if (lead_x >= 0 && lead_x <= 9)
+		{
+			fixture.passer_started = true
+			if (!check_tool(fixture.depot.start_convoy(player_x(0), passer), "start the eastbound passer"))
+			{
+				return
+			}
+			print("RUNTIME CASE " + case_name + ": westbound lead reached x " + lead_x + "; starting the eastbound passer")
+		}
+		return
+	}
+	// The holder must keep the stand and the pulled-over position while the
+	// passer crosses.
+	if (same_pos(b.pos, ONCOMING_STOP) && holder.is_loading() && a.pulled_over)
+	{
+		fixture.holder_held = true
+	}
+	local oncoming_here = 0
+	foreach (cnv in fixture.stream)
+	{
+		local s = front_slot(cnv)
+		if (s != null && same_pos(s.pos, ONCOMING_STOP))
+		{
+			if (!(cnv.id in fixture.distinct_oncoming))
+			{
+				fixture.distinct_oncoming[cnv.id] <- true
+			}
+			oncoming_here++
+		}
+	}
+	if (same_pos(b.pos, ONCOMING_STOP))
+	{
+		if (b.overtaking)
+		{
+			fail("the eastbound passer moved into the opposite carriageway (overtaking) on the stop tile")
+			return
+		}
+		if (oncoming_here > 0)
+		{
+			fixture.cross_seen = true
+			if ((fixture.observations % 100) == 0 || !fixture.saw_same_tile)
+			{
+				print("RUNTIME CASE " + case_name + ": passer on the stop tile with " + oncoming_here
+					+ " westbound convoy(s) oncoming; passer overtaking false")
+			}
+			fixture.saw_same_tile = true
+		}
+	}
+	if ((fixture.observations % 200) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": passer at " + pos_text(b.pos) + " state " + passer.get_state()
+			+ " overtaking " + b.overtaking + "; oncoming at the stop " + oncoming_here
+			+ "; distinct oncoming seen " + fixture.distinct_oncoming.len())
+	}
+	if (same_pos(b.pos, ONCOMING_EAST_TERMINAL))
+	{
+		fixture.following_at_end = true
+	}
+	if (fixture.following_at_end)
+	{
+		local distinct = fixture.distinct_oncoming.len()
+		if (!check(fixture.cross_seen, "the passer reached the terminal without sharing the stop tile with a westbound convoy"))
+		{
+			return
+		}
+		if (!check(fixture.holder_held, "the holder was not loading and pulled over while the passer crossed the stop"))
+		{
+			return
+		}
+		if (!check(distinct >= 3, "only " + distinct + " distinct westbound convoys were seen at the stop, so the stream was not continuous"))
+		{
+			return
+		}
+		print("RUNTIME CASE " + case_name + ": passer crossed the stop with oncoming traffic; "
+			+ distinct + " distinct westbound convoys used the stop tile")
+		pass()
+	}
+}
+
+
 function setup()
 {
 	local pl = player_x(0)
@@ -1518,6 +1758,10 @@ function setup()
 	if (case_name == "through-pass")
 	{
 		return setup_through_pass(pl)
+	}
+	if (case_name == "through-pass-oncoming")
+	{
+		return setup_through_pass_oncoming(pl)
 	}
 	if (case_name == "terminal-stands")
 	{
@@ -1570,6 +1814,10 @@ function observe()
 	else if (case_name == "through-pass")
 	{
 		observe_through_pass()
+	}
+	else if (case_name == "through-pass-oncoming")
+	{
+		observe_through_pass_oncoming()
 	}
 	else if (case_name == "terminal-stands")
 	{
