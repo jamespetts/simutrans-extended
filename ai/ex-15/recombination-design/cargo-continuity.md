@@ -1,12 +1,13 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, through-wagon model, collection credit and optional slots); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording in `convoi_t::laden`)
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, through-wagon model, collection credit and optional slots); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording in `convoi_t::laden`); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock next-transfer unload)
 ---
 # ex-15: re-combination - cargo and passenger continuity
 
 **Covers:** how passengers, mail and freight are handled when vehicles move between consists at a
 split or join; the instance-identity decision (which physical vehicle enters which portion); and
-fare/revenue consequences. Parent: [recombination-design](../recombination-design.md); journey-time
+fare/revenue consequences. Parent: [recombination-design](../recombination-design.md); passenger
+and mail system: [passenger-and-goods-systems](passenger-and-goods-systems.md); journey-time
 recording across boundaries: [yh-path-explorer](../yh-path-explorer.md). Untagged claims are [CODE]
 at the frontmatter value. The reviews and the original proposals are retained as design constraints
 in [remote-implications](remote-implications.md); those items do not establish later implementation.
@@ -20,15 +21,24 @@ requires a layover or requires an explicit full discharge. It then runs
 rather than discarding a through packet merely because its vehicle changed convoy.
 
 - Vehicles retained in the same scheduled consist, transferred directly between scheduled consists,
-  or promoted to a Y division's target schedule keep their cargo.
-- A loaded vehicle that becomes loose stock also keeps its through cargo. Cargo whose final
-  destination is the stop is delivered there. An entry with `schedule_entry_t::discharge_payload`
-  still discharges everything. Newly loose stock has no assigned onward carrier: `unload_cargo_for_stop`
-  uses a destination-only pass for it, so a stale next transfer at the stop does not unload it.
-  `vehicle_t::remove_stale_cargo` leaves the load of a vehicle in a laid-over convoy alone when the
-  convoy has no schedule entries, because that convoy has no schedule to check the load against; a
-  layover convoy that has a real schedule is still validated. The collecting convoy repairs the
-  route. The load therefore survives a save and reload of the loose wagon.
+  or promoted to a Y division's target schedule keep their through cargo.
+- A loaded goods wagon, or a mail van without a TPO (Travelling Post Office; defined in
+  [passenger-and-goods-systems](passenger-and-goods-systems.md)), that becomes
+  [loose stock](../../consist-recombination.md#terms) also keeps its through cargo. Cargo whose final destination is the stop is delivered there. An entry
+  with `schedule_entry_t::discharge_payload` still discharges everything. Newly loose goods stock
+  has no assigned onward carrier: `unload_cargo_for_stop` uses a destination-only pass for it, so a
+  stale next transfer at the stop does not unload it. `vehicle_t::remove_stale_cargo` leaves the
+  load of a vehicle in a laid-over convoy alone when the convoy has no schedule entries, because
+  that convoy has no schedule to check the load against; a layover convoy that has a real schedule
+  is still validated. The collecting convoy repairs the route. The load therefore survives a save
+  and reload of the loose wagon.
+- A passenger vehicle, or a mail vehicle on a train with a TPO, that becomes loose stock follows
+  the through-coach rule ([consist-recombination](../../consist-recombination.md#terms)):
+  `unload_newly_loose_cargo` unloads a packet whose next transfer or destination is the stop where
+  it becomes loose in `convoi_t::commit_recombined_consist` and
+  `convoi_t::commit_paired_exchange`, and keeps a packet whose next transfer is later aboard as a
+  through coach. The passenger or mail packet becomes
+  ordinary halt cargo at the stop, where the ordinary loading pass can rebook it.
 - On collection, `convoi_t::repair_packet_route` examines the collecting convoy's remaining schedule.
   It finds the first later stop that serves the packet's existing `zwischenziel` (next transfer) or its
   `ziel` (ultimate destination), and writes that halt as the next transfer. A packet that can be
@@ -40,8 +50,8 @@ rather than discarding a through packet merely because its vehicle changed convo
   collection by the same repaired-route predicate, so a service that cannot take the load cannot
   carry it past the stop.
 
-The loaded left-over wagon keeps its load: this is the **through-wagon model**
-[RECOLLECTION:2026-11-17 user decision]. The wagon is the unit of collection, and the cargo, its
+For goods and non-TPO mail, the loaded left-over wagon keeps its load: this is the **through-wagon
+model** [RECOLLECTION:2026-11-17 user decision]. The wagon is the unit of collection, and the cargo, its
 `last_transfer` and the per-vehicle `through_departures` record stay with it. The collecting convoy
 must serve every packet aboard (`convoi_t::vehicle_cargo_is_served`), and
 `convoi_t::repair_packet_route` aligns the packet's next transfer with that convoy's schedule. The
@@ -66,8 +76,10 @@ collector, and otherwise discharge the cargo without booking a fare and flash-lo
 through record preserved.
 
 The one-vehicle-at-a-time receiver-side changes apply equally to passengers, mail and goods.
-Passenger portion grouping and passenger-capacity allocation remain separate open design questions;
-this mechanism does not silently supply a passenger grouping model.
+Passenger division allocation and the loose-stock next-transfer rule are in
+[passenger-and-goods-systems](passenger-and-goods-systems.md). Passenger portion grouping and
+load-time accommodation-capacity reservation remain open design questions; this mechanism does not
+supply a load-time grouping model.
 
 ## Through-leg revenue history
 
@@ -157,25 +169,29 @@ interval rather than from factory production. The API is in
 [scripting-and-tests](../../scripting-and-tests.md); the fixture and assertions are in
 [consist-recombination tests](../../scripting-and-tests/consist-recombination.md).
 
-## Grouped loading - remaining scope
+## Grouped loading
 
-The original proposals also discuss placing packets in portion-compatible vehicles before a divide.
-That is not the same as the identity and loading rules above. Current ordinary loading still fills
-vehicles in consist order and does not group by eventual portion. A mixed wagon may therefore need
-an ordinary halt-transfer fallback when its packets have incompatible continuations. Candidate
-schemes and their capacity consequences remain in the parent design and
-[remote-implications](remote-implications.md). No load-time grouping,
-portion-capacity boarding reservation or free internal rearrangement is claimed here.
+The goods system groups a wagon by its wagon requirement and the committed formation: a wagon is
+loaded for one next transfer, or for the serving set of its committed portion, and a mixed wagon is
+allowed only when the same portion serves every packet aboard
+([passenger-and-goods-systems](passenger-and-goods-systems.md)). Passenger loading still fills
+vehicles in consist order; portion-capacity boarding reservation and a gangway/inter-unit model
+remain open. The original proposals and their capacity consequences are in the parent design and
+[remote-implications](remote-implications.md). Free internal rearrangement is not claimed here.
 
 ## Open questions
 
-- **Passenger and mail instance policy.** The implementation preserves each vehicle and its packets,
-  rather than introducing a freely reshuffled passenger load. Whether passenger loading needs
-  portion-outcome grouping, accommodation-capacity reservation and a gangway/inter-unit model remains
-  open. A future choice must preserve the through fare history above.
-- **Grouped freight loading.** A contents-derived assignment without load-time grouping can still
-  create mixed wagons. Whether, and at what threshold, to add grouping should be measured in real
-  saves; the fallback still guarantees that unservable packets are not carried onward.
+- **Passenger and mail instance policy.** A division moves passenger packets and mail packets on a
+  train with a TPO between vehicles to a serving portion, and a loose passenger vehicle or mail
+  vehicle on a train with a TPO unloads packets whose next transfer or destination is the stop.
+  Whether passenger
+  loading also needs portion-outcome grouping, accommodation-capacity reservation and a
+  gangway/inter-unit model remains open. A future choice must preserve the through fare history
+  above.
+- **Grouped freight loading.** The goods system groups a wagon by its wagon requirement and the
+  committed formation, so a mixed wagon is allowed only when one portion serves every packet. The
+  underfill and through-pool costs of that grouping should be measured in real saves; the fallback
+  still guarantees that unservable packets are not carried onward.
 - **Path feasibility of recipients.** No recipient-dependent path-explorer change is made. An authored
   through candidate might therefore name a later collector that rejects the vehicle; this needs an
   explicit feasibility decision, not an unexplained runtime transfer.

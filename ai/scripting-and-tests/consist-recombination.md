@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger/freight H cargo cases, schedule-edit cases, passenger capacity, mail/TPO cases, nested split and three loaded pair reload cases); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -16,17 +16,21 @@ verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17,
 
 ## Terms
 
-The vocabulary used here — target, mover, contact tile, coupling point and approach link — is
-defined in [consist-recombination](../consist-recombination.md#terms). The through pair (the halt
-pair under which a recorded journey time is stored) and the line-bound convoy (a convoy that runs
-for a line) are defined in [yh-path-explorer](../ex-15/yh-path-explorer.md#definitions).
+The vocabulary used here — target, mover, contact tile, coupling point, approach link and through
+coach — is defined in [consist-recombination](../consist-recombination.md#terms). The through pair
+(the halt pair under which a recorded journey time is stored) and the line-bound convoy (a convoy
+that runs for a line) are defined in
+[yh-path-explorer](../ex-15/yh-path-explorer.md#definitions). TPO (Travelling Post Office) is
+defined in
+[passenger-and-goods-systems](../ex-15/recombination-design/passenger-and-goods-systems.md#terms).
 
 ## Scope
 
 `tests/pending-runtime/` is a separate fixture for the recombination runtime: Y division (one convoy
 splitting into two portions), paired H exchange (two convoys exchanging vehicles), choose-signal
-call-on, the Multi-Owner Access Rule at assembly and a targetless order that turns a vehicle to
-reverse a consist. It is not part of the default Squirrel suite
+call-on, the Multi-Owner Access Rule at assembly, a targetless order that turns a vehicle to reverse
+a consist, pick-up goods and through-wagon working, passenger division capacity, mail/TPO handling,
+and the loaded passenger and freight cases. It is not part of the default Squirrel suite
 ([scripting-and-tests](../scripting-and-tests.md)) and no CI job runs it. Every case runs in its own
 game process, so cases cannot contaminate one another; the runner starts several processes at once
 because the fixture worlds are tiny and each process has its own log and watchdog.
@@ -34,21 +38,27 @@ because the fixture worlds are tiny and each process has its own log and watchdo
 ## Fixture layout
 
 - `harness.nut` builds the infrastructure, the convoy, the target and the consist orders through
-  public script interfaces, then owns the Y-division and facing observers and assertions.
+  public script interfaces, then owns the Y-division, facing, `plain-uncouple-passenger` and
+  `nested-split` observers and assertions. The passenger case injects packets with
+  `halt_x.add_cargo`; `nested-split` creates a second target line and a second division.
 - `pair-harness.nut` does the same for two convoys that meet at one stop on two platforms of the same
-  halt, with a reciprocal `couple` / `uncouple` entry and an end-state order on each.
+  halt, with a reciprocal `couple` / `uncouple` entry and an end-state order on each. The loaded
+  cases add a loading halt west of the junction, a delivery halt beyond the east stop, and consumer
+  industries for the freight cases; they inject cargo with `halt_x.add_cargo` after the loading
+  convoy leaves the depot.
 - `choose-harness.nut` builds the two-platform junction from `pair-harness.nut` with a choose signal
   and signalbox in the throat, then asserts the choose-signal behaviour through `sign_x.get_state()`,
   `convoy_x.get_working_method()` and `convoy_x.get_vehicle_snapshot()`.
 - `pickup-harness.nut` uses public construction, schedule and consist-order calls to build the
-  freight fixture in the empty map, and the halt cargo API to place its cargo packets. For the cargo
-  cases it selects a consumer industry and builds only that industry; those cases create their cargo
-  with `halt_x.add_cargo` instead of by factory production, so they do not depend on factory
-  dispatch. `halt_x.clear_cargo` removes any other waiting cargo before each injection. The harness
-  reads waiting cargo, vehicle loads, loading time and player way-toll statistics, and watches the
-  loose-stock sequence.
-  `pickup-reload/` and `flash-reload/` use that harness with the ordinary network-join reload
-  runner.
+  freight, passenger and mail fixture in the empty map, and the halt cargo API to place its cargo
+  packets. For the goods cases it selects a consumer industry and builds only that industry; those
+  cases create their cargo with `halt_x.add_cargo` instead of by factory production, so they do not
+  depend on factory dispatch. The passenger cases select passenger railcars and inject passenger
+  packets; the mail cases build mail-enabled station extensions and inject mail packets. The
+  harness reads waiting cargo, vehicle loads, loading time and player way-toll statistics, and
+  watches the loose-stock sequence. `halt_x.clear_cargo` removes any other waiting cargo before
+  each injection. `pickup-reload/` and `flash-reload/` use that harness with the ordinary
+  network-join reload runner.
 - `ownership-harness.nut` creates a second player. Player 2 builds a branch and a depot, runs a
   donor convoy to the junction and leaves a vehicle in the laid-over pool; player 0's collector
   then tries to take it. The case decides whether player 0 permits player 2 before the collector
@@ -72,10 +82,11 @@ normal advance from the target entry. The reversed cases also check the traversa
 
 The further cases are a plain uncouple, a deleted target line, a target entry without an order, an
 unsatisfiable order, an unpowered result, collection from the stop's pool, a reversed target
-schedule, a lineless target convoy, a mirrored source schedule and a targetless order that
-reverses a two-vehicle consist: `plain-uncouple`, `broken-target`, `target-no-order`,
-`unsatisfiable-target`, `unpowered-target`, `pool-collection`, `reversed-target`,
-`lineless-target`, `reversed-source` and `facing`.
+schedule, a lineless target convoy, a mirrored source schedule, a targetless order that reverses a
+two-vehicle consist, a plain uncouple of a loaded passenger carriage and a nested split:
+`plain-uncouple`, `broken-target`, `target-no-order`, `unsatisfiable-target`, `unpowered-target`,
+`pool-collection`, `reversed-target`, `lineless-target`, `reversed-source`, `facing`,
+`plain-uncouple-passenger` and `nested-split`.
 
 `facing` builds `[retained, turned]`, a two-vehicle consist that is valid as written. Its entry at
 the junction carries a targetless consist order for `[turned, retained]`. The turned vehicle is an
@@ -83,6 +94,18 @@ unpowered bidirectional vehicle that cannot be at the front in its current orien
 at the front only after a turn. The runtime must therefore set its `is_reversed` flag and add the
 turntable reversal time to the shunting delay. The case asserts the reversed sequence and the flag,
 then lets the convoy continue to the east entry.
+
+`plain-uncouple-passenger` releases a loaded passenger carriage as loose stock. Two passenger
+packets are injected: one whose next transfer is the uncouple stop and destination is beyond, and
+one whose next transfer is a later stop. The first is unloaded at the stop; the second stays aboard
+the loose carriage. The case selects a passenger railcar and carriage whose accommodation classes
+make the load unambiguous, and asserts that the loose carriage holds only the through packet.
+
+`nested-split` starts `[first, second, first]`, divides at the junction into a retained `[first]`
+and a portion on line P `[second, first]`, then divides that portion at the north stop into
+`[second]` on line P and `[first]` on line Q. It asserts both final portions, the vehicle count and
+the absence of stranded or duplicated vehicles. Both cases passed on 2026-11-22
+[EXECUTION-VERIFIED:2026-11-22, Debug x64].
 
 ## Paired-exchange cases (`pair-cases/`)
 
@@ -99,6 +122,27 @@ backtracking conflict (`conflict-backtrack`), an unsatisfiable pair refused all-
 emptied donor is destroyed (`pool-fallback`). The `already-at-end-state` orders place an optional
 empty slot between the locomotive and the coach, so `paired_exchange_solver_t` must omit that slot
 without moving either mandatory vehicle or charging a shunting delay.
+
+Four loaded cases use the same pair harness with a loading halt west of the junction and a delivery
+halt beyond the east stop. The freight cases also build consumer industries. The harness injects
+cargo with `halt_x.add_cargo` after the loading convoy leaves the depot. `make_cargo_order` sets
+each slot's `catg` because `schedule_t::parse_orders` derives the carried-category tables from the
+order slots; without it the path explorer does not route a lineless convoy for the cargo.
+
+- `pair-passenger-through`: the target's loaded passenger carriage is transferred directly to the
+  receiver; the passengers continue beyond the junction and the receiver delivers them.
+- `pair-passenger-loose`: the receiver's loaded carriage is released at the junction. A passenger
+  whose next transfer is the junction leaves the carriage; a passenger whose next transfer is later
+  stays aboard as a through coach. The receiver collects the carriage on its return and books the
+  through fare.
+- `pair-freight-through`: a loaded goods wagon is transferred directly; it keeps its load and the
+  receiver delivers it.
+- `pair-freight-loose`: a loaded goods wagon is released; goods bound for the junction are delivered
+  there, the rest stays under the through-wagon model, and the receiver collects and delivers it.
+
+The loose cases start the target first so that the exchange commits before the receiver's deferred
+unload can repair a junction-transfer packet's route. All four cases passed on 2026-11-22
+[EXECUTION-VERIFIED:2026-11-22, Debug x64]; the pair group passed 11/11.
 
 ## Choose-signal call-on cases (`choose-cases/`)
 
@@ -191,13 +235,13 @@ other matching conditions.
 
 ## Pick-up goods cases (`pickup-cases/`)
 
-The fixture selects a consumer industry from the loaded pakset by taking one of its input goods,
-and builds only that industry. The cargo cases clear the fixture halts and inject their own cargo
-with `halt_x.add_cargo`, so the cargo amount, routing, origin and arrival time are fixed by the case
-rather than by factory production. The destination position is the consumer's position, so an
-unloaded packet is handed to that industry in the ordinary way. The injected packet is ordinary
-saved halt cargo; no factory-produced packet takes part in any assertion. `empty-distribution` and
-`recipient-same` use empty wagons only and do not inject cargo.
+The fixture selects a consumer industry from the loaded pakset for the goods cases and builds only
+that industry. The cases that inject cargo clear the fixture halts and inject their own cargo with
+`halt_x.add_cargo`, so the cargo amount, routing, origin and arrival time are fixed by the case
+rather than by factory production. The destination position is the consumer's position for goods,
+the destination halt for passengers, and the mail-enabled halt extension for mail. The injected
+packet is ordinary saved halt cargo; no factory-produced packet takes part in any assertion.
+`empty-distribution` and `recipient-same` use empty wagons only and do not inject cargo.
 
 - `empty-distribution` releases five empty wagons, then repeatedly calls a collector whose order is
   `[locomotive, optional wagon, optional wagon, optional wagon, mandatory rear vehicle]`, with the
@@ -229,6 +273,29 @@ saved halt cargo; no factory-produced packet takes part in any assertion. `empty
   assertions are that the line has a positive `(A, D)` time and that the convoy's own table has no
   `(A, D)` pair. `through-pair` is the recording's non-reload case; `pickup-reload` repeats the two
   assertions after its loopback join and again after the fresh offline load.
+- `multi-destination-same-portion` loads one wagon with packets for two next transfers that the same
+  committed portion serves. The target line runs B-D-P and the wagon remains loaded through both
+  stops.
+- `schedule-edit-divergence` starts with a source A-B-P and a target B-D-P; the target is edited
+  mid-run to B-D. A trailing wagon holds one packet for D and one for P, so the two requirements
+  diverge at B; `convoi_t::discharge_divergent_wagons` empties the wagon at B and both packets
+  become halt cargo. A full leading wagon for P prevents the discharged P packet from being reloaded
+  in the same pass.
+- `schedule-edit-through-pool` removes the target entry's consist order mid-run, so no split-off
+  portion forms. A wagon loaded for D stays loose at B with its load rather than being carried past
+  its next transfer.
+- `passenger-capacity` loads two passenger railcars to ordinary capacity from A for P, then edits
+  the target portion to a destination that does not serve P. The retained railcar fills its
+  overcrowded capacity; the split railcar's passengers are discharged at B rather than transferred
+  to the non-serving portion.
+- `mail-no-tpo` and `mail-tpo` use mail-enabled station extensions and mail/TPO vehicles.
+  `mail-no-tpo` keeps junction-transfer mail in the loose mail van under the goods system and
+  delivers mail destined for B; `mail-tpo` unloads junction-transfer mail at B, keeps later-transfer
+  mail in the loose mail van, and leaves the loose TPO vehicle empty. The TPO case verifies that
+  `convoi_t::get_catering_level(goods_manager_t::INDEX_MAIL) > 0` selects the passenger system. The
+  fixture map's station coverage is four tiles, so the mail destination must lie within that
+  coverage; an out-of-coverage destination halt is not a valid destination and
+  `haltestelle_t::liefere_an` drops the packet when `find_route` fails.
 - `flash-full`, `flash-partial` and `flash-late` release one empty wagon at B and inject a full
   wagon load at B for D. These cases test the empty-wagon loading credit: the cargo waits at the
   halt, the empty wagon is collected, and the cargo is loaded into it with the credit. The collector
@@ -264,12 +331,14 @@ saved halt cargo; no factory-produced packet takes part in any assertion. `empty
   `-ScenarioName pending-runtime-flash-reload` and
   `-Selector tests\pending-runtime\flash-reload\scenario.nut`.
 
-## Reload cases (`reload/`, `pair-reload/`, `choose-reload/`, `pickup-reload/`, `flash-reload/`)
+## Reload cases (`reload/`, `pair-reload/`, `pair-passenger-loose-reload/`,
+`pair-freight-through-reload/`, `pair-freight-loose-reload/`, `choose-reload/`, `pickup-reload/`,
+`flash-reload/`)
 
 These are deliberately outside `cases/`, so the baseline runner does not select them. Each runs on a
 loopback server, joins a client so that the server saves, transfers and reloads its state
 (`nwc_sync_t`), re-asserts the restored state from the loaded world, and then loads the preserved
-join save in a fresh offline process and repeats the assertions. The two pick-up reload cases are
+join save in a fresh offline process and repeats the assertions. The pick-up reload cases are
 described under Pick-up goods cases.
 
 - `reload` runs the forward division, holds after the split-off portion forms, re-asserts the
@@ -282,12 +351,30 @@ described under Pick-up goods cases.
   instead of the ordinary `EXCHANGE_STEP_LIMIT` (1,000 observations) for this case: the reload
   runner's server reaches the wait for the counterpart and the exchange in more observations than
   the fast-forward pending-runtime runner.
+- `pair-passenger-loose-reload` runs the passenger-loose exchange and holds after the loose carriage
+  is laid over. After the reload it re-asserts the two final consists, the laid-over carriage and
+  its through-only load, then lets the receiver collect and deliver it. The reload runner's 300 s
+  shunting hold lets the junction-transfer passenger exceed its maximum tolerable wait; the case
+  therefore accepts either the passenger boarding the receiver or leaving the junction, and asserts
+  the carriage's through load and delivery.
+- `pair-freight-through-reload` holds the transferred loaded wagon, re-asserts its load after the
+  reload, then delivers it and checks the through fare.
+- `pair-freight-loose-reload` holds the loose wagon, re-asserts the fare already booked at the
+  junction and the wagon's through load, then collects and delivers the rest. The cargo reload
+  cases use `RELOAD_DEPARTURE_STEP_LIMIT` (16,000 observations); the freight-loose exchange took
+  11,905 observations at the reload server's pace.
 - `choose-reload` holds the receiver at the choose signal with the approach link bound, asserts the
   reciprocal link and the hold after the reload, and advances.
 
 `[EXECUTION-VERIFIED:2026-11-14, Debug|x64]` The division and paired reloads pass in the join phase
 and in the fresh offline load; both peers stayed running through the observation window; no parsed
 checklist pair mismatched (12,108 pairs for the paired case).
+
+`[EXECUTION-VERIFIED:2026-11-22, Debug|x64]` The three loaded pair reloads passed in the join phase
+and in the fresh offline load: `pair-passenger-loose-reload` READY 60 s, client join 16 s, server
+PASS 204 s, 20,942 checklist pairs with 0 mismatches; `pair-freight-through-reload` 77 s, 16 s, 78 s
+and 8,352 pairs; `pair-freight-loose-reload` 144 s, 16 s, 210 s and 21,523 pairs. The offline load
+printed RESTORED and PASS for each. The existing `pair-reload` regression passed with 6,600 pairs.
 
 Runners: `scripts/run-pending-runtime-reload-tests.sh` (POSIX) and
 `scripts/run-pending-runtime-reload-tests.ps1` (Windows). Both start a client to force the join,
@@ -299,8 +386,10 @@ tests\pending-runtime\pair-reload\scenario.nut -Harness tests\pending-runtime\pa
 -HarnessName pair-harness` (PowerShell) or the corresponding `--case`, `--scenario`, `--selector`,
 `--harness` and `--harness-name` options (POSIX). The choose reload uses the same options with
 `choose-reload`, `pending-runtime-choose-reload`, `tests/pending-runtime/choose-reload/scenario.nut`,
-`tests/pending-runtime/choose-harness.nut` and `choose-harness`. The PowerShell runner stages the
-scenario through a directory junction and removes the junction without following it.
+`tests/pending-runtime/choose-harness.nut` and `choose-harness`. The three loaded pair reloads use
+the same options with their own case, scenario and selector names, listed in the runner headers and
+in the scenarios. The PowerShell runner stages the scenario through a directory junction and
+removes the junction without following it.
 
 Both runners set `shunting_time_seconds` to 300, which is about 55 wall-clock seconds at the
 server's game-time rate and leaves a wide margin over the client join; the case fails with an
@@ -377,6 +466,8 @@ editing; run the full set only before pushing or merging a package:
   A change to the through-pair recording in `convoi_t::laden` or to
   `path_explorer_t::compartment_t::get_recorded_pair_time` must run `through-pair`; if the change
   touches the saved journey-time table, run `pickup-reload` as well. A change to
+  `unload_newly_loose_cargo`, the loose-stock passenger rule or the TPO selection must run
+  `plain-uncouple-passenger`, `pair-passenger-loose`, `mail-tpo` and `mail-no-tpo`. A change to
   `convoi_t::match_consist_order`, including the branch that handles optional slots, or
   to the Multi-Owner Access Rule must run both `ownership-*` cases; a change to the incremental
   access check in `paired_exchange_solver_t` must run the paired cases.
@@ -402,12 +493,12 @@ editing; run the full set only before pushing or merging a package:
 Do not run the fixture for documentation, comments, translation strings or help text. Measured with
 the default runner settings on the maintainer's machine (24 logical processors, Debug x64,
 `-debug 1 -fast_forward`): a choose case takes 3-7 seconds, or 16-18 seconds for the three hold
-cases at `-debug 3`; a Y case takes 4-6 seconds and a paired case 4-6 seconds; the 35-case standard
-set took 46 seconds with 8 jobs [EXECUTION-VERIFIED:2026-11-18]. A pick-up goods case takes 5-11
-seconds and the whole pick-up group took 12 seconds with 6 jobs [EXECUTION-VERIFIED:2026-11-18].
-An ownership case takes 6 seconds; the 43-case full set took 47 seconds with 8 jobs
-[EXECUTION-VERIFIED:2026-11-18]. The pakset load, about 5 seconds per process at `-debug 1`, is now
-the largest per-case cost, so the job count matters more than case selection for the whole set.
+cases at `-debug 3`; a Y case takes 4-6 seconds; a paired case takes 4-6 seconds, or 20-88 seconds
+for the loaded cargo cases; a pick-up case takes 5-28 seconds. The 15-case pick-up group took 56
+seconds with 8 jobs, including the five known fare-rounding failures, and the 43-case non-pick-up
+set took 148 seconds with 8 jobs [EXECUTION-VERIFIED:2026-11-22]. An ownership case takes 6 seconds.
+The pakset load, about 5 seconds per process at `-debug 1`, is now the largest per-case cost, so the
+job count matters more than case selection for the whole set.
 
 `PENDING_RUNTIME_CASES` selects a subset, for example:
 
@@ -423,18 +514,20 @@ scripts/run-pending-runtime-tests.sh
 
 ## Planned coverage
 
-The runtime fixture does not yet exercise every operation the feature supports. The planned coverage
-is: a multi-stop pick-up goods train; locomotive replacement with unchanged hauled vehicles,
-including an electrification boundary and a cross-player case; multiple-unit division and rejoining
-in both orientations; a locomotive-hauled split with a non-driveable loose remainder; through
-coaches collected later by a branch service; a tractor exchanging loading trailers; and a motor boat
-with zero, one and several butties. Include pool contention, broken or absent targets, save/reload
-and server/client determinism checks [RECOLLECTION:2026-11-03 operational scope; UNVERIFIED fixture
-composition].
+The runtime fixture covers the Y division, one-sided receive, paired H exchange, targetless
+assembly, choose-signal call-on, passenger and goods division, and the loaded pair cases. The
+remaining planned coverage is: a multi-stop pick-up goods train; locomotive replacement with
+unchanged hauled vehicles, including an electrification boundary and a cross-player case;
+multiple-unit division and rejoining in both orientations; a locomotive-hauled split with a
+non-driveable loose remainder; a tractor exchanging loading trailers; and a motor boat with zero,
+one and several butties. A cross-player paired exchange remains unscripted. Save/reload and
+server/client determinism are covered for the division, paired exchange, choose signal, pick-up and
+the loaded pair cases; the remaining operations above still need them
+[RECOLLECTION:2026-11-03 operational scope; UNVERIFIED fixture composition].
 
 The `pickup-cases/` set extends the base fixture to cargo continuity, optional collection slots,
-loaded/empty predicates, loading credit and the line-level through-pair recording. It is described
-above. The general cargo and fare rules are in
+loaded/empty predicates, loading credit, the line-level through-pair recording, passenger division
+capacity and mail/TPO handling. It is described above. The general cargo and fare rules are in
 [cargo-continuity](../ex-15/recombination-design/cargo-continuity.md).
 
 The `ownership-cases/` set covers the Multi-Owner Access Rule for a targetless pool collection. The
@@ -460,8 +553,12 @@ remain unscripted.
 - No case exercises the named-recipient hybrid recorded in
   [cargo-continuity](../ex-15/recombination-design/cargo-continuity.md): a named recipient keeps the
   load, while Same or Any would discharge the cargo without booking a fare and flash-load it with its
-  through record preserved. `cargo-through` and `pickup-reload` cover the current through-wagon
-  model; the discharge+flash-load alternative has no case.
+  through record preserved. `cargo-through`, `pair-freight-through`, `pair-freight-loose` and
+  `pickup-reload` cover the current through-wagon model; the discharge+flash-load alternative has no
+  case.
+- A one-sided receive with a loaded passenger carriage has no scripted case. The next-transfer rule
+  is covered by `plain-uncouple-passenger` and `pair-passenger-loose`, but the one-sided path itself
+  is unscripted.
 - The holder-to-mover transfer half of `rail_vehicle_t::hand_over_contact_reservation` has no
   scripted case. The mechanism and the narrow stale-target window in which it runs are in
   [reservation-handoff](../consist-recombination/reservation-handoff.md#the-transfer-window). A
@@ -533,5 +630,14 @@ pending-runtime set passed in 129 seconds with 8 jobs, and `through-pair` passed
 division reload passed with 6,709 checklist pairs and 0 mismatches; `pickup-reload` passed with 15,272
 checklist pairs and 0 mismatches, including the through-pair assertion after the join and after the
 fresh offline load [EXECUTION-VERIFIED:2026-11-20, ex-15 @ e74fb897d0].
-The planned coverage list is the operation-scope record from
+On 2026-11-22 the passenger loose-unload fix and its cases were added:
+`plain-uncouple-passenger`, `nested-split`, `multi-destination-same-portion`,
+`schedule-edit-through-pool`, `schedule-edit-divergence`, `passenger-capacity`, `mail-no-tpo`,
+`mail-tpo`, `pair-passenger-through`, `pair-passenger-loose`, `pair-freight-through`,
+`pair-freight-loose`, `pair-passenger-loose-reload`, `pair-freight-through-reload` and
+`pair-freight-loose-reload`. The 43-case non-pick-up set passed in 148 seconds with 8 jobs; the
+15-case pick-up group had 10 passes and the five known fare-rounding failures; the three loaded pair
+reloads and the `pair-reload` regression passed with the checklist pair counts recorded above
+[EXECUTION-VERIFIED:2026-11-22, ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix,
+Debug x64]. The planned coverage list is the operation-scope record from
 [ex-15/recombination-design](../ex-15/recombination-design.md).

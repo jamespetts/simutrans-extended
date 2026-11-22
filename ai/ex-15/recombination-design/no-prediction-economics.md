@@ -11,7 +11,10 @@ costless-rearrangement assumption at a split. Design context:
 [cargo-continuity](cargo-continuity.md); broader review: [remote-implications](remote-implications.md);
 terms: [consist-recombination](../../consist-recombination.md#terms). Code claims carry
 `[CODE ex-15 @ b53e370911]`; the economic assessment is `[UNVERIFIED]` analysis until measured
-against a representative [pakset](../../glossary.md) case.
+against a representative [pakset](../../glossary.md) case. The design decisions that resolve the
+grouping, fallback and passenger allocation questions are recorded in
+[passenger-and-goods-systems](passenger-and-goods-systems.md); this note remains the economic
+assessment, and the pick-up goods UI and shunting duration pricing are deferred there.
 
 ## Terms
 
@@ -46,9 +49,8 @@ against a representative [pakset](../../glossary.md) case.
   `haltestelle_t::fetch_goods` and `vehicle_t::load_cargo`.
 - **Committed Formation.** A vehicle-to-portion assignment fixed before loading from the authored
   consist order and the current consist, so that the loader can know which portion each wagon or
-  passenger vehicle will travel on. The committed formation is the principal alternative to the
-  no-prediction design; it is discussed under Mitigations and is not the subject of the main
-  analysis.
+  passenger vehicle will travel on. The committed formation is the chosen design for goods; the
+  implementation is in [passenger-and-goods-systems](passenger-and-goods-systems.md).
 
 ## The economic question
 
@@ -91,7 +93,7 @@ large enough to matter; it is analysis, not a measured result. [UNVERIFIED]
 
 | Mechanism | Cost avoided | Economic quantity | When material | Mitigation with real grounding |
 |---|---|---|---|---|
-| Sorting at the split | Extra shunting beyond a single cut; yard; staff; vehicle occupancy | Shunting time, staff salary, vehicle opportunity cost, yard capital and maintenance | Non-contiguous or interleaved portions, or repeated splits. A division into two contiguous portions has almost no extra sorting. | A divide is one cut; additional cuts use the existing shunting time. The extra cut is the physical cost. |
+| Sorting at the split | Extra shunting beyond a single cut; yard; staff; vehicle occupancy | Shunting time, staff salary, vehicle opportunity cost, yard capital and maintenance | Non-contiguous or interleaved portions, or repeated splits. A division into two contiguous portions has almost no extra sorting. | Any valid end state is allowed; complex shunts are not yet priced by duration (deferred). The extra cut is a real cost to price later. |
 | Transshipment at a stop | Goods facility, handling time, stop capacity | Building capital and maintenance, staff time, stop capacity | Busy junctions where a goods shed or warehouse would otherwise be required | Require a goods-enabled stop and use the ordinary unload and load path. The ordinary stop handling path is the cost. |
 | Storage in a loose wagon | Warehouse or siding capacity, staff, track occupancy | Building capital and maintenance, wagon fixed cost, layover staff discount | Where cheap wagons are used as storage; otherwise the wagon fixed cost is the natural limit | Keep the wagon fixed cost; do not give loaded wagons the full layover staff discount. |
 | Capacity and overbooking | Extra wagons and capacity | Vehicle capital and running cost, demand revenue | Elastic demand with excess set down at the junction | Enforce portion capacity at loading; excess waits at the origin. The ordinary loading path is the cost. |
@@ -134,9 +136,9 @@ charges. [UNVERIFIED]
   is that goods may not flow freely, which is the physical constraint.
 - **Require a goods-enabled stop for transshipment.** The side effect is that some stops cannot
   transship, which is realistic.
-- **Enforce contiguity and charge per cut.** A divide is one physical cut; additional cuts use
-  the existing shunting time. The side effect is that interleaved orders cost more, which is the
-  physical constraint.
+- **Allow any valid end state and price complex shunts in duration when that mechanism is
+  added.** The current design allows any valid end state; the extra cut is a real cost that the
+  deferred duration-pricing mechanism will charge.
 - **Keep the wagon fixed cost while stored, and remove the full layover staff discount for
   loaded wagons.** The wagon already pays its fixed cost; the layover staff discount is the
   questionable part. Loaded wagons need security or handling, so the discount is not realistic
@@ -147,7 +149,7 @@ charges. [UNVERIFIED]
 - **Add hire or settlement for mixed ownership.** The side effect is multiplayer complexity, but
   the alternative is an uncosted use of another player's capital.
 
-The committed formation is the substantial alternative. It eliminates the avoidable cost
+The committed formation is the chosen design for goods. It eliminates the avoidable cost
 because the loader knows the portion before loading, and the split has nothing to correct.
 It is a design change, not a low-side-effect patch: it requires the loader to know and use the
 committed formation, the split to honour it, and a saved or deterministically derived assignment,
@@ -160,8 +162,9 @@ and it must define what happens when the committed formation is disrupted after 
   goods shed and a yard, a set of through freight flows, and the cost of the alternative
   separate services? The assessment above identifies mechanisms and relative magnitudes; the
   pakset figures are not yet measured.
-- Do the fixed-cost and demand effects justify the committed formation, or are the
-  existing-mechanics mitigations sufficient?
+- Do the underfill and through-pool costs of the committed formation and the goods grouping
+  remain acceptable in a representative case, or do they need a different loading or storage
+  rule?
 - Is a standing or demurrage charge (a charge for standing wagons) needed beyond the wagon fixed
   cost and the removal of the layover staff discount for loaded wagons? If so, it must be
   grounded in a real standing charge, not an arbitrary tuning value.

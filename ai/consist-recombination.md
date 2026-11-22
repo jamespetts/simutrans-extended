@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases)
 ---
 # Consist recombination
 
@@ -14,8 +14,9 @@ convoys), vehicle/rail_vehicle.* (`hand_over_contact_reservation`), vehicle/vehi
 and loose recipients). Signalling and reservation consequences: [signals-and-blocks](signals-and-blocks.md).
 Design and feature status: [ex-15/recombination-design](ex-15/recombination-design.md),
 [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md). Cargo and passenger continuity:
-[ex-15/recombination-design/cargo-continuity](ex-15/recombination-design/cargo-continuity.md). Path
-explorer: [ex-15/yh-path-explorer](ex-15/yh-path-explorer.md). Scripting and tests:
+[ex-15/recombination-design/cargo-continuity](ex-15/recombination-design/cargo-continuity.md),
+[ex-15/recombination-design/passenger-and-goods-systems](ex-15/recombination-design/passenger-and-goods-systems.md).
+Path explorer: [ex-15/yh-path-explorer](ex-15/yh-path-explorer.md). Scripting and tests:
 [scripting-and-tests/consist-recombination](scripting-and-tests/consist-recombination.md). Shared-contact
 reservation handoff: [reservation-handoff](consist-recombination/reservation-handoff.md) — read when
 changing `rail_vehicle_t::hand_over_contact_reservation`, the reciprocal approach link, or the shared
@@ -26,10 +27,11 @@ contact tile.
 - **Consist.** The ordered list of vehicles a convoy runs with. The project intends to replace the
   term "convoy" with "consist" in the UI by the completion of work on version 15 (ex-15).
 - **Consist recombination.** Any operation that changes the vehicles in one or more consists at a
-  stop: a locomotive change, a multiple unit splitting or joining, a through coach attached or
-  detached, a pick-up goods train dropping or collecting loose wagons, or an assembly from the
-  stop's laid-over pool. The two common patterns are a division (one convoy into two portions) and a
-  paired exchange (two convoys exchanging vehicles); they are not the whole subject.
+  stop: a locomotive change, a multiple unit splitting or joining, a passenger carriage attached or
+  detached for a later service, a pick-up goods train dropping or collecting loose wagons, or an
+  assembly from the stop's laid-over pool. The two common patterns are a division (one convoy into
+  two portions) and a paired exchange (two convoys exchanging vehicles); they are not the whole
+  subject.
 - **Consist order (end-state order).** The ordered vehicle slots a schedule entry requires, stored in
   `schedule_t::orders` keyed by the entry's `unique_entry_id`. Each slot has prioritised
   alternatives: a specific `vehicle_desc_t` or a rule over vehicle attributes.
@@ -55,14 +57,24 @@ contact tile.
   vehicles.
 - **Laid-over pool / loose stock.** Convoys in `LAYOVER` at the stop; their vehicles are loose stock
   available to a targetless order and, for the receiver only, to a paired exchange.
+- **Through coach.** A passenger carriage that is detached from a scheduled consist at a stop and
+  collected later by another service. Its passengers stay aboard while it waits. A passenger
+  packet, or a mail packet in a convoy that has a TPO (Travelling Post Office; defined in
+  [passenger-and-goods-systems](ex-15/recombination-design/passenger-and-goods-systems.md)), whose
+  next transfer is the detaching stop is unloaded there instead; a packet whose next transfer is
+  later stays aboard the through coach.
 - **Discharge boundary.** A vehicle that remains in a scheduled consist keeps its load. A loaded
-  vehicle detached as loose stock also keeps its through cargo: this is the through-wagon model, in
-  which the wagon is the unit of collection. Cargo destined for the detaching stop is delivered
-  there. The existing load receives no loading credit, is outside halt capacity and waiting rules,
-  and the collecting convoy must serve every packet aboard. At collection, the packet's
-  `zwischenziel` (its next transfer stop) is repaired to the first later scheduled stop that serves
-  its planned transfer or destination, without changing `last_transfer` (the boarding halt used for
-  fare distance). An explicit `discharge_payload` entry is a full discharge: it delivers the packets
+  goods wagon, or a mail van without a TPO, detached as loose stock also keeps its through cargo:
+  this is the through-wagon model, in which the wagon is the unit of collection. A passenger
+  vehicle, or a mail vehicle in a convoy that has a TPO, follows the through-coach rule above:
+  `unload_newly_loose_cargo` unloads its packets whose next transfer or destination is the stop in
+  `convoi_t::commit_recombined_consist` and `convoi_t::commit_paired_exchange`, while goods and
+  non-TPO mail keep the destination-only pass. Cargo destined for the detaching stop is delivered
+  there. The through-wagon load receives no loading credit, is outside halt capacity and waiting
+  rules, and the collecting convoy must serve every packet aboard. At collection, a through-wagon
+  packet's `zwischenziel` (its next transfer stop) is repaired to the first later scheduled stop
+  that serves its planned transfer or destination, without changing `last_transfer` (the boarding
+  halt used for fare distance). An explicit `discharge_payload` entry is a full discharge: it delivers the packets
   to the halt and books the fare at that stop, so it is not the flash-load credit model. The
   loading-time credit, storage consequence and fallback rules are in
   [cargo-continuity](ex-15/recombination-design/cargo-continuity.md).
@@ -315,5 +327,7 @@ ex-15 @ 71f192a65 (2026-11-15); choose-signal call-on code and its scripted case
 0692167b6 (2026-11-15); remaining content against ex-15 @ 97029f453 (2026-11-14); paired reload
 fixture @ fa85a59b8; the committed-target hold correction and the `committed-target` and
 `contact-reservation` cases against ex-15 @ 03bf5306e (2026-11-16); the orientation choice, reversal
-delay and `facing` case against ex-15 @ 9fdefa153 (2026-11-16). The detailed design history and
-forum provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).
+delay and `facing` case against ex-15 @ 9fdefa153 (2026-11-16). The passenger and mail
+loose-stock rule, `unload_newly_loose_cargo` and the through-coach distinction were
+verified against ex-15 @ 57435c9cb1 plus the working-tree fix on 2026-11-22. The detailed design
+history and forum provenance are in [ex-15/recombination-design](ex-15/recombination-design.md).

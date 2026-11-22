@@ -1,6 +1,6 @@
 ---
-status: reviewed
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case)
+status: draft
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail continuity across splits and loose stock)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -158,6 +158,20 @@ explorer's treatment of consist orders.
   routes the receiver to the target, `convoi_t::can_approach_coupling_target` runs the same joint
   solver without committing; a failure holds the receiver at the signal, posts
   `convoi_t::report_coupling_hold` and never reaches contact.
+- **Passenger and mail continuity across splits and loose stock** — `convoi_t::hat_gehalten`
+  defers its ordinary unload at a recombination entry until the final consists are known.
+  `convoi_t::redistribute_passengers_after_division` moves passenger packets and mail packets on a
+  train with a TPO (Travelling Post Office; defined in
+  [passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md)) to a serving
+  portion up to overcrowded capacity, then discharges the remainder at the division. A passenger
+  vehicle, or a mail vehicle on a train with a TPO, that becomes loose stock unloads packets whose
+  next transfer or destination is the stop where it becomes loose; later-transfer packets stay
+  aboard as a through coach ([consist-recombination](../consist-recombination.md#terms)). Goods and
+  non-TPO mail keep the through-wagon model. Directly
+  transferred vehicles keep their load, and per-vehicle through records supply the fare history.
+  See [passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md) and
+  [cargo-continuity](recombination-design/cargo-continuity.md). Passenger load-time portion grouping
+  and portion-class boarding rules remain open.
 
 ## PARTIAL features
 
@@ -324,15 +338,6 @@ explorer's treatment of consist orders.
   convoy's step re-resolves and executes the exchange. A longer cycle (A waits for B, B for C,
   C for A) is not detected and jams; circular target graphs are refused only where the pair
   reciprocity validation reaches them. Platform blockage is accepted congestion.
-- **Freight/passenger continuity across splits/joins** — vehicles moving between scheduled consists
-  and loaded vehicles retained in the loose pool keep their packets. `hat_gehalten` defers its
-  ordinary unload at a recombination entry until the final consists are known, repairs the first
-  onward transfer against the new carrier's schedule and uses the ordinary halt fallback only for a
-  destination or an unrepairable packet. Per-vehicle through recordings supply the full journey
-  distance and way-owner apportionment to `calc_revenue`; `last_transfer` is retained. What is not
-  modelled is deliberate load redistribution between portions or portion-class boarding rules.
-  Loading credit uses actual cargo/wagon availability rather than preloading. See
-  [cargo-continuity](recombination-design/cargo-continuity.md) for open passenger/grouping questions.
 - **Choose-signal call-on for coupling movements** — the choose-signal target decision, target-platform
   route and call-on admission are implemented. A committed target holds the mover at the signal.
   Before the signal routes to a stationary target it calls `convoi_t::can_approach_coupling_target`,

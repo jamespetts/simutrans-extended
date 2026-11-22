@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, Multi-Owner Access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, cargo continuity, through-wagon model, flash-load credit, optional slots and loaded/empty rules); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ b53e370911 (2026-11-20, no-prediction economics subdocument link)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile, approach link and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); design revised 2026-11-07; discharge, Multi-Owner Access and paired runtime 2026-11-13; intended loose-stock treatment and general signalling API 2026-11-14; shared-contact coupling package defined 2026-11-15; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and the release suppression scripted); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay and facing case); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, cargo continuity, through-wagon model, flash-load credit, optional slots and loaded/empty rules); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ b53e370911 (2026-11-20, no-prediction economics subdocument link); ex-15 @ b53e370911 (2026-11-21, passenger and goods systems subdocument link); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger division and loose-stock rule with runtime cases)
 ---
 # ex-15: consist re-combination design and work programme
 
@@ -29,6 +29,10 @@ Sub-documents (read-when):
   and exploit potential of the design that does not fix the vehicle-to-portion assignment before
   boarding; read when assessing the cost of costless rearrangement, the fixed-cost and demand
   effects, or whether a committed formation is required.
+- [passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md) — the
+  two-system design for passengers and wagon-load goods, the committed formation, the through
+  record and the implementation status; read before implementing or changing the recombination
+  loading, division or through-fare paths.
 
 ## Operational scope
 
@@ -124,22 +128,28 @@ authoring error. Whether to retain that joining rule belongs to paired-exchange 
 
 ### Freight and passenger continuity
 
-Working assumption (2018/2026-09-19): cargo is rearranged internally into the correct portion at a
-split and need not have been assigned to its eventual post-split vehicle at boarding;
-alight-and-reboard at the boundary is rejected ([yh-path-explorer](yh-path-explorer.md)). The
-passenger side of this assumption is REOPENED 2026-11-03 [RECOLLECTION:2026-11-03 user statement].
-Code constraints (packet model, per-leg revenue and the `calc_revenue` cross-schedule defect,
-convoy-level loading), realism constraints, candidate shapes and all sub-questions:
+Passengers and cargo are arranged internally into the correct portion at a division; neither need
+be assigned to its eventual post-division vehicle at boarding, and alight-and-reboard at the
+division boundary is rejected ([yh-path-explorer](yh-path-explorer.md)). The passenger and goods systems
+that implement this are in
+[passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md); the packet,
+revenue and realism constraints are in
 [cargo-continuity](recombination-design/cargo-continuity.md).
 
 The discharge boundary is decided from the final consist. A vehicle in a scheduled consist keeps its
-load. A detached loaded wagon waiting in the loose pool also keeps its through cargo; this is the
-through-wagon model, and the wagon is the unit of collection [RECOLLECTION:2026-11-17 user decision].
-Packets for the stop itself are delivered there. The existing load stays outside halt capacity,
-overcrowding and waiting-time rules; on collection the normal halt loader supplies new freight only
-then, and that new freight is subject to the halt rules. The existing load receives no loading credit;
-the credit applies only to cargo loaded at collection. Route repair, the loading-time credit and the
-through fare record are specified in [cargo-continuity](recombination-design/cargo-continuity.md).
+load. A detached loaded goods wagon, or a mail van without a TPO (Travelling Post Office; defined
+in [passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md)), waiting in
+the [loose pool](../consist-recombination.md#terms) also keeps its through cargo; this is the
+through-wagon model, and the wagon is the unit of collection
+[RECOLLECTION:2026-11-17 user decision]. A passenger vehicle, or a mail vehicle
+on a train with a TPO, that becomes loose stock unloads packets whose next transfer or destination
+is the stop where it becomes loose; a later-transfer packet stays aboard as a through coach
+([consist-recombination](../consist-recombination.md#terms)). Packets for the stop itself are
+delivered there. The through-wagon load stays outside halt capacity, overcrowding and waiting-time
+rules; on collection the normal halt loader supplies new freight only then, and that new freight is
+subject to the halt rules. The through-wagon load receives no loading credit; the credit applies
+only to cargo loaded at collection. Route repair, the loading-time credit and the through fare
+record are specified in [cargo-continuity](recombination-design/cargo-continuity.md).
 
 ### Flash-load credit at collection
 
@@ -372,22 +382,26 @@ the realised scripted cases and their assertions are in the same doc.
 
 ## Open questions
 
-- **Instance identity and cargo continuity** — REOPENED 2026-11-03 [RECOLLECTION:2026-11-03 user
-  statement]; full question, candidate shapes and sub-questions (including grouped loading under
-  capacity pressure): [cargo-continuity](recombination-design/cargo-continuity.md). Any persistent
-  marking engages the savegame/network rules before implementation.
+- **Instance identity and cargo continuity** — the two-system design resolves the passenger/goods
+  split, the committed formation and the loose-stock treatment
+  ([passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md)). Remaining:
+  passenger loading grouping under capacity pressure and the other open questions in
+  [cargo-continuity](recombination-design/cargo-continuity.md). Any persistent marking would engage
+  the savegame/network rules before implementation.
 - **Paired exchange:** the runtime validation, failure reporting, atomic commit, once-only stop record
   and direct mutual-wait resolution are implemented, and a committed exchange survives the loopback
   network join's save/transfer/reload and a fresh offline load (2026-11-14). Remaining: wait-cycle
   detection longer than a direct pair, and the GUI authoring-time pre-check (designed but not
   brought into the knowledge base). The no-timeout decision for an absent named target is settled.
-- **Loose-stock loading:** cargo is not moved into a loose wagon before collection. Loaded stock
-  retains its existing through packets under the through-wagon model, and that existing load receives
-  no loading credit. The normal collection loading pass supplies new freight with the
-  intersection-based credit described under "Flash-load credit at collection"; the Same, Any and
-  named recipient modes use the same credit. Halt capacity and ordinary waiting rules apply to
-  freight waiting in the halt before collection, not to the existing load aboard the wagon.
-  [RECOLLECTION:2026-11-17 user instruction]
+- **Loose-stock loading:** cargo is not moved into a loose wagon before collection. A loaded goods
+  wagon, or a mail van without a TPO, retains its existing through packets under the through-wagon
+  model, and that existing load receives no loading credit. A passenger vehicle, or a mail vehicle
+  on a train with a TPO, follows the through-coach rule in
+  [passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md). The normal
+  collection loading pass supplies new freight with the intersection-based credit described under
+  "Flash-load credit at collection"; the Same, Any and named recipient modes use the same credit.
+  Halt capacity and ordinary waiting rules apply to freight waiting in the halt before collection,
+  not to the existing load aboard the wagon. [RECOLLECTION:2026-11-17 user instruction]
 - **Recipient model:** each loose vehicle has one recipient, or Same/Any rather than a list
   [RECOLLECTION:2026-11-17 user instruction]. Both pool pickup and the paired receiver honour it.
   The halt Vehicles tab permits bulk edits to Same, Any, a line or a convoy using a

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; through-wagon model 2026-11-17; loose-stock recipient at pickup @ b501f13f3 (2026-11-15); paired reload fixture @ fa85a59b8 (2026-11-14); ex-15 @ 9d2b75ecea (2026-11-20, runtime through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 684d570f9 (implementation, GUI and explorer tests) plus working-tree recombination runtime (2026-11-13); routing-search engine @ a203862c1 (2026-11-07); Y-division design revised 2026-11-07; discharge boundary and paired runtime 2026-11-13; through-wagon model 2026-11-17; loose-stock recipient at pickup @ b501f13f3 (2026-11-15); paired reload fixture @ fa85a59b8 (2026-11-14); ex-15 @ 9d2b75ecea (2026-11-20, runtime through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and goods continuity resolved by the two-system design)
 ---
 # ex-15: through-journey path-explorer traversal
 
@@ -82,9 +82,12 @@ superseded parts must not be reintroduced:
   [accuracy-performance-verification](yh-path-explorer/accuracy-performance-verification.md). The
   model was never formally adopted; the approach chosen here is compatible with its central point
   (per-coupling times entered into the existing matrix search) without the ordering constraint.
-- Freight/passenger continuity across a split was left unresolved: the working assumption is that
-  cargo is rearranged internally into the correct portion at the split, not constrained at the
-  vehicle level [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg193643.html]. The
+- Freight/passenger continuity across a split was unresolved in the forum design: the working
+  assumption is that cargo is rearranged internally into the correct portion at the split, not
+  constrained at the vehicle level
+  [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg193643.html]. The two-system design
+  implements passenger division allocation and the committed formation
+  ([passenger-and-goods-systems](recombination-design/passenger-and-goods-systems.md)). The
   explorer must not assume a vehicle-level continuity constraint.
 - The 2018 posts on two-party timed joining via the trigger system
   [FORUM:https://forum.simutrans.com/index.php/topic,16980.0.html] describe a mutual wait that is
