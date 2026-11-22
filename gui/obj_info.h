@@ -10,12 +10,13 @@
 #include "../simdebug.h"
 #include "../obj/simobj.h"
 #include "base_info.h"
+#include "components/action_listener.h"
 #include "components/gui_obj_view_t.h"
 
 /**
  * An adapter class to display info windows for things (objects)
  */
-class obj_infowin_t : public base_infowin_t
+class obj_infowin_t : public base_infowin_t, public action_listener_t
 {
 protected:
 	obj_view_t view;
@@ -28,6 +29,12 @@ public:
 	koord3d get_weltpos(bool) OVERRIDE { return get_obj()->get_pos(); }
 
 	bool is_weltpos() OVERRIDE;
+
+	/**
+	 * Handles a click on a link in the text area. Coordinate links of the form
+	 * "(x,y,z)" move the viewport and the cursor.
+	 */
+	bool action_triggered(gui_action_creator_t *comp, value_t v) OVERRIDE;
 
 	// refill buffer
 	void fill_buffer();

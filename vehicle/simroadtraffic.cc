@@ -1597,7 +1597,35 @@ void private_car_t::info(cbuffer_t & buf) const
 	const char* destination_name = destination_building ? translator::translate(destination_building->get_individual_name()) : translator::translate("keine");
 	const char* destination_city_name = destination_city ? destination_city->get_name() : translator::translate("keine");
 	buf.printf(translator::translate("%s\nspeed %i\nmax_speed %i\ndx:%i dy:%i"), translator::translate(desc->get_name()), speed_to_kmh(current_speed), speed_to_kmh(desc->get_topspeed()), dx, dy);
-	buf.printf(translator::translate("\nOrigin: %s\nDestination: %s (%s)"), origin_city_name, destination_name, destination_city_name);
+
+	// The origin and destination names link to their tiles, so that the
+	// information window can jump to them. The link target is a world
+	// coordinate of the form "(x,y,z)"; see obj_infowin_t.
+	cbuffer_t origin_text;
+	const grund_t* const gr_origin = origin != koord::invalid && welt->is_within_limits(origin) ? welt->lookup_kartenboden(origin) : NULL;
+	if (gr_origin != NULL)
+	{
+		origin_text.printf("<a href=\"(%i,%i,%i)\">%s</a>", gr_origin->get_pos().x, gr_origin->get_pos().y, gr_origin->get_pos().z, origin_city_name);
+	}
+	else
+	{
+		origin_text.append(origin_city_name);
+	}
+
+	cbuffer_t destination_text;
+	koord3d destination_pos = destination_building != NULL && destination_building->get_first_tile() != NULL
+		? destination_building->get_first_tile()->get_pos()
+		: (gr_target != NULL ? gr_target->get_pos() : koord3d::invalid);
+	if (destination_pos != koord3d::invalid)
+	{
+		destination_text.printf("<a href=\"(%i,%i,%i)\">%s</a>", destination_pos.x, destination_pos.y, destination_pos.z, destination_name);
+	}
+	else
+	{
+		destination_text.append(destination_name);
+	}
+
+	buf.printf(translator::translate("\nOrigin: %s\nDestination: %s (%s)"), (const char*)origin_text, (const char*)destination_text, destination_city_name);
 
 	char comfortable_time[32];
 	char tolerable_time[32];

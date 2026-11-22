@@ -10,8 +10,24 @@
 #include "gui_frame.h"
 #include "components/gui_fixedwidth_textarea.h"
 #include "../utils/cbuffer_t.h"
+#include "../dataobj/koord3d.h"
 
 class gui_textarea_with_embedded_element_t;
+
+/**
+ * Parses an information-window link target of the form "(x,y)" or "(x,y,z)".
+ * @param target receives the coordinates; z is -1 when only two were given.
+ * @return false when @p link is not a coordinate link.
+ */
+bool parse_coordinate_link(const char *link, koord3d &target);
+
+/**
+ * Moves the viewport and the cursor to an information-window coordinate link
+ * target in world coordinates. A target without a z coordinate, or whose z
+ * has no ground, uses the ground tile at that position.
+ * @return false when @p link is not a coordinate link or is outside the map.
+ */
+bool jump_to_coordinate_link(const char *link);
 
 /**
  * Base class to show window with fixed-width text with an embedded object.

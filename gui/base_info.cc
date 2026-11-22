@@ -5,6 +5,57 @@
 
 #include "base_info.h"
 
+#include <stdio.h>
+
+#include "../simworld.h"
+#include "../display/viewport.h"
+#include "../obj/zeiger.h"
+
+
+bool parse_coordinate_link(const char *link, koord3d &target)
+{
+	if (link == NULL || link[0] != '(')
+	{
+		return false;
+	}
+	int x = -1, y = -1, z = -1;
+	int n = sscanf(link, "(%i,%i,%i)", &x, &y, &z);
+	if (n < 3)
+	{
+		z = -1;
+		n = sscanf(link, "(%i,%i)", &x, &y);
+	}
+	if (n < 2)
+	{
+		return false;
+	}
+	target = koord3d(x, y, z);
+	return true;
+}
+
+
+bool jump_to_coordinate_link(const char *link)
+{
+	koord3d target;
+	if (!parse_coordinate_link(link, target) || !world()->is_within_limits(target.get_2d()))
+	{
+		return false;
+	}
+	if (target.z < 0 || world()->lookup(target) == NULL)
+	{
+		const grund_t *gr = world()->lookup_kartenboden(target.get_2d());
+		if (gr == NULL)
+		{
+			return false;
+		}
+		target = gr->get_pos();
+	}
+	world()->get_viewport()->change_world_position(target);
+	world()->get_zeiger()->change_pos(target);
+	return true;
+}
+
+
 /**
  * Auxiliary class to handle a gui_fixedwidth_textarea_t element with
  * some embedded element.
