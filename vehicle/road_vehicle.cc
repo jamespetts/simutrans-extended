@@ -1429,7 +1429,12 @@ void road_vehicle_t::enter_tile(grund_t* gr)
 		const halthandle_t halt = gr->get_halt();
 		if (cnv != NULL && halt.is_bound() && cnv->get_route() != NULL
 			&& route_index >= cnv->get_route()->get_count() - 1) {
-			halt->reserve_position(gr, cnv->self);
+			if (halt->reserve_position(gr, cnv->self)) {
+				// Remember the halt whose stand is held so that
+				// release_target_reservations() frees it on departure, as it
+				// does for a halt reserved during route finding.
+				target_halt = halt;
+			}
 		}
 		str->book(1, WAY_STAT_CONVOIS);
 		cnv->update_tiles_overtaking();
