@@ -764,6 +764,11 @@ void private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) 
 	{
 		return;
 	}
+	if (road_space::is_beside_lane(blocker))
+	{
+		blocker = NULL;
+		return;
+	}
 	road_space::user_t self;
 	self.object = this;
 	self.convoi = NULL;

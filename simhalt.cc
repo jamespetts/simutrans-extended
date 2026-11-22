@@ -6785,6 +6785,10 @@ uint8 haltestelle_t::get_empty_lane(const grund_t *gr, convoihandle_t cnv) const
 			// stand it recorded.
 			for(uint8 h=0; h<gr->get_top(); h++) {
 				if(  road_vehicle_t* rv = obj_cast<road_vehicle_t> (gr->obj_bei(h))  ) {
+					if (cnv.is_bound() && rv->get_convoi() == cnv.get_rep()) {
+						// The reserving vehicle itself is not an obstruction.
+						continue;
+					}
 					const uint8 stand = rv->get_stand_mask();
 					uint8 lateral = 0;
 					if (stand != 0) {

@@ -181,6 +181,12 @@ bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *lea
 	return rear > (sint32)following_gap(self.speed, other.speed > 0);
 }
 
+bool is_beside_lane(const vehicle_base_t *v)
+{
+	const road_vehicle_t *rv = obj_cast<road_vehicle_t>(v);
+	return rv != NULL && rv->is_pulled_over();
+}
+
 uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance)
 {
 	const sint32 limit = following_limit(v->get_grund(), self, steps);
@@ -627,7 +633,12 @@ void road_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 	vehicle_t::rdwr_from_convoi(file);
 	if (file->is_version_ex_atleast(15, 20))
 	{
-		file->rdwr_byte(stand_mask);
+		uint8 mask = stand_mask;
+		file->rdwr_byte(mask);
+		if (file->is_loading())
+		{
+			stand_mask = mask & 0x0F;
+		}
 	}
 	else if (file->is_loading())
 	{
@@ -640,6 +651,13 @@ void road_vehicle_t::apply_following_rule(const grund_t *gr, vehicle_base_t *&bl
 {
 	if (blocker == NULL || !leading || cnv == NULL)
 	{
+		return;
+	}
+	// A vehicle loading at a stop stand is beside the travel lane, so it does
+	// not block a vehicle in the travel lane even though both are on the tile.
+	if (road_space::is_beside_lane(blocker))
+	{
+		blocker = NULL;
 		return;
 	}
 	road_space::user_t self;
@@ -1384,6 +1402,16 @@ void road_vehicle_t::enter_tile(grund_t* gr)
 	}
 	str->book(cargo, WAY_STAT_GOODS);
 	if (  leading  )  {
+		// Reserve a stop stand on arrival at the end of the route when that is
+		// a halt. Route finding only checks that a stand is free; the
+		// reservation itself is made here, on the main thread, so that the
+		// vehicle knows which lateral position to load at. The reservation is
+		// released when the convoy departs (see release_target_reservations).
+		const halthandle_t halt = gr->get_halt();
+		if (cnv != NULL && halt.is_bound() && cnv->get_route() != NULL
+			&& route_index >= cnv->get_route()->get_count() - 1) {
+			halt->reserve_position(gr, cnv->self);
+		}
 		str->book(1, WAY_STAT_CONVOIS);
 		cnv->update_tiles_overtaking();
 		if(  next_lane==1  ) {

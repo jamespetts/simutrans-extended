@@ -59,6 +59,10 @@ namespace road_space
 	/// described by @p self may enter the tile and follow it.
 	bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *leader);
 
+	/// Whether @p v is a road vehicle that is standing at a stop stand beside
+	/// the travel lane, so that it does not block traffic in position 0.
+	bool is_beside_lane(const vehicle_base_t *v);
+
 	/**
 	 * Drives @p v by at most one tile boundary, stopping at the limit given by
 	 * following_limit() on the tile it is on. The caller must refresh @p self
@@ -95,15 +99,17 @@ public:
 	bool is_pulled_over() const;
 
 protected:
-	bool is_checker;
+	/// Automatic-road-finder placeholder vehicle.
+	uint8 is_checker : 1;
 
 	/**
 	 * The stop stand reserved for this convoy's leading vehicle, as a four-bit
 	 * mask (see haltestelle_t::get_empty_lane), or zero when no stand is held.
-	 * Only the leading vehicle records it. Saved with the vehicle, behind
-	 * Extended save revision 20.
+	 * Only the leading vehicle records it. Packed with is_checker so that the
+	 * member costs no object memory. Saved with the vehicle, behind Extended
+	 * save revision 20.
 	 */
-	uint8 stand_mask;
+	uint8 stand_mask : 4;
 
 public:
 	void enter_tile(grund_t*) OVERRIDE;
