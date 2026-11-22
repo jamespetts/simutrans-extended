@@ -207,10 +207,11 @@ uint32 road_vehicle_t::get_max_speed() { return cnv->get_min_top_speed(); }
 
 road_vehicle_t::road_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cn) :
 #ifdef INLINE_OBJ_TYPE
-    vehicle_t(obj_t::road_vehicle, pos, desc, player)
+    vehicle_t(obj_t::road_vehicle, pos, desc, player),
 #else
-    vehicle_t(pos, desc, player)
+    vehicle_t(pos, desc, player),
 #endif
+    stand_mask(0)
 {
 	cnv = cn;
 	is_checker = false;
@@ -220,10 +221,11 @@ road_vehicle_t::road_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t
 
 road_vehicle_t::road_vehicle_t() :
 #ifdef INLINE_OBJ_TYPE
-    vehicle_t(obj_t::road_vehicle)
+    vehicle_t(obj_t::road_vehicle),
 #else
-    vehicle_t()
+    vehicle_t(),
 #endif
+    stand_mask(0)
 {
 	// This is blank - just used for the automatic road finder.
 	cnv = NULL;
@@ -232,10 +234,11 @@ road_vehicle_t::road_vehicle_t() :
 
 road_vehicle_t::road_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) :
 #ifdef INLINE_OBJ_TYPE
-    vehicle_t(obj_t::road_vehicle)
+    vehicle_t(obj_t::road_vehicle),
 #else
-    vehicle_t()
+    vehicle_t(),
 #endif
+    stand_mask(0)
 {
 	rdwr_from_convoi(file);
 
@@ -468,6 +471,22 @@ void road_vehicle_t::get_screen_offset( int &xoff, int &yoff, const sint16 raste
 {
 	vehicle_base_t::get_screen_offset( xoff, yoff, raster_width );
 
+	if (is_pulled_over())
+	{
+		// Draw the vehicle beside the travel lane while it loads at its stand.
+		const uint8 lateral = get_stand_lateral_position();
+		if ((lateral & 2) != 0)
+		{
+			xoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][0], raster_width);
+			yoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][1], raster_width);
+		}
+		if ((lateral & 1) != 0)
+		{
+			add_pulled_over_offset(xoff, yoff, raster_width);
+		}
+		return;
+	}
+
 	// eventually shift position to take care of overtaking
 	if(cnv) {
 		sint8 tiles_overtaking = prev_based ? cnv->get_prev_tiles_overtaking() : cnv->get_tiles_overtaking();
@@ -555,9 +574,65 @@ bool road_vehicle_t::choose_route(sint32 &restart_speed, ribi_t::ribi start_dire
 
 bool road_vehicle_t::is_pulled_over() const
 {
-	// Set by haltestelle_t::reserve_position() when the vehicle reserves a stop
-	// stand; see the stop stand implementation.
-	return false;
+	if (cnv == NULL)
+	{
+		return false;
+	}
+	// The stand is recorded on the leading vehicle; every vehicle of the
+	// convoy is drawn beside the travel lane while the convoy loads.
+	const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+	if (front == NULL || front->stand_mask == 0)
+	{
+		return false;
+	}
+	return cnv->is_loading() || cnv->get_state() == convoi_t::LAYOVER;
+}
+
+
+uint8 road_vehicle_t::get_stand_lateral_position() const
+{
+	if (cnv == NULL)
+	{
+		return 0;
+	}
+	const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+	if (front == NULL || front->stand_mask == 0)
+	{
+		return 0;
+	}
+	uint8 stand = 0;
+	for (uint8 s = 0; s < 4; s++)
+	{
+		if ((front->stand_mask & (1 << s)) != 0)
+		{
+			stand = s;
+			break;
+		}
+	}
+	// A terminal's four stands are its four lateral positions. A through
+	// stop's stand is a side of the road, and a vehicle loading there is
+	// pulled over in its traffic lane.
+	const grund_t *gr = welt->lookup(get_pos());
+	const halthandle_t halt = gr != NULL ? gr->get_halt() : halthandle_t();
+	if (halt.is_bound() && halt->get_stand_count(gr) >= 4)
+	{
+		return stand;
+	}
+	return 1;
+}
+
+
+void road_vehicle_t::rdwr_from_convoi(loadsave_t *file)
+{
+	vehicle_t::rdwr_from_convoi(file);
+	if (file->is_version_ex_atleast(15, 20))
+	{
+		file->rdwr_byte(stand_mask);
+	}
+	else if (file->is_loading())
+	{
+		stand_mask = 0;
+	}
 }
 
 

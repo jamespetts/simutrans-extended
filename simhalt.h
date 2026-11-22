@@ -284,14 +284,27 @@ public:
 	 */
 	struct tile_t
 	{
-		tile_t() {}
-		tile_t(grund_t* grund_) : grund(grund_) {}
+		tile_t() : grund(NULL), stands(2) {}
+		tile_t(grund_t* grund_) : grund(grund_), stands(2) {}
 
-		bool operator ==(const tile_t& o) { return grund == o.grund; }
-		bool operator !=(const tile_t& o) { return grund != o.grund; }
+		bool operator ==(const tile_t& o) const { return grund == o.grund; }
+		bool operator !=(const tile_t& o) const { return grund != o.grund; }
 
 		grund_t*       grund;
-		convoihandle_t reservation[2];
+		/**
+		 * Stop stand reservations. Bit 0 to bit 3 are the four stands that
+		 * get_empty_lane() offers; see the comment there. Reservations are
+		 * transient and are not saved.
+		 */
+		convoihandle_t reservation[4];
+
+		/**
+		 * Number of stop stands on this tile: two (one on each side of the
+		 * road) for a through stop, four for a terminal. A terminal is a road
+		 * stop building with four layouts; the building placement code already
+		 * requires a layout count of 4 to stand on a single-direction road.
+		 */
+		uint8 stands;
 	};
 
 	// Data on direct connexions from one station to the next.
@@ -1017,7 +1030,19 @@ public:
 	/** true, if this can be reserved
 	 */
 	bool is_reservable(const grund_t *gr, convoihandle_t cnv) const;
+
+	/**
+	 * The stands that a road vehicle may use on this halt tile, as a four-bit
+	 * mask, minus the stands that are already taken. Bit 0 to bit 3 are
+	 * stands; see the implementation for how the direction and the terminal
+	 * stand count select them. Returns zero when the tile is not part of this
+	 * halt or has no stand free.
+	 */
 	uint8 get_empty_lane(const grund_t *gr, convoihandle_t cnv) const;
+
+	/// The number of stands on this halt tile: two for a through stop, four
+	/// for a terminal, zero when the tile is not part of this halt.
+	uint8 get_stand_count(const grund_t *gr) const;
 
 	/**
 	 * return update flag of waiting cargo info.

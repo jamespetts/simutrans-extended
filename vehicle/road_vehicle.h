@@ -97,10 +97,31 @@ public:
 protected:
 	bool is_checker;
 
+	/**
+	 * The stop stand reserved for this convoy's leading vehicle, as a four-bit
+	 * mask (see haltestelle_t::get_empty_lane), or zero when no stand is held.
+	 * Only the leading vehicle records it. Saved with the vehicle, behind
+	 * Extended save revision 20.
+	 */
+	uint8 stand_mask;
+
 public:
 	void enter_tile(grund_t*) OVERRIDE;
 	virtual void hop(grund_t*) OVERRIDE;
 	virtual uint32 do_drive(uint32 distance) OVERRIDE;
+
+	void rdwr_from_convoi(loadsave_t *file) OVERRIDE;
+
+	uint8 get_stand_mask() const { return stand_mask; }
+	void set_stand_mask(uint8 mask) { stand_mask = mask; }
+
+	/**
+	 * The lateral position (0 to 3, see the road_space comment) at which this
+	 * vehicle is drawn while it loads at its stand. A through stop gives one
+	 * stand on each side, so the vehicle is pulled over in its traffic lane
+	 * (position 1); a terminal uses the four lateral positions directly.
+	 */
+	uint8 get_stand_lateral_position() const;
 
 	void rotate90() OVERRIDE;
 
