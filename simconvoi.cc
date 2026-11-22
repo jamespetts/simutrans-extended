@@ -11599,6 +11599,30 @@ uint32 convoi_t::vehicle_turn_delay_ticks(const vehicle_t *v)
 }
 
 
+// Unload the cargo that a newly loose convoy must deliver at the stop.
+// A loose loaded wagon keeps its through load: the wagon is the unit of
+// collection. A passenger or TPO mail packet whose next transfer is this stop
+// is different: it must leave the vehicle here, where the ordinary halt
+// loading pass can rebook it. Passenger and TPO mail vehicles therefore use a
+// destination-or-next-transfer pass; goods and non-TPO mail keep the
+// destination-only pass.
+static void unload_newly_loose_cargo(convoi_t *cnv, halthandle_t halt)
+{
+	if (!cnv || !halt.is_bound())
+	{
+		return;
+	}
+	const bool mail_uses_passenger_system = cnv->get_catering_level(goods_manager_t::INDEX_MAIL) > 0;
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		const vehicle_t *const v = cnv->get_vehicle(i);
+		const bool passenger_system = v->get_cargo_type() == goods_manager_t::passengers
+			|| (mail_uses_passenger_system && v->get_cargo_type() == goods_manager_t::mail);
+		cnv->unload_individual_vehicle_at(i, halt, false, false, !passenger_system);
+	}
+}
+
+
 uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same)
 {
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
@@ -11884,10 +11908,7 @@ uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicle
 		// A displaced vehicle from the joining convoy may not have received
 		// that convoy's arrival unload pass. Discharge any packet whose
 		// destination or next transfer is this stop before the vehicle waits.
-		if (halt.is_bound())
-		{
-			cnv->unload_cargo_for_stop(halt, true);
-		}
+		unload_newly_loose_cargo(cnv, halt);
 
 		if (split_candidate)
 		{
@@ -13604,7 +13625,7 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 			loose->enter_layover(halt);
 		}
 		loose->create_schedule();
-		loose->unload_cargo_for_stop(halt, true);
+		unload_newly_loose_cargo(loose, halt);
 	}
 
 	// A changed convoy waits out the shunting delay. The convoy that did not
