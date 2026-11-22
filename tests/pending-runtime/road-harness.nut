@@ -55,9 +55,11 @@ local ONCOMING_WEST_BRANCH = coord3d(3, 2, 0)
 local ONCOMING_WEST_TERMINAL = coord3d(3, 0, 0)
 local ONCOMING_STREAM_CONVOYS = 10
 
-// Vehicle steps per carunit, from simunits.h. A vehicle descriptor's length is
-// in carunits.
+// Vehicle steps per carunit and per tile, from simunits.h. A vehicle
+// descriptor's length is in carunits; a tile boundary is at the tile's step
+// count, which is 256 on a straight tile.
 local VEHICLE_STEPS_PER_CARUNIT = 16
+local VEHICLE_STEPS_PER_TILE = 256
 
 // The fixture pakset, pak128.Britain-Ex, sets meters_per_tile to 125. The
 // moving-gap lower bound is expressed at that scale; the road group is run
@@ -395,12 +397,13 @@ function length_steps(slot)
 }
 
 
-// Asserts that two front vehicles on the same tile do not overlap: a vehicle
-// whose front is behind another vehicle's front must stay behind that
-// vehicle's rear. Vehicles overtaking are skipped: their steps pass the other
-// vehicle's front while they are in the other lane, which the snapshot does
-// not expose. All fixture vehicles have the same top speed, so the queue cases
-// do not overtake.
+// Asserts that a follower does not overlap the vehicle in front: a vehicle
+// whose front is behind another vehicle's front must stay behind that vehicle's
+// rear, both when the two fronts share a tile and when the follower is on the
+// tile immediately behind the leader's tile. Vehicles overtaking are skipped:
+// their steps pass the other vehicle's front while they are in the other lane,
+// which the snapshot does not expose. All fixture vehicles have the same top
+// speed, so the queue cases do not overtake.
 function check_no_overlap(leader, follower)
 {
 	if (leader.is_loading() || follower.is_loading() || leader.is_in_depot() || follower.is_in_depot())
@@ -411,13 +414,34 @@ function check_no_overlap(leader, follower)
 	}
 	local a = front_slot(leader)
 	local b = front_slot(follower)
-	if (a == null || b == null || !same_pos(a.pos, b.pos) || on_depot_tile(a.pos))
+	if (a == null || b == null || on_depot_tile(a.pos) || on_depot_tile(b.pos))
 	{
 		return true
 	}
 	if (a.pulled_over && !b.pulled_over)
 	{
 		// The leader is beside the travel lane.
+		return true
+	}
+	// The queue and moving-gap fixtures run east, so a follower one tile west of
+	// the leader is at the tile boundary behind it. The leader's rear, in the
+	// follower's tile coordinates, is the tile length plus its steps, less its
+	// length. The follower's front must not pass that rear.
+	if (a.pos.y == b.pos.y && a.pos.z == b.pos.z && a.pos.x == b.pos.x + 1)
+	{
+		local rear = VEHICLE_STEPS_PER_TILE + a.steps - length_steps(a)
+		if (!check(b.steps <= rear,
+			"vehicle of convoy " + follower.id + " at steps " + b.steps
+			+ " on " + pos_text(b.pos) + " overlaps the rear (" + rear
+			+ ") of the vehicle of convoy " + leader.id + " on the next tile "
+			+ pos_text(a.pos)))
+		{
+			return false
+		}
+		return true
+	}
+	if (!same_pos(a.pos, b.pos))
+	{
 		return true
 	}
 	if (b.steps > a.steps)

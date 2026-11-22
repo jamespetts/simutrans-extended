@@ -41,6 +41,7 @@ namespace road_space
 		ribi_t::ribi direction;       ///< direction of travel
 		sint32 speed;                 ///< current speed, internal units
 		uint32 length;                ///< length in vehicle steps
+		bool leading = true;          ///< front vehicle of a convoy, or a private car
 		bool overtaking;              ///< travelling in the passing lane
 		bool pulled_over;             ///< stopped at a stop stand beside the travel lane
 	};
@@ -50,13 +51,22 @@ namespace road_space
 	/// selects the reaction-time headway instead of the standstill gap.
 	uint32 following_gap(const sint32 follower_speed, const bool leader_moving);
 
-	/// The position in vehicle steps that the user described by @p self may not
-	/// pass on @p gr, or -1 when no vehicle in the same lateral position
-	/// constrains it.
-	sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps);
+	/**
+	 * The position in vehicle steps that the user described by @p self may not
+	 * pass on @p gr, or -1 when no vehicle in the same lateral position
+	 * constrains it. @p steps is the user's front position on @p gr and
+	 * @p steps_next the last step of that tile. A vehicle whose front has
+	 * entered the tile in front of @p gr is also considered while its rear is
+	 * still on @p gr.
+	 */
+	sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps, const uint8 steps_next);
 
-	/// Whether the blocker @p leader is far enough ahead on @p gr that the user
-	/// described by @p self may enter the tile and follow it.
+	/**
+	 * Whether the blocker @p leader is far enough ahead on @p gr that the user
+	 * described by @p self may enter the tile and follow it. Only a private car
+	 * or the leading vehicle of a convoy can clear a blocker: a trailing convoy
+	 * vehicle's own length does not prove that the convoy's rear is clear.
+	 */
 	bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *leader);
 
 	/// Whether @p v is a road vehicle that is standing at a stop stand beside

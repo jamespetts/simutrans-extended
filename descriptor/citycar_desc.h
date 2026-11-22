@@ -11,6 +11,7 @@
 #include "image_list.h"
 #include "../dataobj/ribi.h"
 #include "../simtypes.h"
+#include "../simunits.h"
 #include "../network/checksum.h"
 #include "../tpl/vector_tpl.h"
 
@@ -40,7 +41,7 @@ class citycar_desc_t : public obj_desc_timelined_t {
 
 	/**
 	 * Vehicle length in carunits (CARUNITS_PER_TILE make one tile), zero when
-	 * the pakset does not define it. A zero length means one carunit.
+	 * the pakset does not define it; get_length() then returns DEFAULT_LENGTH.
 	 */
 	uint8 length = 0;
 
@@ -55,6 +56,15 @@ class citycar_desc_t : public obj_desc_timelined_t {
 	vector_tpl<uint8> available_classes;
 
 public:
+	/**
+	 * Length in carunits of a car whose pakset gives no length: a quarter of a
+	 * tile. A private car sprite is about half the length of the legacy
+	 * half-tile default for a road vehicle (vehicle_desc_t when a pakset gives
+	 * no length), and a quarter tile is the typical length of a car sprite in
+	 * the standard graphics scale.
+	 */
+	static const uint8 DEFAULT_LENGTH = CARUNITS_PER_TILE / 4;
+
 	image_id get_image_id(ribi_t::dir dir) const
 	{
 		image_t const* const image = get_child<image_list_t>(2)->get_image(dir);
@@ -70,8 +80,14 @@ public:
 	uint8 get_capacity() const { return capacity; }
 	bool has_capacity() const { return capacity > 0; }
 
-	/// Length in carunits; a pakset without the field gives one carrier unit.
-	uint8 get_length() const { return length != 0 ? length : 1; }
+	/**
+	 * Length in carunits. A pakset without the field gives a quarter of a tile,
+	 * which is the typical length of a private car sprite in the standard
+	 * graphics scale. That falls back to the legacy half-tile default for a
+	 * player road vehicle whose pakset gives no length (vehicle_desc_t), halved
+	 * because a car is about half the length of a bus or lorry.
+	 */
+	uint8 get_length() const { return length != 0 ? length : DEFAULT_LENGTH; }
 
 	/// Whether passengers of this wealth class can travel in this car.
 	bool is_available_to_class(uint8 g_class) const

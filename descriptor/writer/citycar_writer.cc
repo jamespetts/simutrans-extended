@@ -77,8 +77,9 @@ void citycar_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	const uint32 class_count = available_classes.get_count();
 
 	// Version 5 fields: the passenger capacity of one car and the vehicle
-	// length in carunits. Omitted keys give zero, which keeps the historic
-	// traffic-level car fill.
+	// length in carunits. An omitted capacity gives zero, which keeps the
+	// historic traffic-level car fill. An omitted length gives zero, which
+	// citycar_desc_t::get_length() reads as a quarter of a tile.
 	const int capacity = obj.get_int("capacity", 0);
 	const int car_length = obj.get_int("length", 0);
 	if (capacity < 0 || capacity > 255)

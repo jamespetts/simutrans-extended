@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 806befea63
+verified: ex-15 @ c05a49e154 plus working-tree road-following changes
 ---
 # Road vehicle operations: implementation
 
@@ -33,12 +33,34 @@ waiting are not implemented.
   and two `static_assert`s in `road_vehicle.cc` fail the build if that value leaves the range
   20 m to 21 m. `settings_t::get_meters_per_tile()` converts the total to vehicle steps and the
   result is rounded up, so a real gap never becomes zero.
-- `road_space::following_limit` scans the tile's object list for the nearest road vehicle
-  ahead in the same travel direction and lateral position, and returns its rear boundary
-  (`steps` minus its length in vehicle steps) minus the gap. A vehicle of the same convoy, a
-  vehicle in another lateral position and an oncoming vehicle are ignored.
-- `road_space::can_follow` is the entry test: the follower's front enters at step 0, so the
-  leader's rear boundary must be more than one gap ahead.
+- `road_space::following_limit` returns the furthest position, in vehicle steps, that a
+  road user's front may reach on its tile, or `-1` when nothing constrains it. It compares
+  only road users in the same lateral position and travelling in the same direction. A
+  vehicle whose front is on the same tile constrains the follower whenever that front is
+  ahead of the follower's front; the limit is the vehicle's rear boundary (its front minus
+  its length) less the gap. A vehicle which is already overlapping the follower is
+  therefore still a blocker: the follower waits instead of driving through it. The limit
+  is clamped to zero because `-1` means "no constraint"; a negative value would otherwise
+  let the follower drive to the end of its tile when the gap grows, as it does when a
+  stopped queue starts moving and the reaction distance replaces the standstill gap.
+- `following_limit` also looks ahead into the tile returned by
+  `vehicle_base_t::get_pos_next`. A vehicle whose front has crossed into the next tile
+  still has its rear on the follower's tile while its front is shorter than its length,
+  and it constrains the follower in the same way. A vehicle on the next tile is considered
+  only if its recorded direction shows that it entered through the shared tile edge, so
+  that both vehicles' step coordinates start at that edge.
+  `road_space::step_scale` returns the length of one step on a tile in 512ths of a
+  straight step; a diagonal tile's step covers
+  `vehicle_base_t::get_diagonal_multiplier()` 512ths.
+- `road_space::get_user_state` gives a leading convoy vehicle the whole convoy length,
+  because the convoy's rear is that vehicle's front minus the convoy length. A trailing
+  vehicle gives its own length instead, which is the rear of the part of the convoy on its
+  tile. Each vehicle of a convoy is therefore a rear boundary of the convoy's body, not a
+  separate road user with the full convoy length.
+- `road_space::can_follow` is the entry test: the follower's front enters at step 0, so an
+  accepted leader's rear boundary must be more than one gap ahead. Only a private car or a
+  convoy's leading vehicle can clear a blocker; a trailing convoy vehicle's own length does
+  not prove that the convoy's rear is clear.
 - `road_space::drive_until_limit` performs one base `vehicle_base_t::do_drive` call for at
   most one tile boundary. `road_vehicle_t::do_drive` and the new `private_car_t::do_drive`
   repeat it after each hop and recompute the leader, so a vehicle cannot pass the leader while
@@ -124,20 +146,23 @@ bytes per halt tile on x64.
 - `single-run`: one convoy crosses a straight road to its destination without a false block or
   stall.
 - `moving-gap`: a fast follower catches a slow leader near the end of the route, where road
-  overtaking is refused. While both fronts are on one tile and both are moving, the gap in
+  overtaking is refused. While both fronts are on one tile, the gap in
   vehicle steps must be at least the standstill gap plus the 1.5 s reaction distance at the
   follower's speed, converted at the fixture's 125 m per tile, less a small observation
   tolerance. At 50 km/h the bound is about 45 vehicle steps; the earlier 1000x scaling error
-  produced a gap of a few steps and fails it. The case also requires both convoys to reach the
-  destination.
+  produced a gap of a few steps and fails it. While the follower is on the tile immediately
+  behind the leader's tile, the follower's front must not pass the leader's rear boundary
+  expressed in the follower's tile coordinates. The case also requires both convoys to reach
+  the destination.
 - `overtake`: the fastest and slowest available road vehicle descriptors are selected in one
   pass from the pakset; the fast vehicle starts second and must arrive first, which can only
   happen if it overtook the slow vehicle without a deadlock or head-on conflict.
 - `junction`: two convoys leave separate depots on an east-west trunk and a north branch and
   cross a T junction from different arms; both must reach the trunk-end terminal.
 - `queue`: two convoys leave one depot in the same step and follow one another on a straight
-  road. The following vehicle must stay behind the leading vehicle's rear whenever both are on
-  one tile, and both must reach the destination.
+  road. The following vehicle must stay behind the leading vehicle's rear whenever both are
+  on one tile and when the follower is on the tile immediately behind the leader's tile, and
+  both must reach the destination.
 - `stop-release`: a holder loads at a through stop and departs; a second vehicle then starts,
   reaches the stop, loads and holds the released stand. The saved stand mask must be non-zero
   so that the case proves the stand was reused, not merely that the second vehicle passed.
@@ -176,12 +201,10 @@ scripts\run-pending-runtime-reload-tests.ps1 -CaseName save-reload-stand
   -Exe simutrans\Simutrans-Extended-Debug.exe
 ```
 
-Results on 2026-11-22 with the Debug x64 build and `-nomidi -nosound -fast_forward`: all ten
-road cases passed (about 50 s with six jobs); the standard Squirrel suite passed (81 of 81);
-the `division`, `pair`, `choose` and `ownership` pending-runtime groups passed (37 cases); and
-`save-reload-stand` passed on the server after the join (READY after ~36 s, client joined
-after ~16 s, PASS after ~98 s, 10,448 checklist pairs with no mismatch) and in the fresh
-offline load (RESTORED after ~16 s, PASS).
+The ten road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
+(about 50 s with six jobs). The standard Squirrel suite passes (81 of 81). The `division`,
+`pair`, `choose` and `ownership` pending-runtime groups pass (37 cases). `save-reload-stand`
+passes on the server after the join and in the fresh offline load.
 
 The reaction distance also has a compile-time test: the two `static_assert`s on
 `road_space::reaction_gap_mm` in `vehicle/road_vehicle.cc`.
@@ -195,13 +218,14 @@ change.
 
 ## Known limitations
 
-- The following scan sees only vehicles whose front is on the same tile. A long
-  leader whose front has crossed into the next tile can still have its rear on the
-  follower's tile; the entry check prevents the follower entering the leader's tile, but a
-  small visual overlap across the tile boundary is possible.
-- The leader scan is one object-list scan per moving road user per tile crossing. The
-  performance suite has not been run; if profiling shows the scan matters, a transient
-  per-tile leader cache is the next step.
+- The following scan covers a vehicle whose front is on the follower's own tile or on the
+  immediately following tile. A vehicle longer than one tile whose front is two or more
+  tiles ahead can still have its rear on the follower's tile without being seen. Road
+  vehicle sprites are normally much shorter than a tile, so this needs a pakset descriptor
+  with an unusually large `length`.
+- The leader scan is one object-list scan per moving road user per tile crossing, plus a
+  second scan of the next tile. The performance suite has not been run; if profiling shows
+  the scan matters, a transient per-tile leader cache is the next step.
 
 ## Not implemented
 

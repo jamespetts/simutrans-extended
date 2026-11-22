@@ -775,7 +775,9 @@ void private_car_t::rdwr(loadsave_t *file)
 
 uint32 private_car_t::get_length_in_steps() const
 {
-	return desc != NULL ? (uint32)desc->get_length() * VEHICLE_STEPS_PER_CARUNIT : VEHICLE_STEPS_PER_CARUNIT;
+	return desc != NULL
+		? (uint32)desc->get_length() * VEHICLE_STEPS_PER_CARUNIT
+		: (uint32)citycar_desc_t::DEFAULT_LENGTH * VEHICLE_STEPS_PER_CARUNIT;
 }
 
 

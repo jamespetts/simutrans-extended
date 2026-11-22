@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2ec587aa34; implementation on branch road-vehicle-operations @ ef449777d1
+verified: ex-15 @ c05a49e154 plus working-tree road-following changes; implementation on branch road-vehicle-operations @ ef449777d1
 ---
 # Road vehicle operations
 
@@ -44,6 +44,9 @@ non-blocking road vehicles as deferred to after 15.x.
   single-direction road tile; through stops use 2, 8 or 16 layouts. A terminal's road halt
   tiles have four stands. Adjacent terminals, with or without choose signs, provide more
   than four stands.
+- **Vehicle step**: the unit of `vehicle_base_t::get_steps()`; a straight tile's travel
+  path is `VEHICLE_STEPS_PER_TILE` (256) steps, a diagonal path is
+  `vehicle_base_t::diagonal_vehicle_steps_per_tile` steps, and 16 steps make one carunit.
 
 ## Design hierarchy
 
@@ -139,8 +142,9 @@ pulled-over offset.
 ### Following distance within one lateral position
 
 The entry rule and the movement cap use the nearest vehicle ahead in the same lateral
-position on the same tile. The rear boundary of that leader is its `steps` value minus its
-length in vehicle steps. The follower may not pass that boundary minus a gap. The gap has
+position on the same tile, and a vehicle whose front has crossed into the next tile while
+its rear is still on this tile. The rear boundary of that leader is its `steps` value minus
+its length in vehicle steps. The follower may not pass that boundary minus a gap. The gap has
 three cases:
 
 - coupled vehicles: zero gap, as for the existing convoy length calculation;

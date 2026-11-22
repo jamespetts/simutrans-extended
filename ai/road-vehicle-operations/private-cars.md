@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 806befea63
+verified: ex-15 @ c05a49e154 plus working-tree road-following changes
 ---
 # Private cars
 
@@ -12,8 +12,10 @@ verified: ex-15 @ 806befea63
 
 This is the private car part of [road-vehicle-operations](../road-vehicle-operations.md).
 Both work packages in this document (occupancy and information links) are implemented on
-ex-15. No maintained pakset yet supplies the new capacity and length fields, so the
-pakset-data questions below remain open.
+ex-15. No maintained pakset yet supplies the new capacity and length fields. A car whose
+pakset does not give a length uses a quarter of a tile, which keeps its queued spacing
+close to its sprite length; capacity still falls back to the historic traffic-level
+formula, so the pakset-data questions below remain open.
 
 ## Terms
 
@@ -188,8 +190,12 @@ This section describes the code on branch `road-vehicle-operations` at
 ### City-car descriptor
 
 `citycar_desc_t` gains `capacity` and `length` and the getters
-`get_capacity()`, `has_capacity()` and `get_length()`. A length of zero is read
-as one carunit. `descriptor/writer/citycar_writer.cc` writes node version 5 with
+`get_capacity()`, `has_capacity()` and `get_length()`. A length of zero gives
+`citycar_desc_t::DEFAULT_LENGTH`, a quarter of a tile (`CARUNITS_PER_TILE / 4`,
+four carunits). That is the typical length of a private car sprite in the standard
+graphics scale, and half the legacy half-tile default that `vehicle_desc_t` uses when a
+pakset gives no length for a bus or lorry.
+`descriptor/writer/citycar_writer.cc` writes node version 5 with
 the two bytes after the class list; the makeobj keys are `capacity` and
 `length`. `descriptor/reader/citycar_reader.cc` reads them for version 5 and
 leaves both zero for older versions. Both fields enter
@@ -266,4 +272,6 @@ there, and the table remains an arithmetic expectation. A mixed pool (some cars
 with capacity, some without) also has no scripted case, for the same reason;
 `private_car_t::class_has_capacity` is the only code path that decides it. The
 congestion inputs for both modes have no scripted case either. The link parser
-is covered only indirectly: no automated test opens an information window.
+is covered only indirectly: no automated test opens an information window. The private car
+following length has no scripted case either; the road group's `queue` and `moving-gap`
+cases use player road convoys.

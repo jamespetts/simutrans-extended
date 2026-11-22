@@ -90,8 +90,29 @@ uint32 following_gap(const sint32 follower_speed, const bool leader_moving)
 	return (uint32)((gap_mm * VEHICLE_STEPS_PER_TILE + millimetres_per_tile - 1) / millimetres_per_tile);
 }
 
+/**
+ * The length of one vehicle step on a tile, in 512ths of a straight step.
+ * Vehicle lengths and following gaps are measured in straight steps, of which
+ * a straight tile's travel path is VEHICLE_STEPS_PER_TILE. A diagonal tile's
+ * travel path is longer on screen for the same number of steps, by the factor
+ * diagonal_multiplier / 512, so a position in a diagonal tile's steps has to
+ * be converted before it can be compared with a straight-tile position.
+ */
+static sint32 step_scale(const uint8 steps_next)
+{
+	// A zero steps_next is the marker for a vehicle that turns on one tile
+	// (see vehicle_t::hop); it has no diagonal path to scale.
+	return steps_next == VEHICLE_STEPS_PER_TILE - 1 || steps_next == 0
+		? 512
+		: (sint32)vehicle_base_t::get_diagonal_multiplier();
+}
+
 /// Reads the part of a road vehicle's state that the following rules need.
 /// Returns false for objects which are not road vehicles or private cars.
+/// A leading convoy vehicle contributes the whole convoy length, because the
+/// convoy's rear is that vehicle's front minus the convoy length. A trailing
+/// vehicle contributes only its own length, which is the rear of the part of
+/// the convoy on its tile.
 static bool get_user_state(const vehicle_base_t *v, user_t &out)
 {
 	if (v->get_typ() == obj_t::pedestrian)
@@ -109,7 +130,10 @@ static bool get_user_state(const vehicle_base_t *v, user_t &out)
 		out.convoi = cnv;
 		out.direction = rv->get_direction();
 		out.speed = cnv->get_akt_speed();
-		out.length = cnv->get_length_in_steps();
+		out.leading = rv->is_leading();
+		out.length = out.leading
+			? cnv->get_length_in_steps()
+			: rv->get_desc()->get_length_in_steps();
 		out.overtaking = cnv->is_overtaking();
 		out.pulled_over = rv->is_pulled_over();
 		return true;
@@ -120,6 +144,7 @@ static bool get_user_state(const vehicle_base_t *v, user_t &out)
 		out.convoi = NULL;
 		out.direction = pc->get_direction();
 		out.speed = pc->get_current_speed();
+		out.leading = true;
 		out.length = pc->get_length_in_steps();
 		out.overtaking = pc->is_overtaking();
 		out.pulled_over = false;
@@ -128,48 +153,126 @@ static bool get_user_state(const vehicle_base_t *v, user_t &out)
 	return false;
 }
 
-sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps)
+sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps, const uint8 steps_next)
 {
-	if (!allows_queueing(gr))
+	if (gr == NULL || self.object == NULL)
 	{
 		return -1;
 	}
 	sint32 limit = -1;
-	for (uint8 pos = 0; pos < gr->get_top(); pos++)
+	if (allows_queueing(gr))
 	{
-		vehicle_base_t *const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos));
-		if (v == NULL || v == self.object)
+		for (uint8 pos = 0; pos < gr->get_top(); pos++)
 		{
-			continue;
+			vehicle_base_t *const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos));
+			if (v == NULL || v == self.object)
+			{
+				continue;
+			}
+			user_t other;
+			if (!get_user_state(v, other))
+			{
+				continue;
+			}
+			// Vehicles in another lateral position or travelling the other way
+			// constrain nothing: the stop stands and the opposing carriageway are
+			// separate road space.
+			if (other.direction != self.direction
+				|| other.overtaking != self.overtaking
+				|| other.pulled_over != self.pulled_over)
+			{
+				continue;
+			}
+			// A vehicle whose front is level with or behind our front is not
+			// ahead of us. Skipping it lets two vehicles which already share a
+			// position separate; treating it as a leader would stop both.
+			const sint32 front = (sint32)v->get_steps();
+			if (front <= (sint32)steps)
+			{
+				continue;
+			}
+			// The rear boundary of the vehicle ahead, in the same tile
+			// coordinates as our own front. If it is behind our front, we are
+			// already overlapping it: stop rather than drive through it. The
+			// vehicle ahead is unaffected, so this cannot freeze both.
+			const sint32 rear = front - (sint32)other.length;
+			const sint32 gap = (sint32)following_gap(self.speed, other.speed > 0);
+			// A real limit is never negative: a negative value would be read as
+			// "no leader" by drive_until_limit. Clamp to the start of the tile,
+			// which stops a vehicle that is already inside the gap. This happens
+			// when the vehicle ahead starts moving and the required gap grows
+			// from the standstill gap to the reaction distance.
+			const sint32 candidate = max(0, rear - gap);
+			if (limit < 0 || candidate < limit)
+			{
+				limit = candidate;
+			}
 		}
-		user_t other;
-		if (!get_user_state(v, other))
+	}
+	// A vehicle whose front has crossed into the next tile still has its rear on
+	// this tile while its front is shorter than its length. It therefore
+	// constrains us although it is not on this tile. Without this check of the
+	// next tile we can drive to the end of our tile, which is past its rear.
+	const koord3d next_pos = self.object->get_pos_next();
+	if (next_pos != koord3d::invalid && next_pos != self.object->get_pos())
+	{
+		const grund_t *next = world()->lookup(next_pos);
+		if (next != NULL && next->get_top() > 1)
 		{
-			continue;
-		}
-		// Vehicles in another lateral position or travelling the other way
-		// constrain nothing: the stop stands and the opposing carriageway are
-		// separate road space.
-		if (other.direction != self.direction
-			|| other.overtaking != self.overtaking
-			|| other.pulled_over != self.pulled_over)
-		{
-			continue;
-		}
-		// The rear boundary of the vehicle ahead, in the same tile
-		// coordinates as our own front.
-		const sint32 rear = (sint32)v->get_steps() - (sint32)other.length;
-		if (rear < (sint32)steps)
-		{
-			// Entirely behind us, or already overlapping us; an overlap is
-			// not a following case and must not freeze both vehicles.
-			continue;
-		}
-		const uint32 gap = following_gap(self.speed, other.speed > 0);
-		const sint32 candidate = rear - (sint32)gap;
-		if (limit < 0 || candidate < limit)
-		{
-			limit = candidate;
+			// The step coordinate of a vehicle on the next tile starts at the
+			// edge through which it entered. Only a vehicle which entered from
+			// our tile has its steps measured from the same edge as ours. A road
+			// vehicle records its entry direction. A private car records the
+			// direction from the tile it came from to the tile it will leave by,
+			// so comparing that direction with the one from our tile to the car's
+			// exit tile identifies the same entry, including when the car turns on
+			// the next tile.
+			const ribi_t::ribi entry = ribi_type(self.object->get_pos(), next_pos);
+			const sint32 our_scale = step_scale(steps_next);
+			for (uint8 pos = 0; pos < next->get_top(); pos++)
+			{
+				vehicle_base_t *const v = obj_cast<vehicle_base_t>(next->obj_bei(pos));
+				if (v == NULL || v == self.object)
+				{
+					continue;
+				}
+				user_t other;
+				if (!get_user_state(v, other))
+				{
+					continue;
+				}
+				const bool private_car_from_here = other.convoi == NULL
+					&& v->get_pos_next() != koord3d::invalid
+					&& ribi_type(self.object->get_pos(), v->get_pos_next()) == other.direction;
+				if ((other.direction != entry && !private_car_from_here)
+					|| other.overtaking != self.overtaking
+					|| other.pulled_over != self.pulled_over)
+				{
+					continue;
+				}
+				// The other vehicle's rear, in 512ths of a straight step from the
+				// start of our tile. Our tile boundary is VEHICLE_STEPS_PER_TILE
+				// straight steps ahead.
+				const sint32 other_scale = step_scale(v->get_steps_next());
+				const sint32 rear = (sint32)VEHICLE_STEPS_PER_TILE * 512
+					+ (sint32)v->get_steps() * other_scale
+					- (sint32)other.length * 512;
+				if (rear >= (sint32)VEHICLE_STEPS_PER_TILE * 512)
+				{
+					// The whole vehicle is on the next tile.
+					continue;
+				}
+				const sint32 gap = (sint32)following_gap(self.speed, other.speed > 0);
+				// Convert the limit back to this tile's steps. A limit before the
+				// start of this tile means the other vehicle's body covers the
+				// whole tile, so clamp it to zero rather than to the negative
+				// "no leader" value.
+				const sint32 candidate = max(0, (rear - gap * 512) / our_scale);
+				if (limit < 0 || candidate < limit)
+				{
+					limit = candidate;
+				}
+			}
 		}
 	}
 	return limit;
@@ -182,7 +285,12 @@ bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *lea
 		return false;
 	}
 	user_t other;
+	// A trailing vehicle of a convoy only knows its own length, which is not
+	// enough to prove that the whole convoy's rear is clear. Only a private car
+	// or the leading vehicle of a convoy, whose front and convoy length give the
+	// convoy's rear, may clear the blocker.
 	if (!get_user_state(leader, other)
+		|| !other.leading
 		|| other.direction != self.direction
 		|| other.overtaking != self.overtaking
 		|| other.pulled_over != self.pulled_over)
@@ -202,7 +310,7 @@ bool is_beside_lane(const vehicle_base_t *v)
 
 uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance)
 {
-	const sint32 limit = following_limit(v->get_grund(), self, steps);
+	const sint32 limit = following_limit(v->get_grund(), self, steps, steps_next);
 	// At most one tile boundary per call, so that the limit is recomputed on
 	// the new tile before any further distance is added.
 	const sint32 tile_end = (sint32)steps_next + 1;
