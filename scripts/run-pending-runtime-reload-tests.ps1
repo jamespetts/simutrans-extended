@@ -13,6 +13,21 @@ loopback server. The paired H exchange reload is selected with
   -Harness tests\pending-runtime\pair-harness.nut
   -HarnessName pair-harness
 
+The loaded paired-exchange reload cases use the same harness and harness name
+with their own case, scenario and selector names:
+
+  -CaseName pair-passenger-loose-reload
+  -ScenarioName pending-runtime-pair-passenger-loose-reload
+  -Selector tests\pending-runtime\pair-passenger-loose-reload\scenario.nut
+
+  -CaseName pair-freight-through-reload
+  -ScenarioName pending-runtime-pair-freight-through-reload
+  -Selector tests\pending-runtime\pair-freight-through-reload\scenario.nut
+
+  -CaseName pair-freight-loose-reload
+  -ScenarioName pending-runtime-pair-freight-loose-reload
+  -Selector tests\pending-runtime\pair-freight-loose-reload\scenario.nut
+
 The rest of this comment describes the default division case. In that case,
 once the split-off portion has formed at target entry 21, the case prints
 "RUNTIME CASE reload READY" and holds before PASS. The runner then starts a

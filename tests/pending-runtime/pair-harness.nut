@@ -3,12 +3,18 @@
 // (see LICENSE.txt)
 //
 // Shared world builder and assertions for the paired H exchange runtime cases
-// under tests/pending-runtime/pair-cases.
+// under tests/pending-runtime/pair-cases and for the reload scenarios in the
+// pair-reload, pair-passenger-loose-reload, pair-freight-through-reload and
+// pair-freight-loose-reload directories, which hold a committed exchange
+// across a save and load.
 //
 // A case selects itself by setting ::case_kind before including this file. The
 // runner scripts/run-pending-runtime-tests.sh stages the case's scenario.nut,
 // this file and empty-16x16.sve in the pakset scenario directory and runs one
-// game process per case, so every case starts from the empty world.
+// game process per case, so every case starts from the empty world. The reload
+// cases are staged instead by scripts/run-pending-runtime-reload-tests.ps1 or
+// .sh, which additionally start a client so that the server saves, sends and
+// loads its state.
 //
 // Track runs east from the depot at (1,2) through the trunk to (6,2); a branch
 // continues east to the east stop (9,2) and another runs north to the north stop
@@ -25,6 +31,15 @@
 // AWAITING_RECOMBINATION at its pair entry, then starts the other. The other
 // executes the exchange. Every observation below uses only the public script
 // interface.
+//
+// The cargo cases add a loading stop at (3,2) with a platform extension at
+// (2,2), and a delivery halt at (14,2) with platforms at (11,2) to (14,2). The
+// delivery halt lies beyond the halt walking radius (half the station coverage
+// setting), so a passenger packet waits for a vehicle instead of walking there.
+// A freight case also builds two consumer industries: one whose factory
+// coverage includes the junction halt, and one whose coverage includes the
+// delivery halt. The case injects its cargo at the loading stop with
+// halt_x.add_cargo once the loading convoy has left the depot.
 //
 
 map.file = "empty-16x16.sve"
@@ -53,6 +68,15 @@ local TARGET_NEXT_ENTRY_ID = 22
 local DONOR_ENTRY_ID = 31
 local DONOR_EAST_ENTRY_ID = 32
 
+// Cargo case entries: the receiver loads at the loading stop and, in the loose
+// case, collects its released carriage at a second junction entry and unloads
+// at a second delivery entry. The through case loads the carriage on the
+// target before the junction.
+local RECEIVER_LOAD_ENTRY_ID = 41
+local RECEIVER_COLLECT_ENTRY_ID = 42
+local RECEIVER_FINAL_ENTRY_ID = 43
+local TARGET_LOAD_ENTRY_ID = 51
+
 // Observation step limits. These are counts of scenario observations, not
 // game-time quantities. The travel limit is wide because the first convoy may
 // wait while the second is still in the depot; the departure limit covers the
@@ -61,15 +85,40 @@ local TRAVEL_STEP_LIMIT = 6000
 local EXCHANGE_STEP_LIMIT = 1000
 // The reload runner's server advances one simulation step per observation and
 // the target's run to the junction takes longer in game time than the
-// fast-forward runner reaches in the same observation count. The pair-reload
-// case therefore uses a wider limit for both the wait and the exchange.
+// fast-forward runner reaches in the same observation count. The reload cases
+// therefore use this wider limit for the wait for the counterpart; a non-cargo
+// reload also uses it for the exchange.
 local RELOAD_EXCHANGE_STEP_LIMIT = 8000
 local DEPARTURE_STEP_LIMIT = 3000
 // The reload runner sets shunting_time_seconds to 300 so that the case has not
 // advanced while the client joins; the post-reload departure limit must cover
+// that delay. A cargo reload also uses this value for its exchange wait,
+// because the goods loading dwell at the loading stop is of the same order as
 // that delay.
 local RELOAD_DEPARTURE_STEP_LIMIT = 16000
 local PREPARATION_STEP_LIMIT = 3000
+// Cargo cases observe a loaded convoy through the junction, along the delivery
+// branch and back to the junction for a collection.
+local CARGO_STEP_LIMIT = 6000
+
+// Cargo fixture stops. LOAD_POS is on the trunk before the junction and
+// LOAD_EXTENSION_POS is its westward platform extension, so both vehicles of a
+// two-vehicle consist stand at the platform. DELIVER_POS is beyond the east
+// stop; the delivery halt covers DELIVER_PLATFORM_POSITIONS so every vehicle of
+// a three-vehicle consist unloads there.
+local LOAD_POS = coord3d(3, 2, 0)
+local LOAD_EXTENSION_POS = coord3d(2, 2, 0)
+local DELIVER_POS = coord3d(14, 2, 0)
+local DELIVER_PLATFORM_POSITIONS = [coord3d(11, 2, 0), coord3d(12, 2, 0), coord3d(13, 2, 0)]
+// Passenger packets are delivered to the delivery station building, which is
+// the destination position the halt checks. Freight is delivered to a consumer
+// industry: the junction consumer receives goods whose destination is the
+// junction halt, and the delivery consumer receives goods carried onward.
+local DELIVER_STOP_POS = coord(14, 2)
+local JUNCTION_CONSUMER_POS = coord3d(8, 5, 0)
+local JUNCTION_CONSUMER_ZIELPOS = coord(8, 5)
+local DELIVER_CONSUMER_POS = coord3d(12, 5, 0)
+local DELIVER_CONSUMER_ZIELPOS = coord(12, 5)
 
 local fixture = {
 	phase = "waiting-for-setup",
@@ -90,6 +139,13 @@ local fixture = {
 	coach_a = null,
 	coach_b = null,
 	pool_coach = null,
+	cargo = null,
+	cargo_amount = 0,
+	cargo_class = 0,
+	cargo_consumer_name = "",
+	cargo_steps = 0,
+	cargo_revenue_before_final = 0,
+	cargo_junction_pending = false,
 	rule_min_topspeed = 0,
 	steps = 0,
 	travel_steps = 0,
@@ -250,6 +306,21 @@ function station_builder(pl, pos, desc)
 }
 
 
+function halt_at(pos)
+{
+	return halt_x.get_halt(pos, player_x(0))
+}
+
+
+// Build a consumer industry. The parameter string means: ignore climate,
+// ignore region, rotation 1, a large initial production, then the industry
+// name. The pick-up goods fixture uses the same string.
+function build_factory(pl, pos, name)
+{
+	return command_x(tool_build_factory).work(pl, pos, "1111024000," + name)
+}
+
+
 function depot_desc_for(waytype)
 {
 	local list = building_desc_x.get_building_list(building_desc_x.depot)
@@ -275,23 +346,75 @@ function build_infrastructure(pl)
 	if (!check_tool(command_x.build_way(pl, coord3d(4, 2, 0), coord3d(4, 3, 0), rail, false), "build loop west link")) { return false }
 	if (!check_tool(command_x.build_way(pl, coord3d(4, 3, 0), coord3d(7, 3, 0), rail, false), "build loop")) { return false }
 	if (!check_tool(command_x.build_way(pl, coord3d(7, 3, 0), coord3d(7, 2, 0), rail, false), "build loop east link")) { return false }
+	if (is_cargo_case())
+	{
+		if (!check_tool(command_x.build_way(pl, EAST_POS, DELIVER_POS, rail, false), "build the delivery branch")) { return false }
+	}
 
 	if (!check_tool(command_x.build_depot(pl, coord3d(1, 2, 0), depot_desc_for(wt_rail)), "build rail depot")) { return false }
 	local depot = depot_x(1, 2, 0)
 	if (!check(depot != null, "depot not found after building")) { return false }
 	fixture.depot = depot
 
-	local station = building_desc_x.get_available_stations(building_desc_x.station, wt_rail, good_desc_x.passenger)[0]
-	if (!check(station != null, "no rail station available")) { return false }
+	local station = null
+	if (is_cargo_case() && !is_passenger_cargo_case())
+	{
+		// A freight-enabled stop can still have no storage for freight (a bare
+		// goods siding has capacity zero). Choose the available freight stop with
+		// the largest storage capacity, as the pick-up goods fixture does.
+		foreach (st in building_desc_x.get_available_stations(building_desc_x.station, wt_rail, fixture.cargo))
+		{
+			if (st.enables_freight() && st.get_capacity() > 0
+				&& (station == null || st.get_capacity() > station.get_capacity()))
+			{
+				station = st
+			}
+		}
+		if (!check(station != null, "no freight stop with storage capacity is available")) { return false }
+	}
+	else
+	{
+		station = building_desc_x.get_available_stations(building_desc_x.station, wt_rail, good_desc_x.passenger)[0]
+		if (!check(station != null, "no rail station available")) { return false }
+	}
 	if (!check_tool(station_builder(pl, MAIN_POS, station), "build main junction platform")) { return false }
 	if (!check_tool(station_builder(pl, LOOP_POS, station), "build loop junction platform")) { return false }
 	if (!check_tool(station_builder(pl, EAST_POS, station), "build east stop")) { return false }
 	if (!check_tool(station_builder(pl, NORTH_POS, station), "build north stop")) { return false }
+	if (is_cargo_case())
+	{
+		if (!check_tool(station_builder(pl, LOAD_POS, station), "build the cargo loading platform")) { return false }
+		if (!check_tool(station_builder(pl, LOAD_EXTENSION_POS, station), "build the cargo loading platform extension")) { return false }
+		if (!check_tool(station_builder(pl, DELIVER_POS, station), "build the cargo delivery platform")) { return false }
+		foreach (pos in DELIVER_PLATFORM_POSITIONS)
+		{
+			if (!check_tool(station_builder(pl, pos, station), "build a cargo delivery platform extension")) { return false }
+		}
+	}
 
 	local main_halt = halt_x.get_halt(MAIN_POS, pl)
 	local loop_halt = halt_x.get_halt(LOOP_POS, pl)
 	if (!check(main_halt != null && loop_halt != null, "a junction platform has no halt")) { return false }
 	if (!check(main_halt.get_name() == loop_halt.get_name(), "the junction main and loop platforms have different stop names, so they are separate halts and cannot form a pair")) { return false }
+
+	if (!is_cargo_case()) { return true }
+
+	local load_halt = halt_at(LOAD_POS)
+	if (!check(load_halt != null && halt_at(LOAD_EXTENSION_POS) != null
+		&& load_halt.get_name() == halt_at(LOAD_EXTENSION_POS).get_name(), "the cargo loading platform and its extension are separate halts, so a two-vehicle consist is only partly at the platform")) { return false }
+
+	if (!is_passenger_cargo_case())
+	{
+		// The junction consumer must cover the junction halt but not the loading
+		// halt: a packet whose destination position is a factory in the loading
+		// halt's list would be consumed there instead of boarding.
+		if (!check_tool(build_factory(pl, JUNCTION_CONSUMER_POS, fixture.cargo_consumer_name), "build the junction consumer " + fixture.cargo_consumer_name)) { return false }
+		if (!check(main_halt.get_factory_list().len() > 0, "the junction consumer does not cover the junction halt")) { return false }
+		if (!check(load_halt.get_factory_list().len() == 0, "the junction consumer covers the loading halt, so goods bound for the junction would be consumed before boarding")) { return false }
+		if (!check_tool(build_factory(pl, DELIVER_CONSUMER_POS, fixture.cargo_consumer_name), "build the delivery consumer " + fixture.cargo_consumer_name)) { return false }
+		if (!check(halt_at(DELIVER_POS).get_factory_list().len() > 0, "the delivery consumer does not cover the delivery halt")) { return false }
+		if (!check(load_halt.get_factory_list().len() == 0, "the delivery consumer covers the loading halt")) { return false }
+	}
 
 	return true
 }
@@ -369,6 +492,259 @@ function select_descriptors()
 }
 
 
+// Cargo case names. A cargo case loads one carriage before the junction and
+// asserts what happens to its load when the paired exchange moves or releases
+// that carriage. The three cargo reload cases repeat a cargo shape with a save
+// and load between the exchange and the carriage's delivery; case_shape() maps
+// such a name to the non-reload shape that selects the fixture, the schedules
+// and the observations. Every other case returns its own name.
+function case_shape()
+{
+	if (case_name == "pair-passenger-loose-reload") { return "pair-passenger-loose" }
+	if (case_name == "pair-freight-through-reload") { return "pair-freight-through" }
+	if (case_name == "pair-freight-loose-reload") { return "pair-freight-loose" }
+	return case_name
+}
+
+
+// True for the cases that print READY, hold while a network client joins, and
+// re-assert the committed exchange after the server loads the save written by
+// the join. The fresh offline load of that save runs the same code.
+function is_reload_case()
+{
+	return case_name == "pair-reload" || case_name == "pair-passenger-loose-reload"
+		|| case_name == "pair-freight-through-reload" || case_name == "pair-freight-loose-reload"
+}
+
+
+function is_cargo_case()
+{
+	local shape = case_shape()
+	return shape == "pair-passenger-through" || shape == "pair-passenger-loose"
+		|| shape == "pair-freight-through" || shape == "pair-freight-loose"
+}
+
+
+// In a loose cargo case the receiver's own carriage is released at the junction
+// and collected on the receiver's return visit. In a through cargo case the
+// target's carriage is transferred directly to the receiver.
+function is_loose_cargo_case()
+{
+	local shape = case_shape()
+	return shape == "pair-passenger-loose" || shape == "pair-freight-loose"
+}
+
+
+function is_passenger_cargo_case()
+{
+	local shape = case_shape()
+	return shape == "pair-passenger-through" || shape == "pair-passenger-loose"
+}
+
+
+// Collect the powered vehicles with no cargo capacity and the trailers that
+// carry one good. A locomotive with no cargo capacity cannot take any of the
+// injected packets, so every packet reaches a carriage whose load the case
+// asserts.
+function cargo_stock_lists(good)
+{
+	local locos = []
+	local trailers = []
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+	{
+		if (desc.needs_electrification() || desc.get_successors().len() > 0) { continue }
+		if (desc.get_power() > 0)
+		{
+			if (desc.get_total_capacity() == 0 && desc.can_be_first() && desc.can_be_last())
+			{
+				locos.append(desc)
+			}
+			continue
+		}
+		if (!desc.can_be_last() || desc.get_total_capacity() == 0) { continue }
+		local freight = desc.get_freight()
+		if (freight != null && freight.is_equal(good)) { trailers.append(desc) }
+	}
+	return { locos = locos, trailers = trailers }
+}
+
+
+// The best carriage pair for one good. The two carriages must couple to their
+// own locomotive, to each other, and to the receiver's locomotive in the
+// collected order [loco, coach_b, coach_a]. The loading consist must fit the
+// loading halt's two platform tiles: a vehicle length is in car units and a
+// tile holds 16 of them. The pair with the largest capacity for the case's
+// cargo class wins.
+function best_cargo_pair(good, passenger)
+{
+	local lists = cargo_stock_lists(good)
+	local locos = lists.locos
+	local trailers = lists.trailers
+	if (locos.len() == 0 || trailers.len() == 0) { return null }
+
+	local result = null
+	for (local distinct = 1; distinct >= 0 && result == null; distinct--)
+	{
+		foreach (a in trailers)
+		{
+			foreach (b in trailers)
+			{
+				if (distinct == 1 && a.is_equal(b)) { continue }
+				if (!coupons(b, a)) { continue }
+
+				local pair_capacity = 0
+				local pair_class = 0
+				if (passenger)
+				{
+					// Use the lowest passenger class with room for two packets.
+					pair_class = -1
+					for (local c = 0; c < 5; c++)
+					{
+						local class_capacity = min(a.get_capacity(c), b.get_capacity(c))
+						if (class_capacity < 2) { continue }
+						pair_class = c
+						pair_capacity = class_capacity
+						break
+					}
+					if (pair_class < 0) { continue }
+				}
+				else
+				{
+					pair_capacity = min(a.get_capacity(0), b.get_capacity(0))
+				}
+				if (pair_capacity < 2) { continue }
+				if (result != null && pair_capacity <= result.capacity) { continue }
+
+				local this_loco_a = null
+				local this_loco_b = null
+				foreach (loco in locos)
+				{
+					if (!coupons(loco, a) || !coupons(loco, b)) { continue }
+					if (loco.get_length() + a.get_length() > 32) { continue }
+					if (this_loco_a == null)
+					{
+						this_loco_a = loco
+						continue
+					}
+					if (!loco.is_equal(this_loco_a))
+					{
+						this_loco_b = loco
+						break
+					}
+				}
+				if (this_loco_a == null) { continue }
+				if (this_loco_b == null)
+				{
+					// One locomotive descriptor can serve both consists when it also
+					// couples to the target's carriage.
+					if (!coupons(this_loco_a, b) || this_loco_a.get_length() + b.get_length() > 32) { continue }
+					this_loco_b = this_loco_a
+				}
+
+				result = {
+					loco_a = this_loco_a,
+					loco_b = this_loco_b,
+					coach_a = a,
+					coach_b = b,
+					cargo_class = pair_class,
+					capacity = pair_capacity
+				}
+			}
+		}
+	}
+	return result
+}
+
+
+// Select a consumer industry input good that an available freight wagon can
+// carry. A consumer with no output is preferred, because it cannot generate
+// cargo of its own. Among the no-output candidates the good with the largest
+// couplable carriage wins, so that a freight fare stays visible after the
+// financial history converts cents to whole simcents.
+function select_freight_goods()
+{
+	local silent_name = ""
+	local silent_good = null
+	local silent_capacity = 0
+	local any_name = ""
+	local any_good = null
+	foreach (name, desc in factory_desc_x.get_list())
+	{
+		local no_output = desc.get_outputs().len() == 0
+		foreach (input in desc.get_inputs())
+		{
+			if (input.good == null) { continue }
+			local pair = best_cargo_pair(input.good, false)
+			// Two packets of at least two units must fit one carriage, so that the
+			// fare stays visible after the financial history converts cents.
+			if (pair == null || pair.capacity < 4) { continue }
+			if (no_output)
+			{
+				local better = pair.capacity > silent_capacity
+				if (!better && pair.capacity == silent_capacity && silent_name != "")
+				{
+					// Deterministic choice between equally large candidates.
+					better = name < silent_name
+				}
+				if (better)
+				{
+					silent_capacity = pair.capacity
+					silent_name = name
+					silent_good = input.good
+				}
+			}
+			if (any_good == null)
+			{
+				any_name = name
+				any_good = input.good
+			}
+		}
+	}
+	if (silent_good != null)
+	{
+		fixture.cargo = silent_good
+		fixture.cargo_consumer_name = silent_name
+		return true
+	}
+	if (!check(any_good != null, "no consumer industry input has a couplable freight wagon with room for two packets")) { return false }
+	fixture.cargo = any_good
+	fixture.cargo_consumer_name = any_name
+	return true
+}
+
+
+// Commit the selected cargo vehicles and the packet amount. Two packets must
+// fit the carrying carriage. A freight load must also be large enough that the
+// fare remains visible after the financial history converts cents to whole
+// simcents; a passenger load is kept small so the loading dwell stays short.
+function select_cargo_stock()
+{
+	local pair = best_cargo_pair(fixture.cargo, is_passenger_cargo_case())
+	if (!check(pair != null, "no pair of rail carriages with the required couplings is available")) { return false }
+
+	fixture.loco_a = pair.loco_a
+	fixture.loco_b = pair.loco_b
+	fixture.coach_a = pair.coach_a
+	fixture.coach_b = pair.coach_b
+	fixture.cargo_class = pair.cargo_class
+	if (is_passenger_cargo_case())
+	{
+		fixture.cargo_amount = min(pair.capacity / 2, 8)
+	}
+	else
+	{
+		// At least two units, so the fare remains visible after the financial
+		// history converts cents to whole simcents; the cap keeps the loading
+		// dwell short.
+		fixture.cargo_amount = max(2, min(pair.capacity / 2, 8))
+		if (!check(2 * fixture.cargo_amount <= pair.capacity, "the selected carriage cannot hold two packets of " + fixture.cargo_amount + " units")) { return false }
+	}
+	print("RUNTIME CASE " + case_name + ": cargo " + fixture.cargo.get_name() + ", class " + pair.cargo_class
+		+ ", carriage capacity " + pair.capacity + ", packet amount " + fixture.cargo_amount)
+	return true
+}
+
+
 function make_entry(pos, unique_entry_id)
 {
 	local entry = schedule_entry_x(pos, 0, 0)
@@ -427,6 +803,33 @@ function make_order(slots)
 }
 
 
+// An order whose slots declare their own cargo category. The schedule's
+// carried-category tables (built by schedule_t::parse_orders), which the path
+// explorer reads when it builds connexions for a lineless convoy, are derived
+// from the order slots, so a slot left at the consist_order_element_x default
+// category would make the service appear not to carry the case's cargo.
+function make_cargo_order(descs)
+{
+	local order = consist_order_x()
+	local slots = []
+	foreach (desc in descs)
+	{
+		local slot = consist_order_element_x()
+		local alternative = vehicle_description_x()
+		alternative.specific_vehicle = desc
+		local freight = desc.get_freight()
+		if (freight != null)
+		{
+			slot.catg = freight.get_catg_index()
+		}
+		slot.alternatives = [alternative]
+		slots.append(slot)
+	}
+	order.slots = slots
+	return order
+}
+
+
 function create_depot_convoy(pl, descriptors, what)
 {
 	local before = convoy_ids()
@@ -467,6 +870,10 @@ function target_consist()
 
 function receiver_order()
 {
+	if (is_cargo_case())
+	{
+		return [[fixture.loco_a], [fixture.coach_b]]
+	}
 	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
 	{
 		return [[fixture.loco_b], [fixture.coach_a]]
@@ -502,6 +909,10 @@ function receiver_order()
 
 function target_order()
 {
+	if (is_cargo_case())
+	{
+		return [[fixture.loco_b]]
+	}
 	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
 	{
 		return [[fixture.loco_a], [fixture.coach_b]]
@@ -533,6 +944,10 @@ function target_order()
 
 function receiver_final()
 {
+	if (is_cargo_case())
+	{
+		return [fixture.loco_a, fixture.coach_b]
+	}
 	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
 	{
 		return [fixture.loco_b, fixture.coach_a]
@@ -559,6 +974,10 @@ function receiver_final()
 
 function target_final()
 {
+	if (is_cargo_case())
+	{
+		return [fixture.loco_b]
+	}
 	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
 	{
 		return [fixture.loco_a, fixture.coach_b]
@@ -587,6 +1006,13 @@ function target_final()
 // exchange, in the order they are recorded in the new laid-over convoy.
 function expected_leftovers()
 {
+	if (is_cargo_case())
+	{
+		// The receiver's own carriage leaves both cargo case shapes: the loose
+		// case keeps the loaded one there for collection, and the through case's
+		// carriage is empty.
+		return [fixture.coach_a]
+	}
 	if (is_one_way_transfer_case())
 	{
 		return [fixture.coach_a]
@@ -669,7 +1095,9 @@ function consist_matches_fingerprints(cnv, expected)
 // exchange. Only scalars, strings and arrays are stored: the base scenario
 // save() serialises the persistent table and evaluates it again on load, so
 // descriptor handles cannot be persisted. The identifiers locate the convoys
-// after the load; the fingerprints re-assert their final consists.
+// after the load; the fingerprints re-assert their final consists. A cargo
+// reload also stores the cargo descriptor's name and the packet amount, so that
+// the post-load phases can read the carriage load and the cargo name.
 function remember_pair_reload_state()
 {
 	local receiver_final_fingerprints = fingerprint_sequence(receiver_final())
@@ -686,8 +1114,22 @@ function remember_pair_reload_state()
 		target_id = fixture.target_id,
 		receiver_final = receiver_final_fingerprints,
 		target_final = target_final_fingerprints,
-		leftovers = leftover_fingerprints
+		leftovers = leftover_fingerprints,
+		cargo_name = is_cargo_case() ? fixture.cargo.get_name() : "",
+		cargo_amount = is_cargo_case() ? fixture.cargo_amount : 0,
+		cargo_class = is_cargo_case() ? fixture.cargo_class : 0
 	}
+}
+
+
+// Persists the committed exchange and holds the case until the runner has
+// joined a client, the server has loaded the save written by the join, and
+// resume_game() has restored the fixture.
+function hold_for_reload()
+{
+	remember_pair_reload_state()
+	fixture.phase = "awaiting-reload"
+	print("RUNTIME CASE " + case_name + " READY")
 }
 
 
@@ -726,6 +1168,35 @@ function check_leftovers_reload()
 	if (!check(loose.len() == 1, "the junction holds " + loose.len() + " non-empty laid-over convoys after the reload, expected the one holding the released vehicles")) { return false }
 	if (!check(consist_matches_fingerprints(loose[0], expected), "the laid-over convoy after the reload holds " + convoy_name(loose[0]) + ", which does not match the persisted released vehicles")) { return false }
 	return check(loose[0].get_state() == convoy_state_layover, "the laid-over convoy is in " + depict_state(loose[0].get_state()) + " after the reload, expected the layover state")
+}
+
+
+// Re-asserts the cargo that the case held at the reload point. A directly
+// transferred carriage is still on the receiver with its whole load. A released
+// carriage is still laid over at the junction with only the packet or goods
+// that continue beyond the junction: the passenger or goods whose journey ended
+// at the junction left the carriage before the hold. For freight, the laid-over
+// convoy keeps the fare it booked for the goods delivered at the junction.
+function check_cargo_restored()
+{
+	if (!is_cargo_case())
+	{
+		return true
+	}
+	if (is_loose_cargo_case())
+	{
+		local loose = laid_over_consist()
+		if (!check(loose.len() == 1, "the junction holds " + loose.len() + " non-empty laid-over convoys after the reload, expected the released carriage")) { return false }
+		local load = consist_total_cargo(loose[0])
+		if (!check(load == fixture.cargo_amount, "the released carriage holds " + load + " units after the reload, expected the " + fixture.cargo_amount + " units bound beyond the junction")) { return false }
+		if (!is_passenger_cargo_case())
+		{
+			if (!check(convoy_total_revenue(loose[0]) > 0, "the goods delivered at the junction before the reload did not keep their booked fare")) { return false }
+		}
+		return true
+	}
+	local load = consist_total_cargo(receiver_convoy())
+	return check(load == fixture.cargo_amount, "the transferred carriage holds " + load + " units after the reload, expected the " + fixture.cargo_amount + " units it carried into the junction")
 }
 
 
@@ -779,6 +1250,100 @@ function commit_target_schedule(pl, receiver, target)
 }
 
 
+// The cargo receiver stops at the loading stop before the junction. In the
+// loose case it also returns to the junction for the carriage it released and
+// then carries it to the delivery halt again.
+function commit_cargo_receiver_schedule(pl, receiver, target)
+{
+	local loose = is_loose_cargo_case()
+	local entries = []
+	if (loose)
+	{
+		entries.append(make_entry(LOAD_POS, RECEIVER_LOAD_ENTRY_ID))
+	}
+	entries.append(make_entry(MAIN_POS, RECEIVER_ENTRY_ID))
+	entries.append(make_entry(DELIVER_POS, RECEIVER_NEXT_ENTRY_ID))
+	if (loose)
+	{
+		entries.append(make_entry(MAIN_POS, RECEIVER_COLLECT_ENTRY_ID))
+		entries.append(make_entry(DELIVER_POS, RECEIVER_FINAL_ENTRY_ID))
+	}
+
+	local pair_index = loose ? 1 : 0
+	entries[pair_index].couple = true
+	entries[pair_index].couple_target_is_line_or_cnv = true
+	entries[pair_index].target_id_couple = target.id
+	entries[pair_index].target_unique_entry_couple = TARGET_ENTRY_ID
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_cargo_order([fixture.loco_a, fixture.coach_b]))
+	if (loose)
+	{
+		schedule.orders.rawset(RECEIVER_COLLECT_ENTRY_ID, make_cargo_order([fixture.loco_a, fixture.coach_b, fixture.coach_a]))
+	}
+	if (!check_tool(receiver.change_schedule(pl, schedule), "commit the receiver convoy schedule")) { return false }
+
+	local back = receiver.get_schedule()
+	if (!check(back != null && back.entries.len() == entries.len(), "the receiver schedule has " + (back == null ? 0 : back.entries.len()) + " entries, expected " + entries.len())) { return false }
+	if (!check(back.entries[pair_index].unique_entry_id == RECEIVER_ENTRY_ID, "the receiver schedule has no pair entry " + RECEIVER_ENTRY_ID + " at position " + pair_index)) { return false }
+	if (!check(back.entries[pair_index].couple == true, "receiver schedule read-back: the couple flag is not set")) { return false }
+	if (!check(back.entries[pair_index].uncouple == false, "receiver schedule read-back: the uncouple flag is set")) { return false }
+	if (!check(back.entries[pair_index].target_id_couple == target.id, "receiver schedule read-back: target id is " + back.entries[pair_index].target_id_couple + ", expected " + target.id)) { return false }
+	if (!check(back.entries[pair_index].target_unique_entry_couple == TARGET_ENTRY_ID, "receiver schedule read-back: target entry is not " + TARGET_ENTRY_ID)) { return false }
+	if (!check(RECEIVER_ENTRY_ID in back.orders, "receiver schedule read-back: no order at entry " + RECEIVER_ENTRY_ID)) { return false }
+	if (loose)
+	{
+		if (!check(back.entries[3].unique_entry_id == RECEIVER_COLLECT_ENTRY_ID, "the receiver schedule has no collection entry " + RECEIVER_COLLECT_ENTRY_ID + " fourth")) { return false }
+		if (!check(RECEIVER_COLLECT_ENTRY_ID in back.orders, "receiver schedule read-back: no order at entry " + RECEIVER_COLLECT_ENTRY_ID)) { return false }
+	}
+	return true
+}
+
+
+// The cargo target stops at the loading stop before the junction in the through
+// case, so its own carriage is loaded before it reaches the pair entry. The
+// loose case leaves the loading to the receiver.
+function commit_cargo_target_schedule(pl, receiver, target)
+{
+	local loose = is_loose_cargo_case()
+	local entries = []
+	if (!loose)
+	{
+		entries.append(make_entry(LOAD_POS, TARGET_LOAD_ENTRY_ID))
+	}
+	entries.append(make_entry(LOOP_POS, TARGET_ENTRY_ID))
+	entries.append(make_entry(NORTH_POS, TARGET_NEXT_ENTRY_ID))
+
+	local pair_index = loose ? 0 : 1
+	entries[pair_index].uncouple = true
+	entries[pair_index].uncouple_target_is_line_or_cnv = true
+	entries[pair_index].target_id_uncouple = receiver.id
+	entries[pair_index].target_unique_entry_uncouple = RECEIVER_ENTRY_ID
+
+	local schedule = schedule_x(wt_rail, entries)
+	schedule.orders.rawset(TARGET_ENTRY_ID, make_cargo_order([fixture.loco_b]))
+	if (!loose)
+	{
+		// The loading entry declares the carriage the target carries there, so
+		// the schedule's carried-category tables include the case's cargo for
+		// the path explorer. The order restates the consist and changes nothing.
+		schedule.orders.rawset(TARGET_LOAD_ENTRY_ID, make_cargo_order([fixture.loco_b, fixture.coach_b]))
+	}
+	if (!check_tool(target.change_schedule(pl, schedule), "commit the target convoy schedule")) { return false }
+
+	local back = target.get_schedule()
+	if (!check(back != null && back.entries.len() == entries.len(), "the target schedule has " + (back == null ? 0 : back.entries.len()) + " entries, expected " + entries.len())) { return false }
+	if (!check(back.entries[pair_index].unique_entry_id == TARGET_ENTRY_ID, "the target schedule has no pair entry " + TARGET_ENTRY_ID + " at position " + pair_index)) { return false }
+	if (!check(back.entries[pair_index].uncouple == true, "target schedule read-back: the uncouple flag is not set")) { return false }
+	if (!check(back.entries[pair_index].couple == false, "target schedule read-back: the couple flag is set")) { return false }
+	if (!check(back.entries[pair_index].target_id_uncouple == receiver.id, "target schedule read-back: target id is " + back.entries[pair_index].target_id_uncouple + ", expected " + receiver.id)) { return false }
+	if (!check(back.entries[pair_index].target_unique_entry_uncouple == RECEIVER_ENTRY_ID, "target schedule read-back: target entry is not " + RECEIVER_ENTRY_ID)) { return false }
+	if (!check(TARGET_ENTRY_ID in back.orders, "target schedule read-back: no order at entry " + TARGET_ENTRY_ID)) { return false }
+	if (!loose && !check(TARGET_LOAD_ENTRY_ID in back.orders, "target schedule read-back: no order at the loading entry " + TARGET_LOAD_ENTRY_ID)) { return false }
+	return true
+}
+
+
 // Creates the separate convoy that releases the pool coach at the loop
 // platform in the pool-fallback case. Its order uses the "any" recipient so
 // that the receiver is allowed to take the released coach.
@@ -804,6 +1369,37 @@ function create_pool_donor(pl)
 function setup()
 {
 	local pl = player_x(0)
+
+	if (is_cargo_case())
+	{
+		if (is_passenger_cargo_case())
+		{
+			fixture.cargo = good_desc_x.passenger
+		}
+		else if (!select_freight_goods())
+		{
+			return false
+		}
+		if (!select_cargo_stock()) { return false }
+		if (!build_infrastructure(pl)) { return false }
+
+		local cargo_receiver = create_depot_convoy(pl, receiver_consist(), "receiver convoy")
+		if (cargo_receiver == null) { return false }
+		fixture.receiver_id = cargo_receiver.id
+		local cargo_target = create_depot_convoy(pl, target_consist(), "target convoy")
+		if (cargo_target == null) { return false }
+		fixture.target_id = cargo_target.id
+		if (!commit_cargo_receiver_schedule(pl, cargo_receiver, cargo_target)) { return false }
+		if (!commit_cargo_target_schedule(pl, cargo_receiver, cargo_target)) { return false }
+		// The loose case starts the target first, so the receiver meets a waiting
+		// counterpart on its arrival at the junction. The exchange then commits
+		// during that arrival pass, before the receiver's own deferred unload
+		// could repair the junction-transfer packet's route. The through case
+		// starts the receiver first, so the target can load before the junction.
+		fixture.first_kind = is_loose_cargo_case() ? "target" : "receiver"
+		fixture.phase = "start-first"
+		return true
+	}
 
 	if (!build_infrastructure(pl)) { return false }
 
@@ -969,6 +1565,306 @@ function world_vehicle_total()
 }
 
 
+// The total load aboard a convoy, from the public vehicle snapshot.
+function consist_total_cargo(cnv)
+{
+	local total = 0
+	foreach (slot in cnv.get_vehicle_snapshot())
+	{
+		total += slot.cargo
+	}
+	return total
+}
+
+
+// The vehicle of the given descriptor that carries the stated amount, or null.
+// The loose cases use this rather than a fixed consist position, because the
+// collected carriage and the receiver's own carriage can share a descriptor.
+function consist_vehicle_with_cargo(cnv, desc, amount)
+{
+	foreach (slot in cnv.get_vehicle_snapshot())
+	{
+		if (vehicle_matches(slot.desc, desc) && slot.cargo == amount) { return slot }
+	}
+	return null
+}
+
+
+// The delivery position the case's packets carry: a station tile for
+// passengers and a consumer industry tile for freight.
+function delivery_zielpos()
+{
+	return is_passenger_cargo_case() ? DELIVER_STOP_POS : DELIVER_CONSUMER_ZIELPOS
+}
+
+
+// The load of the first vehicle of the given descriptor, or -1 when the convoy
+// does not hold one. Used in failure messages.
+function consist_cargo_of(cnv, desc)
+{
+	foreach (slot in cnv.get_vehicle_snapshot())
+	{
+		if (vehicle_matches(slot.desc, desc)) { return slot.cargo }
+	}
+	return -1
+}
+
+
+// Total booked revenue over the convoy's whole history table. Month indices
+// shift during a run, so the cases compare totals rather than one month.
+function convoy_total_revenue(cnv)
+{
+	local total = 0
+	foreach (value in cnv.get_revenue())
+	{
+		total += value
+	}
+	return total
+}
+
+
+// Inject one cargo packet at the loading stop. The packet's next transfer is
+// the halt at next_transfer_pos, its ultimate destination is the halt at
+// destination_pos, and its delivery position is destination_zielpos: a factory
+// tile for freight and a station tile for passengers.
+function inject_packet(next_transfer_pos, destination_pos, destination_zielpos, amount)
+{
+	local load_halt = halt_at(LOAD_POS)
+	local destination = halt_at(destination_pos)
+	local next_transfer = halt_at(next_transfer_pos)
+	if (!check(load_halt != null && destination != null && next_transfer != null, "a cargo fixture halt is missing")) { return false }
+	local ok = load_halt.add_cargo(fixture.cargo, amount, destination, next_transfer, world.get_time().ticks, load_halt, destination_zielpos, fixture.cargo_class)
+	return check_tool(ok, "inject " + amount + " units of cargo at the loading stop")
+}
+
+
+// Injects the cargo the case carries, once the loading convoy has left the
+// depot. The loose case puts two packets in the receiver's carriage: one whose
+// next transfer is the exchange stop, and one whose continuation lies beyond
+// it. The through case puts one packet in the target's carriage; its next
+// transfer is the north stop on the donor's own schedule, and the exchange
+// transfers the carriage to an owner that serves its ultimate destination.
+function inject_case_cargo(loose)
+{
+	if (is_passenger_cargo_case())
+	{
+		if (loose)
+		{
+			if (!inject_packet(MAIN_POS, DELIVER_POS, DELIVER_STOP_POS, fixture.cargo_amount)) { return false }
+			return inject_packet(DELIVER_POS, DELIVER_POS, DELIVER_STOP_POS, fixture.cargo_amount)
+		}
+		return inject_packet(NORTH_POS, DELIVER_POS, DELIVER_STOP_POS, fixture.cargo_amount)
+	}
+	if (loose)
+	{
+		// The first packet is delivered at the junction when the wagon is left
+		// loose; the second is carried beyond the junction under the through
+		// wagon model.
+		if (!inject_packet(MAIN_POS, MAIN_POS, JUNCTION_CONSUMER_ZIELPOS, fixture.cargo_amount)) { return false }
+		return inject_packet(MAIN_POS, DELIVER_POS, DELIVER_CONSUMER_ZIELPOS, fixture.cargo_amount)
+	}
+	return inject_packet(NORTH_POS, DELIVER_POS, DELIVER_CONSUMER_ZIELPOS, fixture.cargo_amount)
+}
+
+
+function cargo_step(what)
+{
+	++fixture.cargo_steps
+	// The reload runner sets shunting_time_seconds to 300, so the first
+	// post-load cargo phase must outlast the remaining shunting delay as well as
+	// the run to the delivery stop.
+	local limit = is_reload_case() ? RELOAD_DEPARTURE_STEP_LIMIT : CARGO_STEP_LIMIT
+	if (fixture.cargo_steps > limit)
+	{
+		fail(what + " within " + limit + " observations")
+	}
+}
+
+
+// Both cargo shapes load their carriage on the convoy that the case starts
+// second: the target in the through case and the receiver in the loose case.
+function observe_cargo_injection()
+{
+	local loader = second_convoy()
+	if (!check(loader.is_valid(), "the convoy that must load the cargo is not valid")) { return }
+	local snapshot = loader.get_vehicle_snapshot()
+	if (!check(snapshot.len() > 0, "the loading convoy has no vehicles")) { return }
+	// The depot is at (1,2). Inject once the leading vehicle has left the depot
+	// tile, so the routing rebuild caused by the departure has settled and the
+	// packets are present before the loading stop.
+	if (snapshot[0].pos.x < 2)
+	{
+		cargo_step("the convoy did not leave the depot to be loaded")
+		return
+	}
+	if (!inject_case_cargo(is_loose_cargo_case())) { return }
+	fixture.phase = "detect-exchange"
+}
+
+
+// Asserts the load immediately after the paired exchange. A directly
+// transferred carriage keeps its load. A released carriage keeps the packet
+// that continues beyond the junction; a passenger packet whose next transfer is
+// the junction leaves it, and a goods packet whose destination is the junction
+// is delivered there.
+function check_cargo_after_exchange()
+{
+	if (!is_loose_cargo_case())
+	{
+		local receiver = receiver_convoy()
+		if (!check(consist_vehicle_with_cargo(receiver, fixture.coach_b, fixture.cargo_amount) != null,
+			"the transferred carriage does not hold the " + fixture.cargo_amount + " units it carried into the junction")) { return false }
+		return true
+	}
+
+	local loose = laid_over_consist()
+	if (!check(loose.len() == 1, "the junction holds " + loose.len() + " non-empty laid-over convoys, expected the released carriage")) { return false }
+	print("RUNTIME CASE " + case_name + ": released carriage load " + consist_cargo_of(loose[0], fixture.coach_a) + " of " + fixture.cargo_amount
+		+ " bound beyond the junction; receiver load " + consist_total_cargo(receiver_convoy())
+		+ ", junction waiting " + halt_at(MAIN_POS).get_freight_to_dest(fixture.cargo, delivery_zielpos()))
+	if (!check(consist_vehicle_with_cargo(loose[0], fixture.coach_a, fixture.cargo_amount) != null,
+		"the released carriage holds " + consist_cargo_of(loose[0], fixture.coach_a) + " units, not the " + fixture.cargo_amount + " units bound beyond the junction")) { return false }
+	if (!is_passenger_cargo_case())
+	{
+		// The goods bound for the junction were delivered there, so the released
+		// convoy booked their fare.
+		return check(convoy_total_revenue(loose[0]) > 0, "the released goods wagon did not book the fare for its delivery at the junction")
+	}
+	return true
+}
+
+
+// Observes the carriage after the exchange. A through carriage is delivered by
+// the receiver at the delivery halt. A loose carriage is collected by the
+// receiver at the junction; the packet that continues beyond the junction must
+// survive the wait and the collection, and the receiver must book the fare when
+// it unloads the carriage at the delivery halt.
+function observe_cargo()
+{
+	local receiver = receiver_convoy()
+	if (!check(receiver.is_valid(), "the receiver convoy disappeared during the cargo observation")) { return }
+
+	if (fixture.phase == "cargo-through-delivery")
+	{
+		if (receiver.get_current_entry_id() != RECEIVER_NEXT_ENTRY_ID)
+		{
+			cargo_step("the receiver did not reach the delivery stop")
+			return
+		}
+		if (consist_total_cargo(receiver) != 0)
+		{
+			cargo_step("the receiver did not unload the transferred carriage at the delivery stop")
+			return
+		}
+		print("RUNTIME CASE " + case_name + ": delivered carriage load " + consist_total_cargo(receiver)
+			+ ", receiver revenue " + convoy_total_revenue(receiver)
+			+ ", delivery halt waiting " + halt_at(DELIVER_POS).get_freight_to_dest(fixture.cargo, delivery_zielpos()))
+		if (!check(convoy_total_revenue(receiver) > 0, "the delivery of the transferred carriage did not book a fare")) { return }
+		pass()
+		return
+	}
+
+	if (fixture.phase == "cargo-loose-first")
+	{
+		if (receiver.get_current_entry_id() != RECEIVER_NEXT_ENTRY_ID)
+		{
+			cargo_step("the receiver did not reach the delivery stop")
+			return
+		}
+		if (is_passenger_cargo_case())
+		{
+			// The passenger whose next transfer was the junction either boarded
+			// the receiver's final consist and was delivered here, or is still
+			// waiting at the junction for a later service. A reload case allows a
+			// third outcome: the long shunting hold lets the passenger exceed its
+			// maximum tolerable wait and leave the junction before the receiver
+			// departs.
+			local carried = convoy_total_revenue(receiver) > 0
+			local main_halt = halt_at(MAIN_POS)
+			local waiting = main_halt != null
+				&& main_halt.get_freight_to_dest(fixture.cargo, DELIVER_STOP_POS) >= fixture.cargo_amount
+			if (!carried && !waiting)
+			{
+				if (consist_total_cargo(receiver) > 0)
+				{
+					cargo_step("the receiver's final consist did not deliver or discharge the passenger whose next transfer was the junction")
+					return
+				}
+				if (!is_reload_case())
+				{
+					fail("the passenger whose next transfer was the junction neither boarded the receiver's final consist nor waited at the junction")
+					return
+				}
+				// The reload runner holds the receiver at the junction for 300
+				// game seconds of shunting time, which exceeds the passenger's
+				// maximum tolerable wait. Such a passenger leaves the junction
+				// before the receiver departs, so only the carriage's through
+				// load is collected below.
+				print("RUNTIME CASE " + case_name + ": junction-transfer packet left the junction while the receiver waited out the shunting delay")
+			}
+			else
+			{
+				print("RUNTIME CASE " + case_name + ": junction-transfer packet "
+					+ (carried ? "carried by the receiver's final consist" : "waiting at the junction"))
+			}
+			fixture.cargo_junction_pending = !carried && waiting
+		}
+		// The packet whose continuation lies beyond the junction must still be
+		// aboard the released carriage after the receiver's first delivery call.
+		local loose = laid_over_consist()
+		if (!check(loose.len() == 1, "the junction holds " + loose.len() + " non-empty laid-over convoys, expected the released carriage")) { return }
+		if (!check(consist_vehicle_with_cargo(loose[0], fixture.coach_a, fixture.cargo_amount) != null,
+			"the released carriage lost the cargo bound beyond the junction while the receiver called at the delivery stop")) { return }
+		fixture.cargo_steps = 0
+		fixture.phase = "cargo-loose-collect"
+		return
+	}
+
+	if (fixture.phase == "cargo-loose-collect")
+	{
+		local vehicles = receiver.get_vehicles().len()
+		if (vehicles < 3)
+		{
+			cargo_step("the receiver did not collect the released carriage at the junction")
+			return
+		}
+		if (!check(vehicles == 3, "the receiver holds " + vehicles + " vehicles after the collection, expected 3")) { return }
+		// The released carriage brings its through load. A goods packet bound for
+		// the junction was already delivered there, while a passenger whose next
+		// transfer was the junction boards here if it is still waiting at the
+		// junction.
+		local expected_load = fixture.cargo_amount
+		if (is_passenger_cargo_case() && fixture.cargo_junction_pending)
+		{
+			expected_load += fixture.cargo_amount
+		}
+		print("RUNTIME CASE " + case_name + ": collected carriage load " + consist_cargo_of(receiver, fixture.coach_a)
+			+ ", receiver load " + consist_total_cargo(receiver) + ", expected " + expected_load)
+		if (!check(consist_total_cargo(receiver) == expected_load,
+			"the receiver holds " + consist_total_cargo(receiver) + " units after the collection, expected " + expected_load + ": the released carriage's through load was not preserved")) { return }
+		fixture.cargo_revenue_before_final = convoy_total_revenue(receiver)
+		fixture.cargo_steps = 0
+		fixture.phase = "cargo-loose-final"
+		return
+	}
+
+	if (fixture.phase == "cargo-loose-final")
+	{
+		if (consist_total_cargo(receiver) != 0)
+		{
+			cargo_step("the collected carriage did not unload at the delivery stop")
+			return
+		}
+		if (!check(convoy_total_revenue(receiver) > fixture.cargo_revenue_before_final,
+			"the delivery of the collected carriage did not book a further fare")) { return }
+		pass()
+		return
+	}
+
+	fail("cargo observation reached phase " + fixture.phase)
+}
+
+
 function find_populated_convoy_other_than(allowed_ids)
 {
 	foreach (cnv in world.get_convoy_list())
@@ -999,6 +1895,14 @@ function wait_first()
 		local second = second_convoy()
 		if (!check(second.is_valid(), "the second convoy is not valid before it is started")) { return }
 		if (!check_tool(fixture.depot.start_convoy(player_x(0), second), "start the " + (fixture.first_kind == "receiver" ? "target" : "receiver") + " convoy")) { return }
+		if (is_cargo_case())
+		{
+			// The second convoy carries the case's carriage, so its load is
+			// injected while it runs from the depot to the loading stop.
+			fixture.cargo_steps = 0
+			fixture.phase = "cargo-inject"
+			return
+		}
 		fixture.phase = "detect-exchange"
 		return
 	}
@@ -1015,7 +1919,7 @@ function wait_first()
 	// with the second convoy if the schedule was edited, or the convoy may be
 	// loading before the resolver runs. Keep observing.
 	++fixture.exchange_steps
-	if (fixture.exchange_steps > (case_name == "pair-reload" ? RELOAD_EXCHANGE_STEP_LIMIT : EXCHANGE_STEP_LIMIT))
+	if (fixture.exchange_steps > (is_reload_case() ? RELOAD_EXCHANGE_STEP_LIMIT : EXCHANGE_STEP_LIMIT))
 	{
 		fail("timed out waiting for the " + fixture.first_kind + " convoy at its pair entry to wait for the counterpart: " + depict_state(first.get_state()))
 	}
@@ -1083,14 +1987,32 @@ function detect_exchange()
 			if (!check(receiver.get_state() != convoy_state_shunting && target.get_state() != convoy_state_shunting, "an already-satisfied pair entered the shunting state; an unchanged consist must not take the shunting delay")) { return }
 		}
 
-		// The reload case stops here, after the commit has been asserted and
+		// The reload cases stop here, after the commit has been asserted and
 		// before the shunting delay expires, so that the runner can join a
 		// network client and the saved state can be loaded again.
-		if (case_name == "pair-reload")
+		if (is_cargo_case())
 		{
-			remember_pair_reload_state()
-			fixture.phase = "awaiting-reload"
-			print("RUNTIME CASE " + case_name + " READY")
+			if (!check_cargo_after_exchange()) { return }
+			if (is_reload_case())
+			{
+				hold_for_reload()
+				return
+			}
+			fixture.cargo_steps = 0
+			if (is_loose_cargo_case())
+			{
+				fixture.phase = "cargo-loose-first"
+			}
+			else
+			{
+				fixture.phase = "cargo-through-delivery"
+			}
+			return
+		}
+
+		if (is_reload_case())
+		{
+			hold_for_reload()
 			return
 		}
 
@@ -1100,7 +2022,8 @@ function detect_exchange()
 	}
 
 	++fixture.exchange_steps
-	if (fixture.exchange_steps > (case_name == "pair-reload" ? RELOAD_EXCHANGE_STEP_LIMIT : EXCHANGE_STEP_LIMIT))
+	local exchange_limit = is_reload_case() ? (is_cargo_case() ? RELOAD_DEPARTURE_STEP_LIMIT : RELOAD_EXCHANGE_STEP_LIMIT) : (is_cargo_case() ? CARGO_STEP_LIMIT : EXCHANGE_STEP_LIMIT)
+	if (fixture.exchange_steps > exchange_limit)
 	{
 		local receiver = receiver_convoy()
 		local target = target_convoy()
@@ -1226,7 +2149,16 @@ function observe()
 		local total = world_vehicle_total()
 		local expected_total = fixture.reload_expected.receiver.len() + fixture.reload_expected.target.len() + fixture.reload_expected.leftovers.len()
 		if (!check(total == expected_total, "the restored map holds " + total + " vehicles, expected " + expected_total)) { return }
+		if (!check_cargo_restored()) { return }
 		print("RUNTIME CASE " + case_name + " RESTORED")
+		if (is_cargo_case())
+		{
+			// The cargo cases continue with the carriage's delivery. The first
+			// phase must outlast the shunting delay that began before the save.
+			fixture.cargo_steps = 0
+			fixture.phase = is_loose_cargo_case() ? "cargo-loose-first" : "cargo-through-delivery"
+			return
+		}
 		fixture.phase = "detect-advance"
 		fixture.exchange_steps = 0
 		return
@@ -1242,6 +2174,12 @@ function observe()
 		return
 	}
 
+	if (fixture.phase == "cargo-inject")
+	{
+		observe_cargo_injection()
+		return
+	}
+
 	if (fixture.phase == "wait-first")
 	{
 		wait_first()
@@ -1251,6 +2189,13 @@ function observe()
 	if (fixture.phase == "detect-exchange")
 	{
 		detect_exchange()
+		return
+	}
+
+	if (fixture.phase == "cargo-through-delivery" || fixture.phase == "cargo-loose-first"
+		|| fixture.phase == "cargo-loose-collect" || fixture.phase == "cargo-loose-final")
+	{
+		observe_cargo()
 		return
 	}
 
@@ -1296,13 +2241,14 @@ function get_result_text(pl)
 
 
 // Called by scenario_t::rdwr after the script has been loaded again and the
-// saved persistent table has been evaluated. The pair reload case reconstructs
-// the fixture identifiers from the persisted state; setup() must not run again,
-// because the infrastructure, schedules and vehicles are all in the savegame.
-// Observation then re-asserts the committed exchange from the loaded world.
+// saved persistent table has been evaluated. A reload case reconstructs the
+// fixture identifiers and the cargo it asserts from the persisted state;
+// setup() must not run again, because the infrastructure, schedules, loads and
+// vehicles are all in the savegame. Observation then re-asserts the committed
+// exchange from the loaded world.
 function resume_game()
 {
-	if (case_name != "pair-reload")
+	if (!is_reload_case())
 	{
 		return
 	}
@@ -1330,6 +2276,27 @@ function resume_game()
 	if (!check(state.kind == case_name, "the persisted state belongs to case " + state.kind + ", not " + case_name)) { return }
 	if (!check(receiver_convoy().is_valid(), "the receiver convoy " + fixture.receiver_id + " named by the persisted state is not in the loaded world")) { return }
 	if (!check(target_convoy().is_valid(), "the target convoy " + fixture.target_id + " named by the persisted state is not in the loaded world")) { return }
+
+	if (is_cargo_case())
+	{
+		fixture.cargo = good_desc_x(state.cargo_name)
+		if (!check(fixture.cargo != null, "the persisted cargo " + state.cargo_name + " is not in the loaded pakset")) { return }
+		fixture.cargo_amount = state.cargo_amount
+		fixture.cargo_class = state.cargo_class
+		fixture.cargo_junction_pending = false
+		fixture.cargo_revenue_before_final = 0
+		fixture.cargo_steps = 0
+		if (is_loose_cargo_case())
+		{
+			// The loose cargo phases identify the released carriage by its
+			// descriptor, which must come from the loaded pakset.
+			local loose = laid_over_consist()
+			if (loose.len() == 1 && loose[0].get_vehicles().len() > 0)
+			{
+				fixture.coach_a = loose[0].get_vehicles()[0]
+			}
+		}
+	}
 
 	fixture.phase = "restored-pending"
 	print("RUNTIME CASE " + case_name + ": saved paired exchange state restored from the savegame")

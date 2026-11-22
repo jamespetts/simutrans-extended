@@ -26,6 +26,13 @@
 // from the vehicles that order displaced. Every observation below uses only
 // the public script interface.
 //
+// The plain-uncouple-passenger case releases a loaded passenger carriage as
+// loose stock at the junction and asserts that only the passenger packet whose
+// next transfer is the junction leaves the carriage. The nested-split case
+// divides at the junction and then divides the split-off portion again at the
+// north stop, so a portion that already left the source becomes the source of
+// a second division.
+//
 
 map.file = "empty-16x16.sve"
 
@@ -53,6 +60,12 @@ local EAST_ENTRY_ID = 13
 local TARGET_ENTRY_ID = 21
 local NEXT_TARGET_ENTRY_ID = 22
 local PREVIOUS_TARGET_ENTRY_ID = 20
+
+// Entry identities of the second target line Q in the nested-split case. Its
+// target entry lies at the north stop, where the first split-off portion
+// divides again.
+local NESTED_SECOND_TARGET_ENTRY_ID = 41
+local NESTED_SECOND_NEXT_ENTRY_ID = 42
 
 // Entry identities of the separate convoy that releases the pool vehicle in the
 // pool-collection case. Its schedule is independent of the source and target
@@ -119,6 +132,12 @@ local fixture = {
 	facing_steps = 0,
 	saw_last_entry_forward = false,
 	loose_stock_seen = false,
+	passenger_class = 0,
+	cargo_injected = false,
+	cargo_seen_loaded = false,
+	cargo_via_amount = 0,
+	cargo_through_amount = 0,
+	nested_line_id = 0,
 	waiting_for = "",
 	travel_steps = 0,
 	junction_steps = 0,
@@ -260,6 +279,12 @@ function convoy_has_no_line(cnv)
 }
 
 
+function halt_at(pos)
+{
+	return halt_x.get_halt(pos, player_x(0))
+}
+
+
 function source_convoy()
 {
 	return convoy_x(fixture.convoy_id)
@@ -305,6 +330,82 @@ function select_vehicles()
 		}
 	}
 	return null
+}
+
+
+// Select the stock for the plain-uncouple-passenger case: a powered passenger
+// railcar that the source order retains, and a passenger carriage that the
+// order displaces. The injected packets use a class that the carriage
+// accommodates and that the railcar cannot take: a packet of class c may use a
+// vehicle's accommodation class c or lower (see haltestelle_t::fetch_goods), so
+// the railcar must have no accommodation in classes 0 to c. The carriage's load
+// is then unambiguous. Both must be passenger vehicles, so that the source
+// schedule's consist order declares the passenger category the path explorer
+// needs to route the packets to the stop. The through packet is at most one
+// unit less than the carriage's capacity in the chosen class, so both packets
+// fit in the carriage.
+function select_passenger_carriage_pair()
+{
+	local railcars = []
+	local carriages = []
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+	{
+		if (desc.needs_electrification()) { continue }
+		if (desc.get_successors().len() > 0) { continue }
+		local freight = desc.get_freight()
+		if (freight == null || !freight.is_equal(good_desc_x.passenger)) { continue }
+		if (desc.get_power() > 0)
+		{
+			if (desc.can_be_first() && desc.can_be_last()) { railcars.append(desc) }
+		}
+		else if (desc.can_be_last() && desc.get_total_capacity() > 0)
+		{
+			carriages.append(desc)
+		}
+	}
+	foreach (railcar in railcars)
+	{
+		foreach (carriage in carriages)
+		{
+			if (!vehicle_desc_x.is_coupling_allowed(railcar, carriage)) { continue }
+			for (local c = 0; c < 5; c++)
+			{
+				if (carriage.get_capacity(c) < 2) { continue }
+				local railcar_can_load = false
+				for (local k = 0; k <= c; k++)
+				{
+					railcar_can_load = railcar_can_load || railcar.get_capacity(k) > 0
+				}
+				if (railcar_can_load) { continue }
+				fixture.retained = railcar
+				fixture.split = carriage
+				fixture.passenger_class = c
+				fixture.cargo_via_amount = 1
+				fixture.cargo_through_amount = min(2, carriage.get_capacity(c) - 1)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+
+// Select the three vehicles of the nested-split source consist. The consist is
+// [first, second, first]: the first division retains first and splits off
+// [second, first], and the second division retains second and splits off
+// [first]. Both divisions therefore have a powered retained portion and a
+// powered split-off portion, and the three vehicles are distinguished by the
+// convoy that holds them.
+function select_nested_vehicles()
+{
+	local pair = select_vehicles()
+	if (pair == null) { return false }
+	// The consist runs second in front of first after the first division, so
+	// the reverse coupling direction must also be valid.
+	if (!vehicle_desc_x.is_coupling_allowed(pair[1], pair[0])) { return false }
+	fixture.retained = pair[0]
+	fixture.split = pair[1]
+	return true
 }
 
 
@@ -538,7 +639,7 @@ function source_consist_descriptors()
 
 function needs_target_line()
 {
-	return case_name != "plain-uncouple" && case_name != "lineless-target" && case_name != "facing"
+	return case_name != "plain-uncouple" && case_name != "plain-uncouple-passenger" && case_name != "lineless-target" && case_name != "facing"
 }
 
 
@@ -719,9 +820,22 @@ function source_entry_ids()
 }
 
 
+// Inject one passenger packet at pos, bound for destination_pos and changing
+// at next_transfer_pos. This is the general halt_x.add_cargo API: the packet
+// is ordinary waiting cargo and the class selects the accommodation it uses.
+function inject_passengers(pos, destination_pos, passenger_class, amount, next_transfer_pos)
+{
+	local halt = halt_at(pos)
+	local destination = halt_at(destination_pos)
+	local next_transfer = halt_at(next_transfer_pos)
+	if (!check(halt != null && destination != null && next_transfer != null, "no halt at " + pos + ", " + destination_pos + " or " + next_transfer_pos + " for passenger injection")) { return false }
+	return check_tool(halt.add_cargo(good_desc_x.passenger, amount, destination, next_transfer, world.get_time().ticks, halt, coord(destination_pos.x, destination_pos.y), passenger_class), "inject " + amount + " passengers at " + pos)
+}
+
+
 function source_target_id()
 {
-	if (case_name == "plain-uncouple") { return 0 }
+	if (case_name == "plain-uncouple" || case_name == "plain-uncouple-passenger") { return 0 }
 	if (case_name == "broken-target") { return fixture.broken_line_id }
 	if (case_name == "lineless-target") { return fixture.target_convoy_id }
 	return fixture.target_line_id
@@ -730,7 +844,7 @@ function source_target_id()
 
 function source_target_entry()
 {
-	if (case_name == "plain-uncouple") { return 0 }
+	if (case_name == "plain-uncouple" || case_name == "plain-uncouple-passenger") { return 0 }
 	return TARGET_ENTRY_ID
 }
 
@@ -829,6 +943,60 @@ function commit_source_schedule(pl, cnv)
 }
 
 
+// Create the two target lines of the nested-split case. Line Q is created
+// first because line P's second entry names line Q and target entry
+// NESTED_SECOND_TARGET_ENTRY_ID as its uncouple target.
+function create_nested_target_lines(pl)
+{
+	local before = line_ids(pl)
+	if (!check(pl.create_line(wt_rail), "create the second target line Q")) { return false }
+	local line_q = find_new_line(pl, before)
+	if (!check(line_q != null, "the second target line Q was not found after creation")) { return false }
+	fixture.nested_line_id = line_q.id
+
+	local q_schedule = schedule_x(wt_rail, [make_entry(NORTH_POS, NESTED_SECOND_TARGET_ENTRY_ID), make_entry(JUNCTION_POS, NESTED_SECOND_NEXT_ENTRY_ID)])
+	q_schedule.orders.rawset(NESTED_SECOND_TARGET_ENTRY_ID, make_order([fixture.retained]))
+	if (!check_tool(line_q.change_schedule(pl, q_schedule), "commit the second target line Q schedule")) { return false }
+
+	before = line_ids(pl)
+	if (!check(pl.create_line(wt_rail), "create the first target line P")) { return false }
+	local line_p = find_new_line(pl, before)
+	if (!check(line_p != null, "the first target line P was not found after creation")) { return false }
+	fixture.target_line_id = line_p.id
+
+	local entries = [make_entry(JUNCTION_POS, TARGET_ENTRY_ID), make_entry(NORTH_POS, NEXT_TARGET_ENTRY_ID)]
+	// The second entry divides the promoted portion again at the north stop.
+	entries[1].uncouple = true
+	entries[1].uncouple_target_is_line_or_cnv = false
+	entries[1].uncouple_target_sch_is_reversed = false
+	entries[1].target_id_uncouple = fixture.nested_line_id
+	entries[1].target_unique_entry_uncouple = NESTED_SECOND_TARGET_ENTRY_ID
+	local p_schedule = schedule_x(wt_rail, entries)
+	p_schedule.orders.rawset(TARGET_ENTRY_ID, make_order([fixture.split, fixture.retained]))
+	p_schedule.orders.rawset(NEXT_TARGET_ENTRY_ID, make_order([fixture.split]))
+	if (!check_tool(line_p.change_schedule(pl, p_schedule), "commit the first target line P schedule")) { return false }
+	return true
+}
+
+
+function setup_nested_split(pl)
+{
+	if (!check(select_nested_vehicles(), "no pair of independently powered rail vehicles with two-way coupling is available")) { return false }
+	fixture.uncouple_entry_id = UNCOUPLE_ENTRY_ID
+	fixture.uncouple_index = 1
+
+	if (!create_nested_target_lines(pl)) { return false }
+
+	local cnv = create_depot_convoy(pl, [fixture.retained, fixture.split, fixture.retained], "source convoy")
+	if (cnv == null) { return false }
+	fixture.convoy_id = cnv.id
+
+	if (!commit_source_schedule(pl, cnv)) { return false }
+	if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start the source convoy")) { return false }
+	return true
+}
+
+
 function setup()
 {
 	local pl = player_x(0)
@@ -850,6 +1018,12 @@ function setup()
 		return true
 	}
 
+	if (case_name == "nested-split")
+	{
+		if (!setup_nested_split(pl)) { return false }
+		return true
+	}
+
 	if (case_name == "pool-collection")
 	{
 		// The pool vehicle is laid over on the loop platform; the source stops
@@ -861,19 +1035,26 @@ function setup()
 		if (!check(main_halt.get_name() == loop_halt.get_name(), "the junction main and loop platforms have different stop names, so they are separate halts and the source cannot see the laid-over pool vehicle")) { return false }
 	}
 
-	local pair = select_vehicles()
-	if (!check(pair != null, "no pair of independently powered rail vehicles that can run on non-electrified track is available")) { return false }
-	fixture.retained = pair[0]
-
-	if (case_name == "unpowered-target")
+	if (case_name == "plain-uncouple-passenger")
 	{
-		fixture.split = select_unpowered_follower(fixture.retained)
-		if (!check(fixture.split != null, "no unpowered rail vehicle that can be coupled behind the retained vehicle is available")) { return false }
-		if (!check(fixture.split.get_power() == 0, "the selected displaced vehicle is powered; this case requires zero power")) { return false }
+		if (!check(select_passenger_carriage_pair(), "no powered passenger railcar with a passenger carriage whose accommodation class the railcar cannot load is available")) { return false }
 	}
 	else
 	{
-		fixture.split = pair[1]
+		local pair = select_vehicles()
+		if (!check(pair != null, "no pair of independently powered rail vehicles that can run on non-electrified track is available")) { return false }
+		fixture.retained = pair[0]
+
+		if (case_name == "unpowered-target")
+		{
+			fixture.split = select_unpowered_follower(fixture.retained)
+			if (!check(fixture.split != null, "no unpowered rail vehicle that can be coupled behind the retained vehicle is available")) { return false }
+			if (!check(fixture.split.get_power() == 0, "the selected displaced vehicle is powered; this case requires zero power")) { return false }
+		}
+		else
+		{
+			fixture.split = pair[1]
+		}
 	}
 
 	if (case_name == "pool-collection")
@@ -925,9 +1106,11 @@ function setup()
 }
 
 
-function laid_over_carrier(expected)
+// Returns the laid-over convoy at pos that holds the expected descriptor, or
+// null.
+function laid_over_carrier_at(pos, expected)
 {
-	local halt = halt_x.get_halt(JUNCTION_POS, player_x(0))
+	local halt = halt_x.get_halt(pos, player_x(0))
 	if (halt == null)
 	{
 		return null
@@ -947,10 +1130,16 @@ function laid_over_carrier(expected)
 }
 
 
-function target_line_convoys()
+function laid_over_carrier(expected)
+{
+	return laid_over_carrier_at(JUNCTION_POS, expected)
+}
+
+
+function line_convoys(line_id)
 {
 	local convoys = []
-	local line = line_x(fixture.target_line_id)
+	local line = line_x(line_id)
 	if (!line.is_valid())
 	{
 		return convoys
@@ -963,6 +1152,12 @@ function target_line_convoys()
 		}
 	}
 	return convoys
+}
+
+
+function target_line_convoys()
+{
+	return line_convoys(fixture.target_line_id)
 }
 
 
@@ -1319,7 +1514,7 @@ function check_loose_stock_end_state(loose)
 	}
 	else
 	{
-		if (!check(line_ids(player_x(0)).len() == 0, "the plain-uncouple case created a line, but it must have none")) { return false }
+		if (!check(line_ids(player_x(0)).len() == 0, "the " + case_name + " case created a line, but it must have none")) { return false }
 	}
 
 	if (case_name == "broken-target")
@@ -1376,6 +1571,115 @@ function observe_loose_stock()
 		return
 	}
 	junction_progress(fixture.waiting_for)
+}
+
+
+// Returns the snapshot entry of the expected descriptor in cnv, or null.
+function vehicle_in_convoy(cnv, expected)
+{
+	foreach (v in cnv.get_vehicle_snapshot())
+	{
+		if (vehicle_matches(v.desc, expected)) { return v }
+	}
+	return null
+}
+
+
+// The plain-uncouple-passenger case injects two passenger packets at the trunk
+// stop after the source convoy has left the depot, so the routing rebuild that
+// starting the convoy triggers has settled. The packets use a class that only
+// the carriage accommodates, so both are loaded into the carriage; at the
+// junction the source order retains the railcar and the carriage becomes loose
+// stock.
+function observe_plain_uncouple_passenger()
+{
+	local src = source_convoy()
+	if (!src.is_valid())
+	{
+		fail("the source convoy disappeared before its carriage could be observed")
+		return
+	}
+
+	if (!fixture.cargo_injected)
+	{
+		local snap = src.get_vehicle_snapshot()
+		if (!check(snap.len() == 2, "the source convoy has " + snap.len() + " vehicles, expected the railcar and the carriage")) { return }
+		// The depot is at (1, 2) and the trunk stop at (3, 2), so the front
+		// vehicle has left the depot tile once its x position is 2 or more.
+		if (snap[0].pos.x < 2) { return }
+		// The packet that changes at the junction is bound for the north stop,
+		// which the source schedule does not serve: its route is the source
+		// convoy to the junction and then a walk to the north stop, so the
+		// junction is its next transfer. The through packet is bound for the
+		// east stop, the source schedule's terminus, so it stays aboard.
+		if (!inject_passengers(TRUNK_POS, NORTH_POS, fixture.passenger_class, fixture.cargo_via_amount, JUNCTION_POS)) { return }
+		if (!inject_passengers(TRUNK_POS, EAST_POS, fixture.passenger_class, fixture.cargo_through_amount, EAST_POS)) { return }
+		fixture.cargo_injected = true
+		print("RUNTIME CASE " + case_name + ": injected " + (fixture.cargo_via_amount + fixture.cargo_through_amount) + " passengers at the trunk stop")
+		return
+	}
+
+	if (!fixture.cargo_seen_loaded)
+	{
+		local carriage = vehicle_in_convoy(src, fixture.split)
+		if (carriage != null && carriage.cargo > 0)
+		{
+			local expected_load = fixture.cargo_via_amount + fixture.cargo_through_amount
+			if (!check(carriage.cargo == expected_load, "the carriage loaded " + carriage.cargo + " of the " + expected_load + " injected passengers")) { return }
+			fixture.cargo_seen_loaded = true
+			print("RUNTIME CASE " + case_name + ": the carriage loaded both injected passengers")
+		}
+		else if (src.get_current_entry_id() == UNCOUPLE_ENTRY_ID)
+		{
+			fail("the carriage reached the uncouple entry without the injected passengers aboard")
+			return
+		}
+	}
+
+	local loose = laid_over_carrier(fixture.split)
+	if (loose != null)
+	{
+		fixture.loose_stock_seen = true
+		if (check_plain_uncouple_passenger_end_state(loose))
+		{
+			pass()
+		}
+		return
+	}
+
+	fixture.waiting_for = "the loaded passenger carriage to become loose stock"
+	if (!source_waiting_at_uncouple())
+	{
+		return
+	}
+	junction_progress(fixture.waiting_for)
+}
+
+
+// The carriage stood at the trunk stop when it loaded both packets and has
+// stopped at no other stop since, so a packet that is no longer aboard left at
+// the junction. The junction halt may route the discharged packet onwards or
+// let it walk immediately, so the halt's waiting list is not asserted. The
+// through packet stays aboard because its next transfer is a later stop.
+function check_plain_uncouple_passenger_end_state(loose)
+{
+	if (!check_loose_stock_end_state(loose)) { return false }
+	if (!check(fixture.cargo_seen_loaded, "the carriage was never observed carrying both injected passengers")) { return false }
+
+	local src = source_convoy()
+	local source_slots = src.get_vehicle_snapshot()
+	if (!check(source_slots.len() == 1, "the retained portion has " + source_slots.len() + " vehicles, expected the railcar")) { return false }
+	if (!check(source_slots[0].cargo == 0, "the retained railcar kept " + source_slots[0].cargo + " passengers, expected none")) { return false }
+
+	local loose_slots = loose.get_vehicle_snapshot()
+	if (!check(loose_slots.len() == 1, "the loose carriage snapshot has " + loose_slots.len() + " vehicles, expected 1")) { return false }
+	if (!check(loose_slots[0].cargo == fixture.cargo_through_amount, "the loose carriage holds " + loose_slots[0].cargo + " passengers, expected the " + fixture.cargo_through_amount + " whose next transfer is a later stop; the " + fixture.cargo_via_amount + " whose next transfer is the uncouple stop were not unloaded")) { return false }
+
+	local standing_halt = halt_x.get_halt(loose_slots[0].pos, player_x(0))
+	local junction_halt = halt_at(JUNCTION_POS)
+	if (!check(standing_halt != null && junction_halt != null && standing_halt.get_name() == junction_halt.get_name(), "the loose carriage is not standing at the junction stop")) { return false }
+
+	return true
 }
 
 
@@ -1923,6 +2227,172 @@ function observe_facing()
 }
 
 
+// The nested-split case: the source divides at the junction and the portion
+// that this division formed then divides again at the north stop. The first
+// division must leave the source with the retained first vehicle and the
+// portion on line P with the displaced [second, first] pair. The second
+// division must keep the same portion on line P with [second] and form a new
+// portion on line Q with [first].
+function observe_nested_split()
+{
+	local src = source_convoy()
+	if (!src.is_valid())
+	{
+		fail("the source convoy disappeared before the first division")
+		return
+	}
+
+	if (fixture.phase == "after-first-division")
+	{
+		observe_nested_second_division()
+		return
+	}
+
+	local p_portions = target_line_convoys()
+	if (p_portions.len() > 1)
+	{
+		fail("target line P has " + p_portions.len() + " convoys; expected exactly one split-off portion")
+		return
+	}
+	if (p_portions.len() == 1)
+	{
+		if (!check_nested_first_formation(p_portions[0])) { return }
+		fixture.portion_id = p_portions[0].id
+		fixture.phase = "after-first-division"
+		print("RUNTIME CASE " + case_name + ": first split-off portion formed at target entry " + TARGET_ENTRY_ID)
+		return
+	}
+
+	if (laid_over_carrier(fixture.split) != null)
+	{
+		fixture.loose_stock_seen = true
+	}
+
+	fixture.waiting_for = "the first split-off portion on target line P"
+	if (!source_waiting_at_uncouple())
+	{
+		return
+	}
+	junction_progress(fixture.waiting_for)
+}
+
+
+function check_nested_first_formation(portion)
+{
+	local src = source_convoy()
+	if (!check(src.is_valid(), "the source convoy is no longer valid")) { return false }
+	if (!check(portion.is_valid(), "the first split-off portion is no longer valid")) { return false }
+	if (!check(portion.id != src.id, "the first split-off portion has the source convoy's identity")) { return false }
+
+	local source_vehicles = src.get_vehicles()
+	if (!check(source_vehicles.len() == 1, "the source convoy has " + source_vehicles.len() + " vehicles after the first division, expected 1")) { return false }
+	if (!check(vehicle_matches(source_vehicles[0], fixture.retained), "the source convoy does not hold exactly the retained first vehicle")) { return false }
+	if (!check(src.get_current_entry_id() == UNCOUPLE_ENTRY_ID, "the source convoy is at entry " + src.get_current_entry_id() + ", expected entry " + UNCOUPLE_ENTRY_ID)) { return false }
+
+	local portion_line = portion.get_line()
+	if (!check(portion_line != null && portion_line.is_valid() && portion_line.id == fixture.target_line_id, "the first split-off portion is not assigned to target line P")) { return false }
+	local portion_vehicles = portion.get_vehicles()
+	if (!check(portion_vehicles.len() == 2, "the first split-off portion has " + portion_vehicles.len() + " vehicles, expected 2")) { return false }
+	if (!check(vehicle_matches(portion_vehicles[0], fixture.split), "the first split-off portion does not start with the second vehicle")) { return false }
+	if (!check(vehicle_matches(portion_vehicles[1], fixture.retained), "the first split-off portion does not end with the first vehicle")) { return false }
+	local portion_schedule = portion.get_schedule()
+	if (!check(portion_schedule != null && portion_schedule.entries.len() == 2, "the first split-off portion does not run the two-entry target line P schedule")) { return false }
+	if (!check(portion_schedule.entries[0].unique_entry_id == TARGET_ENTRY_ID, "the target line P schedule of the first portion has no entry " + TARGET_ENTRY_ID + " first")) { return false }
+	if (!check(portion.get_current_entry_id() == TARGET_ENTRY_ID, "the first split-off portion is at entry " + portion.get_current_entry_id() + ", expected entry " + TARGET_ENTRY_ID)) { return false }
+	if (!check(portion.get_state() == convoy_state_loading, "the first split-off portion is in state " + portion.get_state() + ", expected the loading state " + convoy_state_loading)) { return false }
+
+	if (!check(laid_over_carrier(fixture.split) == null, "the displaced second vehicle remains in the junction laid-over list as loose stock")) { return false }
+	local total = world_vehicle_total()
+	if (!check(total == 3, "the map holds " + total + " vehicles after the first division, expected 3")) { return false }
+	local unexpected = find_populated_convoy_other_than([src.id, portion.id])
+	if (!check(unexpected == null, "the map holds a populated convoy other than the source and the first split-off portion")) { return false }
+	return true
+}
+
+
+function observe_nested_second_division()
+{
+	local src = source_convoy()
+	if (!src.is_valid())
+	{
+		fail("the source convoy disappeared before the second division")
+		return
+	}
+	local portion = convoy_x(fixture.portion_id)
+	if (!portion.is_valid())
+	{
+		fail("the first split-off portion disappeared before the second division")
+		return
+	}
+
+	local q_portions = line_convoys(fixture.nested_line_id)
+	if (q_portions.len() > 1)
+	{
+		fail("target line Q has " + q_portions.len() + " convoys; expected exactly one second split-off portion")
+		return
+	}
+	if (q_portions.len() == 1)
+	{
+		if (check_nested_second_formation(portion, q_portions[0]))
+		{
+			pass()
+		}
+		return
+	}
+
+	// The first portion must still be the divided consist until it divides
+	// again, and must still be on line P.
+	local portion_line = portion.get_line()
+	if (!check(portion_line != null && portion_line.is_valid() && portion_line.id == fixture.target_line_id, "the first split-off portion left target line P before the second division")) { return }
+	local portion_vehicles = portion.get_vehicles()
+	if (!check(portion_vehicles.len() == 2, "the first split-off portion has " + portion_vehicles.len() + " vehicles before the second division, expected 2")) { return }
+	departure_step("the first split-off portion reaching the second division stop")
+}
+
+
+function check_nested_second_formation(portion, second)
+{
+	local src = source_convoy()
+	if (!check(src.is_valid(), "the source convoy is no longer valid")) { return false }
+	if (!check(second.is_valid(), "the second split-off portion is no longer valid")) { return false }
+	if (!check(second.id != portion.id, "the second split-off portion has the first portion's identity")) { return false }
+	if (!check(second.id != src.id, "the second split-off portion has the source convoy's identity")) { return false }
+
+	// The convoy that divided again is the same convoy the first division
+	// produced, now reduced to the retained second vehicle.
+	local portion_line = portion.get_line()
+	if (!check(portion_line != null && portion_line.is_valid() && portion_line.id == fixture.target_line_id, "the first split-off portion is not assigned to target line P after the second division")) { return false }
+	local portion_vehicles = portion.get_vehicles()
+	if (!check(portion_vehicles.len() == 1, "the first split-off portion has " + portion_vehicles.len() + " vehicles after the second division, expected 1")) { return false }
+	if (!check(vehicle_matches(portion_vehicles[0], fixture.split), "the first split-off portion does not hold the retained second vehicle")) { return false }
+	if (!check(portion.get_current_entry_id() == NEXT_TARGET_ENTRY_ID, "the first split-off portion is at entry " + portion.get_current_entry_id() + ", expected entry " + NEXT_TARGET_ENTRY_ID)) { return false }
+	// The convoy that divided again waits out the shunting delay before it
+	// resumes loading at the entry it divided at.
+	if (!check(portion.get_state() == convoy_state_shunting, "the first split-off portion is in state " + portion.get_state() + ", expected the shunting state " + convoy_state_shunting)) { return false }
+
+	local second_line = second.get_line()
+	if (!check(second_line != null && second_line.is_valid() && second_line.id == fixture.nested_line_id, "the second split-off portion is not assigned to target line Q")) { return false }
+	local second_vehicles = second.get_vehicles()
+	if (!check(second_vehicles.len() == 1, "the second split-off portion has " + second_vehicles.len() + " vehicles, expected 1")) { return false }
+	if (!check(vehicle_matches(second_vehicles[0], fixture.retained), "the second split-off portion does not hold the first vehicle")) { return false }
+	local second_schedule = second.get_schedule()
+	if (!check(second_schedule != null && second_schedule.entries.len() == 2, "the second split-off portion does not run the two-entry target line Q schedule")) { return false }
+	if (!check(second_schedule.entries[0].unique_entry_id == NESTED_SECOND_TARGET_ENTRY_ID, "the target line Q schedule of the second portion has no entry " + NESTED_SECOND_TARGET_ENTRY_ID + " first")) { return false }
+	if (!check(second.get_current_entry_id() == NESTED_SECOND_TARGET_ENTRY_ID, "the second split-off portion is at entry " + second.get_current_entry_id() + ", expected entry " + NESTED_SECOND_TARGET_ENTRY_ID)) { return false }
+	if (!check(second.get_state() == convoy_state_loading, "the second split-off portion is in state " + second.get_state() + ", expected the loading state " + convoy_state_loading)) { return false }
+
+	// Every vehicle is in exactly one consist: three vehicles across the three
+	// convoys, and no vehicle of either divided consist is left laid over.
+	local total = world_vehicle_total()
+	if (!check(total == 3, "the map holds " + total + " vehicles after the second division, expected 3")) { return false }
+	local unexpected = find_populated_convoy_other_than([src.id, portion.id, second.id])
+	if (!check(unexpected == null, "the map holds a populated convoy other than the source and the two portions")) { return false }
+	if (!check(laid_over_carrier_at(NORTH_POS, fixture.retained) == null, "the first vehicle remains in the north laid-over list as loose stock")) { return false }
+	if (!check(laid_over_carrier_at(NORTH_POS, fixture.split) == null, "the second vehicle remains in the north laid-over list as loose stock")) { return false }
+	return true
+}
+
+
 function observe()
 {
 	if (case_name == "forward" || case_name == "reload")
@@ -1948,6 +2418,14 @@ function observe()
 	else if (case_name == "reversed-source")
 	{
 		observe_reversed_source()
+	}
+	else if (case_name == "plain-uncouple-passenger")
+	{
+		observe_plain_uncouple_passenger()
+	}
+	else if (case_name == "nested-split")
+	{
+		observe_nested_split()
 	}
 	else
 	{

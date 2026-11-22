@@ -11,6 +11,18 @@
 # tests/pending-runtime/pair-reload/scenario.nut --harness
 # tests/pending-runtime/pair-harness.nut --harness-name pair-harness.
 #
+# The loaded paired-exchange reload cases use the same harness and harness name
+# with their own case, scenario and selector names:
+#   --case pair-passenger-loose-reload --scenario
+#   pending-runtime-pair-passenger-loose-reload --selector
+#   tests/pending-runtime/pair-passenger-loose-reload/scenario.nut
+#   --case pair-freight-through-reload --scenario
+#   pending-runtime-pair-freight-through-reload --selector
+#   tests/pending-runtime/pair-freight-through-reload/scenario.nut
+#   --case pair-freight-loose-reload --scenario
+#   pending-runtime-pair-freight-loose-reload --selector
+#   tests/pending-runtime/pair-freight-loose-reload/scenario.nut
+#
 # In the default case, once the split-off portion has formed at target entry
 # 21, the case prints "RUNTIME CASE reload READY" and holds before PASS. The
 # runner then starts a second process as a client (-load
