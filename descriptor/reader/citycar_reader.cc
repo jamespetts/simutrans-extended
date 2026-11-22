@@ -79,6 +79,12 @@ obj_desc_t * citycar_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 				desc->available_classes.append(decode_uint8(p));
 			}
 		}
+		if (version >= 5) {
+			// Version 5 appended the passenger capacity of one car and the
+			// vehicle length in carunits, in that order.
+			desc->capacity = decode_uint8(p);
+			desc->length = decode_uint8(p);
+		}
 	}
 	else {
 		// Unversioned node: the first value is the distribution weight.

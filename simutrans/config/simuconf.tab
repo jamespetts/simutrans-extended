@@ -657,6 +657,15 @@ water_animation_ms = 250
 # How much citycars will be generated
 citycar_level = 5
 
+# How private cars are filled from a passenger packet.
+# 0 = the citycar_level formula sets the number of car trips, which preserves
+#     the historic behaviour.
+# 1 = each car is filled up to the passenger capacity of its city-car
+#     descriptor, and the number of cars follows from the packet sizes and
+#     capacities. This needs city-car descriptors that define a capacity;
+#     paksets without one keep the citycar_level formula.
+citycar_fill_mode = 0
+
 # After how many month a citycar breaks (and will be forever gone) ...
 # default is ten years
 default_citycar_life = 36

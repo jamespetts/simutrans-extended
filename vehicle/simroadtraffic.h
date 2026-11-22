@@ -120,7 +120,7 @@ public:
 	uint32 do_drive(uint32 distance) OVERRIDE;
 
 	/// Length of this car in vehicle steps.
-	uint32 get_length_in_steps() const { return VEHICLE_STEPS_PER_CARUNIT; }
+	uint32 get_length_in_steps() const;
 
 protected:
 	void rdwr(loadsave_t *file) OVERRIDE;

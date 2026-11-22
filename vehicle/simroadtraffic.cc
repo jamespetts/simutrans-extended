@@ -752,6 +752,12 @@ void private_car_t::rdwr(loadsave_t *file)
 }
 
 
+uint32 private_car_t::get_length_in_steps() const
+{
+	return desc != NULL ? (uint32)desc->get_length() * VEHICLE_STEPS_PER_CARUNIT : VEHICLE_STEPS_PER_CARUNIT;
+}
+
+
 void private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const
 {
 	if (blocker == NULL)

@@ -154,7 +154,12 @@ public:
 	static void set_cluster_factor( uint32 factor ) { stadt_t::cluster_factor = factor; }
 	static uint32 get_cluster_factor() { return stadt_t::cluster_factor; }
 
-	void set_private_car_trip(int passengers, stadt_t* destination_town);
+	/**
+	 * Records a private car trip from this city.
+	 * @param cars the number of cars created for the packet, used for the
+	 * congestion measure of the per-car car-fill mode.
+	 */
+	void set_private_car_trip(int passengers, stadt_t* destination_town, sint32 cars);
 
 private:
 	static karte_ptr_t welt;
@@ -252,6 +257,14 @@ private:
 	// This is needed to prevent double counting of incoming traffic.
 	sint32 incoming_private_cars;
 
+	// Private cars actually created in this city since the last congestion
+	// calculation, and private cars arriving here from another city in the
+	// same period. In the per-car car-fill mode these are the congestion
+	// measure, because the number of passenger trips no longer determines the
+	// number of cars. Both are saved.
+	sint32 private_cars_month;
+	sint32 incoming_private_cars_month;
+
 	//This is needed because outgoing cars are disregarded when calculating growth.
 	sint32 outgoing_private_cars;
 
@@ -332,6 +345,13 @@ public:
 		// for the number of people who have travelled by
 		// private car *from* the city.
 		incoming_private_cars += number;
+	}
+
+	/// Records private cars that arrived from another city this month, for the
+	/// congestion measure of the per-car car-fill mode.
+	void set_private_car_arrivals(sint32 cars)
+	{
+		incoming_private_cars_month += cars;
 	}
 
 	inline void add_transported_passengers(uint16 passengers)
@@ -654,7 +674,14 @@ public:
 	uint32 check_road_connexion_to(const fabrik_t* industry, uint8 g_class) const;
 	uint32 check_road_connexion_to(const gebaeude_t* attraction, uint8 g_class) const;
 
-	void generate_private_cars(koord pos, uint32 journey_tenths_of_minutes, koord target, uint8 number_of_passengers, const citycar_desc_t *car_type);
+	/**
+	 * Creates the private cars for one passenger packet.
+	 * @param g_class the passenger wealth class of the packet, used to draw a
+	 * car type per car in the per-car fill mode.
+	 * @return the number of cars actually created, which is zero when no
+	 * suitable road tile was available.
+	 */
+	sint32 generate_private_cars(koord pos, uint32 journey_tenths_of_minutes, koord target, uint8 number_of_passengers, const citycar_desc_t *car_type, uint8 g_class);
 
 private:
 	/**

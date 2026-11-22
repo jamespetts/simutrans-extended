@@ -31,6 +31,19 @@ class citycar_desc_t : public obj_desc_timelined_t {
 	/// topspeed in internal speed units !!! not km/h!!!
 	uint16 topspeed;
 
+	/**
+	 * Passenger capacity of one car, zero when the pakset does not define it.
+	 * Used only by the per-car city-car fill mode (settings_t::citycar_fill_mode
+	 * value 1).
+	 */
+	uint8 capacity = 0;
+
+	/**
+	 * Vehicle length in carunits (CARUNITS_PER_TILE make one tile), zero when
+	 * the pakset does not define it. A zero length means one carunit.
+	 */
+	uint8 length = 0;
+
 	// Time-based comfort in tenths of minutes. Zero means "not specified";
 	// the getters then use the default of 180 minutes comfortable and three
 	// times that tolerable.
@@ -52,6 +65,13 @@ public:
 
 	/// topspeed in internal speed units !!! not km/h!!!
 	uint16 get_topspeed() const { return topspeed; }
+
+	/// Passenger capacity of one car; zero when the pakset does not define it.
+	uint8 get_capacity() const { return capacity; }
+	bool has_capacity() const { return capacity > 0; }
+
+	/// Length in carunits; a pakset without the field gives one carrier unit.
+	uint8 get_length() const { return length != 0 ? length : 1; }
 
 	/// Whether passengers of this wealth class can travel in this car.
 	bool is_available_to_class(uint8 g_class) const
@@ -78,6 +98,8 @@ public:
 		obj_desc_timelined_t::calc_checksum(chk);
 		chk->input(distribution_weight);
 		chk->input(topspeed);
+		chk->input(capacity);
+		chk->input(length);
 		chk->input(maximum_comfortable_journey);
 		chk->input(maximum_tolerable_journey);
 		const uint32 class_count = available_classes.get_count();

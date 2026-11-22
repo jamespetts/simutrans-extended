@@ -62,6 +62,7 @@ settings_t::settings_t() :
 	station_coverage_size_factories = 3;
 
 	traffic_level = 5;
+	citycar_fill_mode = 0;
 
 	show_pax = true;
 
@@ -2099,6 +2100,17 @@ void settings_t::rdwr(loadsave_t *file)
 			file->rdwr_longlong(minimum_loan_limit);
 			file->rdwr_bool(allow_term_loans);
 		}
+
+		if (file->is_version_ex_atleast(15, 20))
+		{
+			file->rdwr_byte(citycar_fill_mode);
+		}
+		else if (file->is_loading())
+		{
+			// Saves written before the setting existed use the historic
+			// traffic-level-constrained car fill.
+			citycar_fill_mode = 0;
+		}
 	}
 
 	if (fuel_unit_cost_divider == 0)
@@ -2591,6 +2603,7 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	allow_buying_obsolete_vehicles = contents.get_int( "allow_buying_obsolete_vehicles", allow_buying_obsolete_vehicles ) != 0;
 	used_vehicle_reduction         = contents.get_int_clamped( "used_vehicle_reduction", used_vehicle_reduction, 0, 1000 );
 	traffic_level                  = contents.get_int_clamped( "citycar_level",          traffic_level,          0, 16);
+	citycar_fill_mode              = contents.get_int_clamped( "citycar_fill_mode",      citycar_fill_mode,      0, 1);
 	stadtauto_duration             = contents.get_int_clamped( "default_citycar_life",   stadtauto_duration,     0, 1200 );
 
 	// starting money
