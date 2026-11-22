@@ -12,7 +12,7 @@
 If all items are not visible <a href="mouse.txt">re-size</a> <strong>Stop Details</strong>, or use the slider bars to scroll items.
 </p>
 <p>
-The window is oraganised into two parts: the upper part and a lower part. The lower part contains tabs for passengers/mail, frieght and services.
+The window is organised into two parts: the upper part and a lower part. The lower part contains tabs for passengers/mail, freight, services, route and vehicles.
 </p>
 <p>
 At the top of the upper part of the window is information about the number of lines serving this stop of each type and owned by each player. Each transport type with lines serving this stop is shown with its symbol and next to it in coloured boxes are the number of lines of that type that serve this stop operated by the player whose primary colour corresponds to the colour of the box. For example, a picture of a 'bus next to the number 2 in a blue coloured box means that two road based lines operated by the player whose primary colour is blue serve this stop.
@@ -39,6 +39,9 @@ Beneath the list of industries there is a list of all the goods that are demande
 </p>
 Under the <strong>services</strong> tab are listed the lines serving this stop (their names are given in the primary colour of the player operating them), organised by transport type.
 Lines are listed in alphabetical order, with capital letters before lower case letters.
+</p>
+<p>
+Under the <strong>Vehicles</strong> tab are the <a href="loose_vehicles.txt">loose vehicles</a> stored at this stop for <a href="consist_recombination.txt">consist recombination</a>. The tab shows each vehicle's owner, whether it is waiting loaded or empty, and the line or consist that is allowed to collect it. Your own vehicles can be selected here to change the collecting line or consist.
 </p>
 <p>
 <em>Direct routes from here:</em>lists the names of stops that can be reached directly (i.e., without changing/transshipping) by lines and convoys serving this stop. This is lised by the type of items (goods, mail and passnegers) that can be transported from here.<br>

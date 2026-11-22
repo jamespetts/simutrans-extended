@@ -3,8 +3,8 @@
 <h1><strong>Schedule</strong></h1>
 
 <p>
-The <strong>Schedule</strong> window sets the schedule for a <a href="convoiinfo.txt">Convoy</a> or a <a href="linemanagement.txt">Line</a>.
-It lists<a href="station.txt">Stops</a>, where convoys pick up and drop off goods and passengers, and waypoints, which can be used to determine which route that convoys use, with their respective map co-ordinates.
+The <strong>Schedule</strong> window sets the schedule for a <a href="convoiinfo.txt">convoy</a> (also called a consist) or a <a href="linemanagement.txt">line</a>.
+It lists <a href="station.txt">stops</a>, where convoys pick up and drop off goods and passengers, and waypoints, which can be used to determine the route that convoys use, with their respective map co-ordinates.
 </p>
 <p>
 The <strong>Schedule</strong> window for a particular convoy can be accessed by pressing the "schedule" button in the <a href="convoiinfo.txt">Convoy Information</a> window or  the <a href="depot.txt">Depot</a> window.
@@ -55,13 +55,16 @@ To use this feature, click on a stop in the list to select it, then use arrow bu
 <em>Send trigger on arrival:</em> If this is set, the consist broadcasts its condition number to the selected line or consist when arriving at this stop. <em>Clear stored triggers on departure:</em> If this is set, all stored triggers are discarded when the consist departs; otherwise only the triggers waited for here are discarded. <em>Trigger one consist only:</em> If this is set, only the earliest-arriving waiting consist on the target line is released.
 </p>
 <p>
-<em>Couple at this stop:</em> The consist takes up suitable vehicles from the selected line or consist at this stop; a joining consist left with no vehicles is removed. The other vehicles must already be waiting there: no synchronised meeting is arranged, and a failed coupling is ignored.
+The next three controls work together. They are described in full in <a href="consist_recombination.txt">Consist Recombination</a>.
 </p>
 <p>
-<em>Divide at this stop:</em> This selects the line or consist that the divided-off portion of the consist is to join, and the schedule entry from which that portion continues. (The dividing manoeuvre itself is not yet implemented.)
+<em>Couple at this stop:</em> This consist takes vehicles from the selected <a href="linemanagement.txt">line</a> or <a href="convoiinfo.txt">consist</a> at this stop. The <a href="consist_order.txt">consist order</a> for this entry describes the train after the transfer. The transfer happens when the other consist is at this stop and loading; if it exists but has not arrived, this consist waits for it without a time limit. See <a href="couple_divide.txt">Couple and Divide at This Stop</a>.
 </p>
 <p>
-<em>Modify consist at this stop</em>: This defines the end-state consist for the selected schedule entry: on arrival, vehicles are added, removed or substituted during a shunting pause to match the specified order. Each slot accepts specific vehicles or rule-based alternatives (e.g. any vehicle within power and capacity limits), edited with the Add rule buttons. Available in line and convoy schedules.
+<em>Divide at this stop:</em> This consist gives vehicles to the selected line or consist at this stop. The consist order for this entry describes the part that stays on this schedule; the selected entry's order describes the part that joins the selected line or consist. The split-off part departs only if its order can be completed into a powered consist (a consist with at least one powered vehicle); otherwise the displaced vehicles are left at the stop as <a href="loose_vehicles.txt">loose vehicles</a>. If no target is selected, the displaced vehicles are also left at the stop as loose vehicles. See <a href="couple_divide.txt">Couple and Divide at This Stop</a>.
+</p>
+<p>
+<em>Modify consist at this stop</em>: This defines the consist that should exist after the selected schedule entry. On arrival, vehicles are added, removed or substituted during a shunting pause (the pause in which the game changes the vehicles in the consist) to match the specified order. Each slot accepts specific vehicles or rule-based alternatives (for example, any vehicle within power and capacity limits), edited with the Add rule buttons. Available in line and consist schedules. See <a href="consist_order.txt">Modify Consist at This Stop</a>.
 </p>
 <p>
 <em>Mirror schedule:</em> If this option is selected, the convoys using this schedule will reverse the direction in which they follow the schedule when they get to the end of it. So, for example, if a line has the schedule A>B>C, if this button is not selected, the convoy will go A>B>C>A>B>C, etc. If this is selected, the convoy will instead travel A>B>C>B>A>B, etc.<br>

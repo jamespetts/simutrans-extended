@@ -3,7 +3,7 @@
 <h1><strong>Line Management</strong></h1>
 
 <p>
-The <strong>line management</strong> window provides information and controls to manage <em>lines</em>. Lines are used to assign identical <a href="schedules.txt">schedules</a> to multiple convoys, and view aggregate statistics about the overall performance of all convoys in that line.
+The <strong>line management</strong> window provides information and controls to manage <em>lines</em>. Lines are used to assign identical <a href="schedule.txt">schedules</a> to multiple convoys, and view aggregate statistics about the overall performance of all convoys in that line.
 </p>
 <p>
 Lines consist of an ordered list of <a href="station.txt">stops</a>, where vehicles pick up and drop off goods and passengers, and waypoints. Water transport vehicles may use any square of water in the catchment area of a dock as the stop.
@@ -51,6 +51,9 @@ Add as many <a href="station.txt">Stops</a> or waypoints required, set Wait For 
 <p>
 <em>Update Line:</em> opens controls to alter and manage the existing <a href="schedule.txt">Schedule</a> (route and minimum quantity of goods and passengers required by a <a href="convoiinfo.txt">Convoy</a> to proceed) of a Line. Changes will affect vehicles on line, once Schedule Controls have been closed (click x in top-left-hand corner).<br>
 Click on a Line name in list to select (highlights name) then click on option button to open Schedule Controls.
+</p>
+<p>
+A line's schedule can also contain Couple, Divide and Modify consist instructions. These change the vehicles in a consist at a stop; see <a href="consist_recombination.txt">Consist Recombination</a>.
 </p>
 <p>
 <em>Delete Line:</em> deletes the selected line.<br>

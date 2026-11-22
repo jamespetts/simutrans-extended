@@ -172,6 +172,8 @@ public:
 	uncouple_entry_picker_t(player_t *pl, schedule_t *target_snapshot, halthandle_t halt, const char *target_name, bool for_couple = false);
 	~uncouple_entry_picker_t() { delete target_schedule; }
 
+	const char *get_help_filename() const OVERRIDE { return "couple_divide.txt"; }
+
 	bool is_for_couple() const { return for_couple; }
 
 	bool action_triggered(gui_action_creator_t*, value_t) OVERRIDE;

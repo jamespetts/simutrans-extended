@@ -1,0 +1,126 @@
+<title>Modify Consist at This Stop Help</title>
+
+<h1><strong>Modify Consist at This Stop</strong></h1>
+
+<p>
+The <strong>Modify consist at this stop</strong> window sets the <strong>consist order</strong> for one stop entry in a <a href="schedule.txt">Schedule</a>. A consist order lists the vehicles that a <a href="convoiinfo.txt">consist</a> should have after it has stopped at that entry.
+</p>
+<p>
+The order applies from this stop onward, until another schedule entry changes the consist. The list runs from the front of the train to the rear, in the direction the train travels, even when the consist is currently running backwards.
+</p>
+<p>
+The window opens from the <a href="schedule.txt">Schedule</a> window when a stop is selected and <strong>Modify consist at this stop</strong> is pressed. The button is available for stop entries in both <a href="linemanagement.txt">line</a> and consist schedules.
+</p>
+<p>
+An order set on a line's schedule is used by every consist on that line. An order set on an individual consist's schedule is used only by that consist. Editing an individual consist's schedule also removes it from its line; see <a href="convoiinfo.txt">Convoy Information</a>.
+</p>
+
+<p><strong>The order list</strong></p>
+<p>
+Each column in the order is one <strong>slot</strong>, which is one position in the train. The number above a slot is its position, counted from the front of the train. The order is applied when the consist first stops at the entry.
+</p>
+<p>
+A slot can hold several <strong>alternatives</strong>. An alternative is either a particular vehicle type or a rule that any suitable vehicle may satisfy. The game tries the alternatives in the order shown. For each alternative, it first keeps the vehicle already in that position if the vehicle fits; otherwise it uses another available vehicle that satisfies the alternative.
+</p>
+<p>
+The arrow buttons above a slot move it forward or backward in the list; the red <strong>X</strong> button removes it.
+</p>
+<p>
+The slot controls are:
+<br>- <strong>Any vehicle may occupy this slot</strong> makes every rule-based alternative in the slot a wildcard that matches any vehicle. The slot remains mandatory unless <strong>This slot may be omitted</strong> is also ticked. If a mandatory slot is empty, the order check reports the empty position and the game cannot carry out the order.
+<br>- <strong>This slot may be omitted</strong> allows the slot to remain empty at any position. Later mandatory slots move forward. <strong>Any vehicle may occupy this slot</strong> changes which vehicles can fill the slot; this setting controls whether the slot may stay empty.
+<br>- <strong>Required load state</strong> restricts the slot to vehicles that are carrying cargo, to empty vehicles, or to either state.
+</p>
+<p>
+An order with no slots is discarded when you close the window. A couple or divide entry needs an order to carry out its exchange. Every slot needs at least one alternative. The order check below the list reports the problem.
+</p>
+
+<p><strong>Adding a vehicle from the Vehicle picker</strong></p>
+<p>
+The <strong>Vehicle picker</strong> tab lists vehicle types that are in your own consists, plus vehicle types in consists of companies that grant your company access and to which your company grants access in return. Only vehicles of the same transport type as the schedule are listed.
+</p>
+<p>
+<strong>Insert here</strong> creates a new slot at the selected position; <strong>Insert here (alternative)</strong> adds another alternative to an existing slot. The number box sets the position. Selecting a vehicle type in the list and pressing <strong>Add vehicle</strong> adds it to the order.
+</p>
+<p>
+The filters above the list can hide vehicles by goods category, by powered or unpowered status, by traction type (for example steam, diesel or electric), by whether they are still in production, by whether they can run in only one direction, and by whether they can connect to the selected position. The sort controls change the order of the list.
+</p>
+<p>
+<strong>Add rule slot</strong> creates a new slot whose first alternative is a rule. <strong>Add rule</strong> inside an existing slot adds another rule-based alternative to that slot.
+</p>
+
+<p><strong>Rules</strong></p>
+<p>
+A rule-based alternative describes the kind of vehicle that may fill the slot. The <strong>Edit</strong> button beside a rule opens the <strong>Set vehicle by rules</strong> window.
+</p>
+<p>
+The rule editor can restrict:
+<br>- the traction type;
+<br>- the goods category, or any category;
+<br>- the minimum passenger or mail class that the vehicle must carry;
+<br>- catering level;
+<br>- range in kilometres;
+<br>- brake force, power, tractive effort, top speed, weight and axle load;
+<br>- capacity;
+<br>- running cost, fixed cost, fuel use per kilometre, staff and drivers.
+</p>
+<p>
+Each restriction has a tick box. An unticked line leaves that property unrestricted. The numbers beside a ticked line are the minimum and maximum allowed. The window shows how many vehicle types the rule can draw on; if no vehicle can satisfy a checked line, the rule cannot be applied and the window explains why.
+</p>
+<p>
+<strong>This alternative matches any vehicle</strong> makes the rule a wildcard that ignores its other restrictions. The separate <strong>This slot may be omitted</strong> setting controls whether the slot is optional.
+</p>
+<p>
+The meanings of the vehicle properties are the same as in the <a href="depot.txt">Depot</a> window. Costs are described in <a href="finances.txt">Finances</a> and <a href="prices.txt">Prices and Rates</a>. Passenger and mail classes and goods categories are described in <a href="goods_filter.txt">Goods List</a>. Catering and travelling post offices are described in <a href="catering.txt">Catering</a>. A vehicle's range is the distance it can travel before it needs replenishment; see the range stop controls in <a href="schedule.txt">Schedule</a>.
+</p>
+<p>
+<strong>OK</strong> applies the rule to the slot; <strong>Cancel</strong> discards the changes. The rule is applied to the consist order when you press OK; the order itself is written to the schedule when you close the Modify consist window.
+</p>
+
+<p><strong>Consist copier</strong></p>
+<p>
+The <strong>Consist copier</strong> tab lists consists that use this stop, including consists on your lines. The filters can narrow the list to consists on this line or to multi-vehicle consists. You can also filter by part of the name or by <a href="depot.txt">home depot</a>.
+</p>
+<p>
+Selecting a consist shows its formation, which is the set of vehicles that it is made of. <strong>Copy consist order</strong> replaces the current order with that consist's current vehicles. The copy uses the vehicle types and their current order, from the front of the train to the rear.
+</p>
+
+<p><strong>Leftover vehicles</strong></p>
+<p>
+When the order leaves vehicles at the stop, they become <a href="loose_vehicles.txt">loose vehicles</a> waiting for a later service. The <strong>Leftover vehicles</strong> setting controls who may take them:
+<br>- <strong>Same line or consist that left them</strong> is the default. The vehicle can be taken by the line that released it, or by the same consist if it has no line.
+<br>- <strong>Any line or consist</strong> removes that restriction.
+<br>- A named line or consist allows only that line or consist to take the vehicles.
+</p>
+<p>
+The Line and Consist buttons switch the dropdown between lines and consists that use this stop. You can change the recipient later in the Vehicles tab of the <a href="station_details.txt">stop details</a> window.
+</p>
+
+<p><strong>Order check</strong></p>
+<p>
+The line below the order list checks whether the list describes a train that can be formed. A green message says that the list makes a complete train. A yellow message says that the list has no vehicles. If there are no vehicles to compare a rule against, the check says that it cannot judge the list. A red message names the first problem with the affected position:
+<br>- a position has no vehicle or no alternative;
+<br>- no vehicle that you own or can buy new matches the rules for a position;
+<br>- two adjacent positions cannot be coupled together;
+<br>- the first vehicle cannot be at the front;
+<br>- the last vehicle cannot be at the rear;
+<br>- no vehicle in the list provides power.
+</p>
+<p>
+For a couple or divide entry, the check also names the other consist and states which part of the train the list describes. Each side of a divided or joined train needs its own powered vehicle; if a side lacks one, the game cannot carry out the order and reports the problem.
+</p>
+<p>
+The check is advisory: you can still edit, save and run the order. It cannot know which vehicle another consist will supply, which way round that vehicle will be, or whether two orders can both be satisfied from the same vehicles. Those questions are decided when the consist actually stops. See <a href="couple_divide.txt">Couple and Divide at This Stop</a>.
+</p>
+<p>
+If the game cannot carry out an ordinary order, or a coupling in which only one consist takes vehicles, when the consist stops, the consist is left as it is and a warning is posted in the <a href="mailbox.txt">message log</a>. A division that cannot form the part that would join the target still applies the order to the part that stays, and leaves the displaced vehicles as loose vehicles. A paired exchange is resolved as one operation; if it were to fail, neither consist would change.
+</p>
+
+<p><strong>Related help</strong></p>
+<p>
+<a href="consist_recombination.txt">Consist Recombination</a> explains the overall operation and what happens to passengers and goods.
+<br><a href="couple_divide.txt">Couple and Divide at This Stop</a> explains the controls that exchange vehicles with another consist.
+<br><a href="loose_vehicles.txt">Loose Vehicles</a> explains vehicles left at a stop.
+<br><a href="schedule.txt">Schedule</a> explains the window that contains the Modify consist button.
+<br><a href="depot.txt">Depot</a> explains buying vehicles and assembling consists.
+</p>

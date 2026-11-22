@@ -1,0 +1,102 @@
+<title>Couple and Divide at This Stop Help</title>
+
+<h1><strong>Couple and Divide at This Stop</strong></h1>
+
+<p>
+These controls are on a stop entry in the <a href="schedule.txt">Schedule</a> window. They choose another <a href="linemanagement.txt">line</a> or <a href="convoiinfo.txt">consist</a> with which this consist exchanges vehicles. The vehicles that this consist should have after the exchange are listed separately with <a href="consist_order.txt">Modify consist at this stop</a>. This page explains the exchange controls; the overall operation is described in <a href="consist_recombination.txt">Consist Recombination</a>.
+</p>
+<p>
+The line or consist selected here is called the <strong>target</strong>. A schedule entry with Couple ticked is called a <strong>couple entry</strong>; one with Divide ticked is called a <strong>divide entry</strong>.
+</p>
+
+<p><strong>Couple at this stop</strong></p>
+<p>
+<strong>Couple at this stop</strong> has three settings: whether the target is a <strong>Line</strong> or an individual <strong>Consist</strong>; the target line or consist from those that use this stop; and the consist order for this stop, which describes the train that this consist should have after taking the vehicles.
+</p>
+<p>
+The transfer happens when the target is at the same stop and loading. If the target exists but has yet to arrive, this consist waits for it without a time limit. If the target line or consist has been deleted, the game reports a warning in the <a href="mailbox.txt">message log</a> and skips the order. If the target is a line and more than one of its consists is loading at the stop, the game chooses one of them to supply the vehicles.
+</p>
+<p>
+If the target consist were emptied, it would be removed. If it kept some vehicles, it would continue on its own schedule.
+</p>
+<p>
+A couple entry that takes vehicles from a named consist draws only on that consist. Using both a named consist and loose vehicles requires a separate schedule entry at the same stop, with an order and no couple target for the loose vehicles. See <a href="loose_vehicles.txt">Loose Vehicles</a>.
+</p>
+
+<p><strong>Divide at this stop</strong></p>
+<p>
+<strong>Divide at this stop</strong> has these settings: whether the target is a <strong>Line</strong> or an individual <strong>Consist</strong>; the target line or consist; the entry in the target's schedule at which the split-off part continues, chosen with <strong>Use this target line from...</strong>, <strong>Use this target consist from...</strong> or <strong>Use this target schedule from...</strong>; and the consist order for this stop, which describes the part of the train that stays on this schedule. The target entry's own consist order describes the part that joins the target.
+</p>
+<p>
+The target entry must exist, be at the same stop, and have its own consist order. That order may also use suitable loose vehicles at the stop. The split-off part becomes a service on the target line, or receives a copy of a target consist's schedule, only if its order can be completed into a powered consist. If the target cannot be found, the target entry lacks an order, or the split-off part cannot be completed, the displaced vehicles are left at the stop as <a href="loose_vehicles.txt">loose vehicles</a>.
+</p>
+<p>
+If no target line or consist is selected, the entry is a <strong>plain uncouple</strong>. The vehicles left out by this consist's order are left at the stop as loose vehicles, and the consist continues on its own.
+</p>
+<p>
+An entry uses either Couple or Divide. If both boxes are ticked, the game refuses the entry and reports the reason.
+</p>
+<p>
+A Couple entry with no target selected is incomplete. When the Schedule window is closed, the game removes the Couple setting and the order from that entry and reports the stops affected. Assembly from the stop's own loose vehicles uses a consist order with Couple unticked.
+</p>
+<p>
+Deleting a line or consist that an order names also changes the orders that refer to it. A Couple entry loses its target and is skipped; a Divide entry becomes a plain uncouple. The game reports the affected stops to the players concerned. If a line were to lose its last consist, orders that name the line would be skipped, and the players concerned would be warned.
+</p>
+
+<p><strong>Paired exchange</strong></p>
+<p>
+A couple entry and a divide entry form a <strong>paired exchange</strong> when:
+<br>- both entries are at the same stop in schedules of the same transport type;
+<br>- each entry names the other consist's line or consist;
+<br>- each entry has a consist order;
+<br>- the target is a different line or consist;
+<br>- both entries leave <a href="schedule.txt"><strong>Lay over</strong></a> unset; this is the schedule option that parks the whole consist at the stop.
+</p>
+<p>
+In a paired exchange, the consist with the couple entry is the <strong>receiver</strong> and the consist with the divide entry is the <strong>target</strong>. Both consist orders describe their own final train. The game searches for an arrangement that satisfies both orders at once, including:
+<br>- a complete, coupled train for each side;
+<br>- at least one powered vehicle in each final consist;
+<br>- each vehicle used in at most one final consist;
+<br>- the correct direction and coupling of every vehicle.
+</p>
+<p>
+The receiver may also use suitable loose vehicles at the stop if the two consists cannot satisfy both orders by themselves. It starts with the smallest possible number of loose vehicles. Only the receiver may use loose vehicles.
+</p>
+<p>
+If no arrangement were to satisfy both orders, both consists would stay as they are. One warning would explain the reason, the other consist would stop waiting, and both consists would continue on their own schedules. A very complex search can reach the game's computation limit; the exchange is then refused in the same way, and the warning says that the limit was reached. If the two consists were to satisfy both orders, both would be resolved as one operation; a consist whose vehicles change would wait out the shunting pause before loading for its next leg.
+</p>
+<p>
+In a multiplayer game, a final consist may combine vehicles owned by different companies only when the owner of its first powered vehicle allows every other vehicle owner to use that owner's ways. This is the same access permission that governs running over another company's track or road.
+</p>
+
+<p><strong>Choosing the target entry</strong></p>
+<p>
+The button labelled <strong>Use this target line from...</strong>, <strong>Use this target consist from...</strong> or <strong>Use this target schedule from...</strong> opens a list of the target schedule's entries at this stop. The entry you choose identifies the target schedule entry used for the exchange. When two or more entries could be the counterpart, choose one; if several entries match and none is chosen, the game refuses the exchange as ambiguous.
+</p>
+<p>
+The selected entry is shown below the button. The red <strong>X</strong> on that row clears the selection.
+</p>
+
+<p><strong>Target schedule is reversed</strong></p>
+<p>
+This option is available only when the target schedule is a mirrored schedule, which is a schedule that reverses direction at its end; see <a href="schedule.txt">Schedule</a>. With this option ticked, the game treats the target as travelling through the stop in the reverse direction of its schedule when it matches the two entries and when it starts the split-off part.
+</p>
+
+<p><strong>Meeting the other consist</strong></p>
+<p>
+Meeting times depend entirely on the schedules you set. If a named target has yet to arrive and begin loading, this consist waits indefinitely for it.
+</p>
+<p>
+If this consist is approaching a choose signal while the other consist is standing at the stop, the signal can route this consist to the other consist's platform. The game first checks that the coupling can be completed. If it cannot, the signal holds the train and a warning explains why. See <a href="signals_overview.txt">Signals Overview</a>.
+</p>
+<p>
+The vehicles are rearranged during a shunting pause, which is the pause in which the game changes the vehicles in the consist. If the game were to turn a bidirectional vehicle (a vehicle that can travel in either direction) to face the other way, it would add the time normally taken to turn that vehicle to the pause.
+</p>
+
+<p><strong>Related help</strong></p>
+<p>
+<a href="consist_recombination.txt">Consist Recombination</a> explains the overall operation and what happens to passengers and goods.
+<br><a href="consist_order.txt">Modify Consist at This Stop</a> explains the consist order window.
+<br><a href="loose_vehicles.txt">Loose Vehicles</a> explains vehicles left at a stop.
+<br><a href="schedule.txt">Schedule</a> explains the window that contains these controls.
+</p>

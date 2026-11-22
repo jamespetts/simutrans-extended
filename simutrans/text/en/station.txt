@@ -9,7 +9,7 @@
 Each stop has a <em>catchment area</em>. To display the stop's catchment area, press the <a href="keys.txt">[v]</a> key on the keyboard, or select, "show station coverage" in the <a href="display.txt">display menu</a>. Industries inside the catchment area will send their goods to the stop, and passengers and mail inside the catchment area will come to the stop, if there is a transport service from that stop to take them where they want to go. Goods and passengers from outside the catchment area will not come to a stop, except by arriving there on your (or a rival's) transport.
 </p>
 <p>
-Different sorts of stops are suitable for different uses. Each different type of transport (road, rail, air, etc.) has its own type of stop. To build stops suitable for each different sort of transport, use the menus for that transport type, which are: <a href="railtools.txt">railways</a>; <a href="narrowgaugetools.txt">narrow gauge railways</a>; <a href="monorailtools.txt">monorail</a>; <a href="maglevtools.txt">maglev</a>; <a href="tramtools.txt">tram</a>; <a href="roadtools.txt">road</a>; <a href="shiptools.txt">waterways</a>; and <a href="airtools.txt">air</a>.<br>
+Different sorts of stops are suitable for different uses. Each different type of transport (road, rail, air, etc.) has its own type of stop. To build stops suitable for each different sort of transport, use the menus for that transport type, which are: <a href="railtools.txt">railways</a>; <a href="railtools.txt">narrow gauge railways</a>; <a href="monorailtools.txt">monorail</a>; <a href="monorailtools.txt">maglev</a>; <a href="tramtools.txt">tram</a>; <a href="roadtools.txt">road</a>; <a href="shiptools.txt">waterways</a>; and <a href="airtools.txt">air</a>.<br>
 <em>Note:</em> Water craft may use any square of water in the catchment area of a dock to pick up and drop off goods or pasengers.<br>
 <em>Note:</em> Trams are a special case, in that they are partly rail vehicles and partly road vehicles. Accordingly, trams do not have their own type of stops, but instead can use either road or rail stops.
 </p>
@@ -55,6 +55,9 @@ Graphic Icons are also used in station list and line management windows:<br>
 <p>
 <em>Stop picture</em>: is a mini-view of the stop and any visible convoys in the area.<br>
 Click on the picture to centre the main game window on the stop.
+</p>
+<p>
+If <a href="loose_vehicles.txt">loose vehicles</a> are stored at the stop for <a href="consist_recombination.txt">consist recombination</a>, an icon shows the number of them. The Vehicles tab of the <a href="station_details.txt">Stop Details</a> window lists them.
 </p>
 <p>
 <em>Passengers</em>: the numbers indicate number of the following types of passengers who start, or attempt to start, their journey at the current stop:<br>

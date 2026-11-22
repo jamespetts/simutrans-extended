@@ -320,6 +320,8 @@ class consist_order_frame_t : public gui_frame_t , private action_listener_t
 public:
 	consist_order_frame_t(player_t* player=NULL, schedule_gui_t *owner=NULL, uint16 unique_entry_id=65535);
 
+	const char *get_help_filename() const OVERRIDE { return "consist_order.txt"; }
+
 	void init(schedule_gui_t *owner, uint16 unique_entry_id);
 
 	// Rebind to another schedule window/entry (e.g. the button was pressed in
@@ -420,6 +422,8 @@ public:
 	// the GUI but binds to no order.
 	consist_rule_editor_t();
 	consist_rule_editor_t(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt);
+
+	const char *get_help_filename() const OVERRIDE { return "consist_order.txt"; }
 
 	void retarget(player_t *player_, consist_order_t *order_, uint32 slot, uint32 alt, waytype_t wt);
 

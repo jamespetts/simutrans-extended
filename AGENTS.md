@@ -112,7 +112,8 @@ All AI-facing documentation is kept in `ai/` — a linked hierarchy designed for
     question rather than a claim. State in the change summary that the audit was performed
     and what it found. Invoke the `theory-of-mind` skill before writing or editing any
     documentation; the skill holds the full procedure, including the Title Case and
-    definition convention for project terms.
+    definition convention for project terms. For in-game help files, also invoke the
+    `help-text-writing` skill; it holds the reader model and the help-specific rules.
 16. Describe how the code works directly. Do not refer to design decisions by number or
     letter in documentation, and do not describe past code: documentation covers current
     behaviour and planned future behaviour, while Git records past code. If planned behaviour

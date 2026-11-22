@@ -3,7 +3,7 @@
 <h1><strong>Convoy Information</strong></h1>
 
 <p>
-<strong>Convoy Information</strong> provides information about convoys in the game. <em>Convoys</em> are the individual units of transport that move around the map following schedules and transporting goods and passengers. Convoys can consist of either a single vehicle (such as a 'bus or an aircraft) or multiple vehicles (such as a railway train consisting of a locomotive and carriages, a lorry with a trailer or a horse and carriage). In order to move around the map, convoys need at least one powered vehicle, but may also have one or more unpowered vehicles.
+<strong>Convoy Information</strong> provides information about convoys in the game. <em>Convoys</em> are the individual units of transport that move around the map following schedules and transporting goods and passengers. Convoys can consist of either a single vehicle (such as a 'bus or an aircraft) or multiple vehicles (such as a railway train consisting of a locomotive and carriages, a lorry with a trailer or a horse and carriage). In order to move around the map, convoys need at least one powered vehicle, but may also have one or more unpowered vehicles. Some windows call a convoy a consist; the two terms mean the same thing.
 </p>
 <p>
 The convoy information window lists the items (goods, passengers or mail) carried by a convoy and also has controls to access further details, to and sell upgrade and the convoy; to follow the Convoy in the main game window; to change the name and <a href="schedule.txt">Schedule</a> of the convoy; and to <a href="replace.txt">replace</a> it and like convoys with different vehicles.
@@ -39,6 +39,9 @@ Information shown at the top of the <strong>convoy information</strong> window i
 </p>
 <p>
 - <em>Destination:</em> the next <a href="station.txt">stop</a> or waypoint in the convoy's <a href="schedule.txt">schedule</a>. A green progress bar indicates the progress of the convoy towards the next destination.
+</p>
+<p>
+The status line can show <em>Waiting for a coupling partner</em> when the convoy is waiting at a stop for another convoy, and <em>Shunting</em> during the pause in which the game rearranges the vehicles in the convoy. Both belong to <a href="consist_recombination.txt">consist recombination</a>.
 </p>
 <p>
 - <em>Serves line:</em> indicates any <a href="linemanagement.txt">line</a> assigned to the convoy. Click the grey arrow next to the name of the line to open the line in the <a href="linemanagement.txt">line management</a> window.

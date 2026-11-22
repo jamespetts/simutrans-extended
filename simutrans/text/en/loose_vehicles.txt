@@ -1,0 +1,92 @@
+<title>Loose Vehicles Help</title>
+
+<h1><strong>Loose Vehicles</strong></h1>
+
+<p>
+<strong>Loose vehicles</strong> (also called loose stock) are vehicles that have been left at a <a href="station.txt">stop</a> by a <a href="consist_recombination.txt">consist recombination</a>. They wait at the stop, outside any scheduled <a href="convoiinfo.txt">consist</a>, until a later consist collects them.
+</p>
+<p>
+Loose vehicles may be individual wagons, carriages, locomotives or whole groups of vehicles. A group of loose vehicles can be wholly unpowered, because it stays at the stop until a scheduled consist collects it.
+</p>
+
+<p><strong>How vehicles become loose</strong></p>
+<p>
+A vehicle becomes loose when a <a href="consist_order.txt">consist order</a> at a stop leaves it behind. This happens when:
+<br>- an order leaves behind vehicles surplus to the new consist;
+<br>- a <a href="couple_divide.txt">plain uncouple</a> releases vehicles without naming a receiver;
+<br>- a divide entry names a target, but the split-off part is incomplete or unpowered for that target;
+<br>- a paired exchange leaves behind vehicles surplus to both final consists.
+</p>
+<p>
+The vehicles are placed in layover at the stop: they are parked there, with no <a href="linemanagement.txt">line</a> and an empty schedule. They occupy space at the stop until they are collected. Loose vehicles wait for collection, so this layover is different from the <a href="schedule.txt">Lay over</a> schedule option.
+</p>
+
+<p><strong>Seeing loose vehicles at a stop</strong></p>
+<p>
+The <a href="station.txt">Stop Information</a> window shows an icon when loose vehicles are stored at the stop. The icon's tooltip identifies them, and the number of loose vehicles is shown with the icon. Vehicles that are out of service are excluded from the count and from consist orders.
+</p>
+<p>
+The <strong>Vehicles</strong> tab of the <a href="station_details.txt">Stop Details</a> window lists the loose vehicles. For each vehicle it shows:
+<br>- the vehicle type and owner;
+<br>- whether the vehicle is waiting loaded or empty;
+<br>- the line or consist that is allowed to collect it;
+<br>- whether the vehicle has been taken out of service; the window marks such a vehicle as mothballed.
+</p>
+<p>
+Your own vehicles can be selected in that tab so that you can change the line or consist that is allowed to collect them.
+</p>
+
+<p><strong>Who may collect a loose vehicle</strong></p>
+<p>
+Each loose vehicle records a <strong>recipient</strong>: the line or consist that is allowed to take it. The recipient is set by the order that released the vehicle, in the <strong>Leftover vehicles</strong> setting of the <a href="consist_order.txt">Modify Consist at This Stop</a> window. The choices are:
+<br>- <strong>Same line or consist that left them</strong>, which is the default. The vehicle may be taken by the line that released it, or by the same consist if that consist has no line.
+<br>- <strong>Any line or consist</strong>, which removes the restriction.
+<br>- A named line or consist.
+</p>
+<p>
+A consist can take a loose vehicle only when:
+<br>- the loose vehicle is of the same transport type as the collecting schedule;
+<br>- the recipient allows the collecting line or consist to take it;
+<br>- the collecting consist has a free slot in its consist order that the vehicle can fill;
+<br>- the collecting portion's schedule serves the load that the vehicle is carrying.
+If any of these conditions is unmet, the vehicle stays at the stop.
+</p>
+<p>
+An order used on its own, with no Couple setting, can take loose vehicles at the stop. The receiver of a <a href="couple_divide.txt">paired exchange</a> can also take loose vehicles, but only if the two exchanging consists cannot satisfy both orders by themselves. An entry set to Couple that takes vehicles from a named consist draws only on that consist. Using loose vehicles too requires a separate schedule entry at the same stop, with an order and no Couple setting.
+</p>
+
+<p><strong>Loads on loose vehicles</strong></p>
+<p>
+A loaded goods wagon that becomes loose keeps any load intended for a later stop. The wagon, with its load, waits at the stop until a service that is allowed to collect it and whose route serves the load takes it. Cargo that stays aboard a loose goods wagon is outside the stop's storage capacity and waiting rules.
+</p>
+<p>
+Freight that is waiting at the stop for a loose wagon remains ordinary stop cargo. It obeys the stop's normal storage capacity and waiting rules until the wagon is collected. When the wagon is collected, the game gives a loading-time credit for the time that the wagon waited, so the collecting consist loads faster than a newly arrived wagon.
+</p>
+<p>
+A passenger carriage that becomes loose unloads passengers whose next change of vehicle or destination is this stop. Passengers whose journey continues beyond this stop stay aboard, and the carriage waits as a <strong>through coach</strong>, which is a carriage left at a stop with passengers aboard for a later service to collect. The same rule applies to mail on a train that includes a travelling post office (TPO), which is a mail vehicle with a catering level; see <a href="catering.txt">Catering</a>. Mail on a train without a TPO follows the goods wagon rule and stays with its van.
+</p>
+<p>
+If an order were to move a loaded vehicle into a portion whose route does not serve its load, the load would be handled at the stop: it would be unloaded there, or the vehicle would wait for a later portion that serves it.
+</p>
+
+<p><strong>Collecting loose vehicles</strong></p>
+<p>
+When a consist with a suitable order stops at the stop, the game fills the order's slots from the consist's own vehicles and, where the order allows it, from the loose vehicles. The collecting consist waits out the normal shunting pause (the pause in which the game rearranges vehicles), then loads for its next leg as usual.
+</p>
+<p>
+If the order cannot be completed, the loose vehicles stay where they are and the collecting consist is left as it was. A warning is posted in the <a href="mailbox.txt">message log</a>.
+</p>
+
+<p><strong>Removing a stop</strong></p>
+<p>
+If a stop that holds loose vehicles were removed, the game would send each vehicle to a suitable depot owned by its owner. If its owner lacked a suitable depot, the vehicle would be sold at its current value.
+</p>
+
+<p><strong>Related help</strong></p>
+<p>
+<a href="consist_recombination.txt">Consist Recombination</a> explains how vehicles are left at a stop and how they are collected.
+<br><a href="couple_divide.txt">Couple and Divide at This Stop</a> explains the exchange controls.
+<br><a href="consist_order.txt">Modify Consist at This Stop</a> explains the order window and the Leftover vehicles setting.
+<br><a href="station_details.txt">Stop Details</a> explains the Vehicles tab.
+<br><a href="schedule.txt">Schedule</a> explains the schedule that contains the order.
+</p>

@@ -1,0 +1,88 @@
+<title>Consist Recombination Help</title>
+
+<h1><strong>Consist Recombination</strong></h1>
+
+<p>
+<strong>Consist recombination</strong> is any change to the vehicles in a <a href="convoiinfo.txt">consist</a> at a <a href="station.txt">stop</a>, without taking the consist to a <a href="depot.txt">depot</a>. A vehicle is one item of transport equipment, such as a locomotive, carriage, lorry or trailer. <strong>Coupling</strong> means joining vehicles end to end so that they travel together; <strong>uncoupling</strong> means separating them. A <strong>powered vehicle</strong> has an engine or motor that can move the consist; an <strong>unpowered vehicle</strong> travels only when a powered vehicle hauls or pushes it.
+</p>
+<p>
+Recombination is used for operations such as:
+<br>- changing the locomotive at a boundary between electrified and non-electrified track;
+<br>- splitting a multiple unit (a train of powered carriages that can run on its own), with each part continuing on a different route;
+<br>- leaving a carriage at a junction for a later service to collect (a <strong>through coach</strong>);
+<br>- dropping and collecting individual goods wagons (pick-up goods working);
+<br>- exchanging trailers between road tractors; and
+<br>- joining two services into one consist.
+</p>
+<p>
+The game carries out a recombination during a short <strong>shunting</strong> pause at the stop. The vehicles are rearranged in place, and the consist continues its schedule from that stop.
+</p>
+
+<p><strong>How to set up a recombination</strong></p>
+<p>
+The controls appear in the <a href="schedule.txt">Schedule</a> window for the <a href="linemanagement.txt">line</a> or consist when the stop where the change should happen is selected.
+</p>
+<p>
+The stop entry has two related parts:
+<br>- <a href="couple_divide.txt">Couple at this stop and Divide at this stop</a> say whether this consist takes vehicles from another consist, gives vehicles to another consist, or does both.
+<br>- <a href="consist_order.txt">Modify consist at this stop</a> lists the vehicles that this consist should have after the stop.
+</p>
+<p>
+The list set by <strong>Modify consist at this stop</strong> is called a <strong>consist order</strong>. It runs from the front of the train to the rear, in the direction the train travels. Each position in the list, called a <strong>slot</strong>, accepts one vehicle. A slot can name a particular vehicle type or offer a rule that any suitable vehicle may satisfy.
+</p>
+
+<p><strong>The ways a recombination can work</strong></p>
+<p>
+<em>Change the consist using vehicles already at the stop.</em> If the entry has a consist order but neither Couple nor Divide is ticked, the game matches the order against the consist's own vehicles and the loose vehicles at the stop. Surplus vehicles are left at the stop as <a href="loose_vehicles.txt">loose vehicles</a>. This is the ordinary way to drop and collect wagons without involving another consist.
+</p>
+<p>
+<em>Take vehicles from another consist.</em> With <strong>Couple at this stop</strong> ticked and the target (the other line or consist) selected, the consist order describes this train after it has taken the vehicles. The other consist needs to be at the same stop and loading; if it is elsewhere, this consist waits indefinitely (see below). The game draws only on this consist and the target consist. If the target consist were emptied, it would be removed. The target consist does not carry out its own consist order as part of this operation.
+</p>
+<p>
+<em>Divide into two services.</em> With <strong>Divide at this stop</strong> ticked and the target line or consist and target schedule entry selected, the consist order for this stop describes the part that stays on this schedule, and may use suitable loose vehicles at the stop. The target entry's order describes the part that joins the target. The split-off part becomes a service only if its order can be completed into a powered consist; otherwise its vehicles are left at the stop as loose vehicles.
+</p>
+<p>
+<em>Exchange vehicles with another consist.</em> If the other consist's entry also divides and names this consist in return, the two entries form a <strong>paired exchange</strong>. The game solves both consist orders together. If the exchange cannot be carried out, neither consist changes. See <a href="couple_divide.txt">Couple and Divide at This Stop</a>.
+</p>
+<p>
+<em>Plain uncouple.</em> With <strong>Divide at this stop</strong> ticked and no target selected, the entry is a plain uncouple. The vehicles left out by the consist order are left at the stop as loose vehicles. The consist continues on its own.
+</p>
+<p>
+Each divide entry creates one split-off portion, so three portions at one stop (the original plus two split-off portions) use two divide entries.
+</p>
+
+<p><strong>What happens at the stop</strong></p>
+<p>
+The game first decides the new consist. It then unloads from the vehicles that remain in a scheduled consist any passengers, mail or goods for which this stop is the next place they must leave the vehicle. Loading for the next leg follows. A vehicle that remains in a scheduled consist keeps its load.
+</p>
+<p>
+A loaded goods wagon that is left at the stop keeps any load intended for a later stop and can be collected later. A passenger carriage left at the stop keeps only passengers whose next change of vehicle or destination is later than this stop; passengers whose journey ends or changes here get off. The same rule applies to mail on a train that includes a travelling post office (TPO), which is a mail vehicle with a catering level; see <a href="catering.txt">Catering</a>. If a vehicle were to be moved to a portion whose route does not serve its load, the load would be handled at the stop: it would be unloaded there, or the vehicle would wait at the stop for a later portion that serves it.
+</p>
+<p>
+The order check in the Modify consist window is advisory. It can show whether a list makes a complete, powered train, but it cannot know which vehicles another consist will supply or which way round a vehicle will be. See <a href="consist_order.txt">Modify Consist at This Stop</a>.
+</p>
+
+<p><strong>Waiting for another consist</strong></p>
+<p>
+If a named target has yet to arrive and begin loading, this consist waits indefinitely and shows <em>Waiting for a coupling partner</em>. The two consists meet only when their schedules bring them to the stop together; otherwise the waiting consist stays at the stop. A target that has been deleted produces a warning in the <a href="mailbox.txt">message log</a>, and the order is skipped.
+</p>
+<p>
+Circular waits jam permanently: if consist A were to wait for B, B for C and C for A, the circle would stay jammed. A direct pair of consists waiting for each other at the same stop is resolved when one of them is ready.
+</p>
+<p>
+If a paired exchange cannot be carried out, both consists stay as they are, one warning explains why, and both continue on their own schedules. If an ordinary consist order, or a coupling in which only one consist takes vehicles, cannot be carried out, the consist is left as it is and a warning is posted. A division that cannot form the part that would join the target still applies the order to the part that stays, and leaves the displaced vehicles as loose vehicles.
+</p>
+
+<p><strong>Signals and platforms</strong></p>
+<p>
+If the other consist is standing at the stop and this consist is approaching a choose signal, the signal can route this consist to the other consist's platform. Before doing so, the game checks that the coupling can be completed. If it cannot, the signal holds the train and a warning explains why. Choose signals are described in <a href="signals_overview.txt">Signals Overview</a>.
+</p>
+
+<p><strong>Related help</strong></p>
+<p>
+<a href="couple_divide.txt">Couple and Divide at This Stop</a> describes the target controls on a schedule entry.
+<br><a href="consist_order.txt">Modify Consist at This Stop</a> describes the consist order window, its slots, rules, vehicle picker and order check.
+<br><a href="loose_vehicles.txt">Loose Vehicles</a> describes vehicles left at a stop and how a later service collects them.
+<br><a href="schedule.txt">Schedule</a> describes the window that contains these controls.
+<br><a href="linemanagement.txt">Line Management</a> describes lines, which share one schedule between several consists.
+</p>

@@ -138,6 +138,10 @@ help_frame_t::help_frame_t(char const* const filename) :
 	add_helpfile( how_to_play, NULL, "convoidetail.txt", false, 1 );
 	add_helpfile( how_to_play, "Line Management", "linemanagement.txt", false, 0 );
 	add_helpfile( how_to_play, "Fahrplan", "schedule.txt", false, 1 );
+	add_helpfile( how_to_play, NULL, "consist_recombination.txt", false, 1 );
+	add_helpfile( how_to_play, NULL, "couple_divide.txt", false, 2 );
+	add_helpfile( how_to_play, NULL, "consist_order.txt", false, 2 );
+	add_helpfile( how_to_play, NULL, "loose_vehicles.txt", false, 2 );
 	add_helpfile( how_to_play, NULL, "station.txt", false, 0 );
 	add_helpfile( how_to_play, NULL, "station_details.txt", false, 1 );
 	add_helpfile( how_to_play, NULL, "industry_info.txt", false, 0 );
