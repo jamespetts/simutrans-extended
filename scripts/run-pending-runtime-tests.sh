@@ -14,6 +14,7 @@
 # choose-cases/ are choose-signal call-on cases and use choose-harness.nut. Cases in
 # pickup-cases/ are pick-up goods cases and use pickup-harness.nut. Cases in
 # ownership-cases/ are multi-owner access cases and use ownership-harness.nut. The
+# road-cases/ are road-vehicle operation cases and use road-harness.nut. The
 # forward case additionally prints the older Y DIVISION PASS and Y DIVISION FAIL
 # markers.
 #
@@ -39,7 +40,8 @@
 #   PENDING_RUNTIME_CASES          space-separated case names to run; overrides
 #                                  PENDING_RUNTIME_GROUPS
 #   PENDING_RUNTIME_GROUPS         space-separated group names: division, pair,
-#                                  choose, pickup, ownership (default: every group)
+#                                  choose, pickup, ownership, road (default:
+#                                  every group)
 #   PENDING_RUNTIME_JOBS           game processes to run at once (default: the
 #                                  processor count, capped at 8)
 #   PENDING_RUNTIME_FAST_FORWARD   1 to run the simulation as fast as the
@@ -86,6 +88,7 @@ pair_cases=()
 choose_cases=()
 pickup_cases=()
 ownership_cases=()
+road_cases=()
 
 for case_file in "$source_root"/cases/*/scenario.nut
 do
@@ -107,6 +110,11 @@ do
 	[ -f "$case_file" ] || continue
 	pickup_cases+=("$(basename "$(dirname "$case_file")")")
 done
+for case_file in "$source_root"/road-cases/*/scenario.nut
+do
+	[ -f "$case_file" ] || continue
+	road_cases+=("$(basename "$(dirname "$case_file")")")
+done
 for case_file in "$source_root"/ownership-cases/*/scenario.nut
 do
 	[ -f "$case_file" ] || continue
@@ -121,6 +129,7 @@ group_cases()
 		choose)   printf '%s\n' "${choose_cases[@]}" ;;
 		pickup)    printf '%s\n' "${pickup_cases[@]}" ;;
 		ownership) printf '%s\n' "${ownership_cases[@]}" ;;
+		road)      printf '%s\n' "${road_cases[@]}" ;;
 		*)        return 1 ;;
 	esac
 }
@@ -129,7 +138,7 @@ is_known_case()
 {
 	local wanted=$1
 	local known
-	for known in "${division_cases[@]}" "${pair_cases[@]}" "${choose_cases[@]}" "${pickup_cases[@]}" "${ownership_cases[@]}"
+	for known in "${division_cases[@]}" "${pair_cases[@]}" "${choose_cases[@]}" "${pickup_cases[@]}" "${ownership_cases[@]}" "${road_cases[@]}"
 	do
 		if [ "$known" = "$wanted" ]; then return 0; fi
 	done
@@ -140,6 +149,7 @@ group_name_of_case()
 {
 	local wanted=$1
 	local known
+	for known in "${road_cases[@]}"; do [ "$known" = "$wanted" ] && { echo road; return; }; done
 	for known in "${pickup_cases[@]}"; do [ "$known" = "$wanted" ] && { echo pickup; return; }; done
 	for known in "${ownership_cases[@]}"; do [ "$known" = "$wanted" ] && { echo ownership; return; }; done
 	for known in "${pair_cases[@]}"; do [ "$known" = "$wanted" ] && { echo pair; return; }; done
@@ -163,7 +173,7 @@ then
 else
 	# Slowest group first: parallel batches finish earlier when long cases are
 	# started first.
-	for selected_group in ${PENDING_RUNTIME_GROUPS:-pickup ownership pair choose division}
+	for selected_group in ${PENDING_RUNTIME_GROUPS:-road pickup ownership pair choose division}
 	do
 		if ! group_cases "$selected_group" > /dev/null
 		then
@@ -254,6 +264,7 @@ case_scenario()
 		choose)     echo "$source_root/choose-cases/$case_name/scenario.nut" ;;
 		pickup)     echo "$source_root/pickup-cases/$case_name/scenario.nut" ;;
 		ownership)  echo "$source_root/ownership-cases/$case_name/scenario.nut" ;;
+		road)       echo "$source_root/road-cases/$case_name/scenario.nut" ;;
 	esac
 }
 
@@ -268,6 +279,7 @@ case_harness_file()
 		choose)     echo "$source_root/choose-harness.nut" ;;
 		pickup)     echo "$source_root/pickup-harness.nut" ;;
 		ownership)  echo "$source_root/ownership-harness.nut" ;;
+		road)       echo "$source_root/road-harness.nut" ;;
 	esac
 }
 

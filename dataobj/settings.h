@@ -177,6 +177,14 @@ private:
 	sint32 traffic_level;
 
 	/**
+	 * How private cars are filled from a passenger packet.
+	 * 0 = the traffic-level-constrained formula, which preserves the historic
+	 * behaviour; 1 = per-car fill, which fills each car up to the capacity of
+	 * its city-car descriptor. Simulation-affecting and saved with the game.
+	 */
+	uint8 citycar_fill_mode;
+
+	/**
 	 * Should pedestrians be displayed?
 	 */
 	sint32 show_pax;
@@ -1012,6 +1020,9 @@ public:
 
 	void set_traffic_level(sint32 l) {traffic_level=l;}
 	sint32 get_traffic_level() const {return traffic_level;}
+
+	/// 0 = traffic-level-constrained car fill, 1 = per-car fill.
+	uint8 get_citycar_fill_mode() const { return citycar_fill_mode; }
 
 	void set_show_pax(bool yesno) {show_pax=yesno;}
 	bool get_show_pax() const {return show_pax != 0;}

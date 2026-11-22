@@ -9,6 +9,73 @@
 
 #include "vehicle.h"
 
+class grund_t;
+
+/**
+ * Road-space rules shared by player road vehicles and private cars.
+ *
+ * A vehicle's position on a tile is the value of vehicle_base_t::get_steps():
+ * 0 at the tile entry and steps_next at the tile exit. That value is the
+ * position of the front of the vehicle; the body extends backwards from it by
+ * the vehicle's length in vehicle steps.
+ *
+ * Vehicles occupy one of four lateral positions: the traffic lane or the
+ * passing lane, each in its normal position or pulled over to the side. Only
+ * vehicles in the same lateral position and travelling in the same direction
+ * follow one another. Elsewhere one vehicle per lane is kept, as before.
+ */
+namespace road_space
+{
+	/**
+	 * Whether this tile may hold more than one vehicle in one lateral
+	 * position: a straight road tile which is neither an intersection nor a
+	 * crossing. Diagonal road tiles are excluded.
+	 */
+	bool allows_queueing(const grund_t *gr);
+
+	/// The state of one road user that the following rules need.
+	struct user_t
+	{
+		const vehicle_base_t *object; ///< the vehicle itself, to skip it
+		const convoi_t *convoi;       ///< owning convoy, or NULL for a private car
+		ribi_t::ribi direction;       ///< direction of travel
+		sint32 speed;                 ///< current speed, internal units
+		uint32 length;                ///< length in vehicle steps
+		bool overtaking;              ///< travelling in the passing lane
+		bool pulled_over;             ///< stopped at a stop stand beside the travel lane
+	};
+
+	/// The distance in vehicle steps that a follower must keep clear behind
+	/// the vehicle ahead, in the same lateral position. @p leader_moving
+	/// selects the reaction-time headway instead of the standstill gap.
+	uint32 following_gap(const sint32 follower_speed, const bool leader_moving);
+
+	/// The position in vehicle steps that the user described by @p self may not
+	/// pass on @p gr, or -1 when no vehicle in the same lateral position
+	/// constrains it.
+	sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps);
+
+	/// Whether the blocker @p leader is far enough ahead on @p gr that the user
+	/// described by @p self may enter the tile and follow it.
+	bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *leader);
+
+	/// Whether @p v is a road vehicle that is standing at a stop stand beside
+	/// the travel lane, so that it does not block traffic in position 0.
+	bool is_beside_lane(const vehicle_base_t *v);
+
+	/**
+	 * Drives @p v by at most one tile boundary, stopping at the limit given by
+	 * following_limit() on the tile it is on. The caller must refresh @p self
+	 * and re-read steps after a hop, and must not add more distance than the
+	 * value returned.
+	 * @return the distance travelled in yards.
+	 * @note This is a helper for the road-specific do_drive() overrides. It is
+	 * never called for a vehicle that is not leading its convoy, because a
+	 * convoy follows the leading vehicle exactly.
+	 */
+	uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance);
+}
+
 
 /**
  * A class for road vehicles. Manages the look of the vehicles
@@ -22,16 +89,45 @@ private:
 	// returns true on success
 	bool choose_route(sint32 &restart_speed, ribi_t::ribi start_direction, uint16 index);
 
+	// Clears a blocker that this vehicle may follow onto a queueing tile.
+	void apply_following_rule(const grund_t *gr, vehicle_base_t *&blocker, sint8 lane) const;
+
 public:
 	bool check_next_tile(const grund_t *bd) const OVERRIDE;
 
+	/// Whether this vehicle is standing at a stop stand beside the travel lane.
+	bool is_pulled_over() const;
+
 protected:
-	bool is_checker;
+	/// Automatic-road-finder placeholder vehicle.
+	uint8 is_checker : 1;
+
+	/**
+	 * The stop stand reserved for this convoy's leading vehicle, as a four-bit
+	 * mask (see haltestelle_t::get_empty_lane), or zero when no stand is held.
+	 * Only the leading vehicle records it. Packed with is_checker so that the
+	 * member costs no object memory. Saved with the vehicle, behind Extended
+	 * save revision 20.
+	 */
+	uint8 stand_mask : 4;
 
 public:
 	void enter_tile(grund_t*) OVERRIDE;
 	virtual void hop(grund_t*) OVERRIDE;
 	virtual uint32 do_drive(uint32 distance) OVERRIDE;
+
+	void rdwr_from_convoi(loadsave_t *file) OVERRIDE;
+
+	uint8 get_stand_mask() const { return stand_mask; }
+	void set_stand_mask(uint8 mask) { stand_mask = mask; }
+
+	/**
+	 * The lateral position (0 to 3, see the road_space comment) at which this
+	 * vehicle is drawn while it loads at its stand. A through stop gives one
+	 * stand on each side, so the vehicle is pulled over in its traffic lane
+	 * (position 1); a terminal uses the four lateral positions directly.
+	 */
+	uint8 get_stand_lateral_position() const;
 
 	void rotate90() OVERRIDE;
 

@@ -33,6 +33,7 @@ Note: the documents may be nested. Only top level documents are shown here.
 
 - [high-level-design-goals](high-level-design-goals.md) — read when doing any design work on a feature: the project's normative design goals (realism, economics, multiplayer balance) that new features must serve.
 - [project-roadmap](project-roadmap.md) — read when planning what features to add in what order: registry of planned features with balance-critical/simple/15.x markers; also check after implementing a feature to close its entry (per [conventions](conventions.md)).
+- [road-vehicle-operations](road-vehicle-operations.md) — read when planning or reviewing road vehicle queueing, stop pull-over, terminal stand capacity, motorway lane positions, private car occupancy, or private car information links.
 - [bot-api](bot-api.md) — read when planning an external AI/bot interface, assessing whether an AI can build new infrastructure or only maintain existing infrastructure, adding query or planning functions to the Squirrel API, or automating a company in a network game.
 - [data-layout-and-design-style](data-layout-and-design-style.md) — read when choosing or reviewing a container/data layout, wondering whether a path is OOP or data-oriented, or considering restructuring a hot path for cache/bandwidth reasons.
 - [simd-applicability](simd-applicability.md) — read when considering SIMD/intrinsics work in any simulation code path: baseline-ISA and determinism constraints, per-hotspot verdicts, and the absence of a simulation SIMD kernel.

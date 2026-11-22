@@ -224,6 +224,15 @@ public:
 	virtual void get_screen_offset( int &xoff, int &yoff, const sint16 raster_width ) const;
 
 	/**
+	 * Adds the screen offset that draws a road vehicle beside the travel lane
+	 * instead of on it, as when it loads at a stop stand. The offset is half
+	 * the lateral separation that the drive-on-the-left offset gives the two
+	 * directions of travel, in the same direction, so it moves the vehicle
+	 * towards the kerb.
+	 */
+	void add_pulled_over_offset(int &xoff, int &yoff, const sint16 raster_width) const;
+
+	/**
 	 * Vehicle movement: calculates z-offset of vehicles on slopes,
 	 * handles vehicles that are invisible in tunnels.
 	 * @param gr vehicle is on this ground

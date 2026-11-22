@@ -16,8 +16,23 @@ obj_infowin_t::obj_infowin_t(const obj_t* obj) :
 	view(obj, scr_size( max(64, get_base_tile_raster_width()), max(56, (get_base_tile_raster_width()*7)/8) ))
 {
 	textarea.set_width( textarea.get_size().w + get_base_tile_raster_width() - 64);
+	textarea.add_listener(this);
 	fill_buffer();
 	set_embedded(&view);
+}
+
+
+bool obj_infowin_t::action_triggered(gui_action_creator_t *comp, value_t v)
+{
+	if (comp == &textarea)
+	{
+		const char *link = (const char*)v.p;
+		if (link != NULL && *link != 0 && jump_to_coordinate_link(link))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 

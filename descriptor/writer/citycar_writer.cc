@@ -76,7 +76,21 @@ void citycar_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 
 	const uint32 class_count = available_classes.get_count();
 
-	obj_node_t node(this, 14 + 1 + class_count, &parent);
+	// Version 5 fields: the passenger capacity of one car and the vehicle
+	// length in carunits. Omitted keys give zero, which keeps the historic
+	// traffic-level car fill.
+	const int capacity = obj.get_int("capacity", 0);
+	const int car_length = obj.get_int("length", 0);
+	if (capacity < 0 || capacity > 255)
+	{
+		dbg->fatal(obj_writer_t::last_name, "capacity %i is not a valid passenger capacity", capacity);
+	}
+	if (car_length < 0 || car_length > 255)
+	{
+		dbg->fatal(obj_writer_t::last_name, "length %i is not a valid vehicle length in carunits", car_length);
+	}
+
+	obj_node_t node(this, 14 + 1 + class_count + 2, &parent);
 
 	uint16 const dist_weight = obj.get_int("distributionweight", 1);
 
@@ -90,9 +104,10 @@ void citycar_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 
 	uint16 const topspeed = obj.get_int("speed", 80) * 16;
 
-	// new version with intro, obsolete dates, time-based comfort and the
-	// passenger classes for which the car is available
-	node.write_uint16(fp, 0x8004,        0); // version information
+	// new version with intro, obsolete dates, time-based comfort, the
+	// passenger classes for which the car is available, and the car's
+	// capacity and length
+	node.write_uint16(fp, 0x8005,        0); // version information
 	node.write_uint16(fp, dist_weight,    2);
 	node.write_uint16(fp, topspeed,        4);
 	node.write_uint16(fp, intro_date,    6);
@@ -104,6 +119,8 @@ void citycar_writer_t::write_obj(FILE* fp, obj_node_t& parent, tabfileobj_t& obj
 	{
 		node.write_uint8(fp, available_classes[c], 15 + c);
 	}
+	node.write_uint8(fp, (uint8)capacity, 15 + class_count);
+	node.write_uint8(fp, (uint8)car_length, 16 + class_count);
 
 	write_head(fp, node, obj);
 

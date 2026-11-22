@@ -1,0 +1,1904 @@
+//
+// This file is part of the Simutrans-Extended project under the Artistic License.
+// (see LICENSE.txt)
+//
+// Road-vehicle operations runtime cases: same-tile following (queue), a vehicle
+// passing a loading vehicle at a through stop, and terminal stand capacity.
+//
+// A case selects itself by setting ::case_kind before including this file. The
+// runner scripts/run-pending-runtime-tests.sh stages the case's scenario.nut,
+// this file and empty-16x16.sve in the pakset scenario directory and runs one
+// game process per case, so every case starts from the empty world.
+//
+
+map.file = "empty-16x16.sve"
+
+scenario.short_description = "Road vehicle operations runtime case: " + ::case_kind
+scenario.author = "Simutrans-Extended automated tests"
+scenario.version = "0.1"
+
+local case_name = ::case_kind
+
+local DEPOT_POS = coord3d(1, 2, 0)
+local ROAD_END = coord3d(12, 2, 0)
+local MID_STOP = coord3d(10, 2, 0)
+local STOP_POS = coord3d(5, 2, 0)
+local TERMINAL_ROAD_END = coord3d(7, 2, 0)
+
+// The moving-gap case uses a short road so that the follower meets the leader
+// near the end of its route, where road overtaking is refused.
+local GAP_ROAD_END = coord3d(8, 2, 0)
+local GAP_MID_STOP = coord3d(6, 2, 0)
+
+// The overtake case needs a long straight so that the faster vehicle catches
+// the slower one well before the end of the route.
+local LONG_ROAD_END = coord3d(14, 2, 0)
+local LONG_MID_STOP = coord3d(12, 2, 0)
+
+// The junction case uses an east-west trunk at y = 5 and a north branch at x = 7.
+local JUNCTION_TRUNK_END = coord3d(14, 5, 0)
+local JUNCTION_POS = coord3d(7, 5, 0)
+local JUNCTION_BRANCH_END = coord3d(7, 1, 0)
+local JUNCTION_DEPOT_POS = coord3d(1, 5, 0)
+local JUNCTION_SECOND_STOP = coord3d(3, 5, 0)
+
+// The through-pass-oncoming case uses a two-way road between two depots, with
+// a through stop in the middle, a second stop west of it for the westbound
+// stream's first entry, and a terminal on a branch at each end.
+local ONCOMING_ROAD_WEST = coord3d(1, 2, 0)
+local ONCOMING_ROAD_EAST = coord3d(14, 2, 0)
+local ONCOMING_STOP = coord3d(5, 2, 0)
+local ONCOMING_WEST_STOP = coord3d(2, 2, 0)
+local ONCOMING_EAST_BRANCH = coord3d(12, 2, 0)
+local ONCOMING_EAST_TERMINAL = coord3d(12, 0, 0)
+local ONCOMING_WEST_BRANCH = coord3d(3, 2, 0)
+local ONCOMING_WEST_TERMINAL = coord3d(3, 0, 0)
+local ONCOMING_STREAM_CONVOYS = 10
+
+// Vehicle steps per carunit, from simunits.h. A vehicle descriptor's length is
+// in carunits.
+local VEHICLE_STEPS_PER_CARUNIT = 16
+
+// The fixture pakset, pak128.Britain-Ex, sets meters_per_tile to 125. The
+// moving-gap lower bound is expressed at that scale; the road group is run
+// against that pakset only.
+local FIXTURE_METERS_PER_TILE = 125
+
+local heartbeat_steps = 0
+
+local fixture = {
+	phase = "waiting-for-setup",
+	setup_started = false,
+	completed = false,
+	depot = null,
+	second_depot = null,
+	convoys = [],
+	started = [],
+	observations = 0,
+	saw_same_tile = false,
+	max_on_stop_tile = 0,
+	arrived_at_terminal = {},
+	second_started = false,
+	leading_at_end = false,
+	following_at_end = false,
+	// moving-gap
+	saw_moving_pair = false,
+	min_gap_seen = 0,
+	min_gap_speed = 0,
+	// overtake
+	slow_arrival = -1,
+	fast_arrival = -1,
+	// stop-release and terminal-turnover
+	holder_cleared = false,
+	stand_taken = false,
+	holder_released_seen = false,
+	fifth_started = false,
+	holder_seen = false,
+	four_seen = false,
+	distinct_on_terminal = {},
+	// through-pass-oncoming
+	stream = [],
+	holder_ready = false,
+	stream_started = false,
+	passer_started = false,
+	cross_seen = false,
+	holder_held = false,
+	distinct_oncoming = {}
+}
+
+
+function fail(what)
+{
+	if (!fixture.completed)
+	{
+		fixture.completed = true
+		print("RUNTIME CASE " + case_name + " FAIL: " + what)
+		print("RUNTIME CASE " + case_name + " COMPLETE")
+	}
+	fixture.phase = "failed"
+	return false
+}
+
+
+function pass()
+{
+	if (!fixture.completed)
+	{
+		fixture.completed = true
+		print("RUNTIME CASE " + case_name + " PASS")
+		print("RUNTIME CASE " + case_name + " COMPLETE")
+	}
+	fixture.phase = "done"
+	return true
+}
+
+
+function check(ok, what)
+{
+	if (!ok)
+	{
+		return fail(what)
+	}
+	return true
+}
+
+
+function check_tool(result, what)
+{
+	if (result == null || result == true)
+	{
+		return true
+	}
+	return fail(what + ": " + result)
+}
+
+
+function pos_text(pos)
+{
+	return "(" + pos.x + "," + pos.y + "," + pos.z + ")"
+}
+
+
+function same_pos(a, b)
+{
+	return a.x == b.x && a.y == b.y && a.z == b.z
+}
+
+
+function on_depot_tile(pos)
+{
+	foreach (d in depot_x.get_depot_list(player_x(0), wt_road))
+	{
+		if (same_pos(d.get_pos(), pos))
+		{
+			return true
+		}
+	}
+	return false
+}
+
+
+function convoy_ids()
+{
+	local ids = []
+	foreach (cnv in world.get_convoy_list())
+	{
+		if (cnv.is_valid())
+		{
+			ids.append(cnv.id)
+		}
+	}
+	return ids
+}
+
+
+function find_new_convoy(before)
+{
+	foreach (cnv in world.get_convoy_list())
+	{
+		if (cnv.is_valid() && before.find(cnv.id) == null)
+		{
+			return cnv
+		}
+	}
+	return null
+}
+
+
+function depot_desc_for(waytype)
+{
+	local list = building_desc_x.get_building_list(building_desc_x.depot)
+	foreach (building in list)
+	{
+		if (building.get_type() == building_desc_x.depot && building.get_waytype() == waytype && building.is_available(world.get_time()))
+		{
+			return building
+		}
+	}
+	return null
+}
+
+
+function make_entry(pos, unique_entry_id, load)
+{
+	local entry = schedule_entry_x(pos, 0, 0)
+	entry.unique_entry_id = unique_entry_id
+	entry.load = load
+	return entry
+}
+
+
+// An entry with a maximum waiting time. The shift selects the wait as
+// ticks_per_world_month >> (16 - shift); a larger shift waits longer.
+function make_entry_wait(pos, unique_entry_id, load, wait_shift)
+{
+	local entry = make_entry(pos, unique_entry_id, load)
+	entry.wait = wait_shift
+	return entry
+}
+
+
+function road_vehicle_desc()
+{
+	local list = vehicle_desc_x.get_available_vehicles(wt_road)
+	if (list.len() == 0)
+	{
+		return null
+	}
+	return list[0]
+}
+
+
+// The slowest and fastest road vehicle descriptors available in the current
+// era, as [slow, fast]. A single pass is used because the script VM limits the
+// work per call.
+function slowest_and_fastest_descriptors()
+{
+	local list = vehicle_desc_x.get_available_vehicles(wt_road)
+	if (list.len() == 0)
+	{
+		return null
+	}
+	local slow = list[0]
+	local fast = list[0]
+	foreach (d in list)
+	{
+		if (d.get_topspeed() < slow.get_topspeed())
+		{
+			slow = d
+		}
+		if (d.get_topspeed() > fast.get_topspeed())
+		{
+			fast = d
+		}
+	}
+	return [slow, fast]
+}
+
+
+// The number of vehicle steps that the following rule keeps clear behind a
+// moving leader for a follower at @p kmh. This mirrors road_space::following_gap:
+// a one-metre standstill gap plus a 1.5 s reaction distance, converted from
+// millimetres with the fixture's metres per tile and rounded up.
+function moving_gap_steps(kmh)
+{
+	local millimetres = 1000 + (kmh * 1500 * 1000) / 3600
+	local millimetres_per_tile = FIXTURE_METERS_PER_TILE * 1000
+	return (millimetres * 256 + millimetres_per_tile - 1) / millimetres_per_tile
+}
+
+
+// Builds any passenger road stop at pos, trying the available station
+// descriptors and rotations. Returns true on success.
+function build_any_stop(pl, pos)
+{
+	local stops = building_desc_x.get_available_stations(building_desc_x.station, wt_road, good_desc_x.passenger)
+	if (stops.len() == 0)
+	{
+		return false
+	}
+	foreach (stop in stops)
+	{
+		foreach (rotation in [0, 2, 8, 1, 4])
+		{
+			if (command_x.build_station(pl, pos, stop, rotation) == null)
+			{
+				return true
+			}
+		}
+	}
+	return false
+}
+
+
+// Builds a stop at pos that accepts traffic in both directions (not a
+// terminal). A terminal only fits a single-direction road, so it is rejected
+// by building on a straight road tile that has traffic in both directions;
+// this helper is used where the test needs a through stop.
+function build_through_stop(pl, pos)
+{
+	return build_any_stop(pl, pos)
+}
+
+
+// Builds a terminal (a road stop building with four layouts, and therefore
+// four stands) at pos. The building descriptor's layout count is exposed as
+// is_terminus(), so the correct descriptor is selected rather than assumed.
+function build_terminal(pl, pos)
+{
+	local stops = building_desc_x.get_available_stations(building_desc_x.station, wt_road, good_desc_x.passenger)
+	foreach (stop in stops)
+	{
+		if (!stop.is_terminus())
+		{
+			continue
+		}
+		foreach (rotation in [0, 2, 8, 1, 4])
+		{
+			if (command_x.build_station(pl, pos, stop, rotation) == null)
+			{
+				return true
+			}
+		}
+	}
+	return false
+}
+
+
+// Creates one convoy in @p depot with one vehicle and the given schedule.
+// Returns the convoy, or null after reporting a failure.
+function make_convoy_at(depot, pl, desc, entries, what)
+{
+	local before = convoy_ids()
+	if (!check_tool(depot.append_vehicle(pl, convoy_x(0), desc), "add the vehicle of " + what))
+	{
+		return null
+	}
+	local cnv = find_new_convoy(before)
+	if (!check(cnv != null, "the " + what + " convoy was not found after adding its vehicle"))
+	{
+		return null
+	}
+	local schedule = schedule_x(wt_road, entries)
+	if (!check_tool(cnv.change_schedule(pl, schedule), "commit the schedule of " + what))
+	{
+		return null
+	}
+	return cnv
+}
+
+
+function make_convoy(pl, desc, entries, what)
+{
+	return make_convoy_at(fixture.depot, pl, desc, entries, what)
+}
+
+
+function front_slot(cnv)
+{
+	if (!cnv.is_valid())
+	{
+		return null
+	}
+	local slots = cnv.get_vehicle_snapshot()
+	if (slots.len() == 0)
+	{
+		return null
+	}
+	return slots[0]
+}
+
+
+function length_steps(slot)
+{
+	return slot.desc.get_length() * VEHICLE_STEPS_PER_CARUNIT
+}
+
+
+// Asserts that two front vehicles on the same tile do not overlap: a vehicle
+// whose front is behind another vehicle's front must stay behind that
+// vehicle's rear. Vehicles overtaking are skipped: their steps pass the other
+// vehicle's front while they are in the other lane, which the snapshot does
+// not expose. All fixture vehicles have the same top speed, so the queue cases
+// do not overtake.
+function check_no_overlap(leader, follower)
+{
+	if (leader.is_loading() || follower.is_loading() || leader.is_in_depot() || follower.is_in_depot())
+	{
+		// A vehicle loading at a stand is in another lateral position, and a
+		// convoy in a depot is not on the road at all.
+		return true
+	}
+	local a = front_slot(leader)
+	local b = front_slot(follower)
+	if (a == null || b == null || !same_pos(a.pos, b.pos) || on_depot_tile(a.pos))
+	{
+		return true
+	}
+	if (a.pulled_over && !b.pulled_over)
+	{
+		// The leader is beside the travel lane.
+		return true
+	}
+	if (b.steps > a.steps)
+	{
+		// The follower is level with or ahead of the leader; only possible
+		// while overtaking.
+		return true
+	}
+	local rear = a.steps - length_steps(a)
+	if (!check(b.steps <= rear,
+		"vehicle of convoy " + follower.id + " at steps " + b.steps
+		+ " overlaps the rear (" + rear + ") of the vehicle of convoy " + leader.id
+		+ " on " + pos_text(a.pos)))
+	{
+		return false
+	}
+	return true
+}
+
+
+function setup_queue(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, ROAD_END, road, true), "build the straight road"))
+	{
+		return false
+	}
+	// The destination must accept two convoys in the same direction, so it is a
+	// terminal with four stands rather than a through stop with one stand on
+	// each side. A second halt gives the schedule two entries.
+	if (!check(build_terminal(pl, ROAD_END), "build the terminal at the road end"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, MID_STOP), "build the mid-road stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	local a = make_convoy(pl, desc, [make_entry(ROAD_END, 11, 0), make_entry(MID_STOP, 12, 0)], "leading")
+	local b = make_convoy(pl, desc, [make_entry(ROAD_END, 13, 0), make_entry(MID_STOP, 14, 0)], "following")
+	if (a == null || b == null)
+	{
+		return false
+	}
+	fixture.convoys = [a, b]
+	// Start both in the same step: the following convoy has to enter the
+	// depot exit tile while the leading convoy is still on it.
+	if (!check_tool(fixture.depot.start_convoy(pl, a), "start the leading convoy"))
+	{
+		return false
+	}
+	if (!check_tool(fixture.depot.start_convoy(pl, b), "start the following convoy"))
+	{
+		return false
+	}
+	fixture.started = [true, true]
+	return true
+}
+
+
+function observe_queue()
+{
+	if (!check_no_overlap(fixture.convoys[0], fixture.convoys[1]))
+	{
+		return
+	}
+	local a = front_slot(fixture.convoys[0])
+	local b = front_slot(fixture.convoys[1])
+	if (a == null || b == null)
+	{
+		return
+	}
+	if ((fixture.observations % 100) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": leading at " + pos_text(a.pos) + " steps " + a.steps
+			+ " state " + fixture.convoys[0].get_state() + "; following at " + pos_text(b.pos)
+			+ " steps " + b.steps + " state " + fixture.convoys[1].get_state())
+	}
+	if (same_pos(a.pos, b.pos) && !same_pos(a.pos, DEPOT_POS))
+	{
+		fixture.saw_same_tile = true
+	}
+	if (same_pos(a.pos, ROAD_END))
+	{
+		fixture.leading_at_end = true
+	}
+	if (same_pos(b.pos, ROAD_END))
+	{
+		fixture.following_at_end = true
+	}
+	if (fixture.saw_same_tile && fixture.leading_at_end && fixture.following_at_end)
+	{
+		print("RUNTIME CASE " + case_name + ": both convoys reached " + pos_text(ROAD_END)
+			+ "; following gap held on a shared tile")
+		pass()
+	}
+}
+
+
+function setup_single_run(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, ROAD_END, road, true), "build the straight road"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ROAD_END), "build the terminal at the road end"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, MID_STOP), "build the mid-road stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	local cnv = make_convoy(pl, desc, [make_entry(ROAD_END, 71, 0), make_entry(MID_STOP, 72, 0)], "single-run")
+	if (cnv == null)
+	{
+		return false
+	}
+	fixture.convoys = [cnv]
+	if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start the single-run convoy"))
+	{
+		return false
+	}
+	return true
+}
+
+
+function observe_single_run()
+{
+	local cnv = fixture.convoys[0]
+	local slot = front_slot(cnv)
+	if (slot == null)
+	{
+		return
+	}
+	if ((fixture.observations % 100) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": convoy at " + pos_text(slot.pos) + " steps " + slot.steps
+			+ " speed " + cnv.get_speed() + " state " + cnv.get_state())
+	}
+	if (same_pos(slot.pos, ROAD_END))
+	{
+		print("RUNTIME CASE " + case_name + ": convoy reached " + pos_text(ROAD_END))
+		pass()
+	}
+}
+
+
+function setup_moving_gap(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, GAP_ROAD_END, road, true), "build the moving-gap road"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, GAP_ROAD_END), "build the terminal at the moving-gap road end"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, GAP_MID_STOP), "build the moving-gap mid stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local descs = slowest_and_fastest_descriptors()
+	if (!check(descs != null, "no road vehicle descriptor is available"))
+	{
+		return false
+	}
+	local slow = descs[0]
+	local fast = descs[1]
+	if (!check(fast.get_topspeed() > slow.get_topspeed(),
+		"the fastest road vehicle (" + fast.get_topspeed() + " km/h) is not faster than the slowest ("
+		+ slow.get_topspeed() + " km/h)"))
+	{
+		return false
+	}
+	local leader = make_convoy(pl, slow, [make_entry(GAP_ROAD_END, 81, 0), make_entry(GAP_MID_STOP, 82, 0)], "slow leader")
+	local follower = make_convoy(pl, fast, [make_entry(GAP_ROAD_END, 83, 0), make_entry(GAP_MID_STOP, 84, 0)], "fast follower")
+	if (leader == null || follower == null)
+	{
+		return false
+	}
+	fixture.convoys = [leader, follower]
+	if (!check_tool(fixture.depot.start_convoy(pl, leader), "start the slow leader"))
+	{
+		return false
+	}
+	fixture.started = [true, false]
+	return true
+}
+
+
+function observe_moving_gap()
+{
+	local leader = fixture.convoys[0]
+	local follower = fixture.convoys[1]
+	local a = front_slot(leader)
+	local b = front_slot(follower)
+	if (a == null || b == null)
+	{
+		return
+	}
+	if (!fixture.second_started)
+	{
+		// Give the leader a head start, then start the fast follower so that it
+		// catches the leader near the end of the route, where overtaking is
+		// refused.
+		if (a.pos.x >= 4 && leader.get_speed() > 0)
+		{
+			fixture.second_started = true
+			if (!check_tool(fixture.depot.start_convoy(player_x(0), follower), "start the fast follower"))
+			{
+				return
+			}
+			print("RUNTIME CASE " + case_name + ": leader at " + pos_text(a.pos) + " speed "
+				+ leader.get_speed() + "; starting the fast follower")
+		}
+		return
+	}
+	if (!check_no_overlap(leader, follower))
+	{
+		return
+	}
+	if (same_pos(a.pos, b.pos) && !leader.is_in_depot() && !follower.is_in_depot()
+		&& leader.get_speed() > 0 && follower.get_speed() > 0
+		&& b.steps <= a.steps && a.steps > 0)
+	{
+		local gap = a.steps - length_steps(a) - b.steps;
+		local kmh = follower.get_speed();
+		if (kmh >= 25)
+		{
+			local required = moving_gap_steps(kmh);
+			// The leader moves on between its entry check and this observation,
+			// so allow a small tolerance. The earlier 1000x scaling error gave
+			// a gap of a few steps at every speed.
+			if (!check(gap >= required - 8,
+				"moving follower at " + kmh + " km/h kept " + gap + " steps behind the leader's rear on "
+				+ pos_text(a.pos) + ", below the reaction bound of " + required + " steps"))
+			{
+				return
+			}
+			if (!fixture.saw_moving_pair || gap < fixture.min_gap_seen)
+			{
+				fixture.min_gap_seen = gap;
+				fixture.min_gap_speed = kmh;
+			}
+			fixture.saw_moving_pair = true;
+		}
+	}
+	if ((fixture.observations % 100) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": leader at " + pos_text(a.pos) + " steps " + a.steps
+			+ " speed " + leader.get_speed() + "; follower at " + pos_text(b.pos) + " steps " + b.steps
+			+ " speed " + follower.get_speed())
+	}
+	if (same_pos(a.pos, GAP_ROAD_END))
+	{
+		fixture.leading_at_end = true;
+	}
+	if (same_pos(b.pos, GAP_ROAD_END))
+	{
+		fixture.following_at_end = true;
+	}
+	if (fixture.saw_moving_pair && fixture.leading_at_end && fixture.following_at_end)
+	{
+		print("RUNTIME CASE " + case_name + ": both convoys reached " + pos_text(GAP_ROAD_END)
+			+ "; smallest moving gap " + fixture.min_gap_seen + " steps at " + fixture.min_gap_speed + " km/h")
+		pass()
+	}
+}
+
+
+function setup_through_pass(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, ROAD_END, road, true), "build the straight road"))
+	{
+		return false
+	}
+	if (!check(build_any_stop(pl, STOP_POS), "build the through stop"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ROAD_END), "build the terminal at the road end"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// The stopping vehicle waits for a full load, which never arrives on the
+	// empty fixture map, so it holds the stop for the observation window. The
+	// passing vehicle runs through the stop tile to the terminal.
+	local stopping = make_convoy(pl, desc, [make_entry(STOP_POS, 21, 100), make_entry(MID_STOP, 22, 0)], "stopping")
+	local passing = make_convoy(pl, desc, [make_entry(ROAD_END, 23, 0), make_entry(MID_STOP, 24, 0)], "passing")
+	if (stopping == null || passing == null)
+	{
+		return false
+	}
+	fixture.convoys = [stopping, passing]
+	if (!check_tool(fixture.depot.start_convoy(pl, stopping), "start the stopping convoy"))
+	{
+		return false
+	}
+	fixture.started = [true, false]
+	return true
+}
+
+
+function observe_through_pass()
+{
+	local stopping = fixture.convoys[0]
+	local passing = fixture.convoys[1]
+	local a = front_slot(stopping)
+	local b = front_slot(passing)
+	if (a == null || b == null)
+	{
+		return
+	}
+	if (!fixture.second_started)
+	{
+		// Wait until the stopping vehicle is loading at the stop before
+		// starting the passing vehicle.
+		if (same_pos(a.pos, STOP_POS) && stopping.is_loading())
+		{
+			fixture.second_started = true
+			if (!check_tool(fixture.depot.start_convoy(player_x(0), passing), "start the passing convoy"))
+			{
+				return
+			}
+			print("RUNTIME CASE " + case_name + ": stopping convoy is loading at " + pos_text(STOP_POS)
+				+ "; starting the passing convoy")
+		}
+		return
+	}
+	if ((fixture.observations % 100) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": passing convoy at " + pos_text(b.pos) + " steps " + b.steps
+			+ " state " + passing.get_state() + "; stopping convoy at " + pos_text(a.pos) + " steps " + a.steps
+			+ " state " + stopping.get_state())
+	}
+	if (same_pos(a.pos, STOP_POS) && same_pos(b.pos, STOP_POS) && !same_pos(b.pos, DEPOT_POS))
+	{
+		fixture.saw_same_tile = true
+	}
+	if (fixture.saw_same_tile && !same_pos(b.pos, STOP_POS))
+	{
+		print("RUNTIME CASE " + case_name + ": passing convoy crossed the stop tile while the stopping convoy loaded")
+		pass()
+	}
+}
+
+
+function setup_overtake(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, LONG_ROAD_END, road, true), "build the overtake road"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, LONG_ROAD_END), "build the terminal at the overtake road end"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, LONG_MID_STOP), "build the overtake mid stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local descs = slowest_and_fastest_descriptors()
+	if (!check(descs != null, "no road vehicle descriptor is available"))
+	{
+		return false
+	}
+	local slow = descs[0]
+	local fast = descs[1]
+	if (!check(fast.get_topspeed() > slow.get_topspeed(),
+		"the fastest road vehicle (" + fast.get_topspeed() + " km/h) is not faster than the slowest ("
+		+ slow.get_topspeed() + " km/h)"))
+	{
+		return false
+	}
+	local slow_cnv = make_convoy(pl, slow, [make_entry(LONG_ROAD_END, 91, 0), make_entry(LONG_MID_STOP, 92, 0)], "slow vehicle")
+	local fast_cnv = make_convoy(pl, fast, [make_entry(LONG_ROAD_END, 93, 0), make_entry(LONG_MID_STOP, 94, 0)], "fast vehicle")
+	if (slow_cnv == null || fast_cnv == null)
+	{
+		return false
+	}
+	fixture.convoys = [slow_cnv, fast_cnv]
+	if (!check_tool(fixture.depot.start_convoy(pl, slow_cnv), "start the slow vehicle"))
+	{
+		return false
+	}
+	fixture.started = [true, false]
+	return true
+}
+
+
+function observe_overtake()
+{
+	local slow_cnv = fixture.convoys[0]
+	local fast_cnv = fixture.convoys[1]
+	local a = front_slot(slow_cnv)
+	local b = front_slot(fast_cnv)
+	if (a == null || b == null)
+	{
+		return
+	}
+	if (!fixture.second_started)
+	{
+		if (a.pos.x >= 4 && slow_cnv.get_speed() > 0)
+		{
+			fixture.second_started = true
+			if (!check_tool(fixture.depot.start_convoy(player_x(0), fast_cnv), "start the fast vehicle"))
+			{
+				return
+			}
+			print("RUNTIME CASE " + case_name + ": slow vehicle at " + pos_text(a.pos)
+				+ "; starting the fast vehicle")
+		}
+		return
+	}
+	if (fixture.slow_arrival < 0 && same_pos(a.pos, LONG_ROAD_END))
+	{
+		fixture.slow_arrival = fixture.observations;
+		print("RUNTIME CASE " + case_name + ": slow vehicle reached " + pos_text(LONG_ROAD_END)
+			+ " at observation " + fixture.slow_arrival)
+	}
+	if (fixture.fast_arrival < 0 && same_pos(b.pos, LONG_ROAD_END))
+	{
+		fixture.fast_arrival = fixture.observations;
+		print("RUNTIME CASE " + case_name + ": fast vehicle reached " + pos_text(LONG_ROAD_END)
+			+ " at observation " + fixture.fast_arrival)
+	}
+	if (fixture.slow_arrival >= 0 && fixture.fast_arrival >= 0)
+	{
+		if (!check(fixture.fast_arrival < fixture.slow_arrival,
+			"the fast vehicle reached the destination after the slow vehicle (fast " + fixture.fast_arrival
+			+ ", slow " + fixture.slow_arrival + "), so it did not overtake"))
+		{
+			return
+		}
+		print("RUNTIME CASE " + case_name + ": fast vehicle overtook the slow vehicle and arrived first")
+		pass()
+	}
+}
+
+
+function setup_junction(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, JUNCTION_DEPOT_POS, JUNCTION_TRUNK_END, road, true), "build the east-west trunk"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, JUNCTION_POS, JUNCTION_BRANCH_END, road, true), "build the north branch"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, JUNCTION_TRUNK_END), "build the trunk-end terminal"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, JUNCTION_SECOND_STOP), "build the second stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, JUNCTION_DEPOT_POS, depot_desc_for(wt_road)), "build the west depot"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, JUNCTION_BRANCH_END, depot_desc_for(wt_road)), "build the north depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(JUNCTION_DEPOT_POS.x, JUNCTION_DEPOT_POS.y, JUNCTION_DEPOT_POS.z)
+	fixture.second_depot = depot_x(JUNCTION_BRANCH_END.x, JUNCTION_BRANCH_END.y, JUNCTION_BRANCH_END.z)
+	if (!check(fixture.depot != null && fixture.second_depot != null, "a junction depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	local from_west = make_convoy_at(fixture.depot, pl, desc,
+		[make_entry(JUNCTION_TRUNK_END, 101, 0), make_entry(JUNCTION_SECOND_STOP, 102, 0)], "west convoy")
+	local from_north = make_convoy_at(fixture.second_depot, pl, desc,
+		[make_entry(JUNCTION_TRUNK_END, 103, 0), make_entry(JUNCTION_SECOND_STOP, 104, 0)], "north convoy")
+	if (from_west == null || from_north == null)
+	{
+		return false
+	}
+	fixture.convoys = [from_west, from_north]
+	if (!check_tool(fixture.depot.start_convoy(pl, from_west), "start the west convoy"))
+	{
+		return false
+	}
+	if (!check_tool(fixture.second_depot.start_convoy(pl, from_north), "start the north convoy"))
+	{
+		return false
+	}
+	fixture.started = [true, true]
+	return true
+}
+
+
+function observe_junction()
+{
+	local west = fixture.convoys[0]
+	local north = fixture.convoys[1]
+	local a = front_slot(west)
+	local b = front_slot(north)
+	if (a == null || b == null)
+	{
+		return
+	}
+	if ((fixture.observations % 100) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": west convoy at " + pos_text(a.pos) + " state " + west.get_state()
+			+ "; north convoy at " + pos_text(b.pos) + " state " + north.get_state())
+	}
+	if (same_pos(a.pos, JUNCTION_TRUNK_END))
+	{
+		fixture.leading_at_end = true;
+	}
+	if (same_pos(b.pos, JUNCTION_TRUNK_END))
+	{
+		fixture.following_at_end = true;
+	}
+	if (fixture.leading_at_end && fixture.following_at_end)
+	{
+		print("RUNTIME CASE " + case_name + ": both convoys passed the junction and reached "
+			+ pos_text(JUNCTION_TRUNK_END))
+		pass()
+	}
+}
+
+
+function setup_terminal(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, TERMINAL_ROAD_END, road, true), "build the terminal road"))
+	{
+		return false
+	}
+	// Only a terminal (a road stop building with four layouts) can be built on
+	// the single-direction dead end, so a successful build identifies one.
+	if (!check(build_terminal(pl, TERMINAL_ROAD_END), "build the terminal on the dead end"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, STOP_POS), "build the second stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	for (local i = 0; i < 5; i++)
+	{
+		local cnv = make_convoy(pl, desc, [make_entry(TERMINAL_ROAD_END, 31 + i, 100), make_entry(STOP_POS, 41 + i, 0)], "terminal convoy " + (i + 1))
+		if (cnv == null)
+		{
+			return false
+		}
+		fixture.convoys.append(cnv)
+	}
+	foreach (cnv in fixture.convoys)
+	{
+		if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start a terminal convoy"))
+		{
+			return false
+		}
+		fixture.started.append(true)
+	}
+	return true
+}
+
+
+function observe_terminal()
+{
+	local on_tile = 0
+	foreach (cnv in fixture.convoys)
+	{
+		local slot = front_slot(cnv)
+		if (slot != null && same_pos(slot.pos, TERMINAL_ROAD_END))
+		{
+			on_tile++
+			if (!(cnv.id in fixture.arrived_at_terminal))
+			{
+				fixture.arrived_at_terminal[cnv.id] <- true
+			}
+		}
+	}
+	if (on_tile > fixture.max_on_stop_tile)
+	{
+		fixture.max_on_stop_tile = on_tile
+	}
+	if (!check(on_tile <= 4, on_tile + " convoys are on the terminal tile, but a terminal has four stands"))
+	{
+		return
+	}
+	// Four stands must all be usable: four convoys reach the terminal, and the
+	// fifth waits off the tile.
+	local count = 0
+	foreach (id, seen in fixture.arrived_at_terminal)
+	{
+		count++
+	}
+	if (count >= 4 && on_tile == 4)
+	{
+		print("RUNTIME CASE " + case_name + ": four convoys are on the terminal tile; the fifth waits; maximum seen "
+			+ fixture.max_on_stop_tile)
+		pass()
+	}
+}
+
+
+function setup_stop_release(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, ROAD_END, road, true), "build the straight road"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, STOP_POS), "build the through stop"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ROAD_END), "build the terminal at the road end"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// The holder waits for a full load and departs when its maximum wait
+	// expires. The second vehicle is started only after the holder has left,
+	// so that its route to the stop finds the released stand.
+	local holder = make_convoy(pl, desc,
+		[make_entry_wait(STOP_POS, 111, 100, 8), make_entry(ROAD_END, 112, 0)], "stand holder")
+	local second = make_convoy(pl, desc,
+		[make_entry(STOP_POS, 113, 100), make_entry(ROAD_END, 114, 0)], "second vehicle")
+	if (holder == null || second == null)
+	{
+		return false
+	}
+	fixture.convoys = [holder, second]
+	if (!check_tool(fixture.depot.start_convoy(pl, holder), "start the stand holder"))
+	{
+		return false
+	}
+	fixture.started = [true, false]
+	return true
+}
+
+
+function observe_stop_release()
+{
+	local holder = fixture.convoys[0]
+	local second = fixture.convoys[1]
+	local a = front_slot(holder)
+	local b = front_slot(second)
+	if (a == null || b == null)
+	{
+		return
+	}
+	if (!fixture.holder_seen)
+	{
+		if (same_pos(a.pos, STOP_POS) && holder.is_loading() && a.stand_mask != 0)
+		{
+			fixture.holder_seen = true
+			print("RUNTIME CASE " + case_name + ": holder is loading at the stand at " + pos_text(STOP_POS)
+				+ " (stand mask " + a.stand_mask + ")")
+		}
+		return
+	}
+	if (!fixture.holder_cleared)
+	{
+		// The holder must have left the stop tile itself: while it is still on
+		// the tile its stand reservation has not yet been released.
+		if (!same_pos(a.pos, STOP_POS) && !holder.is_loading())
+		{
+			fixture.holder_cleared = true
+			if (!check_tool(fixture.depot.start_convoy(player_x(0), second), "start the second vehicle after the stand was released"))
+			{
+				return
+			}
+			print("RUNTIME CASE " + case_name + ": holder left the stop; starting the second vehicle")
+		}
+		return
+	}
+	if (same_pos(b.pos, STOP_POS) && second.is_loading() && b.stand_mask != 0)
+	{
+		print("RUNTIME CASE " + case_name + ": second vehicle is loading at the released stand at "
+			+ pos_text(STOP_POS) + " (stand mask " + b.stand_mask + ")")
+		pass()
+	}
+}
+
+
+function setup_terminal_turnover(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, TERMINAL_ROAD_END, road, true), "build the terminal road"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, TERMINAL_ROAD_END), "build the terminal on the dead end"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, STOP_POS), "build the second stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	for (local i = 0; i < 5; i++)
+	{
+		local cnv = make_convoy(pl, desc,
+			[make_entry_wait(TERMINAL_ROAD_END, 121 + i, 100, 10), make_entry(STOP_POS, 131 + i, 0)], "terminal convoy " + (i + 1))
+		if (cnv == null)
+		{
+			return false
+		}
+		fixture.convoys.append(cnv)
+	}
+	// Start the first four; the fifth waits in the depot until a stand is
+	// released.
+	for (local i = 0; i < 4; i++)
+	{
+		if (!check_tool(fixture.depot.start_convoy(pl, fixture.convoys[i]), "start terminal convoy " + (i + 1)))
+		{
+			return false
+		}
+		fixture.started.append(true)
+	}
+	fixture.started.append(false)
+	return true
+}
+
+
+function observe_terminal_turnover()
+{
+	local stood = 0
+	local on_tile = 0
+	for (local i = 0; i < fixture.convoys.len(); i++)
+	{
+		local slot = front_slot(fixture.convoys[i])
+		if (slot != null && same_pos(slot.pos, TERMINAL_ROAD_END))
+		{
+			on_tile++
+			if (slot.stand_mask != 0)
+			{
+				stood++
+				if (!(fixture.convoys[i].id in fixture.distinct_on_terminal))
+				{
+					fixture.distinct_on_terminal[fixture.convoys[i].id] <- true
+				}
+			}
+		}
+	}
+	if (stood > fixture.max_on_stop_tile)
+	{
+		fixture.max_on_stop_tile = stood
+	}
+	if ((fixture.observations % 200) == 0)
+	{
+		local text = "RUNTIME CASE " + case_name + ": on tile " + on_tile + ", stood " + stood + ":"
+		for (local i = 0; i < fixture.convoys.len(); i++)
+		{
+			local s = front_slot(fixture.convoys[i])
+			if (s != null)
+			{
+				text = text + " [" + i + " " + pos_text(s.pos) + " state " + fixture.convoys[i].get_state()
+					+ " mask " + s.stand_mask + " speed " + fixture.convoys[i].get_speed() + "]"
+			}
+		}
+		print(text)
+	}
+	if (!check(stood <= 4, stood + " convoys hold stands on the terminal tile, but a terminal has four stands"))
+	{
+		return
+	}
+	if (!fixture.four_seen)
+	{
+		if (stood == 4)
+		{
+			fixture.four_seen = true
+			print("RUNTIME CASE " + case_name + ": four convoys hold the four terminal stands")
+		}
+		return
+	}
+	if (!fixture.fifth_started)
+	{
+		// Wait until a stand is free, then start the fifth convoy. A vehicle
+		// may be on the terminal tile in the travel lane without holding a
+		// stand, so the count that matters is the stood count.
+		if (stood < 4)
+		{
+			fixture.fifth_started = true
+			if (!check_tool(fixture.depot.start_convoy(player_x(0), fixture.convoys[4]), "start the fifth terminal convoy after a stand was released"))
+			{
+				return
+			}
+			print("RUNTIME CASE " + case_name + ": a stand was released; starting the fifth convoy ("
+				+ on_tile + " vehicles on the tile, " + stood + " at stands)")
+		}
+		return
+	}
+	local fifth = fixture.convoys[4]
+	local slot = front_slot(fifth)
+	if (slot != null && same_pos(slot.pos, TERMINAL_ROAD_END) && fifth.is_loading() && slot.stand_mask != 0)
+	{
+		local count = 0
+		foreach (id, seen in fixture.distinct_on_terminal)
+		{
+			count++
+		}
+		print("RUNTIME CASE " + case_name + ": the fifth convoy took the released stand; "
+			+ count + " distinct convoys used the terminal stands, at most " + fixture.max_on_stop_tile + " at once")
+		pass()
+	}
+}
+
+
+function setup_save_reload_stand(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, ROAD_END, road, true), "build the straight road"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, STOP_POS), "build the through stop"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ROAD_END), "build the terminal at the road end"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// The vehicle waits for a full load with a long maximum wait, so that the
+	// join's save and reload happen while it still holds the stand. It departs
+	// naturally after the reload and runs to the terminal.
+	local holder = make_convoy(pl, desc,
+		[make_entry_wait(STOP_POS, 141, 100, 12), make_entry(ROAD_END, 142, 0)], "reload holder")
+	if (holder == null)
+	{
+		return false
+	}
+	fixture.convoys = [holder]
+	if (!check_tool(fixture.depot.start_convoy(pl, holder), "start the reload holder"))
+	{
+		return false
+	}
+	return true
+}
+
+
+function observe_save_reload_stand()
+{
+	local cnv = fixture.convoys[0]
+	local slot = front_slot(cnv)
+	if (slot == null)
+	{
+		return
+	}
+	if (fixture.phase == "ready")
+	{
+		// Wait for resume_game() to restore the state.
+		return
+	}
+	if (fixture.phase == "restored")
+	{
+		if (same_pos(slot.pos, ROAD_END))
+		{
+			print("RUNTIME CASE " + case_name + ": restored vehicle reached " + pos_text(ROAD_END))
+			pass()
+		}
+		return
+	}
+	if (same_pos(slot.pos, STOP_POS) && cnv.is_loading() && slot.stand_mask != 0)
+	{
+		persistent.reload <- { kind = case_name, convoy_id = cnv.id, stand_mask = slot.stand_mask }
+		fixture.phase = "ready"
+		print("RUNTIME CASE " + case_name + " READY: vehicle " + cnv.id + " is loading at stand mask "
+			+ slot.stand_mask + " at " + pos_text(STOP_POS))
+	}
+}
+
+
+// Called by scenario_t::rdwr after a savegame has been loaded. The reload case
+// reconstructs the vehicle from the persisted id and checks that the saved
+// stand mask and pulled-over state survived the load.
+function resume_game()
+{
+	if (case_name != "save-reload-stand")
+	{
+		return
+	}
+	if (!("reload" in persistent) || typeof(persistent.reload) != "table")
+	{
+		fail("the savegame holds no persisted reload state; it must be saved while the vehicle holds the stand")
+		return
+	}
+	local state = persistent.reload
+	delete persistent.reload
+
+	fixture.setup_started = true
+	fixture.phase = "restored"
+	local cnv = convoy_x(state.convoy_id)
+	if (!check(cnv.is_valid(), "the convoy " + state.convoy_id + " named by the persisted state is not in the loaded world"))
+	{
+		return
+	}
+	fixture.convoys = [cnv]
+	local slot = front_slot(cnv)
+	if (!check(slot != null && same_pos(slot.pos, STOP_POS), "the restored vehicle is not at the stop " + pos_text(STOP_POS)))
+	{
+		return
+	}
+	if (!check(slot.stand_mask == state.stand_mask,
+		"the restored stand mask " + slot.stand_mask + " differs from the saved mask " + state.stand_mask))
+	{
+		return
+	}
+	if (!check(slot.pulled_over, "the restored vehicle holds a stand but is not pulled over"))
+	{
+		return
+	}
+	print("RUNTIME CASE " + case_name + " RESTORED: vehicle " + state.convoy_id + " is loading at stand mask "
+		+ slot.stand_mask + " at " + pos_text(STOP_POS))
+}
+
+
+function setup_through_pass_oncoming(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, ONCOMING_ROAD_WEST, ONCOMING_ROAD_EAST, road, true), "build the two-way road"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, ONCOMING_EAST_BRANCH, ONCOMING_EAST_TERMINAL, road, true), "build the east terminal branch"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, ONCOMING_WEST_BRANCH, ONCOMING_WEST_TERMINAL, road, true), "build the west terminal branch"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ONCOMING_EAST_TERMINAL), "build the east terminal"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ONCOMING_WEST_TERMINAL), "build the west terminal"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, ONCOMING_STOP), "build the through stop"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, ONCOMING_WEST_STOP), "build the westbound stream stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, ONCOMING_ROAD_WEST, depot_desc_for(wt_road)), "build the eastbound depot"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, ONCOMING_ROAD_EAST, depot_desc_for(wt_road)), "build the westbound depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(ONCOMING_ROAD_WEST.x, ONCOMING_ROAD_WEST.y, ONCOMING_ROAD_WEST.z)
+	fixture.second_depot = depot_x(ONCOMING_ROAD_EAST.x, ONCOMING_ROAD_EAST.y, ONCOMING_ROAD_EAST.z)
+	if (!check(fixture.depot != null && fixture.second_depot != null, "an oncoming-case depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// The holder waits for a full load, which never arrives, so it holds the
+	// through stop and stays pulled over for the whole observation window.
+	local holder = make_convoy_at(fixture.depot, pl, desc,
+		[make_entry(ONCOMING_STOP, 151, 100), make_entry(ONCOMING_EAST_TERMINAL, 152, 0)], "eastbound holder")
+	// The passer starts behind the holder and crosses the stop tile on its way
+	// to the east terminal.
+	local passer = make_convoy_at(fixture.depot, pl, desc,
+		[make_entry(ONCOMING_EAST_TERMINAL, 153, 0), make_entry(ONCOMING_WEST_STOP, 154, 0)], "eastbound passer")
+	if (holder == null || passer == null)
+	{
+		return false
+	}
+	// The westbound stream leaves the far depot, passes the through stop
+	// without stopping and stows briefly at the west stop before turning to
+	// the west terminal. Ten convoys give a platoon long enough to cover the
+	// passer's crossing of the stop tile.
+	for (local i = 0; i < ONCOMING_STREAM_CONVOYS; i++)
+	{
+		local cnv = make_convoy_at(fixture.second_depot, pl, desc,
+			[make_entry(ONCOMING_WEST_STOP, 161 + i, 0), make_entry(ONCOMING_WEST_TERMINAL, 181 + i, 0)], "westbound stream " + (i + 1))
+		if (cnv == null)
+		{
+			return false
+		}
+		fixture.stream.append(cnv)
+	}
+	fixture.convoys = [holder, passer]
+	if (!check_tool(fixture.depot.start_convoy(pl, holder), "start the eastbound holder"))
+	{
+		return false
+	}
+	fixture.started = [true, false]
+	return true
+}
+
+
+function observe_through_pass_oncoming()
+{
+	local holder = fixture.convoys[0]
+	local passer = fixture.convoys[1]
+	local a = front_slot(holder)
+	local b = front_slot(passer)
+	if (a == null || b == null)
+	{
+		return
+	}
+	if (!fixture.holder_ready)
+	{
+		if (same_pos(a.pos, ONCOMING_STOP) && holder.is_loading() && a.pulled_over)
+		{
+			fixture.holder_ready = true
+			print("RUNTIME CASE " + case_name + ": holder is loading, pulled over at " + pos_text(ONCOMING_STOP))
+		}
+		return
+	}
+	if (!fixture.stream_started)
+	{
+		fixture.stream_started = true
+		foreach (cnv in fixture.stream)
+		{
+			if (!check_tool(fixture.second_depot.start_convoy(player_x(0), cnv), "start a westbound stream convoy"))
+			{
+				return
+			}
+		}
+		print("RUNTIME CASE " + case_name + ": westbound stream started (" + fixture.stream.len() + " convoys)")
+		return
+	}
+	if (!fixture.passer_started)
+	{
+		// Start the passer when the leading westbound convoy is about to
+		// reach the stop, so that the platoon covers the stop while the
+		// passer crosses it. The stream travels west, so the leading convoy
+		// has the smallest x among the moving convoys that have left the
+		// depot.
+		local lead_x = -1
+		foreach (cnv in fixture.stream)
+		{
+			local s = front_slot(cnv)
+			if (s != null && cnv.get_speed() > 0 && !on_depot_tile(s.pos)
+				&& (lead_x < 0 || s.pos.x < lead_x))
+			{
+				lead_x = s.pos.x
+			}
+		}
+		if (lead_x >= 0 && lead_x <= 9)
+		{
+			fixture.passer_started = true
+			if (!check_tool(fixture.depot.start_convoy(player_x(0), passer), "start the eastbound passer"))
+			{
+				return
+			}
+			print("RUNTIME CASE " + case_name + ": westbound lead reached x " + lead_x + "; starting the eastbound passer")
+		}
+		return
+	}
+	// The holder must keep the stand and the pulled-over position while the
+	// passer crosses.
+	if (same_pos(b.pos, ONCOMING_STOP) && holder.is_loading() && a.pulled_over)
+	{
+		fixture.holder_held = true
+	}
+	local oncoming_here = 0
+	foreach (cnv in fixture.stream)
+	{
+		local s = front_slot(cnv)
+		if (s != null && same_pos(s.pos, ONCOMING_STOP))
+		{
+			if (!(cnv.id in fixture.distinct_oncoming))
+			{
+				fixture.distinct_oncoming[cnv.id] <- true
+			}
+			oncoming_here++
+		}
+	}
+	if (same_pos(b.pos, ONCOMING_STOP))
+	{
+		if (b.overtaking)
+		{
+			fail("the eastbound passer moved into the opposite carriageway (overtaking) on the stop tile")
+			return
+		}
+		if (oncoming_here > 0)
+		{
+			fixture.cross_seen = true
+			if ((fixture.observations % 100) == 0 || !fixture.saw_same_tile)
+			{
+				print("RUNTIME CASE " + case_name + ": passer on the stop tile with " + oncoming_here
+					+ " westbound convoy(s) oncoming; passer overtaking false")
+			}
+			fixture.saw_same_tile = true
+		}
+	}
+	if ((fixture.observations % 200) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": passer at " + pos_text(b.pos) + " state " + passer.get_state()
+			+ " overtaking " + b.overtaking + "; oncoming at the stop " + oncoming_here
+			+ "; distinct oncoming seen " + fixture.distinct_oncoming.len())
+	}
+	if (same_pos(b.pos, ONCOMING_EAST_TERMINAL))
+	{
+		fixture.following_at_end = true
+	}
+	if (fixture.following_at_end)
+	{
+		local distinct = fixture.distinct_oncoming.len()
+		if (!check(fixture.cross_seen, "the passer reached the terminal without sharing the stop tile with a westbound convoy"))
+		{
+			return
+		}
+		if (!check(fixture.holder_held, "the holder was not loading and pulled over while the passer crossed the stop"))
+		{
+			return
+		}
+		if (!check(distinct >= 3, "only " + distinct + " distinct westbound convoys were seen at the stop, so the stream was not continuous"))
+		{
+			return
+		}
+		print("RUNTIME CASE " + case_name + ": passer crossed the stop with oncoming traffic; "
+			+ distinct + " distinct westbound convoys used the stop tile")
+		pass()
+	}
+}
+
+
+function setup()
+{
+	local pl = player_x(0)
+	if (case_name == "queue")
+	{
+		return setup_queue(pl)
+	}
+	if (case_name == "single-run")
+	{
+		return setup_single_run(pl)
+	}
+	if (case_name == "moving-gap")
+	{
+		return setup_moving_gap(pl)
+	}
+	if (case_name == "overtake")
+	{
+		return setup_overtake(pl)
+	}
+	if (case_name == "junction")
+	{
+		return setup_junction(pl)
+	}
+	if (case_name == "stop-release")
+	{
+		return setup_stop_release(pl)
+	}
+	if (case_name == "terminal-turnover")
+	{
+		return setup_terminal_turnover(pl)
+	}
+	if (case_name == "save-reload-stand")
+	{
+		return setup_save_reload_stand(pl)
+	}
+	if (case_name == "through-pass")
+	{
+		return setup_through_pass(pl)
+	}
+	if (case_name == "through-pass-oncoming")
+	{
+		return setup_through_pass_oncoming(pl)
+	}
+	if (case_name == "terminal-stands")
+	{
+		return setup_terminal(pl)
+	}
+	return fail("unknown road runtime case: " + case_name)
+}
+
+
+function observe()
+{
+	++fixture.observations
+	if (fixture.observations > 20000)
+	{
+		fail("timed out after " + fixture.observations + " observations in phase " + fixture.phase)
+		return
+	}
+	if (case_name == "queue")
+	{
+		observe_queue()
+	}
+	else if (case_name == "single-run")
+	{
+		observe_single_run()
+	}
+	else if (case_name == "moving-gap")
+	{
+		observe_moving_gap()
+	}
+	else if (case_name == "overtake")
+	{
+		observe_overtake()
+	}
+	else if (case_name == "junction")
+	{
+		observe_junction()
+	}
+	else if (case_name == "stop-release")
+	{
+		observe_stop_release()
+	}
+	else if (case_name == "terminal-turnover")
+	{
+		observe_terminal_turnover()
+	}
+	else if (case_name == "save-reload-stand")
+	{
+		observe_save_reload_stand()
+	}
+	else if (case_name == "through-pass")
+	{
+		observe_through_pass()
+	}
+	else if (case_name == "through-pass-oncoming")
+	{
+		observe_through_pass_oncoming()
+	}
+	else if (case_name == "terminal-stands")
+	{
+		observe_terminal()
+	}
+}
+
+
+function get_goal_text(pl)
+{
+	return ttext("Run the selected road-vehicle operations runtime case and assert its end state.")
+}
+
+
+function get_info_text(pl)
+{
+	local msg = ttext("Road vehicle operations runtime case {name}: {phase}")
+	msg.name = case_name
+	msg.phase = fixture.phase
+	return msg
+}
+
+
+function get_result_text(pl)
+{
+	return get_info_text(pl)
+}
+
+
+function is_scenario_completed(pl)
+{
+	if (pl != 0)
+	{
+		return 0
+	}
+	++heartbeat_steps
+	if ((heartbeat_steps % 200) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": heartbeat step " + heartbeat_steps)
+	}
+	if (!fixture.setup_started)
+	{
+		fixture.setup_started = true
+		local ok = false
+		try {
+			ok = setup()
+		}
+		catch (e) {
+			fail("setup raised an error: " + e)
+			return -1
+		}
+		if (!ok)
+		{
+			return -1
+		}
+		fixture.phase = "observing"
+		print("RUNTIME CASE " + case_name + ": setup complete")
+		return 0
+	}
+	if (fixture.phase == "failed")
+	{
+		return -1
+	}
+	if (fixture.phase == "done")
+	{
+		return 100
+	}
+	try {
+		observe()
+	}
+	catch (e) {
+		fail("observation raised an error: " + e)
+		return -1
+	}
+	if (fixture.phase == "done")
+	{
+		return 100
+	}
+	if (fixture.phase == "failed")
+	{
+		return -1
+	}
+	return 0
+}

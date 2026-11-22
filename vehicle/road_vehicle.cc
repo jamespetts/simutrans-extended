@@ -25,14 +25,212 @@
 #include "../utils/cbuffer_t.h"
 
 
+namespace road_space
+{
+
+/**
+ * Standstill separation between two stopped road vehicles, in millimetres.
+ * One metre is the separation the Highway Code asks a driver to leave when
+ * stopping behind another vehicle, so that the vehicle in front can be seen
+ * and passed if necessary (rule 246, "leave a safe distance").
+ */
+static const sint32 STANDSTILL_GAP_MM = 1000;
+
+/**
+ * Perception and reaction time used for a following vehicle when the vehicle
+ * ahead is moving, in milliseconds. The two-second rule is the separation a
+ * driver should keep at speed; only the perception and reaction part of it is
+ * needed inside a moving queue, because the vehicle ahead can be seen
+ * braking. 1.5 s is the usual perception and reaction time allowed in road
+ * design (the value used for stopping sight distance in the Design Manual for
+ * Roads and Bridges).
+ */
+static const sint32 REACTION_TIME_MS = 1500;
+
+/**
+ * Reaction distance of a follower travelling at @p speed, in millimetres.
+ * The speed is in km/h, so the distance covered in REACTION_TIME_MS is
+ * speed * 1000 m/km / 3600 s/hour * REACTION_TIME_MS ms / 1000 ms/s metres
+ * = speed * REACTION_TIME_MS * 1000 / 3600 millimetres.
+ * A follower at 50 km/h with a 1.5 s reaction time therefore keeps about
+ * 20.8 m, not 20.8 mm.
+ */
+constexpr sint64 reaction_gap_mm(const sint32 speed)
+{
+	return ((sint64)speed_to_kmh(speed) * REACTION_TIME_MS * 1000) / 3600;
+}
+
+// Compile-time guard on the unit conversion: a moving follower at 50 km/h
+// must keep a reaction distance of about 21 m.
+static_assert(reaction_gap_mm(kmh_to_speed(50)) >= 20000, "reaction distance at 50 km/h is below 20 m");
+static_assert(reaction_gap_mm(kmh_to_speed(50)) <= 21000, "reaction distance at 50 km/h is above 21 m");
+
+bool allows_queueing(const grund_t *gr)
+{
+	if (gr == NULL)
+	{
+		return false;
+	}
+	const strasse_t *str = dynamic_cast<const strasse_t *>(gr->get_weg(road_wt));
+	// is_straight() is true only for north-south, east-west and single
+	// direction road tiles: corners, T junctions, crossroads and diagonals
+	// are all excluded.
+	return str != NULL && !str->is_crossing() && ribi_t::is_straight(str->get_ribi_unmasked());
+}
+
+uint32 following_gap(const sint32 follower_speed, const bool leader_moving)
+{
+	sint64 gap_mm = STANDSTILL_GAP_MM;
+	if (leader_moving && follower_speed > 0)
+	{
+		gap_mm += reaction_gap_mm(follower_speed);
+	}
+	const sint64 millimetres_per_tile = (sint64)world()->get_settings().get_meters_per_tile() * 1000;
+	// Round up: a real gap must never shrink to nothing in vehicle steps.
+	return (uint32)((gap_mm * VEHICLE_STEPS_PER_TILE + millimetres_per_tile - 1) / millimetres_per_tile);
+}
+
+/// Reads the part of a road vehicle's state that the following rules need.
+/// Returns false for objects which are not road vehicles or private cars.
+static bool get_user_state(const vehicle_base_t *v, user_t &out)
+{
+	if (v->get_typ() == obj_t::pedestrian)
+	{
+		return false;
+	}
+	if (const road_vehicle_t *rv = obj_cast<road_vehicle_t>(v))
+	{
+		const convoi_t *cnv = rv->get_convoi();
+		if (cnv == NULL)
+		{
+			return false;
+		}
+		out.object = rv;
+		out.convoi = cnv;
+		out.direction = rv->get_direction();
+		out.speed = cnv->get_akt_speed();
+		out.length = cnv->get_length_in_steps();
+		out.overtaking = cnv->is_overtaking();
+		out.pulled_over = rv->is_pulled_over();
+		return true;
+	}
+	if (const private_car_t *pc = obj_cast<private_car_t>(v))
+	{
+		out.object = pc;
+		out.convoi = NULL;
+		out.direction = pc->get_direction();
+		out.speed = pc->get_current_speed();
+		out.length = pc->get_length_in_steps();
+		out.overtaking = pc->is_overtaking();
+		out.pulled_over = false;
+		return true;
+	}
+	return false;
+}
+
+sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps)
+{
+	if (!allows_queueing(gr))
+	{
+		return -1;
+	}
+	sint32 limit = -1;
+	for (uint8 pos = 0; pos < gr->get_top(); pos++)
+	{
+		vehicle_base_t *const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos));
+		if (v == NULL || v == self.object)
+		{
+			continue;
+		}
+		user_t other;
+		if (!get_user_state(v, other))
+		{
+			continue;
+		}
+		// Vehicles in another lateral position or travelling the other way
+		// constrain nothing: the stop stands and the opposing carriageway are
+		// separate road space.
+		if (other.direction != self.direction
+			|| other.overtaking != self.overtaking
+			|| other.pulled_over != self.pulled_over)
+		{
+			continue;
+		}
+		// The rear boundary of the vehicle ahead, in the same tile
+		// coordinates as our own front.
+		const sint32 rear = (sint32)v->get_steps() - (sint32)other.length;
+		if (rear < (sint32)steps)
+		{
+			// Entirely behind us, or already overlapping us; an overlap is
+			// not a following case and must not freeze both vehicles.
+			continue;
+		}
+		const uint32 gap = following_gap(self.speed, other.speed > 0);
+		const sint32 candidate = rear - (sint32)gap;
+		if (limit < 0 || candidate < limit)
+		{
+			limit = candidate;
+		}
+	}
+	return limit;
+}
+
+bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *leader)
+{
+	if (!allows_queueing(gr))
+	{
+		return false;
+	}
+	user_t other;
+	if (!get_user_state(leader, other)
+		|| other.direction != self.direction
+		|| other.overtaking != self.overtaking
+		|| other.pulled_over != self.pulled_over)
+	{
+		return false;
+	}
+	// The follower's front enters the tile at position 0.
+	const sint32 rear = (sint32)leader->get_steps() - (sint32)other.length;
+	return rear > (sint32)following_gap(self.speed, other.speed > 0);
+}
+
+bool is_beside_lane(const vehicle_base_t *v)
+{
+	const road_vehicle_t *rv = obj_cast<road_vehicle_t>(v);
+	return rv != NULL && rv->is_pulled_over();
+}
+
+uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance)
+{
+	const sint32 limit = following_limit(v->get_grund(), self, steps);
+	// At most one tile boundary per call, so that the limit is recomputed on
+	// the new tile before any further distance is added.
+	const sint32 tile_end = (sint32)steps_next + 1;
+	const sint32 allowed = (limit < 0 ? tile_end : min(limit, tile_end)) - (sint32)steps;
+	if (allowed <= 0)
+	{
+		return 0;
+	}
+	uint32 chunk = (uint32)allowed << YARDS_PER_VEHICLE_STEP_SHIFT;
+	if (chunk > distance)
+	{
+		chunk = distance;
+	}
+	return v->vehicle_base_t::do_drive(chunk);
+}
+
+} // namespace road_space
+
+
 uint32 road_vehicle_t::get_max_speed() { return cnv->get_min_top_speed(); }
 
 road_vehicle_t::road_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player, convoi_t* cn) :
 #ifdef INLINE_OBJ_TYPE
-    vehicle_t(obj_t::road_vehicle, pos, desc, player)
+    vehicle_t(obj_t::road_vehicle, pos, desc, player),
 #else
-    vehicle_t(pos, desc, player)
+    vehicle_t(pos, desc, player),
 #endif
+    stand_mask(0)
 {
 	cnv = cn;
 	is_checker = false;
@@ -42,10 +240,11 @@ road_vehicle_t::road_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t
 
 road_vehicle_t::road_vehicle_t() :
 #ifdef INLINE_OBJ_TYPE
-    vehicle_t(obj_t::road_vehicle)
+    vehicle_t(obj_t::road_vehicle),
 #else
-    vehicle_t()
+    vehicle_t(),
 #endif
+    stand_mask(0)
 {
 	// This is blank - just used for the automatic road finder.
 	cnv = NULL;
@@ -54,10 +253,11 @@ road_vehicle_t::road_vehicle_t() :
 
 road_vehicle_t::road_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) :
 #ifdef INLINE_OBJ_TYPE
-    vehicle_t(obj_t::road_vehicle)
+    vehicle_t(obj_t::road_vehicle),
 #else
-    vehicle_t()
+    vehicle_t(),
 #endif
+    stand_mask(0)
 {
 	rdwr_from_convoi(file);
 
@@ -290,6 +490,22 @@ void road_vehicle_t::get_screen_offset( int &xoff, int &yoff, const sint16 raste
 {
 	vehicle_base_t::get_screen_offset( xoff, yoff, raster_width );
 
+	if (is_pulled_over())
+	{
+		// Draw the vehicle beside the travel lane while it loads at its stand.
+		const uint8 lateral = get_stand_lateral_position();
+		if ((lateral & 2) != 0)
+		{
+			xoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][0], raster_width);
+			yoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][1], raster_width);
+		}
+		if ((lateral & 1) != 0)
+		{
+			add_pulled_over_offset(xoff, yoff, raster_width);
+		}
+		return;
+	}
+
 	// eventually shift position to take care of overtaking
 	if(cnv) {
 		sint8 tiles_overtaking = prev_based ? cnv->get_prev_tiles_overtaking() : cnv->get_tiles_overtaking();
@@ -372,6 +588,112 @@ bool road_vehicle_t::choose_route(sint32 &restart_speed, ribi_t::ribi start_dire
 		}
 	}
 	return true;
+}
+
+
+bool road_vehicle_t::is_pulled_over() const
+{
+	if (cnv == NULL)
+	{
+		return false;
+	}
+	// The stand is recorded on the leading vehicle; every vehicle of the
+	// convoy is drawn beside the travel lane while the convoy loads.
+	const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+	if (front == NULL || front->stand_mask == 0)
+	{
+		return false;
+	}
+	if (!(cnv->is_loading() || cnv->get_state() == convoi_t::LAYOVER))
+	{
+		return false;
+	}
+	// Stand 0 of a terminal is the normal travel position, not a pulled-over
+	// one: a vehicle there still blocks the lane.
+	return get_stand_lateral_position() != 0;
+}
+
+
+uint8 road_vehicle_t::get_stand_lateral_position() const
+{
+	if (cnv == NULL)
+	{
+		return 0;
+	}
+	const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+	if (front == NULL || front->stand_mask == 0)
+	{
+		return 0;
+	}
+	uint8 stand = 0;
+	for (uint8 s = 0; s < 4; s++)
+	{
+		if ((front->stand_mask & (1 << s)) != 0)
+		{
+			stand = s;
+			break;
+		}
+	}
+	// A terminal's four stands are its four lateral positions. A through
+	// stop's stand is a side of the road, and a vehicle loading there is
+	// pulled over in its traffic lane.
+	const grund_t *gr = welt->lookup(get_pos());
+	const halthandle_t halt = gr != NULL ? gr->get_halt() : halthandle_t();
+	if (halt.is_bound() && halt->get_stand_count(gr) >= 4)
+	{
+		return stand;
+	}
+	return 1;
+}
+
+
+void road_vehicle_t::rdwr_from_convoi(loadsave_t *file)
+{
+	vehicle_t::rdwr_from_convoi(file);
+	if (file->is_version_ex_atleast(15, 20))
+	{
+		uint8 mask = stand_mask;
+		file->rdwr_byte(mask);
+		if (file->is_loading())
+		{
+			stand_mask = mask & 0x0F;
+		}
+	}
+	else if (file->is_loading())
+	{
+		stand_mask = 0;
+	}
+}
+
+
+void road_vehicle_t::apply_following_rule(const grund_t *gr, vehicle_base_t *&blocker, sint8 lane) const
+{
+	if (blocker == NULL || !leading || cnv == NULL)
+	{
+		return;
+	}
+	// A vehicle loading at a stop stand is beside the travel lane, so it does
+	// not block a vehicle in the travel lane even though both are on the tile.
+	if (road_space::is_beside_lane(blocker))
+	{
+		blocker = NULL;
+		return;
+	}
+	road_space::user_t self;
+	self.object = this;
+	self.convoi = cnv;
+	// The direction of travel onto the target tile.
+	self.direction = ribi_type(get_pos(), gr->get_pos());
+	self.speed = cnv->get_akt_speed();
+	self.length = cnv->get_length_in_steps();
+	// next_lane is 1 when the vehicle enters the passing lane, -1 when it
+	// enters the traffic lane and 0 when the lane is unchanged.
+	self.overtaking = lane > 0 ? true : (lane < 0 ? false : cnv->is_overtaking());
+	self.pulled_over = is_pulled_over();
+	if (road_space::can_follow(gr, self, blocker))
+	{
+		blocker = NULL;
+	}
 }
 
 
@@ -483,6 +805,11 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		ribi_t::ribi next_direction   = calc_direction(get_pos(), next);
 		ribi_t::ribi next_90direction = calc_direction(pos_next, next);
 		obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, next_lane);
+
+		// On a queueing tile a vehicle ahead in the same lateral position only
+		// blocks entry when it is too close; the movement cap in do_drive()
+		// keeps the follower behind it once it is on the tile.
+		apply_following_rule(gr, obj, next_lane);
 
 		//If this convoi is overtaking, the convoi must avoid a head-on crash.
 		if(  cnv->is_overtaking()  ){
@@ -1049,11 +1376,37 @@ vehicle_base_t* road_vehicle_t::other_lane_blocked(const bool only_search_top, s
 
 uint32 road_vehicle_t::do_drive(uint32 distance)
 {
-	uint32 distance_travelled = vehicle_base_t::do_drive(distance);
-	if(leading)
+	if (!leading)
 	{
-		add_distance(distance_travelled);
+		// The other vehicles of the convoy follow the leading vehicle exactly;
+		// see convoi_t::sync_step, which drives them by the distance that the
+		// leading vehicle reported.
+		return vehicle_base_t::do_drive(distance);
 	}
+	uint32 distance_travelled = 0;
+	while (distance > 0)
+	{
+		road_space::user_t self;
+		self.object = this;
+		self.convoi = cnv;
+		self.direction = get_direction();
+		self.speed = cnv->get_akt_speed();
+		self.length = cnv->get_length_in_steps();
+		self.overtaking = cnv->is_overtaking();
+		self.pulled_over = is_pulled_over();
+		const koord3d pos_before = get_pos();
+		const uint32 travelled = road_space::drive_until_limit(this, self, steps, steps_next, distance);
+		distance_travelled += travelled;
+		distance -= travelled;
+		if (get_pos() == pos_before)
+		{
+			// Either the whole distance was travelled within the tile, or the
+			// vehicle is held at its limit. In both cases the leader must not
+			// be recomputed by adding more distance here.
+			break;
+		}
+	}
+	add_distance(distance_travelled);
 	return distance_travelled;
 }
 
@@ -1068,6 +1421,21 @@ void road_vehicle_t::enter_tile(grund_t* gr)
 	}
 	str->book(cargo, WAY_STAT_GOODS);
 	if (  leading  )  {
+		// Reserve a stop stand on arrival at the end of the route when that is
+		// a halt. Route finding only checks that a stand is free; the
+		// reservation itself is made here, on the main thread, so that the
+		// vehicle knows which lateral position to load at. The reservation is
+		// released when the convoy departs (see release_target_reservations).
+		const halthandle_t halt = gr->get_halt();
+		if (cnv != NULL && halt.is_bound() && cnv->get_route() != NULL
+			&& route_index >= cnv->get_route()->get_count() - 1) {
+			if (halt->reserve_position(gr, cnv->self)) {
+				// Remember the halt whose stand is held so that
+				// release_target_reservations() frees it on departure, as it
+				// does for a halt reserved during route finding.
+				target_halt = halt;
+			}
+		}
 		str->book(1, WAY_STAT_CONVOIS);
 		cnv->update_tiles_overtaking();
 		if(  next_lane==1  ) {

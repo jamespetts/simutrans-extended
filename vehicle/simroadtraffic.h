@@ -113,6 +113,15 @@ private:
 
 	void calc_disp_lane();
 
+	// Clears a blocker that this car may follow onto a queueing tile.
+	void apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const;
+
+public:
+	uint32 do_drive(uint32 distance) OVERRIDE;
+
+	/// Length of this car in vehicle steps.
+	uint32 get_length_in_steps() const;
+
 protected:
 	void rdwr(loadsave_t *file) OVERRIDE;
 
@@ -169,6 +178,12 @@ public:
 	/// Whether any car available in the current era is available to this
 	/// passenger wealth class. Consumes no random numbers.
 	static bool class_list_empty(uint8 g_class);
+	/// Whether any era-filtered car available to this passenger wealth class
+	/// defines a passenger capacity. A pool without capacity data keeps the
+	/// historic traffic-level car fill; a mixed pool uses per-car fill and
+	/// treats a car without capacity as carrying one passenger. Consumes no
+	/// random numbers.
+	static bool class_has_capacity(uint8 g_class);
 	/// Picks a car type for this passenger wealth class from the era-filtered
 	/// pool of cars available to that class. Null if the class has no cars.
 	static const citycar_desc_t *pick_citycar_desc(uint8 g_class);

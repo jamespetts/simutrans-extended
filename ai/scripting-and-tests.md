@@ -149,7 +149,11 @@ described in the read/write split above. The injected packet is ordinary saved h
   revenue, cost, profit, distance, tolls, line, speed, loading level, home depot, obsolete vehicles,
   withdrawal, depot state, waiting state and tile length. `get_vehicle_snapshot` returns value
   objects containing each slot's descriptor, owner, reversal, cargo quantity, capacity, `pos`,
-  `route_index`, `steps` and `steps_next`; it also carries the loose recipient (`loose_recipient_id`
+  `route_index`, `steps`, `steps_next` and `speed` (the convoy's current speed in km/h), plus the
+  road-specific `stand_mask` (the four-bit stop-stand reservation, or zero), `pulled_over`
+  (whether the road vehicle is loading at a stand beside the travel lane) and `overtaking`
+  (whether the road convoy is in the passing lane; false for other waytypes); it also carries
+  the loose recipient (`loose_recipient_id`
   and the `loose_recipient_is_convoy`, `loose_recipient_is_same` and `loose_recipient_is_any` flags),
   the earliest `ware_t::arrival_time` among the vehicle's packets and the collection credit ticks
   (`collection_loose_since`, `collection_time`). `get_vehicles` separately retains the Standard
@@ -296,6 +300,11 @@ Tests section. See [documentation-architecture](documentation-architecture.md) f
 - [consist-recombination](scripting-and-tests/consist-recombination.md) — read when running,
   extending or debugging the recombination runtime fixture (`tests/pending-runtime/`), its harnesses,
   cases or reload runners.
+- [road-vehicle-operations implementation](road-vehicle-operations/implementation.md#tests) — read
+  when running the `road-cases/` group of the pending-runtime fixture (`single-run`,
+  `moving-gap`, `overtake`, `junction`, `queue`, `stop-release`, `terminal-stands`,
+  `terminal-turnover`, `through-pass`, `through-pass-oncoming`), the `save-reload-stand` reload
+  case, or extending the road-space, stop-stand and private-car tests.
 
 ## Writing new tests
 

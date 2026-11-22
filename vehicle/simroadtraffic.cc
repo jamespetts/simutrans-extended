@@ -462,6 +462,27 @@ bool private_car_t::class_list_empty(uint8 g_class)
 }
 
 
+bool private_car_t::class_has_capacity(uint8 g_class)
+{
+	if (class_list_empty(g_class))
+	{
+		return false;
+	}
+	const weighted_vector_tpl<const citycar_desc_t*> &list = liste_timeline_by_class[g_class];
+	for (uint32 i = 0; i < list.get_count(); i++)
+	{
+		// Only an entry with a non-zero draw weight can be chosen, so only
+		// those entries describe the pool's data.
+		const uint32 weight = (i + 1 < list.get_count() ? list.weight_at(i + 1) : list.get_sum_weight()) - list.weight_at(i);
+		if (weight != 0 && list[i]->has_capacity())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
 const citycar_desc_t *private_car_t::pick_citycar_desc(uint8 g_class)
 {
 	if (class_list_empty(g_class))
@@ -752,6 +773,73 @@ void private_car_t::rdwr(loadsave_t *file)
 }
 
 
+uint32 private_car_t::get_length_in_steps() const
+{
+	return desc != NULL ? (uint32)desc->get_length() * VEHICLE_STEPS_PER_CARUNIT : VEHICLE_STEPS_PER_CARUNIT;
+}
+
+
+void private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const
+{
+	if (blocker == NULL)
+	{
+		return;
+	}
+	if (road_space::is_beside_lane(blocker))
+	{
+		blocker = NULL;
+		return;
+	}
+	road_space::user_t self;
+	self.object = this;
+	self.convoi = NULL;
+	self.direction = ribi_type(get_pos(), gr->get_pos());
+	self.speed = current_speed;
+	self.length = get_length_in_steps();
+	// next_lane is 1 when the car enters the passing lane, -1 when it enters
+	// the traffic lane and 0 when the lane is unchanged.
+	self.overtaking = next_lane > 0 ? true : (next_lane < 0 ? false : is_overtaking());
+	self.pulled_over = false;
+	if (road_space::can_follow(gr, self, blocker))
+	{
+		blocker = NULL;
+	}
+}
+
+
+uint32 private_car_t::do_drive(uint32 distance)
+{
+	uint32 distance_travelled = 0;
+	while (distance > 0)
+	{
+		road_space::user_t self;
+		self.object = this;
+		self.convoi = NULL;
+		self.direction = get_direction();
+		self.speed = current_speed;
+		self.length = get_length_in_steps();
+		self.overtaking = is_overtaking();
+		self.pulled_over = false;
+		const koord3d pos_before = get_pos();
+		const uint32 travelled = road_space::drive_until_limit(this, self, steps, steps_next, distance);
+		distance_travelled += travelled;
+		distance -= travelled;
+		if (get_pos() == pos_before)
+		{
+			break;
+		}
+	}
+	if (distance > 0)
+	{
+		// The car was held behind a leader or at a tile boundary rather than
+		// running out of distance. Do not keep the unspent distance: it would
+		// turn into a surge when the leader moves away.
+		weg_next = 0;
+	}
+	return distance_travelled;
+}
+
+
 bool private_car_t::can_enter_tile(grund_t *gr)
 {
 	if(gr->get_top()>200) {
@@ -803,6 +891,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		// turning around => single check
 		const uint8 next_direction = ribi_t::backward(this_direction);
 		dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
+		apply_following_rule(gr, dt);
 
 		// do not block railroad crossing
 		if(dt==NULL  &&  str->is_crossing()  &&  current_gr) {
@@ -849,6 +938,10 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		else {
 			// not a crossing => skip 90 degrees check!
 			dt = get_blocking_vehicle(gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
+			// On a queueing tile a car ahead in the same lateral position only
+			// blocks entry when it is too close; do_drive() keeps the follower
+			// behind it once it is on the tile.
+			apply_following_rule(gr, dt);
 			frei = true;
 		}
 		//If this car is overtaking, the car must avoid a head-on crash.
@@ -1530,7 +1623,35 @@ void private_car_t::info(cbuffer_t & buf) const
 	const char* destination_name = destination_building ? translator::translate(destination_building->get_individual_name()) : translator::translate("keine");
 	const char* destination_city_name = destination_city ? destination_city->get_name() : translator::translate("keine");
 	buf.printf(translator::translate("%s\nspeed %i\nmax_speed %i\ndx:%i dy:%i"), translator::translate(desc->get_name()), speed_to_kmh(current_speed), speed_to_kmh(desc->get_topspeed()), dx, dy);
-	buf.printf(translator::translate("\nOrigin: %s\nDestination: %s (%s)"), origin_city_name, destination_name, destination_city_name);
+
+	// The origin and destination names link to their tiles, so that the
+	// information window can jump to them. The link target is a world
+	// coordinate of the form "(x,y,z)"; see obj_infowin_t.
+	cbuffer_t origin_text;
+	const grund_t* const gr_origin = origin != koord::invalid && welt->is_within_limits(origin) ? welt->lookup_kartenboden(origin) : NULL;
+	if (gr_origin != NULL)
+	{
+		origin_text.printf("<a href=\"(%i,%i,%i)\">%s</a>", gr_origin->get_pos().x, gr_origin->get_pos().y, gr_origin->get_pos().z, origin_city_name);
+	}
+	else
+	{
+		origin_text.append(origin_city_name);
+	}
+
+	cbuffer_t destination_text;
+	koord3d destination_pos = destination_building != NULL && destination_building->get_first_tile() != NULL
+		? destination_building->get_first_tile()->get_pos()
+		: (gr_target != NULL ? gr_target->get_pos() : koord3d::invalid);
+	if (destination_pos != koord3d::invalid)
+	{
+		destination_text.printf("<a href=\"(%i,%i,%i)\">%s</a>", destination_pos.x, destination_pos.y, destination_pos.z, destination_name);
+	}
+	else
+	{
+		destination_text.append(destination_name);
+	}
+
+	buf.printf(translator::translate("\nOrigin: %s\nDestination: %s (%s)"), (const char*)origin_text, (const char*)destination_text, destination_city_name);
 
 	char comfortable_time[32];
 	char tolerable_time[32];

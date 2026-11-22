@@ -1875,6 +1875,8 @@ stadt_t::stadt_t(player_t* player, koord pos, sint32 citizens) :
 
 	outgoing_private_cars = 0;
 	incoming_private_cars = 0;
+	private_cars_month = 0;
+	incoming_private_cars_month = 0;
 
 	calc_traffic_level();
 
@@ -1910,6 +1912,8 @@ stadt_t::stadt_t(loadsave_t* file) :
 
 	incoming_private_cars = 0;
 	outgoing_private_cars = 0;
+	private_cars_month = 0;
+	incoming_private_cars_month = 0;
 
 	rdwr(file);
 
@@ -2540,6 +2544,20 @@ void stadt_t::rdwr(loadsave_t* file)
 
 		city_history_month[0][HIST_VISITOR_DEMAND] = 0;
 		city_history_year[0][HIST_VISITOR_DEMAND] = 0;
+	}
+
+	if (file->is_version_ex_atleast(15, 20))
+	{
+		// Private cars created in this city, and arriving from another city,
+		// since the last congestion calculation. These are the congestion
+		// measure of the per-car car-fill mode and therefore synced state.
+		file->rdwr_long(private_cars_month);
+		file->rdwr_long(incoming_private_cars_month);
+	}
+	else if (file->is_loading())
+	{
+		private_cars_month = 0;
+		incoming_private_cars_month = 0;
 	}
 }
 
@@ -3414,7 +3432,7 @@ void stadt_t::add_road_connexion(const uint32 (&journey_time_per_tile)[MAX_PASSE
 	}
 }
 
-void stadt_t::set_private_car_trip(int passengers, stadt_t* destination_town)
+void stadt_t::set_private_car_trip(int passengers, stadt_t* destination_town, sint32 cars)
 {
 	if(destination_town == NULL || (destination_town->get_pos().x == pos.x && destination_town->get_pos().y == pos.y))
 	{
@@ -3432,6 +3450,9 @@ void stadt_t::set_private_car_trip(int passengers, stadt_t* destination_town)
 
 		// Also add private car trips to the *destination*.
 		destination_town->set_private_car_trips(passengers);
+		// The destination's congestion measure counts the cars that arrived,
+		// not the passengers they carried.
+		destination_town->set_private_car_arrivals(cars);
 
 		// And mark the trip as outgoing for growth calculations
 		// (Now deprecated)
@@ -5122,13 +5143,13 @@ void stadt_t::reset_tiles_for_all_buildings()
 	}
 }
 
-void stadt_t::generate_private_cars(koord pos, uint32 journey_tenths_of_minutes, koord target, uint8 number_of_passengers, const citycar_desc_t *car_type)
+sint32 stadt_t::generate_private_cars(koord pos, uint32 journey_tenths_of_minutes, koord target, uint8 number_of_passengers, const citycar_desc_t *car_type, uint8 g_class)
 {
 #ifdef FORBID_SYNC_OBJECTS
-	return;
+	return 0;
 #endif
 #ifdef FORBID_PRIVATE_CARS
-	return;
+	return 0;
 #endif
 	// Account for (1) the number of passengers; and (2) the occupancy level.
 	// Draw this before the car-type check so paksets without city cars keep the
@@ -5136,13 +5157,54 @@ void stadt_t::generate_private_cars(koord pos, uint32 journey_tenths_of_minutes,
 	const uint32 round_up = simrand(2, "void stadt_t::generate_private_cars") == 1 ? 900 : 0;
 	if (car_type == NULL)
 	{
-		return;
+		return 0;
 	}
-	const sint32 number_of_trips = ((((sint32)number_of_passengers) * traffic_level) + round_up) / 1000;
 
-	koord k;
-	for(sint32 i = 0; i < number_of_trips; i++)
+	// The per-car fill mode needs capacity data in the packet's class pool. A
+	// pool with no capacity data at all keeps the historic traffic-level
+	// formula, so that loading an existing pakset does not change the traffic
+	// volume. A mixed pool uses per-car fill: a car without capacity carries
+	// one passenger.
+	const bool per_car = welt->get_settings().get_citycar_fill_mode() == 1 && private_car_t::class_has_capacity(g_class);
+
+	sint32 cars_to_create;
+	sint32 remaining = number_of_passengers;
+	if (per_car)
 	{
+		// One car carries at least one passenger, so the packet size is an
+		// upper bound on the number of cars.
+		cars_to_create = number_of_passengers;
+	}
+	else
+	{
+		cars_to_create = ((((sint32)number_of_passengers) * traffic_level) + round_up) / 1000;
+	}
+
+	sint32 created = 0;
+	koord k;
+	for (sint32 i = 0; i < cars_to_create; i++)
+	{
+		const citycar_desc_t *type = car_type;
+		if (per_car)
+		{
+			if (remaining <= 0)
+			{
+				break;
+			}
+			if (i > 0)
+			{
+				// Draw a type per car. simrand() ordering is deterministic and
+				// every peer has the same city-car descriptors.
+				type = private_car_t::pick_citycar_desc(g_class);
+				if (type == NULL)
+				{
+					type = car_type;
+				}
+			}
+			// Fill this car to its capacity, or with the passengers left when
+			// that is fewer. A car without capacity data carries one passenger.
+			remaining -= min((sint32)max(1u, (uint32)type->get_capacity()), remaining);
+		}
 		for (k.y = pos.y - 1; k.y <= pos.y + 1; k.y++)
 		{
 			for (k.x = pos.x - 1; k.x <= pos.x + 1; k.x++)
@@ -5157,7 +5219,7 @@ void stadt_t::generate_private_cars(koord pos, uint32 journey_tenths_of_minutes,
 						&& (gr->get_weg_ribi_unmasked(road_wt) == ribi_t::northsouth ||
 					       gr->get_weg_ribi_unmasked(road_wt) == ribi_t::eastwest))
 					{
-						private_car_t* vt = new private_car_t(gr, target, car_type);
+						private_car_t* vt = new private_car_t(gr, target, type);
 						const sint32 time_to_live = ((sint32)journey_tenths_of_minutes * 136584) / (sint32)welt->get_settings().get_meters_per_tile();
 						vt->set_time_to_life(time_to_live);
 						//gr->obj_add(vt);
@@ -5166,6 +5228,7 @@ void stadt_t::generate_private_cars(koord pos, uint32 journey_tenths_of_minutes,
 #else
 						welt->sync.add(vt);
 #endif
+						created++;
 						goto outer_loop;
 					}
 				}
@@ -5173,6 +5236,8 @@ void stadt_t::generate_private_cars(koord pos, uint32 journey_tenths_of_minutes,
 		}
 		outer_loop:;
 	}
+	private_cars_month += created;
+	return created;
 }
 
 
@@ -6439,6 +6504,12 @@ void stadt_t::calc_congestion()
 
 	uint16 congestion_density_factor = s.get_congestion_density_factor();
 
+	// In the per-car car-fill mode the number of passenger trips no longer
+	// determines the number of cars, so congestion is measured from the cars
+	// actually created and from the cars arriving from other cities. In the
+	// traffic-level mode the historic passenger-trip measure is kept.
+	const bool per_car = s.get_citycar_fill_mode() == 1;
+
 #ifdef MULTI_THREAD
 	int error = pthread_mutex_lock(&karte_t::private_car_route_mutex);
 	assert(error == 0);
@@ -6449,7 +6520,8 @@ void stadt_t::calc_congestion()
 	{
 		// Old method - congestion density factor
 		const uint32 city_size = (ur.x - lo.x + 1) * (ur.y - lo.y + 1);
-		uint32 cars_per_tile_thousandths = (city_history_month[1][HIST_CITYCARS] * 1000) / city_size;
+		const sint32 cars = per_car ? private_cars_month : city_history_month[1][HIST_CITYCARS];
+		uint32 cars_per_tile_thousandths = ((uint32)max(0, cars) * 1000) / city_size;
 		const uint32 population_density = (city_history_month[1][HIST_CITIZENS] * 10) / city_size;
 		congestion_density_factor *= 100;
 
@@ -6513,13 +6585,21 @@ void stadt_t::calc_congestion()
 			// Second - get the number of car trips per hour
 			const sint64 seconds_per_month = welt->ticks_to_seconds(welt->ticks_per_world_month);
 			// Add incoming private cars as these are no longer tracked in the city history statistics to make them clearer.
-			const sint64 trips_per_hour = ((city_history_month[1][HIST_CITYCARS] + incoming_private_cars) * 3600l) / seconds_per_month;
+			// In the per-car car-fill mode both terms count cars rather than passengers.
+			const sint64 cars_this_month = per_car
+				? (sint64)private_cars_month + incoming_private_cars_month
+				: (sint64)city_history_month[1][HIST_CITYCARS] + incoming_private_cars;
+			const sint64 trips_per_hour = (cars_this_month * 3600l) / seconds_per_month;
 
 			// Third - combine the information, multiplying by a ratio based on
 			// congestion_density_factor == 141 is the ideal factor based on the 2012 TomTom congestion index for British cities
 			// (Average: range is 70 (London) to 227 (Newcastle/Sunderland).
 			// Further reduce this by the traffic_level factor to adjust for occupancy rates (permille).
-			const sint64 adjusted_ratio = ((sint64)traffic_level * congestion_density_factor) / 1000l;
+			// In the per-car mode the count is already of cars, so no occupancy
+			// adjustment applies.
+			const sint64 adjusted_ratio = per_car
+				? (sint64)congestion_density_factor
+				: ((sint64)traffic_level * congestion_density_factor) / 1000l;
 			city_history_month[0][HIST_CONGESTION] = (trips_per_hour * adjusted_ratio) / (sint64)road_hectometers;
 		}
 		else if(road_tiles > 0) // Measure congestion by actual tiles.
@@ -6533,6 +6613,8 @@ void stadt_t::calc_congestion()
 	}
 
 	incoming_private_cars = 0;
+	private_cars_month = 0;
+	incoming_private_cars_month = 0;
 
 #ifdef MULTI_THREAD
 	error = pthread_mutex_unlock(&karte_t::private_car_route_mutex);
