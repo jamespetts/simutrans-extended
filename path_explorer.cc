@@ -1150,7 +1150,14 @@ bool path_explorer_t::compartment_t::entry_carries(const schedule_t *schedule, c
 	{
 		return true;
 	}
-	if (!catg_table.get(entry.unique_entry_id).is_contained(category))
+	const vector_tpl<uint8> &carried = catg_table.get(entry.unique_entry_id);
+	if (carried.empty())
+	{
+		// A wildcard-only order declares no specific category, so its set is
+		// unknown rather than empty.
+		return true;
+	}
+	if (!carried.is_contained(category))
 	{
 		return false;
 	}
@@ -1163,6 +1170,63 @@ bool path_explorer_t::compartment_t::entry_carries(const schedule_t *schedule, c
 	{
 		const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> &min_class = to ? schedule->get_mail_min_class_carried_to() : schedule->get_mail_min_class_carried_from();
 		return !min_class.is_contained(entry.unique_entry_id) || min_class.get(entry.unique_entry_id) <= g_class;
+	}
+	return true;
+}
+
+
+// True when the consist that arrives at the entry carries the category and
+// class. An order describes the consist that leaves its entry, so the consist
+// that arrives at an entry is the consist that leaves the previous order entry
+// in schedule order; the last order entry arrives at the first, as the schedule
+// is cyclic. An entry with no order carries no information, and an order whose
+// carried set is empty declares only wildcard alternatives, so both leave the
+// arriving set unknown.
+bool path_explorer_t::compartment_t::entry_receives(const schedule_t *schedule, const schedule_entry_t &entry, uint8 category, uint8 g_class) const
+{
+	if (schedule == NULL || !schedule->has_consist_orders())
+	{
+		return true;
+	}
+	const uint8 entry_index = schedule->get_entry_from_unique_id(entry.unique_entry_id);
+	if (entry_index == 255)
+	{
+		return true;
+	}
+	const uint8 count = schedule->get_count();
+	uint8 previous = 255;
+	for (uint8 step = 1; step < count; step++)
+	{
+		const uint8 candidate = (uint8)((entry_index + count - step) % count);
+		if (schedule->get_catg_carried_from().is_contained(schedule->entries[candidate].unique_entry_id))
+		{
+			previous = candidate;
+			break;
+		}
+	}
+	if (previous == 255)
+	{
+		return true;
+	}
+	const uint16 previous_id = schedule->entries[previous].unique_entry_id;
+	const vector_tpl<uint8> &arriving = schedule->get_catg_carried_from().get(previous_id);
+	if (arriving.empty())
+	{
+		return true;
+	}
+	if (!arriving.is_contained(category))
+	{
+		return false;
+	}
+	if (category == goods_manager_t::passengers->get_catg_index())
+	{
+		const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> &min_class = schedule->get_passenger_min_class_carried_from();
+		return !min_class.is_contained(previous_id) || min_class.get(previous_id) <= g_class;
+	}
+	if (category == goods_manager_t::mail->get_catg_index())
+	{
+		const inthashtable_tpl<uint16, uint8, N_BAGS_SMALL> &min_class = schedule->get_mail_min_class_carried_from();
+		return !min_class.is_contained(previous_id) || min_class.get(previous_id) <= g_class;
 	}
 	return true;
 }
@@ -1183,10 +1247,15 @@ bool path_explorer_t::compartment_t::through_predicate_allows(const schedule_t *
 	{
 		return false;
 	}
-	return entry_carries(source_schedule, source_origin, true, catg, g_class) &&
-		entry_carries(source_schedule, source_coupling, true, catg, g_class) &&
+	// The packet boards at the origin, so the source schedule must carry the
+	// category from the origin. It must receive the category at the coupling,
+	// where the split-off portion takes it over. The destination schedule must
+	// then carry it from the coupling to the destination entry, where the
+	// packet alights.
+	return entry_carries(source_schedule, source_origin, false, catg, g_class) &&
+		entry_receives(source_schedule, source_coupling, catg, g_class) &&
 		entry_carries(destination_schedule, destination_coupling, false, catg, g_class) &&
-		entry_carries(destination_schedule, destination_entry, false, catg, g_class);
+		entry_receives(destination_schedule, destination_entry, catg, g_class);
 }
 
 
