@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, implementation, loose-stock rule and runtime cases); code anchors ex-15 @ b53e370911 (design)
+verified: ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, implementation, loose-stock rule and runtime cases); performance @ b14c12b (2026-11-22); code anchors ex-15 @ b53e370911 (design)
 ---
 # ex-15: re-combination - passenger and wagon-load goods systems
 
@@ -279,8 +279,8 @@ introduced.
 
 ## Implementation status
 
-The runtime work packages are implemented; the performance measurement and the open questions
-below remain. The cases named below are listed in
+The runtime work packages are implemented and measured; the open questions below remain. The cases
+named below are listed in
 [scripting-and-tests/consist-recombination](../../scripting-and-tests/consist-recombination.md).
 
 1. **System selection and TPO detection.** `convoi_t::uses_passenger_system` selects passengers,
@@ -308,9 +308,36 @@ below remain. The cases named below are listed in
 7. **Schedule edits.** `convoi_t::discharge_divergent_wagons` discharges a multi-destination wagon
    at the first division where its destinations diverge. `schedule-edit-divergence` and
    `schedule-edit-through-pool` cover the two schedule-edit outcomes.
-8. **Tests and performance.** The runtime cases above are implemented. Performance measurement of
-   the plan scan and the cargo-aware matcher remains outstanding; the gargantuan fixture has no
-   coupling entries, so use a synthetic split map.
+8. **Tests and performance.** The runtime cases above are implemented; the measurements are in
+   [Measured performance](#measured-performance) below.
+
+## Measured performance
+
+Measured at ex-15 @ b14c12b on 2026-11-22 [EXECUTION-VERIFIED:2026-11-22]. The no-recombination
+path was compared with the parent 41c6a2b using two 120 s `Capture` runs per build on the
+canonical profiling fixture (`bb-10-sep-2023.sve`, defined in
+[performance](../../performance.md#fixture)), `Profile (server)|x64`, threads 4. The division and
+paired-exchange costs were measured with temporary counters in the graphical `Profile|x64` build
+on the runtime cases (16x16 map, `-fast_forward`), because the headless `Profile (server)` build
+does not complete the `goods-division` scenario's factory construction.
+
+- **No-recombination path.** The fixture has no couple or uncouple entry, so no division or
+  paired exchange is ever executed. `convoi_t::ensure_recombination_plan` accounts for
+  0.008-0.009% of sampled CPU time and `convoi_t::recombination_between` for 0.017-0.019%;
+  `convoi_t::laden` moves from 1.20% to 1.28% and `haltestelle_t::fetch_goods` from 0.36% to
+  0.40%, within the 0.01-0.05 percentage-point run-to-run spread. The counters recorded 476,867
+  calls, 35,402 scans and 371,140 schedule entries over a 150 s window; the per-convoy, per-stop
+  cache returns early on 93% of calls.
+- **Division with a loaded goods wagon** (`goods-division`): 3 vehicles available, 1 in the
+  retained portion, 2 in the split-off portion; 5 candidate vehicles and 4 cargo checks; 3-4
+  microseconds per build and 7 microseconds for the division, which is built twice, by the loader
+  before the division and by `convoi_t::ensure_current_division_plan` when it is processed.
+- **Paired exchange** (`pair-freight-loose`, `pair-passenger-loose`): 4 vehicles in
+  `paired_exchange_solver_t::universe`, 3 order slots and 3 search steps; 5-6 microseconds. A
+  control without a recombination entry (`empty-distribution`) spends 0.9 microseconds per scan.
+- **Conclusion.** The no-division loading path does not regress measurably, and a division or
+  paired exchange costs single-digit microseconds on these 2-4 vehicle consists. A convoy holds
+  at most one transient plan, in `convoi_t::recombination_plan`.
 
 ## Test coverage
 
@@ -347,9 +374,10 @@ scripted cases:
   authoring UI or preset can be added later.
 - Shunting duration pricing: the current flat `settings_t::shunting_time_seconds` is used; any
   valid end state is allowed. Pricing complex shunts by duration is deferred.
-- Performance measurement of the committed-formation plan scan and the cargo-aware matcher
-  remains outstanding; the gargantuan fixture has no coupling entries, so a synthetic split map is
-  required.
+- The cost of committing a division or paired exchange is measured only for 2-4 vehicle
+  consists (3-7 microseconds). A long loaded consist costs more, because
+  `convoi_t::match_consist_order` and `paired_exchange_solver_t` test every candidate vehicle's
+  packets through `vehicle_cargo_is_served_by`; a 10-20 vehicle loaded consist is unmeasured.
 
 ## Provenance
 
@@ -360,7 +388,9 @@ loose-stock rule added on 2026-11-22. The cases passed: the 43-case non-pick-up 
 10 passing pick-up cases (the five cases `cargo-through`, `flash-full`, `flash-late`,
 `flash-partial` and `through-pair` fail on the local pakset for the fare-rounding reason recorded
 in the testing document), and the three loaded pair reload cases
-[EXECUTION-VERIFIED:2026-11-22, Debug x64]. The economic assessment of the
+[EXECUTION-VERIFIED:2026-11-22, Debug x64]. Performance was measured at ex-15 @ b14c12b with
+`Profile (server)|x64` on the canonical fixture and `Profile|x64` on the runtime fixtures
+[EXECUTION-VERIFIED:2026-11-22]. The economic assessment of the
 no-prediction design is in [no-prediction-economics](no-prediction-economics.md). The broader
 realism, cognition, performance and anomaly review is in
 [remote-implications](remote-implications.md).

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a; loose-stock treatment recorded 2026-11-14
+verified: ex-15 @ bf447619a; loose-stock treatment recorded 2026-11-14; grouping cost measured at b14c12b (2026-11-22)
 ---
 # ex-15: re-combination — remote implications review
 
@@ -99,7 +99,11 @@ recorded per item in *Conflicts between the two reviews* and inline in
   and the per-step convoy iteration, a pick-up-goods network pays per standing vehicle group every
   step. Park dormant convoys out of the hot lists.
 - **P3 [L] — grouping cost** is a memoisable per-loading-event filter on existing `fetch_goods`
-  scanning; benchmark at busy hubs. Fallbacks feed `check_transferring_cargoes` (the measured
+  scanning. Measured: `convoi_t::recombination_between` costs 0.017-0.019% of CPU time on the
+  gargantuan Bridgewater-Brunel server save, and committing a division or paired exchange costs
+  3-7 microseconds on the `tests/pending-runtime` cases
+  ([Measured performance](passenger-and-goods-systems.md#measured-performance)).
+  Fallbacks feed `check_transferring_cargoes` (the measured
   moderate cost). As analysed in cargo-continuity; nothing further.
 
 ## Anomalies and exploits
