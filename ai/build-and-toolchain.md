@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 47d73a3
+verified: master @ 8892eb426c (CI macOS; 2026-11-22); rest @ 47d73a3
 ---
 # Build & toolchain
 
@@ -161,8 +161,16 @@ The `REVISION` define must match between server and clients for network play
   - `linux-build.yml` (reusable; ubuntu-22.04; CMake + clang; apt zlib1g-dev/libbz2-dev/libzstd-dev
     + extras): SDL2 client, headless, makeobj, nettool. Quirks: its `name:` field says "msvc-build"
     (copy-paste), and it installs clang++-10 but configures with CC/CXX=clang-14.
-  - macOS jobs: brew (cmake freetype libpng pkg-config sdl2 fluidsynth); `make simutrans-extended
-    && make package`; also makeobj-extended, nettool-extended. libzstd comes from the runner image.
+  - macOS game jobs (SDL2 and SDL3): brew (cmake freetype libpng pkg-config fluidsynth, plus
+    sdl2 or sdl3); CMake configure (`-DCMAKE_BUILD_TYPE=Release`; `-DSIMUTRANS_BACKEND=sdl3` for
+    the SDL3 job), then `make simutrans-extended && make package`. The separate headless, Makeobj
+    and Nettool jobs use the runner's preinstalled CMake and build only their target. libzstd comes
+    from the runner image. The two game jobs link FluidSynth, whose Homebrew `fluidsynth.pc` lists
+    readline in `Requires.private`. Homebrew's readline is keg-only (not linked into the Homebrew
+    prefix), so `CMakeLists.txt` adds the readline prefix (`/usr/local/opt/readline` or
+    `/opt/homebrew/opt/readline`) to `CMAKE_PREFIX_PATH`; CMake's pkg-config module then searches
+    its `lib/pkgconfig` directory. Without that directory, pkg-config reports FluidSynth as found
+    but returns no link flags, and the link fails on the functions called by `music/fluidsynth.cc`.
   - MinGW cross-builds on ubuntu: container `ceeac/simutrans-build-env:mingw-sdl2`, CMake with
     `.github/toolchain_mingw.cmake`, backends sdl2/gdi/none. Fedora packages mingw zstd shared-only,
     so the game jobs first build a static `libzstd` (pinned, checksum-verified tarball) into the
