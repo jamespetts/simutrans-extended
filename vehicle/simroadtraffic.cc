@@ -829,11 +829,15 @@ uint32 private_car_t::do_drive(uint32 distance)
 			break;
 		}
 	}
-	if (distance > 0)
+	if (distance >= (1u << YARDS_PER_VEHICLE_STEP_SHIFT))
 	{
-		// The car was held behind a leader or at a tile boundary rather than
-		// running out of distance. Do not keep the unspent distance: it would
-		// turn into a surge when the leader moves away.
+		// A whole vehicle step or more was left over, so the car was held
+		// behind a leader or at a tile boundary rather than running out of
+		// distance. Clear the unspent distance so that it is not travelled in
+		// one call when the obstruction moves. A sub-step remainder is
+		// different: a slow car adds less than one step per call to
+		// private_car_t::sync_step, and clearing the remainder every call would
+		// stop the car moving at all.
 		weg_next = 0;
 	}
 	return distance_travelled;
