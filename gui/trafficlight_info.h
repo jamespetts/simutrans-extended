@@ -17,7 +17,7 @@ class roadsign_t;
 /**
  * Traffic light phase buttons
  */
-class trafficlight_info_t : public obj_infowin_t, public action_listener_t
+class trafficlight_info_t : public obj_infowin_t
 {
 private:
 	roadsign_t* roadsign;

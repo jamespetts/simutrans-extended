@@ -19,7 +19,7 @@ class roadsign_t;
  * Info window for factories
  * @author Hj. Malthaner
  */
-class onewaysign_info_t : public obj_infowin_t, public action_listener_t
+class onewaysign_info_t : public obj_infowin_t
 {
 	private:
 		roadsign_t* sign;

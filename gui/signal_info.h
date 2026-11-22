@@ -19,7 +19,7 @@
 /**
  * Info window for signals
  */
-class signal_info_t : public obj_infowin_t, public action_listener_t
+class signal_info_t : public obj_infowin_t
 {
 private:
 	const signal_t* sig;

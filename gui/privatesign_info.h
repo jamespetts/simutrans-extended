@@ -18,7 +18,7 @@ class roadsign_t;
 /**
  * Info window for factories
  */
-class privatesign_info_t : public obj_infowin_t, public action_listener_t
+class privatesign_info_t : public obj_infowin_t
 {
  private:
 	roadsign_t* sign;
