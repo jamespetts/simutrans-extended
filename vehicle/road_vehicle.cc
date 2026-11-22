@@ -47,9 +47,23 @@ static const sint32 STANDSTILL_GAP_MM = 1000;
  */
 static const sint32 REACTION_TIME_MS = 1500;
 
-/// Length of a private car in vehicle steps. A city car is one carunit long;
-/// the city-car descriptor's own length replaces this when it is present.
-static const uint32 PRIVATE_CAR_LENGTH_STEPS = VEHICLE_STEPS_PER_CARUNIT;
+/**
+ * Reaction distance of a follower travelling at @p speed, in millimetres.
+ * The speed is in km/h, so the distance covered in REACTION_TIME_MS is
+ * speed * 1000 m/km / 3600 s/hour * REACTION_TIME_MS ms / 1000 ms/s metres
+ * = speed * REACTION_TIME_MS * 1000 / 3600 millimetres.
+ * A follower at 50 km/h with a 1.5 s reaction time therefore keeps about
+ * 20.8 m, not 20.8 mm.
+ */
+constexpr sint64 reaction_gap_mm(const sint32 speed)
+{
+	return ((sint64)speed_to_kmh(speed) * REACTION_TIME_MS * 1000) / 3600;
+}
+
+// Compile-time guard on the unit conversion: a moving follower at 50 km/h
+// must keep a reaction distance of about 21 m.
+static_assert(reaction_gap_mm(kmh_to_speed(50)) >= 20000, "reaction distance at 50 km/h is below 20 m");
+static_assert(reaction_gap_mm(kmh_to_speed(50)) <= 21000, "reaction distance at 50 km/h is above 21 m");
 
 bool allows_queueing(const grund_t *gr)
 {
@@ -69,8 +83,7 @@ uint32 following_gap(const sint32 follower_speed, const bool leader_moving)
 	sint64 gap_mm = STANDSTILL_GAP_MM;
 	if (leader_moving && follower_speed > 0)
 	{
-		// km/h * 1000 m/km / 3600 s/h * 1500 ms = km/h * 1250 / 3 mm.
-		gap_mm += ((sint64)speed_to_kmh(follower_speed) * REACTION_TIME_MS * 1000) / 3600000;
+		gap_mm += reaction_gap_mm(follower_speed);
 	}
 	const sint64 millimetres_per_tile = (sint64)world()->get_settings().get_meters_per_tile() * 1000;
 	// Round up: a real gap must never shrink to nothing in vehicle steps.
