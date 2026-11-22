@@ -17,6 +17,7 @@
 #include "../../simtool.h"
 #include "../../simworld.h"
 #include "../../vehicle/vehicle.h"
+#include "../../vehicle/road_vehicle.h"
 #include "../../vehicle/rail_vehicle.h"
 #include "../../display/viewport.h"
 
@@ -316,6 +317,16 @@ SQInteger convoy_get_vehicle_snapshot(HSQUIRRELVM vm)
 		set_slot(vm, "route_index", (SQInteger)v->get_route_index());
 		set_slot(vm, "steps", (SQInteger)v->get_steps());
 		set_slot(vm, "steps_next", (SQInteger)v->get_steps_next());
+		// The convoy's current speed in km/h; every slot of one convoy reports
+		// the same value.
+		set_slot(vm, "speed", (SQInteger)speed_to_kmh(cnv->get_akt_speed()));
+		// The four-bit stop-stand mask for a road vehicle, or zero when it holds
+		// no stand. Every other vehicle reports zero.
+		const road_vehicle_t *rv = dynamic_cast<const road_vehicle_t *>(v);
+		set_slot(vm, "stand_mask", (SQInteger)(rv != NULL ? rv->get_stand_mask() : 0));
+		// True only for a road vehicle that is loading or laid over at a stop
+		// stand beside the travel lane. Any other vehicle reports false.
+		set_slot(vm, "pulled_over", rv != NULL && rv->is_pulled_over());
 		sq_arrayappend(vm, -2);
 	}
 	return 1;

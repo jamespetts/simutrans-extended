@@ -706,6 +706,12 @@ class vehicle_slot_x {
 	steps = 0
 	/// total steps through the current tile
 	steps_next = 0
+	/// the convoy's current speed in km/h
+	speed = 0
+	/// for a road vehicle, the four-bit stop-stand mask; zero when no stand is held
+	stand_mask = 0
+	/// true only for a road vehicle loading at a stop stand beside the travel lane
+	pulled_over = false
 }
 
 class dir {
