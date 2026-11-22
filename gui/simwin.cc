@@ -2266,14 +2266,30 @@ void modal_dialogue(gui_frame_t* gui, ptrdiff_t magic, karte_t* welt, bool (*qui
 				check_pos_win(&ev);
 			} while (ev.ev_class != EVENT_NONE);
 
+			// Do not step a world that is being destroyed or replaced, and do
+			// not step re-entrantly. If the modal window has been closed by an
+			// action in check_pos_win (for example the banner's New map action),
+			// or another window is open over it, the world stays paused so that
+			// a new map cannot replace it in the middle of a step.
+			const bool may_step_world = win_is_open(gui)
+				&& win_get_open_count() <= 1
+				&& !welt->is_destroying()
+				&& !welt->is_stepping();
+
 			DBG_DEBUG4("modal_dialogue", "calling welt->sync_step");
-			welt->sync_step((ms_per_frame * welt->get_time_multiplier()) / 16, true, true);
+			if (may_step_world)
+			{
+				welt->sync_step((ms_per_frame * welt->get_time_multiplier()) / 16, true, true);
+			}
 
 			if (--sync_steps_until_step == 0) {
-				DBG_DEBUG4("modal_dialogue", "calling welt->step");
-				intr_disable();
-				welt->step();
-				intr_enable();
+				if (may_step_world)
+				{
+					DBG_DEBUG4("modal_dialogue", "calling welt->step");
+					intr_disable();
+					welt->step();
+					intr_enable();
+				}
 				sync_steps_until_step = sync_steps_per_step;
 			}
 

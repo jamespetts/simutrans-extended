@@ -485,9 +485,21 @@ void karte_t::cleanup_karte( int xoff, int yoff )
 }
 
 
+void karte_t::begin_world_change()
+{
+	++world_generation;
+	if (step_depth > 0)
+	{
+		dbg->error("karte_t::begin_world_change",
+			"the map is being destroyed, initialised or loaded while karte_t::step() is running; the step will be abandoned");
+	}
+}
+
+
 void karte_t::destroy()
 {
 	is_sound = false; // karte_t::play_sound_area_clipped needs valid zeiger (pointer/drawer)
+	begin_world_change();
 	destroying = true;
 	DBG_MESSAGE("karte_t::destroy()", "destroying world");
 
@@ -1495,6 +1507,7 @@ static uint32 calc_name_list_seed(const settings_t &sets)
 
 void karte_t::init(settings_t* const sets, sint8 const* const h_field)
 {
+	begin_world_change();
 	uint32 ms_init = dr_time();
 	uint32 ms_t = ms_init;
 	clear_random_mode( 7 );
@@ -3342,6 +3355,8 @@ karte_t::karte_t() :
 {
 	reservation_buckets.resize(65535);
 	destroying = false;
+	world_generation = 0;
+	step_depth = 0;
 
 	// length of day and other time stuff
 	ticks_per_world_month_shift = 20;
@@ -5384,6 +5399,24 @@ static uint32 private_car_route_semantic_hash()
 
 void karte_t::step()
 {
+	const uint32 generation = world_generation;
+	++step_depth;
+
+	// A map replacement during this step (new map, load or destroy) invalidates
+	// the lists this step walks. Abandon the rest of the step rather than use
+	// the replacement map's state. The generation is checked at points where no
+	// worker thread is between start and await.
+	auto abort_if_world_changed = [this, generation]() -> bool
+	{
+		if (generation == world_generation)
+		{
+			return false;
+		}
+		DBG_DEBUG4("karte_t::step", "map replaced during the step; abandoning the rest of the step");
+		--step_depth;
+		return true;
+	};
+
 	rands[8] = get_random_seed();
 	DBG_DEBUG4("karte_t::step", "start step");
 	uint32 time = dr_time();
@@ -5431,6 +5464,10 @@ void karte_t::step()
 		new_month();
 	}
 	rands[9] = get_random_seed();
+	if (abort_if_world_changed())
+	{
+		return;
+	}
 
 	DBG_DEBUG4("karte_t::step", "time calculations");
 	if(  step_mode==NORMAL  ) {
@@ -5443,6 +5480,7 @@ void karte_t::step()
 			dbg->error( "karte_t::step()", "delta_t (%u) out of bounds!", delta_t );
 			last_step_ticks = ticks;
 			next_step_time = time+10;
+			--step_depth;
 			return;
 		}
 		idle_time = 0;
@@ -5617,6 +5655,14 @@ void karte_t::step()
 #ifndef MULTI_THREAD_CONVOYS
 	for (uint32 i = convoi_array.get_count(); i-- != 0;)
 	{
+		if (abort_if_world_changed())
+		{
+			return;
+		}
+		if (i >= convoi_array.get_count())
+		{
+			break;
+		}
 		convoihandle_t cnv = convoi_array[i];
 		cnv->threaded_step();
 	}
@@ -5628,6 +5674,17 @@ void karte_t::step()
 	DBG_DEBUG4("karte_t::step 4", "step %d convois", convoi_array.get_count());
 	// since convois will be deleted during stepping, we need to step backwards
 	for (uint32 i = convoi_array.get_count(); i-- != 0;) {
+		if (abort_if_world_changed())
+		{
+			return;
+		}
+		if (i >= convoi_array.get_count())
+		{
+			// The convoy list was cleared during this step (the map was replaced
+			// or reset); do not index the replacement list with an index from the
+			// old map.
+			break;
+		}
 		convoihandle_t cnv = convoi_array[i];
 		cnv->step();
 		if((i&7)==0) {
@@ -5636,6 +5693,10 @@ void karte_t::step()
 	}
 
 	rands[14] = get_random_seed();
+	if (abort_if_world_changed())
+	{
+		return;
+	}
 
 	INT_CHECK("karte_t::step 3a");
 
@@ -5691,7 +5752,10 @@ void karte_t::step()
 	}
 
 	rands[16] = get_random_seed();
-
+	if (abort_if_world_changed())
+	{
+		return;
+	}
 
 	INT_CHECK("karte_t::step 3c");
 
@@ -5743,6 +5807,11 @@ void karte_t::step()
 			debug_sums[6] += transferring_cargoes[i].get_count();
 		}
 
+		if (abort_if_world_changed())
+		{
+			return;
+		}
+
 		start_passengers_and_mail_threads();
 
 #ifdef FORBID_MULTI_THREAD_PASSENGER_GENERATION_IN_NETWORK_MODE
@@ -5784,6 +5853,10 @@ void karte_t::step()
 	await_passengers_and_mail_threads();
 
 	rands[19] = get_random_seed();
+	if (abort_if_world_changed())
+	{
+		return;
+	}
 
 	for (uint32 i = 0; i < po; i++)
 	{
@@ -5981,12 +6054,18 @@ void karte_t::step()
 		delete tmp_tool;
 	}
 
+	if (abort_if_world_changed())
+	{
+		return;
+	}
+
 	if(  get_scenario()->is_scripted() ) {
 		get_scenario()->step();
 	} // Loss of synchronisation suspected to be in a block of code ending here.
 
 	DBG_DEBUG4("karte_t::step", "end");
 	rands[26] = get_random_seed();
+	--step_depth;
 }
 
 void karte_t::refresh_private_car_routes() {
@@ -9551,6 +9630,7 @@ void karte_t::switch_server( bool start_server, bool port_forwarding )
 // just the preliminaries, opens the file, checks the versions ...
 bool karte_t::load(const char *filename)
 {
+	begin_world_change();
 	dbg->message("karte_t::load", "suspending private car threads");
 #ifdef MULTI_THREAD
 	suspend_private_car_threads(); // Necessary here to prevent thread deadlocks.
@@ -9988,6 +10068,7 @@ void karte_t::recalc_actual_density() {
 
 void karte_t::load(loadsave_t *file)
 {
+	begin_world_change();
 	if(  env_t::networkmode  ) {
 		clear_all_checklists();
 	}

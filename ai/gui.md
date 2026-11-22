@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8109f6dab (settings-tab convention; 2026-11-08)
+verified: ex-15 @ c05a49e154 plus working-tree step-guard changes
 ---
 # GUI
 
@@ -52,6 +52,11 @@ for planned accessibility, first-run and explanation work see
   `magic_numbers` identify singleton and per-player windows; `wintype` flags are `w_info`,
   `w_do_not_delete`, `w_no_overlap`, `w_time_delete`; `win_get_magic` finds an open window by
   id; `rdwr_all_win` persists savable windows.
+- `modal_dialogue` runs its own event loop and, when given a `karte_t*`, calls
+  `karte_t::sync_step()` and `karte_t::step()` on that world. It does not call them after the
+  modal window has been closed by an action in `check_pos_win`, while another window is open
+  over the modal, or while the world is being destroyed or is already stepping. This keeps a
+  new-map or load action from replacing the map in the middle of a step.
 - components/ holds the widget library: buttons, labels, checkboxes, combo boxes, scroll
   panes, tab panels, charts, list rows, the convoy assembler, and so on.
 

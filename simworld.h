@@ -376,6 +376,20 @@ private:
 	 */
 	bool destroying;
 
+	/**
+	 * Incremented whenever the map is destroyed, initialised or loaded. A step
+	 * captures this value and abandons the step if it changes while the step is
+	 * running, because the map's lists have then been replaced.
+	 */
+	std::atomic<uint32> world_generation;
+
+	/**
+	 * Nesting depth of karte_t::step(). Non-zero while a step is running. A new
+	 * map, load or destroy while this is non-zero means that the map is being
+	 * replaced from inside a step, which the step then abandons.
+	 */
+	uint32 step_depth;
+
 #ifdef MULTI_THREAD
 	/**
 	* True when threads are to be terminated.
@@ -818,6 +832,13 @@ private:
 	 * Removes all objects, deletes all data structures and frees all accessible memory.
 	 */
 	void destroy();
+
+	/**
+	 * Records that the map is about to be destroyed, initialised or loaded, so
+	 * that a step running at the same time abandons itself instead of using the
+	 * replaced map's lists.
+	 */
+	void begin_world_change();
 
 	/**
 	 * Restores history for older savegames.
@@ -1302,6 +1323,11 @@ public:
 	 * @returns true if world gets destroyed
 	 */
 	bool is_destroying() const { return destroying; }
+
+	/**
+	 * @returns true while karte_t::step() is running.
+	 */
+	bool is_stepping() const { return step_depth > 0; }
 
 	uint32 get_cities_awaiting_private_car_route_check_count() const;
 #ifndef NETTOOL
