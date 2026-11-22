@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2ec587aa34; implementation on branch road-vehicle-operations @ ef449777d1
+verified: ex-15 @ 806befea63
 ---
 # Road vehicle operations: implementation
 
@@ -13,9 +13,9 @@ Read this when checking what the road-space and stop-stand code does, its object
 tests or its remaining gaps. The design, current behaviour and resource audit are in
 [road-vehicle-operations](../road-vehicle-operations.md).
 
-The first two work packages of the parent document are implemented on branch
-`road-vehicle-operations`: road space and queueing, and stop stands with terminal capacity.
-The motorway lane package and pulled-over waiting are not implemented.
+The first two work packages of the parent document are implemented on ex-15: road space and
+queueing, and stop stands with terminal capacity. The motorway lane package and pulled-over
+waiting are not implemented.
 
 ## Road space and queueing
 
@@ -44,6 +44,15 @@ The motorway lane package and pulled-over waiting are not implemented.
   repeat it after each hop and recompute the leader, so a vehicle cannot pass the leader while
   the hop carries it forward. A non-leading vehicle of a convoy is moved by the distance that
   the leading vehicle reports, as before.
+- `private_car_t::sync_step` passes the accumulated distance in `road_user_t::weg_next` to
+  `private_car_t::do_drive`, then reduces `weg_next` by the returned distance, or clears it
+  when the returned distance is not smaller. `private_car_t::do_drive` clears `weg_next` only
+  when at least one whole vehicle step remains after the movement loop, because that means
+  the car was held behind a leader or at a tile boundary; clearing the whole of the unspent
+  distance stops it being travelled in one call when the obstruction moves. A remainder
+  smaller than one vehicle step is left in `weg_next`, so a car whose speed gives less than
+  one vehicle step of distance per `private_car_t::sync_step` call accumulates distance until
+  it can move.
 
 The lateral position of a road vehicle is the existing traffic or passing lane
 (`convoi_t::is_overtaking`, `private_car_t::is_overtaking`) plus the pulled-over state.

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2ec587aa34; implementation on branch road-vehicle-operations @ 7f911a42af
+verified: ex-15 @ 806befea63
 ---
 # Private cars
 
@@ -12,8 +12,8 @@ verified: ex-15 @ 2ec587aa34; implementation on branch road-vehicle-operations @
 
 This is the private car part of [road-vehicle-operations](../road-vehicle-operations.md).
 Both work packages in this document (occupancy and information links) are implemented on
-branch `road-vehicle-operations`. No maintained pakset yet supplies the new capacity and
-length fields, so the pakset-data questions below remain open.
+ex-15. No maintained pakset yet supplies the new capacity and length fields, so the
+pakset-data questions below remain open.
 
 ## Terms
 
@@ -240,9 +240,13 @@ town that they return to, so they are counted in that town's own
 plain text of a buffer plus `gui_text_link_t` spans of `{start, end, target}`
 byte offsets, or reports that the buffer contains no `<a` markup.
 `gui_fixedwidth_textarea_t` lays out the parsed text and records one clickable
-rectangle per link part per line while drawing, underlining the link.
-`infowin_event` reports a left release over a rectangle to the component's
-listeners. A buffer with no markup takes the original code path unchanged.
+rectangle per link part per line while drawing, underlining the link. Each
+rectangle is stored relative to the text area's own origin, because
+`gui_container_t::infowin_event` subtracts the text area's
+`gui_component_t::get_pos()` from the event position before calling the text
+area's `infowin_event`. `gui_fixedwidth_textarea_t::infowin_event` reports a left
+release over a rectangle to the component's listeners. A buffer with no markup
+takes the original code path unchanged.
 
 `obj_infowin_t` is an `action_listener_t` for its text area and handles
 coordinate targets through `jump_to_coordinate_link` (`gui/base_info.cc`),
