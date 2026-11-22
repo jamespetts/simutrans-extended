@@ -256,7 +256,10 @@ scr_size gui_fixedwidth_textarea_t::calc_display_text(const scr_coord offset, co
 						const scr_coord_val x1 = offset.x + display_calc_proportional_string_len_width((const char*)line_start, seg_begin);
 						const scr_coord_val x2 = offset.x + display_calc_proportional_string_len_width((const char*)line_start, seg_end);
 						link_rect_t rect;
-						rect.rect = scr_rect(x1, offset.y + y, x2 - x1, LINESPACE);
+						// The event coordinates that infowin_event() receives are
+						// relative to this component, so store the rectangle in the
+						// same coordinates rather than in drawing coordinates.
+						rect.rect = scr_rect(x1 - offset.x, y, x2 - x1, LINESPACE);
 						rect.link_index = link_index;
 						link_rects.append(rect);
 						display_fillbox_wh_clip_rgb(x1, offset.y + y + LINESPACE - 1, x2 - x1, 1, SYSCOL_TEXT_HIGHLIGHT, false);
