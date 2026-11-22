@@ -591,7 +591,13 @@ bool road_vehicle_t::is_pulled_over() const
 	{
 		return false;
 	}
-	return cnv->is_loading() || cnv->get_state() == convoi_t::LAYOVER;
+	if (!(cnv->is_loading() || cnv->get_state() == convoi_t::LAYOVER))
+	{
+		return false;
+	}
+	// Stand 0 of a terminal is the normal travel position, not a pulled-over
+	// one: a vehicle there still blocks the lane.
+	return get_stand_lateral_position() != 0;
 }
 
 
