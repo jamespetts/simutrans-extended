@@ -13,11 +13,17 @@ local case_name = ::case_kind
 // suppressed at low debug levels, so print a heartbeat that does not depend on
 // the engine log level.
 local heartbeat_steps = 0
-local uses_cargo = case_name != "empty-distribution" && case_name != "recipient-same"
+local uses_cargo = case_name != "empty-distribution" && case_name != "recipient-same" &&
+	case_name != "passenger-division"
 local A = coord3d(3, 2, 0)
 local B = coord3d(5, 2, 0)
 local B_LOOP = coord3d(5, 3, 0)
 local D = coord3d(9, 2, 0)
+// The passenger-division destination is beyond the pakset's walking radius
+// (station_coverage / 2, eight tiles with the default station_coverage of 16),
+// so the halt cannot deliver the passengers to it on foot before the source
+// convoy loads them.
+local P = coord3d(15, 2, 0)
 
 local f = {
 	setup_started = false,
@@ -40,6 +46,11 @@ local f = {
 	collection_expected = 0,
 	collector_id = 0,
 	collector_started = false,
+	target_convoy_id = 0,
+	split_id = 0,
+	injected_amount = 0,
+	passenger_class = 0,
+	start_delay = 0,
 	loose_since = 0,
 	loose_donor_id = 0,
 	released_cargo = 0,
@@ -185,6 +196,25 @@ function put_on_new_line(pl, cnv, schedule)
 	return check_tool(cnv.set_line(pl, created), "assign convoy to pickup service line")
 }
 
+// Create a line with the given schedule but no convoy. A division's target
+// only needs the line's schedule; the split-off portion is formed from the
+// source convoy's displaced vehicles.
+function create_line_with_schedule(pl, schedule)
+{
+	local before = []
+	foreach (line in pl.get_line_list()) { before.append(line.id) }
+	if (!check_tool(pl.create_line(wt_rail), "create division target line")) { return null }
+	local created = null
+	foreach (line in pl.get_line_list())
+	{
+		if (before.find(line.id) == null) { created = line; break }
+	}
+	if (!check(created != null, "new division target line not found")) { return null }
+	if (!check_tool(created.change_schedule(pl, schedule), "commit division target schedule")) { return null }
+	return created
+}
+
+
 // Select a locomotive, a wagon and a brake vehicle that are mutually valid in
 // both [loco, wagon, brake] and the shorter [loco, brake] forms. The exact
 // types come from the pakset rather than from hard-coded vehicle names.
@@ -231,6 +261,49 @@ function select_stock(prefer_cargo_free_loco = false)
 		}
 	}
 	return fail("no locomotive, optional wagon and rear vehicle combination is available")
+}
+
+// Select two powered passenger railcars that can each form a portion on their
+// own. The passenger division needs a source order that retains one railcar and
+// a target order that takes the other, so both descriptors must be valid as a
+// single-vehicle consist. Two distinct descriptors are preferred so that the
+// identity assertions can tell the railcars apart; the same descriptor twice is
+// accepted when the pakset has no distinct pair.
+function select_passenger_stock()
+{
+	local railcars = []
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+	{
+		if (desc.needs_electrification() || desc.get_successors().len() > 0) { continue }
+		if (desc.get_power() == 0 || desc.get_total_capacity() == 0) { continue }
+		local freight = desc.get_freight()
+		if (freight == null || !freight.is_equal(good_desc_x.passenger)) { continue }
+		if (!desc.can_be_first() || !desc.can_be_last()) { continue }
+		railcars.append(desc)
+	}
+	for (local distinct = 1; distinct >= 0; distinct--)
+	{
+		foreach (a in railcars)
+		{
+			foreach (b in railcars)
+			{
+				if (distinct == 1 && a.is_equal(b)) { continue }
+				if (!vehicle_desc_x.is_coupling_allowed(a, b)) { continue }
+				local passenger_class = -1
+				for (local c = 0; c < 5; c++)
+				{
+					if (a.get_capacity(c) > 0 && b.get_capacity(c) > 0) { passenger_class = c; break }
+				}
+				if (passenger_class < 0) { continue }
+				f.loco = a
+				f.wagon = b
+				f.passenger_class = passenger_class
+				f.injected_amount = min(a.get_capacity(passenger_class), b.get_capacity(passenger_class))
+				return true
+			}
+		}
+	}
+	return fail("no powered passenger railcar pair is available")
 }
 
 // Select a consumer industry from the loaded pakset. Only the consumer is
@@ -323,6 +396,22 @@ function build_infrastructure(pl)
 		local station_owner = divide_ways && pos.x == D.x && pos.y == D.y ? other_player : pl
 		if (!check_tool(command_x(tool_build_station).work(station_owner, pos, station.get_name()), "build station " + pos)) { return false }
 	}
+
+	// The passenger division runs beyond D. Build the extension only after the
+	// D station so that the station is not erected on a junction.
+	if (case_name == "passenger-division")
+	{
+		// The platform buildings are one tile and the selected railcars are
+		// longer than one tile in total, so the source consist needs a second
+		// platform tile west of A or only its front vehicle loads.
+		local a_extension = coord3d(2, 2, 0)
+		if (!check_tool(command_x(tool_build_station).work(pl, a_extension, station.get_name()), "build A platform extension")) { return false }
+		if (!check(halt_at(a_extension) != null && halt_at(a_extension).get_name() == halt_at(A).get_name(), "the A platform extension did not join the A halt")) { return false }
+
+		if (!check_tool(command_x.build_way(pl, D, P, rail, false), "build D-P passenger extension")) { return false }
+		if (!check_tool(command_x(tool_build_station).work(pl, P, station.get_name()), "build station " + P)) { return false }
+	}
+
 	// The two B platforms must form one halt so its shared loose-stock pool is
 	// available at both platform positions.
 	local main_halt = halt_at(B)
@@ -341,7 +430,9 @@ function build_infrastructure(pl)
 // cargo that the world or the consumer industry may have produced.
 function clear_halts()
 {
-	foreach (pos in [A, B, D])
+	local halts = [A, B, D]
+	if (case_name == "passenger-division") { halts.append(P) }
+	foreach (pos in halts)
 	{
 		local halt = halt_at(pos)
 		if (halt == null) { return fail("no halt at " + pos + " to clear") }
@@ -352,12 +443,15 @@ function clear_halts()
 
 // Inject one cargo packet. This is the general halt_x.add_cargo API: the
 // arrival time is preserved, so a case can control the packet's age exactly.
-function inject_cargo(pos, delivery_pos, amount, arrival_time, next_transfer)
+// The destination halt defaults to D, the goods cases' consumer stop; the
+// passenger division names P instead. The class is the ninth add_cargo
+// argument and is zero (the only goods class) unless a case names another.
+function inject_cargo(pos, delivery_pos, amount, arrival_time, next_transfer, cargo_class = 0, destination_pos = D)
 {
 	local halt = halt_at(pos)
-	local destination = halt_at(D)
-	if (!check(halt != null && destination != null, "no halt at " + pos + " or " + D + " for cargo injection")) { return false }
-	return check_tool(halt.add_cargo(f.goods, amount, destination, next_transfer, arrival_time, halt, delivery_pos, 0), "inject cargo at " + pos)
+	local destination = halt_at(destination_pos)
+	if (!check(halt != null && destination != null, "no halt at " + pos + " or " + destination_pos + " for cargo injection")) { return false }
+	return check_tool(halt.add_cargo(f.goods, amount, destination, next_transfer, arrival_time, halt, delivery_pos, cargo_class), "inject cargo at " + pos)
 }
 
 function loose_wagons()
@@ -489,12 +583,266 @@ function setup_cargo_through(pl)
 
 	// The packet is placed at A with B as its next transfer. The donor loads it
 	// because B is the next stop on its line; no factory production is involved.
+	// The through-pool case sends it back to A, so the B-D collector does not
+	// serve its destination and must leave the loaded wagon in the pool.
 	if (!inject_cargo(A, f.consumer_pos, f.wagon.get_total_capacity(), world.get_time().ticks, halt_at(B))) { return false }
 	if (!check_tool(f.depot.start_convoy(pl, donor), "start loaded donor")) { return false }
 
 	f.phase = "wait-for-loaded-loose"
 	return true
 }
+
+// A goods wagon is loaded at A for D, although the source schedule only runs
+// A-B. The target line's schedule B-D is the wagon's committed portion, so the
+// loader must read the target schedule when it decides what the wagon may
+// carry. At B the source order retains the leading locomotive and the target
+// order takes the trailing locomotive and the wagon; the split-off portion
+// must be promoted and carry the wagon to D.
+function setup_goods_division(pl)
+{
+	if (!clear_halts()) { return false }
+
+	local source = create_convoy(pl, [f.loco, f.wagon, f.loco])
+	if (source == null) { return false }
+	f.donor_id = source.id
+
+	// The target is a line with the B-D schedule. A depot convoy is assigned
+	// to it so the line is an operating service; the split-off portion joins
+	// the same line. The depot convoy is not started.
+	local target_schedule = schedule_x(wt_rail, [make_entry(B, 51), make_entry(D, 52)])
+	target_schedule.orders.rawset(51, make_order([f.loco, f.wagon]))
+	local target_line = create_line_with_schedule(pl, target_schedule)
+	if (target_line == null) { return false }
+	local target = create_convoy(pl, [f.loco])
+	if (target == null) { return false }
+	f.target_convoy_id = target.id
+	if (!check_tool(target.set_line(pl, target_line), "assign target line convoy")) { return false }
+
+	local source_schedule = schedule_x(wt_rail, [make_entry(A, 41), make_entry(B, 42)])
+	source_schedule.orders.rawset(41, make_order([f.loco, f.wagon, f.loco]))
+	source_schedule.orders.rawset(42, make_order([f.loco]))
+	local entry = source_schedule.entries[1]
+	entry.uncouple = true
+	entry.target_id_uncouple = target_line.id
+	entry.uncouple_target_is_line_or_cnv = false
+	entry.target_unique_entry_uncouple = 51
+	if (!put_on_new_line(pl, source, source_schedule)) { return false }
+
+	f.injected_amount = f.wagon.get_total_capacity()
+	if (!inject_cargo(A, f.consumer_pos, f.injected_amount, world.get_time().ticks, halt_at(D))) { return false }
+
+	f.phase = "wait-before-start"
+	f.start_delay = 0
+	return true
+}
+
+// A passenger railcar is loaded at A for P, although the source schedule only
+// runs A-B. The target line's B-P schedule is the loaded railcar's committed
+// serving portion, so the loader must read the target schedule. At B the source
+// order retains the leading railcar and the target order takes the loaded
+// trailing railcar; the split-off portion must be promoted and carry the
+// passengers to P. P is twelve tiles from A, beyond the walking radius.
+function setup_passenger_division(pl)
+{
+	if (!clear_halts()) { return false }
+
+	// The target is a line with the B-P schedule. A depot convoy is assigned to
+	// it so the line is an operating service; the split-off portion joins the
+	// same line. The depot convoy is not started.
+	local target_schedule = schedule_x(wt_rail, [make_entry(B, 51), make_entry(P, 52)])
+	target_schedule.orders.rawset(51, make_order([f.wagon]))
+	local target_line = create_line_with_schedule(pl, target_schedule)
+	if (target_line == null) { return false }
+	local target = create_convoy(pl, [f.loco])
+	if (target == null) { return false }
+	f.target_convoy_id = target.id
+	if (!check_tool(target.set_line(pl, target_line), "assign target line convoy")) { return false }
+
+	local source = create_convoy(pl, [f.loco, f.wagon])
+	if (source == null) { return false }
+	f.donor_id = source.id
+	local source_schedule = schedule_x(wt_rail, [make_entry(A, 41), make_entry(B, 42)])
+	source_schedule.orders.rawset(41, make_order([f.loco, f.wagon]))
+	source_schedule.orders.rawset(42, make_order([f.loco]))
+	local entry = source_schedule.entries[1]
+	entry.uncouple = true
+	entry.target_id_uncouple = target_line.id
+	entry.uncouple_target_is_line_or_cnv = false
+	entry.target_unique_entry_uncouple = 51
+	if (!put_on_new_line(pl, source, source_schedule)) { return false }
+
+	// The passengers are injected by the observer once the source convoy has
+	// left the depot. Starting a convoy rebuilds the passenger routing; a packet
+	// present during that rebuild can be walked to the wrong stop, so it is
+	// added only after the rebuild has settled.
+	f.phase = "wait-before-start"
+	f.start_delay = 0
+	return true
+}
+
+
+function target_line_convoy()
+{
+	foreach (cnv in world.get_convoy_list())
+	{
+		if (!cnv.is_valid() || cnv.id == f.target_convoy_id || cnv.id == f.donor_id) { continue }
+		local slots = cnv.get_vehicle_snapshot()
+		if (slots.len() == 2 && same_desc(slots[0].desc, f.loco) && same_desc(slots[1].desc, f.wagon)) { return cnv }
+	}
+	return null
+}
+
+
+function observe_goods_division()
+{
+	if (f.phase == "wait-before-start")
+	{
+		// Let the line routing settle before the source convoy starts, so the
+		// injected cargo is not removed as unroutable on the first step.
+		if (++f.start_delay < 20) { return }
+		local source = convoy_x(f.donor_id)
+		if (!check(source.is_valid(), "source convoy disappeared before starting")) { return }
+		if (!check_tool(f.depot.start_convoy(player_x(0), source), "start division source convoy")) { return }
+		f.phase = "wait-for-load"
+		return
+	}
+	if (f.phase == "wait-for-load")
+	{
+		local source = convoy_x(f.donor_id)
+		if (!source.is_valid()) { fail("source convoy disappeared before loading"); return }
+		if (source.get_current_entry_id() == 42)
+		{
+			f.phase = "wait-for-division"
+		}
+		return
+	}
+	if (f.phase == "wait-for-division")
+	{
+		local portion = target_line_convoy()
+		if (portion == null) { return }
+		local source = convoy_x(f.donor_id)
+		if (!check(source.is_valid(), "source convoy disappeared before the division")) { return }
+		local source_slots = source.get_vehicle_snapshot()
+		if (!check(source_slots.len() == 1, "the retained portion has " + source_slots.len() + " vehicles, expected one locomotive")) { return }
+		if (!check(same_desc(source_slots[0].desc, f.loco), "the retained portion does not hold the source locomotive")) { return }
+		local slots = portion.get_vehicle_snapshot()
+		if (!check(slots.len() == 2, "the split-off portion has " + slots.len() + " vehicles, expected two")) { return }
+		if (!check(same_desc(slots[0].desc, f.loco), "the split-off portion does not start with the trailing locomotive")) { return }
+		if (!check(same_desc(slots[1].desc, f.wagon), "the split-off portion does not hold the goods wagon")) { return }
+		if (!check(slots[1].cargo == f.injected_amount, "the wagon's load changed at the division: " + slots[1].cargo + " of " + f.injected_amount)) { return }
+		f.split_id = portion.id
+		f.phase = "wait-for-delivery"
+		return
+	}
+	if (f.phase == "wait-for-delivery")
+	{
+		local portion = convoy_x(f.split_id)
+		if (!check(portion.is_valid(), "the split-off portion disappeared")) { return }
+		local slots = portion.get_vehicle_snapshot()
+		if (portion.get_current_entry_id() != 52 || slots.len() != 2 || !same_pos(slots[0].pos, D)) { return }
+		if (!check(same_desc(slots[1].desc, f.wagon), "the split-off portion no longer holds the wagon at D")) { return }
+		if (slots[1].cargo != 0) { return }
+		pass()
+	}
+}
+
+// The split-off portion is the only convoy, other than the source and the
+// target line's depot convoy, that holds one vehicle of the loaded railcar's
+// descriptor. A loose railcar is found too, so the assertions below distinguish
+// a promoted portion by its target entry.
+function passenger_split_convoy()
+{
+	foreach (cnv in world.get_convoy_list())
+	{
+		if (!cnv.is_valid() || cnv.id == f.target_convoy_id || cnv.id == f.donor_id) { continue }
+		local slots = cnv.get_vehicle_snapshot()
+		if (slots.len() == 1 && same_desc(slots[0].desc, f.wagon)) { return cnv }
+	}
+	return null
+}
+
+function observe_passenger_division()
+{
+	if (f.phase == "wait-before-start")
+	{
+		// Let the line routing settle before the source convoy starts, so the
+		// path explorer has built the A-B-P route when the passengers are added.
+		if (++f.start_delay < 60) { return }
+		local source = convoy_x(f.donor_id)
+		if (!check(source.is_valid(), "source convoy disappeared before starting")) { return }
+		if (!check_tool(f.depot.start_convoy(player_x(0), source), "start passenger division source convoy")) { return }
+		f.start_delay = 0
+		f.phase = "wait-for-approach"
+		return
+	}
+	if (f.phase == "wait-for-approach")
+	{
+		local source = convoy_x(f.donor_id)
+		if (!check(source.is_valid(), "source convoy disappeared before reaching A")) { return }
+		local snap = source.get_vehicle_snapshot()
+		if (!check(snap.len() == 2, "the source consist has " + snap.len() + " vehicles")) { return }
+		// The depot is at (1,2) and the A stop at (3,2). Inject once the leading
+		// vehicle has left the depot tile, so the routing rebuild caused by the
+		// departure has settled and the passengers are present before the stop.
+		if (snap[0].pos.x < 2) { return }
+		if (!inject_cargo(A, P, f.injected_amount, world.get_time().ticks, halt_at(P), f.passenger_class, P)) { return }
+		f.start_delay = 0
+		f.phase = "wait-for-load"
+		return
+	}
+	if (f.phase == "wait-for-load")
+	{
+		local source = convoy_x(f.donor_id)
+		if (!source.is_valid()) { fail("source convoy disappeared before loading"); return }
+		local snap = source.get_vehicle_snapshot()
+		if (source.get_current_entry_id() == 42)
+		{
+			f.phase = "wait-for-division"
+			return
+		}
+		// The passengers must reach the loading pass. If they leave A while the
+		// source consist is still empty, the halt walked or discarded them.
+		if (halt_at(A).get_freight_to_dest(f.goods, P) == 0)
+		{
+			local cargo = 0
+			foreach (v in snap) { cargo += v.cargo }
+			if (!check(cargo > 0, "the passengers left A before the source loaded them")) { return }
+		}
+		return
+	}
+	if (f.phase == "wait-for-division")
+	{
+		local portion = passenger_split_convoy()
+		if (portion == null) { return }
+		local source = convoy_x(f.donor_id)
+		if (!check(source.is_valid(), "source convoy disappeared before the division")) { return }
+		local source_slots = source.get_vehicle_snapshot()
+		if (!check(source_slots.len() == 1, "the retained portion has " + source_slots.len() + " vehicles, expected one railcar")) { return }
+		if (!check(same_desc(source_slots[0].desc, f.loco), "the retained portion does not hold the source railcar")) { return }
+		if (!check(source_slots[0].cargo == 0, "the retained railcar kept " + source_slots[0].cargo + " passengers")) { return }
+		local slots = portion.get_vehicle_snapshot()
+		if (!check(slots.len() == 1, "the split-off portion has " + slots.len() + " vehicles, expected one")) { return }
+		if (!check(same_desc(slots[0].desc, f.wagon), "the split-off portion does not hold the loaded railcar")) { return }
+		if (!check(portion.get_current_entry_id() == 51, "the split-off portion is at entry " + portion.get_current_entry_id() + ", expected 51")) { return }
+		if (!check(same_pos(slots[0].pos, B), "the split-off portion did not take over at B")) { return }
+		if (!check(slots[0].cargo == f.injected_amount, "the railcar's passenger load at the division is " + slots[0].cargo + " of " + f.injected_amount)) { return }
+		if (!check(halt_at(B).get_freight_to_dest(f.goods, P) == 0, "passengers were discharged at B")) { return }
+		f.split_id = portion.id
+		f.phase = "wait-for-delivery"
+		return
+	}
+	if (f.phase == "wait-for-delivery")
+	{
+		local portion = convoy_x(f.split_id)
+		if (!check(portion.is_valid(), "the split-off portion disappeared")) { return }
+		local slots = portion.get_vehicle_snapshot()
+		if (portion.get_current_entry_id() != 52 || slots.len() != 1 || !same_pos(slots[0].pos, P)) { return }
+		if (!check(same_desc(slots[0].desc, f.wagon), "the split-off portion no longer holds the loaded railcar at P")) { return }
+		if (slots[0].cargo != 0) { return }
+		pass()
+	}
+}
+
 
 function observe_cargo_through()
 {
@@ -1016,12 +1364,20 @@ function observe_recipient_same()
 function setup()
 {
 	local pl = player_x(0)
+	if (case_name == "passenger-division")
+	{
+		f.goods = good_desc_x.passenger
+		if (!build_infrastructure(pl)) { return false }
+		if (!select_passenger_stock()) { return false }
+		return setup_passenger_division(pl)
+	}
 	if (uses_cargo && !select_consumer()) { return false }
 	if (!build_infrastructure(pl)) { return false }
-	if (!select_stock(case_name.slice(0, 6) == "flash-")) { return false }
+	if (!select_stock(case_name.slice(0, 6) == "flash-" || case_name == "goods-division")) { return false }
 	if (case_name == "empty-distribution") { return setup_empty_distribution(pl) }
 	if (case_name == "recipient-same") { return setup_recipient_same(pl) }
 	if (case_name == "cargo-through" || case_name == "pickup-reload" || case_name == "through-pair") { return setup_cargo_through(pl) }
+	if (case_name == "goods-division") { return setup_goods_division(pl) }
 	if (case_name.slice(0, 6) == "flash-") { return setup_flash_load(pl) }
 	return fail("unknown pick-up goods case " + case_name)
 }
@@ -1046,6 +1402,14 @@ function observe()
 	{
 		if (case_name == "pickup-reload" && f.phase == "awaiting-reload") { return }
 		observe_cargo_through()
+	}
+	else if (case_name == "goods-division")
+	{
+		observe_goods_division()
+	}
+	else if (case_name == "passenger-division")
+	{
+		observe_passenger_division()
 	}
 	else if (case_name.slice(0, 6) == "flash-")
 	{
