@@ -6276,6 +6276,33 @@ static bool schedule_serves_packet_from(const schedule_t *schedule, uint8 start_
 }
 
 
+// True when every packet aboard the vehicle is served by the context's
+// schedule from the context's entry, or is delivered at the context's stop.
+// A vehicle that fails this test must not be placed in that portion.
+static bool vehicle_cargo_is_served_by(const vehicle_t *v, const convoi_t::cargo_service_context_t &context)
+{
+	if (!v || !context.schedule)
+	{
+		return true;
+	}
+	for (uint8 c = 0; c < v->get_number_of_classes(); c++)
+	{
+		for (const ware_t &w : v->get_cargo(c))
+		{
+			if (w.get_ziel() == context.halt || w.get_zwischenziel() == context.halt)
+			{
+				continue;
+			}
+			if (!schedule_serves_packet_from(context.schedule, context.entry, context.reverse, context.owner, w))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+
 bool convoi_t::repair_packet_route(ware_t &w, halthandle_t stop) const
 {
 	if (!schedule || !stop.is_bound())
@@ -6330,6 +6357,339 @@ bool convoi_t::vehicle_cargo_is_served(const vehicle_t *v, halthandle_t halt) co
 }
 
 
+bool convoi_t::uses_passenger_system(const goods_desc_t *goods) const
+{
+	if (goods == goods_manager_t::passengers)
+	{
+		return true;
+	}
+	if (goods == goods_manager_t::mail)
+	{
+		return get_catering_level(goods_manager_t::INDEX_MAIL) > 0;
+	}
+	return false;
+}
+
+
+halthandle_t convoi_t::packet_requirement(const ware_t &w)
+{
+	return w.get_zwischenziel().is_bound() ? w.get_zwischenziel() : w.get_ziel();
+}
+
+
+bool convoi_t::recombination_between(halthandle_t requirement) const
+{
+	if (!schedule || !requirement.is_bound() || schedule->get_count() == 0)
+	{
+		return false;
+	}
+
+	const halthandle_t current_halt = haltestelle_t::get_halt(schedule->get_current_entry().pos, owner);
+	uint8 index = schedule->get_current_stop();
+	bool reverse = reverse_schedule;
+	const int count = schedule->is_mirrored() ? schedule->get_count() * 2 : schedule->get_count();
+	for (int i = 0; i < count; i++)
+	{
+		schedule->increment_index(&index, &reverse);
+		if (index == schedule->get_current_stop())
+		{
+			break;
+		}
+		const schedule_entry_t &entry = schedule->entries[index];
+		const halthandle_t entry_halt = haltestelle_t::get_halt(entry.pos, owner);
+		if (entry_halt == requirement)
+		{
+			// The packet leaves the convoy here, before any later operation.
+			return false;
+		}
+		if (i > 0 && current_halt.is_bound() && entry_halt == current_halt)
+		{
+			// The convoy returns to this stop first; the packet would not be
+			// carried past that return.
+			break;
+		}
+		if (schedule->entry_has_consist_order(entry.unique_entry_id)
+			|| entry.is_flag_set(schedule_entry_t::couple)
+			|| entry.is_flag_set(schedule_entry_t::uncouple))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
+bool convoi_t::has_committed_portion(const vehicle_t *v) const
+{
+	if (!recombination_plan.valid || !v || v->get_convoi() != this)
+	{
+		return false;
+	}
+	vehicle_t *const vehicle = const_cast<vehicle_t*>(v);
+	return recombination_plan.retained.is_contained(vehicle) || recombination_plan.split.is_contained(vehicle);
+}
+
+
+bool convoi_t::portion_serves_packet(const vehicle_t *v, const ware_t &w, halthandle_t halt) const
+{
+	if (recombination_plan.valid && v && v->get_convoi() == this)
+	{
+		vehicle_t *const vehicle = const_cast<vehicle_t*>(v);
+		if (recombination_plan.retained.is_contained(vehicle))
+		{
+			return serves_packet_from_stop(w, halt);
+		}
+		if (recombination_plan.split.is_contained(vehicle))
+		{
+			schedule_t *const target_schedule = recombination_plan.target_line.is_bound()
+				? recombination_plan.target_line->get_schedule()
+				: (recombination_plan.target_convoy.is_bound() ? recombination_plan.target_convoy->get_schedule() : nullptr);
+			if (!target_schedule)
+			{
+				return false;
+			}
+			const uint8 target_entry = target_schedule->get_entry_from_unique_id(recombination_plan.target_unique_id);
+			if (target_entry == 255)
+			{
+				return false;
+			}
+			return schedule_serves_packet_from(target_schedule, target_entry, recombination_plan.target_reversed, owner, w);
+		}
+		// A vehicle assigned to the loose group has no serving portion.
+		return false;
+	}
+	return serves_packet_from_stop(w, halt);
+}
+
+
+bool convoi_t::get_committed_serving_schedule(const vehicle_t *v, const schedule_t *&cargo_schedule, uint8 &cargo_entry, bool &cargo_reverse, halthandle_t &cargo_start_halt) const
+{
+	if (!recombination_plan.valid || !v || v->get_convoi() != this)
+	{
+		return false;
+	}
+	schedule_t *const target_schedule = recombination_plan.target_line.is_bound()
+		? recombination_plan.target_line->get_schedule()
+		: (recombination_plan.target_convoy.is_bound() ? recombination_plan.target_convoy->get_schedule() : nullptr);
+	if (!target_schedule || !recombination_plan.split.is_contained(const_cast<vehicle_t*>(v)))
+	{
+		return false;
+	}
+	const uint8 target_entry = target_schedule->get_entry_from_unique_id(recombination_plan.target_unique_id);
+	if (target_entry == 255)
+	{
+		return false;
+	}
+	cargo_schedule = target_schedule;
+	cargo_entry = target_entry;
+	cargo_reverse = recombination_plan.target_reversed;
+	cargo_start_halt = haltestelle_t::get_halt(target_schedule->entries[target_entry].pos, owner);
+	return true;
+}
+
+
+void convoi_t::ensure_recombination_plan(halthandle_t halt)
+{
+	if (!halt.is_bound() || !schedule || schedule->get_count() == 0)
+	{
+		recombination_plan.valid = false;
+		recombination_plan.checked = false;
+		return;
+	}
+
+	const uint16 current_unique_id = schedule->get_current_entry().unique_entry_id;
+	if (recombination_plan.checked
+		&& recombination_plan.halt_id == halt.get_id()
+		&& recombination_plan.source_unique_id == current_unique_id)
+	{
+		return;
+	}
+
+	recombination_plan = recombination_plan_t();
+	recombination_plan.checked = true;
+	recombination_plan.halt_id = halt.get_id();
+	recombination_plan.source_unique_id = current_unique_id;
+
+	// A formation is committed only when the next recombination entry is a
+	// division whose two orders can both be satisfied from the current consist.
+	// Any other recombination entry first, or an order that needs the laid-over
+	// pool, makes the formation depend on that operation.
+	uint8 index = schedule->get_current_stop();
+	bool reverse = reverse_schedule;
+	const int count = schedule->is_mirrored() ? schedule->get_count() * 2 : schedule->get_count();
+	const schedule_entry_t *division = nullptr;
+	for (int i = 0; i < count; i++)
+	{
+		schedule->increment_index(&index, &reverse);
+		if (index == schedule->get_current_stop())
+		{
+			break;
+		}
+		const schedule_entry_t &entry = schedule->entries[index];
+		const halthandle_t entry_halt = haltestelle_t::get_halt(entry.pos, owner);
+		if (i > 0 && entry_halt == halt)
+		{
+			break;
+		}
+		const bool has_order = schedule->entry_has_consist_order(entry.unique_entry_id);
+		const bool couple = entry.is_flag_set(schedule_entry_t::couple);
+		const bool uncouple = entry.is_flag_set(schedule_entry_t::uncouple);
+		if (has_order || couple || uncouple)
+		{
+			if (uncouple && !couple && has_order && entry_halt.is_bound())
+			{
+				division = &entry;
+			}
+			break;
+		}
+	}
+	if (!division)
+	{
+		return;
+	}
+
+	uncouple_target_t target;
+	if (resolve_uncouple_target(*division, haltestelle_t::get_halt(division->pos, owner), target))
+	{
+		build_recombination_plan(*division, target);
+	}
+}
+
+
+void convoi_t::ensure_current_division_plan(halthandle_t halt)
+{
+	if (!halt.is_bound() || !schedule || schedule->get_count() == 0)
+	{
+		return;
+	}
+	const schedule_entry_t &entry = schedule->get_current_entry();
+	if (!entry.is_flag_set(schedule_entry_t::uncouple)
+		|| entry.is_flag_set(schedule_entry_t::couple)
+		|| !schedule->entry_has_consist_order(entry.unique_entry_id))
+	{
+		return;
+	}
+
+	recombination_plan = recombination_plan_t();
+	recombination_plan.checked = true;
+	recombination_plan.halt_id = halt.get_id();
+	recombination_plan.source_unique_id = entry.unique_entry_id;
+
+	uncouple_target_t target;
+	if (resolve_uncouple_target(entry, halt, target))
+	{
+		build_recombination_plan(entry, target);
+	}
+}
+
+
+bool convoi_t::build_recombination_plan(const schedule_entry_t &division, const uncouple_target_t &target)
+{
+	const uint16 target_unique_id = target.schedule->get_unique_id_from_entry(target.entry_index);
+	if (!target.schedule->entry_has_consist_order(target_unique_id))
+	{
+		return false;
+	}
+
+	const consist_order_t &source_order = schedule->get_consist_order(division.unique_entry_id);
+	const consist_order_t &target_order = target.schedule->get_consist_order(target_unique_id);
+	const halthandle_t division_halt = haltestelle_t::get_halt(division.pos, owner);
+
+	cargo_service_context_t source_context;
+	source_context.schedule = schedule;
+	source_context.entry = schedule->get_current_stop();
+	source_context.reverse = reverse_schedule;
+	source_context.owner = owner;
+	source_context.halt = division_halt;
+
+	cargo_service_context_t target_context;
+	target_context.schedule = target.schedule;
+	target_context.entry = target.entry_index;
+	target_context.reverse = division.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed);
+	target_context.owner = owner;
+	target_context.halt = division_halt;
+	// An optional slot can be filled from the laid-over pool at the division,
+	// so the formation is not fixed by the current consist.
+	for (uint32 i = 0; i < source_order.get_count(); i++)
+	{
+		if (source_order.get_order(i).is_optional())
+		{
+			return false;
+		}
+	}
+	for (uint32 i = 0; i < target_order.get_count(); i++)
+	{
+		if (target_order.get_order(i).is_optional())
+		{
+			return false;
+		}
+	}
+
+	vector_tpl<vehicle_t*> shadow;
+	get_forward_consist(shadow);
+	vector_tpl<vehicle_t*> available;
+	for (vehicle_t *v : shadow)
+	{
+		available.append(v);
+	}
+
+	vector_tpl<vehicle_t*> retained;
+	vector_tpl<bool> retained_reversed;
+	const consist_order_process_result source_result = match_consist_order(
+		source_order, available, shadow, retained, retained_reversed, &source_context);
+	if (source_result != succeed && source_result != no_change_needed)
+	{
+		return false;
+	}
+
+	// The split-off portion can use only what the source order left behind.
+	vector_tpl<vehicle_t*> remaining;
+	vector_tpl<vehicle_t*> remaining_shadow;
+	for (vehicle_t *v : shadow)
+	{
+		if (!retained.is_contained(v))
+		{
+			remaining.append(v);
+			remaining_shadow.append(v);
+		}
+	}
+	vector_tpl<vehicle_t*> split;
+	vector_tpl<bool> split_reversed;
+	const consist_order_process_result target_result = match_consist_order(
+		target_order, remaining, remaining_shadow, split, split_reversed, &target_context);
+	if (target_result != succeed && target_result != no_change_needed)
+	{
+		return false;
+	}
+
+	bool retained_powered = false;
+	for (vehicle_t *v : retained)
+	{
+		retained_powered |= v->get_desc()->get_power() > 0;
+	}
+	bool split_powered = false;
+	for (vehicle_t *v : split)
+	{
+		split_powered |= v->get_desc()->get_power() > 0;
+	}
+	if (!retained_powered || !split_powered)
+	{
+		return false;
+	}
+
+	recombination_plan.retained = retained;
+	recombination_plan.retained_reversed = retained_reversed;
+	recombination_plan.split = split;
+	recombination_plan.split_reversed = split_reversed;
+	recombination_plan.target_line = target.line;
+	recombination_plan.target_convoy = target.convoy;
+	recombination_plan.target_unique_id = target_unique_id;
+	recombination_plan.target_reversed = division.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed);
+	recombination_plan.valid = true;
+	return true;
+}
+
+
 uint16 convoi_t::unload_cargo_for_stop(halthandle_t halt, bool newly_loose)
 {
 	uint16 changed_loading_level = 0;
@@ -6380,7 +6740,7 @@ void convoi_t::capture_through_departures(vehicle_t *v)
 		for (const ware_t &w : v->get_cargo(c))
 		{
 			const halthandle_t halt = w.get_last_transfer();
-			if (!halt.is_bound() || v->has_through_departure(halt.get_id()))
+			if (!halt.is_bound() || v->has_through_departure_for(halt.get_id(), w.arrival_time))
 			{
 				continue;
 			}
@@ -6438,19 +6798,24 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, const vehicle_t *v, array_tpl<
 		const through_departures_t *const through = v->get_through_departures();
 		if (through)
 		{
+			// A record is usable only when it describes this packet's
+			// boarding. A packet that arrived at the same stop after the
+			// recorded departure belongs to a later boarding and must not
+			// inherit the older distance. Several records can share a halt
+			// after a packet moved between vehicles, so take the earliest
+			// departure that is not earlier than the packet's arrival.
 			for (const through_departure_t &td : *through)
 			{
-				// A record is usable only when it describes this packet's
-				// boarding. A packet that arrived at the same stop after the
-				// recorded departure belongs to a later boarding and must not
-				// inherit the older distance.
 				if (td.halt_id == ware.get_last_transfer().get_id()
 					&& td.history_known
-					&& td.departure.departure_time >= ware.arrival_time)
+					&& td.departure.departure_time >= ware.arrival_time
+					&& (!have_departure
+						|| td.departure.departure_time < dep.departure_time
+						|| (td.departure.departure_time == dep.departure_time
+							&& td.departure.get_overall_distance() > dep.get_overall_distance())))
 				{
 					dep = td.departure;
 					have_departure = true;
-					break;
 				}
 			}
 		}
@@ -6759,6 +7124,13 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 
 	const bool will_layover = first_run && get_schedule()->get_current_entry().is_flag_set(schedule_entry_t::lay_over) && halt->can_lay_over();
 	const schedule_entry_t &arrival_entry = schedule->get_current_entry();
+	if (first_run)
+	{
+		// A formation plan is valid for one loading pass. A schedule or order
+		// edit between stops invalidates it.
+		recombination_plan.checked = false;
+		recombination_plan.valid = false;
+	}
 	const bool recombination_pending = first_run
 		&& (schedule->entry_has_consist_order(arrival_entry.unique_entry_id)
 			|| arrival_entry.is_flag_set(schedule_entry_t::couple)
@@ -6874,9 +7246,14 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 							collected_vehicle_loading_credit += (uint32)min((sint64)normal_share, available);
 						}
 					}
-					if(skip_convois || skip_vehicles)
+					if((skip_convois || skip_vehicles) && !recombination_plan.valid)
 					{
 						// Not enough freight was available to fill vehicle, or the stop can't supply this type of cargo: don't try to load this category again from this halt onto vehicles in convois on this line this step.
+						// A convoy with a committed formation asks each vehicle
+						// against its own serving schedule, so one vehicle's "no
+						// cargo for me" result must not stop the other vehicles
+						// from being asked. The extra scans are confined to
+						// convoys that are about to divide.
 						if( !v->get_desc()->get_mixed_load_prohibition() ) {
 							skip_catg[catg_index] = true;
 						}
@@ -10202,6 +10579,7 @@ struct optional_consist_matcher_t
 	const consist_order_t *order;
 	const vector_tpl<vehicle_t*> *available;
 	const vector_tpl<vehicle_t*> *shadow;
+	const convoi_t::cargo_service_context_t *cargo_service;
 	vector_tpl<vehicle_t*> chosen;
 	vector_tpl<bool> chosen_reversed;
 
@@ -10249,6 +10627,10 @@ struct optional_consist_matcher_t
 	bool try_candidate(vehicle_t *candidate, const consist_order_element_t &element, uint32 priority, uint32 slot)
 	{
 		if (!candidate || chosen.is_contained(candidate) || !candidate->matches_consist_order_element(element, priority))
+		{
+			return false;
+		}
+		if (cargo_service && !vehicle_cargo_is_served_by(candidate, *cargo_service))
 		{
 			return false;
 		}
@@ -10317,6 +10699,7 @@ struct paired_exchange_solver_t
 	const consist_order_t *order[2];
 	const vector_tpl<vehicle_t*> *shadow[2];
 	const vector_tpl<vehicle_t*> *pool;
+	const convoi_t::cargo_service_context_t *cargo_service[2];
 	waytype_t waytype[2];
 	uint32 shadow_count[2];
 	uint32 slot_count[2];
@@ -10342,14 +10725,16 @@ struct paired_exchange_solver_t
 	vector_tpl<bool> final_reversed[2];
 
 
-	void init(const consist_order_t &order_R, const vector_tpl<vehicle_t*> &shadow_R, waytype_t waytype_R,
-		const consist_order_t &order_T, const vector_tpl<vehicle_t*> &shadow_T, waytype_t waytype_T,
+	void init(const consist_order_t &order_R, const vector_tpl<vehicle_t*> &shadow_R, waytype_t waytype_R, const convoi_t::cargo_service_context_t &cargo_R,
+		const consist_order_t &order_T, const vector_tpl<vehicle_t*> &shadow_T, waytype_t waytype_T, const convoi_t::cargo_service_context_t &cargo_T,
 		const vector_tpl<vehicle_t*> &pool_vehicles)
 	{
 		order[0] = &order_R;
 		order[1] = &order_T;
 		shadow[0] = &shadow_R;
 		shadow[1] = &shadow_T;
+		cargo_service[0] = &cargo_R;
+		cargo_service[1] = &cargo_T;
 		pool = &pool_vehicles;
 		waytype[0] = waytype_R;
 		waytype[1] = waytype_T;
@@ -10472,6 +10857,10 @@ struct paired_exchange_solver_t
 			return;
 		}
 		if (!v->matches_consist_order_element(element, priority))
+		{
+			return;
+		}
+		if (cargo_service[side] && !vehicle_cargo_is_served_by(v, *cargo_service[side]))
 		{
 			return;
 		}
@@ -10767,7 +11156,7 @@ struct paired_exchange_solver_t
 };
 
 
-convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate, uint32 *turn_ticks)
+convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate, uint32 *turn_ticks, const cargo_service_context_t *cargo_service)
 
 {
 	// Overall scheme: assemble a vector of vehicles based on the priority of slots and whether it is driveable,
@@ -10778,11 +11167,22 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		*turn_ticks = 0;
 	}
 
+	cargo_service_context_t default_cargo_service;
+	if (!cargo_service && schedule)
+	{
+		default_cargo_service.schedule = schedule;
+		default_cargo_service.entry = schedule->get_current_stop();
+		default_cargo_service.reverse = reverse_schedule;
+		default_cargo_service.owner = owner;
+		default_cargo_service.halt = halt;
+		cargo_service = &default_cargo_service;
+	}
+
 	vector_tpl<vehicle_t*> final_consist;
 	vector_tpl<bool> final_reversed;
 	vector_tpl<vehicle_t*> available_vehicles;
 
-	if (!get_recombination_available_vehicles(halt, dep, joining_convoy, available_vehicles))
+	if (!get_recombination_available_vehicles(halt, dep, joining_convoy, available_vehicles, cargo_service))
 	{
 		dbg->warning("void convoi_t::process_consist_order()", "Deleted halt or depot on processing a consist order.");
 		return fail;
@@ -10799,7 +11199,24 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	vector_tpl<vehicle_t*> shadow_consist;
 	get_forward_consist(shadow_consist);
 
-	convoi_t::consist_order_process_result success = match_consist_order(order, available_vehicles, shadow_consist, final_consist, final_reversed);
+	convoi_t::consist_order_process_result success = fail;
+	if (split_candidate
+		&& recombination_plan.valid
+		&& halt.is_bound()
+		&& recombination_plan.halt_id == halt.get_id()
+		&& recombination_plan.source_unique_id == schedule->get_current_entry().unique_entry_id)
+	{
+		// The committed formation fixes which vehicles stay for the source
+		// portion. Using it directly keeps the loader's portion assignment and
+		// the division's assignment the same.
+		final_consist = recombination_plan.retained;
+		final_reversed = recombination_plan.retained_reversed;
+		success = succeed;
+	}
+	else
+	{
+		success = match_consist_order(order, available_vehicles, shadow_consist, final_consist, final_reversed, cargo_service);
+	}
 
 	if (success == succeed)
 	{
@@ -10875,12 +11292,21 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 }
 
 
-bool convoi_t::get_recombination_available_vehicles(halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, vector_tpl<vehicle_t*> &available) const
+bool convoi_t::get_recombination_available_vehicles(halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, vector_tpl<vehicle_t*> &available, const cargo_service_context_t *cargo_service) const
 {
+	const auto cargo_served = [this, halt, cargo_service](const vehicle_t *v) -> bool
+	{
+		return cargo_service ? vehicle_cargo_is_served_by(v, *cargo_service) : vehicle_cargo_is_served(v, halt);
+	};
+
 	const uint8 own_vehicle_count = get_vehicle_count();
 	for (uint8 i = 0; i < own_vehicle_count; i++)
 	{
-		available.append(get_vehicle(i));
+		vehicle_t *const v = get_vehicle(i);
+		if (cargo_served(v))
+		{
+			available.append(v);
+		}
 	}
 
 	if (joining_convoy.is_bound())
@@ -10891,7 +11317,7 @@ bool convoi_t::get_recombination_available_vehicles(halthandle_t halt, depot_t* 
 		for (uint8 i = 0; i < joining_vehicle_count; i++)
 		{
 			vehicle_t *const v = joining_convoy->get_vehicle(i);
-			if (vehicle_cargo_is_served(v, halt))
+			if (cargo_served(v))
 			{
 				available.append(v);
 			}
@@ -10935,7 +11361,7 @@ bool convoi_t::get_recombination_available_vehicles(halthandle_t halt, depot_t* 
 							continue;
 						}
 					}
-					if (vehicle_cargo_is_served(v, halt))
+					if (cargo_served(v))
 					{
 						available.append(v);
 					}
@@ -10949,7 +11375,7 @@ bool convoi_t::get_recombination_available_vehicles(halthandle_t halt, depot_t* 
 		slist_tpl<vehicle_t*>& depot_vehicles = dep->get_vehicle_list();
 		for (auto v : depot_vehicles)
 		{
-			if (!v->get_is_mothballed() && vehicle_cargo_is_served(v, halt))
+			if (!v->get_is_mothballed() && cargo_served(v))
 			{
 				available.append(v);
 			}
@@ -11007,7 +11433,7 @@ static bool consist_owners_permitted(const vector_tpl<vehicle_t*> &consist)
 }
 
 
-convoi_t::consist_order_process_result convoi_t::match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available_vehicles, const vector_tpl<vehicle_t*> &shadow_consist, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed) const
+convoi_t::consist_order_process_result convoi_t::match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available_vehicles, const vector_tpl<vehicle_t*> &shadow_consist, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed, const cargo_service_context_t *cargo_service) const
 {
 	convoi_t::consist_order_process_result success = fail;
 
@@ -11024,6 +11450,7 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 		matcher.order = &order;
 		matcher.available = &available_vehicles;
 		matcher.shadow = &shadow_consist;
+		matcher.cargo_service = cargo_service;
 		if (matcher.search(0))
 		{
 			final_consist = matcher.chosen;
@@ -11077,6 +11504,7 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 				bool chosen_reversed = false;
 				if (i < shadow_consist.get_count() && shadow_consist[i]
 					&& !final_consist.is_contained(shadow_consist[i])
+					&& (!cargo_service || vehicle_cargo_is_served_by(shadow_consist[i], *cargo_service))
 					&& shadow_consist[i]->matches_consist_order_element(element, j)
 					&& choose_candidate_orientation(shadow_consist[i], i, element_count, final_consist, final_reversed, chosen_reversed))
 				{
@@ -11095,6 +11523,7 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 						continue;
 					}
 					else if (veh->matches_consist_order_element(element, j) && !final_consist.is_contained(veh)
+						&& (!cargo_service || vehicle_cargo_is_served_by(veh, *cargo_service))
 						&& choose_candidate_orientation(veh, i, element_count, final_consist, final_reversed, chosen_reversed))
 					{
 						final_consist.append(veh);
@@ -11468,8 +11897,10 @@ uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicle
 
 	// A vehicle that joined from another convoy may not have received that
 	// convoy's arrival unload pass. Discharge any packet whose destination or
-	// next transfer is this stop before the consist departs.
-	if (halt.is_bound())
+	// next transfer is this stop before the consist departs. A division defers
+	// this until both portions are known, so that passengers and goods can be
+	// moved to a portion that serves them first.
+	if (halt.is_bound() && !split_candidate)
 	{
 		unload_cargo_for_stop(halt);
 	}
@@ -11533,15 +11964,21 @@ void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, c
 	// The target entry's order defines the split-off group's end state. It may
 	// draw on the stop's laid-over vehicles; vehicles that it releases remain
 	// ordinary loose stock under the existing commit rules.
+	const bool target_reverse = source_entry.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed);
+	cargo_service_context_t target_context;
+	target_context.schedule = target.schedule;
+	target_context.entry = target.entry_index;
+	target_context.reverse = target_reverse;
+	target_context.owner = portion->get_owner();
+	target_context.halt = halt;
 	uint32 turn_ticks = 0;
-	const consist_order_process_result result = portion->process_consist_order(target.schedule->get_consist_order(target_unique_id), halt, nullptr, convoihandle_t(), nullptr, &turn_ticks);
+	const consist_order_process_result result = portion->process_consist_order(target.schedule->get_consist_order(target_unique_id), halt, nullptr, convoihandle_t(), nullptr, &turn_ticks, &target_context);
 
 	// A promoted portion must be able to take every packet it carries. If the
 	// target schedule does not serve a packet's next transfer or destination,
 	// the portion stays loose at the stop rather than carrying that packet past
 	// the divide. Cargo that is for the divide itself is deliverable here and is
 	// unloaded by unload_cargo_for_stop after promotion.
-	const bool target_reverse = source_entry.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed);
 	bool cargo_served = true;
 	for (uint8 i = 0; i < portion->get_vehicle_count() && cargo_served; i++)
 	{
@@ -11648,6 +12085,242 @@ void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, c
 	portion->state = LOADING;
 	portion->wait_lock = (sint32)seconds_to_ticks(welt->get_settings().get_shunting_time_seconds(), welt->get_settings().get_meters_per_tile()) + (sint32)turn_ticks;
 }
+
+void convoi_t::redistribute_passengers_after_division(halthandle_t halt, convoihandle_t portion, bool mail_uses_passenger_system, const vector_tpl<vehicle_t*> &original_consist)
+{
+	if (!halt.is_bound())
+	{
+		return;
+	}
+
+	convoi_t *const other = portion.is_bound() ? portion.get_rep() : nullptr;
+
+	const auto is_rearrangeable = [mail_uses_passenger_system](const ware_t &w) -> bool
+	{
+		return w.is_passenger() || (w.is_mail() && mail_uses_passenger_system);
+	};
+
+	const auto retained_serves = [this, halt](const ware_t &w) -> bool
+	{
+		return serves_packet_from_stop(w, halt);
+	};
+
+	const auto other_serves = [other](const ware_t &w) -> bool
+	{
+		if (!other || !other->get_schedule() || other->get_schedule()->get_count() == 0)
+		{
+			return false;
+		}
+		return schedule_serves_packet_from(other->get_schedule(), other->get_schedule()->get_current_stop(), other->get_reverse_schedule(), other->get_owner(), w);
+	};
+
+	const auto find_vehicle_for = [](convoi_t *cnv, const ware_t &w) -> vehicle_t*
+	{
+		if (!cnv)
+		{
+			return nullptr;
+		}
+		for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+		{
+			vehicle_t *const v = cnv->get_vehicle(i);
+			if (v->get_cargo_type() == w.get_desc() && v->find_accommodation_for_packet(w) != 255)
+			{
+				return v;
+			}
+		}
+		return nullptr;
+	};
+
+	if (other)
+	{
+		// Walk the vehicles in the order they stood before the division. A
+		// packet whose final group does not serve it moves to the first vehicle
+		// in the group that does serve it and has accommodation. Once that
+		// group has no accommodation left, the packet stays where it is and is
+		// discharged by the unload at the end of this method. There is no
+		// priority other than the vehicle order.
+		for (vehicle_t *const source : original_consist)
+		{
+			if (!source)
+			{
+				continue;
+			}
+			convoi_t *const source_group = source->get_convoi();
+			const bool in_retained = source_group == this;
+			const bool in_split = source_group == other;
+			for (uint8 c = 0; c < source->get_number_of_classes(); c++)
+			{
+				uint32 p = 0;
+				while (p < source->get_cargo(c).get_count())
+				{
+					const ware_t *const packet = source->get_cargo_at(c, p);
+					if (!packet)
+					{
+						break;
+					}
+					if (is_rearrangeable(*packet))
+					{
+						convoi_t *destination_group = nullptr;
+						if (in_retained)
+						{
+							if (!retained_serves(*packet) && other_serves(*packet))
+							{
+								destination_group = other;
+							}
+						}
+						else if (in_split)
+						{
+							if (!other_serves(*packet) && retained_serves(*packet))
+							{
+								destination_group = this;
+							}
+						}
+						else
+						{
+							// A vehicle that became loose stock has no serving
+							// schedule of its own.
+							if (retained_serves(*packet))
+							{
+								destination_group = this;
+							}
+							else if (other_serves(*packet))
+							{
+								destination_group = other;
+							}
+						}
+						if (destination_group)
+						{
+							vehicle_t *const destination = find_vehicle_for(destination_group, *packet);
+							if (destination && source->move_cargo_to(destination, c, p))
+							{
+								// p now addresses the packet that followed.
+								continue;
+							}
+						}
+					}
+					p++;
+				}
+			}
+			source->prune_through_departures();
+		}
+
+		// A vehicle displaced into a different loose convoy (not the split
+		// candidate) cannot be reached by the split candidate's discharge
+		// below. Move its servable passengers first, then discharge the rest.
+		for (vehicle_t *const source : original_consist)
+		{
+			convoi_t *const group = source ? source->get_convoi() : nullptr;
+			const bool passenger_or_mail = source
+				&& (source->get_cargo_type() == goods_manager_t::passengers
+					|| (mail_uses_passenger_system && source->get_cargo_type() == goods_manager_t::mail));
+			if (!group || group == this || group == other || !passenger_or_mail)
+			{
+				continue;
+			}
+			for (uint8 i = 0; i < group->get_vehicle_count(); i++)
+			{
+				if (group->get_vehicle(i) == source)
+				{
+					group->unload_individual_vehicle_at(i, halt, true);
+					break;
+				}
+			}
+		}
+
+		// A loose passenger carriage has no serving schedule. Once the
+		// passengers that another portion can carry have moved, discharge the
+		// remainder at the division.
+		if (!other->get_schedule() || other->get_schedule()->get_count() == 0)
+		{
+			for (uint8 i = 0; i < other->get_vehicle_count(); i++)
+			{
+				vehicle_t *const v = other->get_vehicle(i);
+				const bool passenger_or_mail = v->get_cargo_type() == goods_manager_t::passengers
+					|| (mail_uses_passenger_system && v->get_cargo_type() == goods_manager_t::mail);
+				if (passenger_or_mail)
+				{
+					other->unload_individual_vehicle_at(i, halt, true);
+				}
+			}
+		}
+	}
+
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		vehicle[i]->prune_through_departures();
+	}
+	if (other)
+	{
+		for (uint8 i = 0; i < other->get_vehicle_count(); i++)
+		{
+			other->get_vehicle(i)->prune_through_departures();
+		}
+	}
+
+	// The retained consist has no covering portion for any packet left aboard.
+	// The ordinary post-recombination unload repairs a route the retained
+	// schedule can still serve and discharges the rest at this stop.
+	unload_cargo_for_stop(halt);
+}
+
+
+void convoi_t::discharge_divergent_wagons(halthandle_t halt, const schedule_t *target_schedule, uint8 target_entry, bool target_reverse, const player_t *target_owner, bool mail_uses_passenger_system)
+{
+	if (!halt.is_bound() || !target_schedule)
+	{
+		return;
+	}
+
+	for (uint8 i = 0; i < vehicle_count; i++)
+	{
+		vehicle_t *const v = vehicle[i];
+		if (v->get_cargo_type() == goods_manager_t::passengers
+			|| (mail_uses_passenger_system && v->get_cargo_type() == goods_manager_t::mail))
+		{
+			// The passenger system owns these packets.
+			continue;
+		}
+
+		vector_tpl<uint16> requirements;
+		bool all_source = true;
+		bool all_target = true;
+		bool any_source = false;
+		bool any_target = false;
+		for (uint8 c = 0; c < v->get_number_of_classes(); c++)
+		{
+			for (const ware_t &w : v->get_cargo(c))
+			{
+				if (w.get_ziel() == halt || w.get_zwischenziel() == halt)
+				{
+					// Delivered at the division stop; it imposes no portion
+					// requirement.
+					continue;
+				}
+				const halthandle_t requirement = packet_requirement(w);
+				if (requirement.is_bound() && !requirements.is_contained(requirement.get_id()))
+				{
+					requirements.append(requirement.get_id());
+				}
+				const bool source_serves = serves_packet_from_stop(w, halt);
+				const bool target_serves = schedule_serves_packet_from(target_schedule, target_entry, target_reverse, target_owner, w);
+				all_source &= source_serves;
+				all_target &= target_serves;
+				any_source |= source_serves;
+				any_target |= target_serves;
+			}
+		}
+
+		// One wagon requirement stays with the wagon even when no portion
+		// serves it: it waits in the through pool. A wagon whose goods need
+		// different portions is discharged at the first division where they
+		// diverge.
+		if (requirements.get_count() > 1 && !all_source && !all_target && (any_source || any_target))
+		{
+			unload_individual_vehicle_at(i, halt, true);
+		}
+	}
+}
+
 
 void convoi_t::set_blank_route()
 {
@@ -12150,13 +12823,19 @@ bool convoi_t::can_approach_coupling_target(halthandle_t halt, const convoihandl
 		else
 		{
 			const consist_order_t &order = schedule->get_consist_order(unique_id);
+			cargo_service_context_t cargo_service;
+			cargo_service.schedule = schedule;
+			cargo_service.entry = schedule->get_current_stop();
+			cargo_service.reverse = reverse_schedule;
+			cargo_service.owner = owner;
+			cargo_service.halt = halt;
 			vector_tpl<vehicle_t*> available;
-			get_recombination_available_vehicles(halt, nullptr, target, available);
+			get_recombination_available_vehicles(halt, nullptr, target, available, &cargo_service);
 			vector_tpl<vehicle_t*> shadow;
 			get_forward_consist(shadow);
 			vector_tpl<vehicle_t*> final_consist;
 			vector_tpl<bool> final_reversed;
-			if (match_consist_order(order, available, shadow, final_consist, final_reversed) == fail)
+			if (match_consist_order(order, available, shadow, final_consist, final_reversed, &cargo_service) == fail)
 			{
 				report_coupling_hold(halt, target, translator::translate("the consist order cannot be completed into a powered consist from the two consists"));
 				recombination_precheck_passed = false;
@@ -12545,8 +13224,18 @@ bool convoi_t::solve_paired_exchange(convoi_t *const convoys[2], const consist_o
 		}
 	}
 
+	cargo_service_context_t cargo_service[2];
+	for (uint8 side = 0; side < 2; side++)
+	{
+		cargo_service[side].schedule = convoys[side]->get_schedule();
+		cargo_service[side].entry = convoys[side]->get_schedule()->get_current_stop();
+		cargo_service[side].reverse = convoys[side]->get_reverse_schedule();
+		cargo_service[side].owner = convoys[side]->get_owner();
+		cargo_service[side].halt = halt;
+	}
+
 	paired_exchange_solver_t solver;
-	solver.init(*orders[0], shadow[0], waytype[0], *orders[1], shadow[1], waytype[1], pool_vehicles);
+	solver.init(*orders[0], shadow[0], waytype[0], cargo_service[0], *orders[1], shadow[1], waytype[1], cargo_service[1], pool_vehicles);
 	const paired_solver_result_t solver_result = solver.solve();
 
 	if (solver_result != paired_solver_solved)
@@ -13075,11 +13764,49 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 	// uncouple keeps the ordinary loose-stock commit behaviour.
 	uncouple_target_t uncouple_target;
 	const bool divide = uncouple && resolve_uncouple_target(current_entry, halt, uncouple_target);
+	// The TPO level is a property of the train before the division; a TPO that
+	// remains in either portion keeps all the train's mail on the passenger
+	// system.
+	const bool mail_uses_passenger_system = get_catering_level(goods_manager_t::INDEX_MAIL) > 0;
+	// The passenger move follows the order the vehicles stood in before the
+	// division, not the order of the two final groups.
+	vector_tpl<vehicle_t*> original_consist;
+	if (divide)
+	{
+		// The source order may use the committed formation only while the
+		// division is being processed. The loader plans the next division.
+		ensure_current_division_plan(halt);
+		get_forward_consist(original_consist);
+		const player_t *const target_owner = uncouple_target.line.is_bound()
+			? uncouple_target.line->get_owner()
+			: uncouple_target.convoy->get_owner();
+		discharge_divergent_wagons(halt, uncouple_target.schedule, uncouple_target.entry_index,
+			current_entry.is_flag_set(schedule_entry_t::uncouple_target_sch_is_reversed), target_owner,
+			mail_uses_passenger_system);
+	}
 	convoihandle_t split_candidate;
 	const consist_order_process_result result = process_current_entry_consist_order(halt, convoihandle_t(), divide ? &split_candidate : nullptr);
+	if (divide)
+	{
+		recombination_plan.checked = false;
+		recombination_plan.valid = false;
+	}
 	if (divide && split_candidate.is_bound() && (result == succeed || result == no_change_needed))
 	{
 		form_divided_portion(split_candidate, halt, current_entry, uncouple_target);
+	}
+	if (divide)
+	{
+		if (split_candidate.is_bound())
+		{
+			redistribute_passengers_after_division(halt, split_candidate, mail_uses_passenger_system, original_consist);
+		}
+		else
+		{
+			// No split-off group was formed, so no cross-portion move is
+			// possible; the retained consist still needs its deferred unload.
+			unload_cargo_for_stop(halt);
+		}
 	}
 	if (is_recombination_approach_mover())
 	{

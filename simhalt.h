@@ -942,7 +942,7 @@ public:
 	 * @param good_category Specifies the kind of good (or compatible goods) we are requesting to fetch from this stop.
 	 * @param requested_amount How many units of the cargo we can fetch.
 	 */
-	bool fetch_goods( slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowd, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction);
+	bool fetch_goods( slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowd, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction, const class vehicle_t *loading_vehicle, bool goods_grouping, halthandle_t &wagon_requirement, const schedule_t *cargo_schedule, uint8 cargo_entry, bool cargo_reverse, halthandle_t cargo_start_halt);
 
 	/**
 	 * Delivers goods (ware_t) to this halt.

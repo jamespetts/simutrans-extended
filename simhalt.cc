@@ -2656,10 +2656,17 @@ static bool get_ride_comfort_surcharge(karte_t *welt, const convoi_t *cnv,
 }
 
 
-bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowded, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction)
+bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *good_category, sint32 requested_amount, const schedule_t *schedule, const player_t *player, convoi_t* cnv, bool overcrowded, const uint8 g_class, const bool use_lower_classes, bool& other_classes_available, const bool mixed_load_prohibition, uint8 goods_restriction, const vehicle_t *loading_vehicle, bool goods_grouping, halthandle_t &wagon_requirement, const schedule_t *cargo_schedule, uint8 cargo_entry, bool cargo_reverse, halthandle_t cargo_start_halt)
 {
 	bool skipped = false;
 	const uint8 catg_index = good_category->get_catg_index();
+	if (!cargo_schedule)
+	{
+		cargo_schedule = schedule;
+		cargo_entry = schedule ? schedule->get_current_stop() : 0;
+		cargo_reverse = cnv ? cnv->get_reverse_schedule() : false;
+		cargo_start_halt = self;
+	}
 	vector_tpl<ware_t> *warray = cargo[catg_index];
 	if(warray && warray->get_count() > 0)
 	{
@@ -2699,34 +2706,79 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 		}
 
 		halthandle_t cached_halts[256];
+		vector_tpl<uint16> checked_requirements;
+		vector_tpl<bool> checked_grouped;
 
 
 		while(!goods_to_check.empty())
 		{
 			ware_t* const next_to_load = goods_to_check.pop();
-			uint8 index = schedule->get_current_stop();
-			bool reverse = cnv->get_reverse_schedule();
+			const halthandle_t packet_requirement = next_to_load->get_zwischenziel().is_bound()
+				? next_to_load->get_zwischenziel()
+				: next_to_load->get_ziel();
+			// A goods wagon that will cross a recombination before the goods'
+			// next transfer is loaded for one wagon requirement. When the
+			// vehicle has a committed portion, that portion's serving set is
+			// the requirement; otherwise the first packet loaded defines it.
+			const bool committed_portion = goods_grouping && loading_vehicle && cnv
+				&& cnv->has_committed_portion(loading_vehicle);
+			// Grouping applies only when a recombination lies between this stop
+			// and the goods' next transfer. Goods that leave the wagon before the
+			// division need no wagon requirement. The verdict depends only on the
+			// requirement halt, so cache it for the other packets of this call.
+			bool packet_grouped = false;
+			if (goods_grouping && loading_vehicle && cnv)
+			{
+				const uint16 requirement_id = packet_requirement.get_id();
+				const uint32 cached = checked_requirements.index_of(requirement_id);
+				if (cached != 0xFFFFFFFFu)
+				{
+					packet_grouped = checked_grouped.get_element(cached);
+				}
+				else
+				{
+					packet_grouped = cnv->recombination_between(packet_requirement);
+					checked_requirements.append(requirement_id);
+					checked_grouped.append(packet_grouped);
+				}
+			}
+			if (packet_grouped)
+			{
+				if (committed_portion)
+				{
+					if (!cnv->portion_serves_packet(loading_vehicle, *next_to_load, self))
+					{
+						continue;
+					}
+				}
+				else if (wagon_requirement.is_bound() && packet_requirement != wagon_requirement)
+				{
+					continue;
+				}
+			}
+			uint8 index = cargo_entry;
+			bool reverse = cargo_reverse;
 			if(cnv->get_state() != convoi_t::REVERSING)
 			{
-				schedule->increment_index(&index, &reverse);
+				cargo_schedule->increment_index(&index, &reverse);
 			}
 
 			int count = 0;
-			while(index != schedule->get_current_stop() || (cnv->get_state() == convoi_t::REVERSING && count == 0))
+			while(index != cargo_entry || (cnv->get_state() == convoi_t::REVERSING && count == 0))
 			{
 				halthandle_t& schedule_halt = cached_halts[index];
 				if(schedule_halt.is_null())
 				{
-					schedule_halt = haltestelle_t::get_halt(schedule->entries[index].pos, player);
+					schedule_halt = haltestelle_t::get_halt(cargo_schedule->entries[index].pos, player);
 				}
 
-				if(schedule_halt == self)
+				if(schedule_halt == cargo_start_halt)
 				{
 					// The convoy returns here later, so do not load goods/passengers just to go on a detour.
 					if(count == 0)
 					{
 						// However, this makes no sense if we start with where we are now.
-						schedule->increment_index(&index, &reverse);
+						cargo_schedule->increment_index(&index, &reverse);
 						continue;
 					}
 					else
@@ -2784,7 +2836,10 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 						this_arrival_time += welt->get_seconds_to_ticks(journey_time_tenths_minutes * 6);
 					}
 
-					bool wait_for_faster_convoy = true;
+					// A split-off vehicle is loaded against the target schedule,
+					// not the current convoy's schedule. Do not compare it with a
+					// faster convoy on the current schedule.
+					bool wait_for_faster_convoy = cargo_schedule == schedule;
 
 					if(best_arrival_time < this_arrival_time)
 					{
@@ -2946,7 +3001,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 
 						if(wait_for_faster_convoy)
 						{
-							schedule->increment_index(&index, &reverse);
+							cargo_schedule->increment_index(&index, &reverse);
 							skipped = true;
 							continue;
 						}
@@ -3003,7 +3058,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 						if (g_class != best_class)
 						{
 							// Wait for a better class of accommodation
-							schedule->increment_index(&index, &reverse);
+							cargo_schedule->increment_index(&index, &reverse);
 							other_classes_available = true;
 							continue;
 						}
@@ -3015,7 +3070,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 							goods_restriction = next_to_load->get_index();
 						}
 						if (next_to_load->get_index() != goods_restriction) {
-							schedule->increment_index(&index, &reverse);
+							cargo_schedule->increment_index(&index, &reverse);
 							continue;
 						}
 					}
@@ -3024,7 +3079,7 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 					connexion * const next_connexion = get_connexions(catg_index, g_class)->get(check_halt);
 					if(next_connexion  &&  overcrowded  &&  next_connexion->alternative_seats)
 					{
-						schedule->increment_index(&index, &reverse);
+						cargo_schedule->increment_index(&index, &reverse);
 						skipped = true;
 						continue;
 					}
@@ -3044,6 +3099,11 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 						next_to_load->menge = 0; // leave an empty entry => will be deleted next time for performance
 					}
 					load.insert(neu);
+
+					if (packet_grouped && !committed_portion && !wagon_requirement.is_bound())
+					{
+						wagon_requirement = packet_requirement;
+					}
 
 					if (neu.get_origin() == self) {
 						// departed
@@ -3076,12 +3136,12 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 
 				// if the schedule is mirrored and has reached its end, break
 				// as the convoy will be returning this way later.
-				if(schedule->is_mirrored() && (index == 0 || index == (schedule->get_count() - 1)))
+				if(cargo_schedule->is_mirrored() && (index == 0 || index == (cargo_schedule->get_count() - 1)))
 				{
 					break;
 				}
 
-				schedule->increment_index(&index, &reverse);
+				cargo_schedule->increment_index(&index, &reverse);
 			}
 		}
 	}

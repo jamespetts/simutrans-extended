@@ -1628,6 +1628,50 @@ public:
 
 	enum consist_order_process_result { fail, succeed, no_change_needed };
 
+	// True when the given goods category uses the passenger system at a
+	// recombination: passengers always, mail when the consist has a TPO,
+	// freight never.
+	bool uses_passenger_system(const goods_desc_t *goods) const;
+
+	// Compute the next division's committed formation for the given stop when
+	// it is derivable from the current consist and the two authored orders.
+	// The plan is cleared at the first loading pass of each stop.
+	void ensure_recombination_plan(halthandle_t halt);
+
+	// True when the vehicle has a committed portion for the next division and
+	// that portion is a scheduled consist (retained or split), not loose stock.
+	bool has_committed_portion(const vehicle_t *v) const;
+
+	// True when the vehicle's committed portion serves the packet from the
+	// current stop. Without a committed portion, the current consist's own
+	// schedule is used.
+	bool portion_serves_packet(const vehicle_t *v, const ware_t &w, halthandle_t halt) const;
+
+	// When the vehicle is assigned to the split-off portion, return that
+	// portion's schedule, starting entry, direction and starting stop. Returns
+	// false for a retained or loose vehicle, for which the current schedule is
+	// the serving schedule.
+	bool get_committed_serving_schedule(const vehicle_t *v, const schedule_t *&schedule, uint8 &entry, bool &reverse, halthandle_t &start_halt) const;
+
+	// True when a recombination entry lies between the current stop and the
+	// given halt in the current direction.
+	bool recombination_between(halthandle_t requirement) const;
+
+	// The schedule context against which a candidate vehicle's cargo is tested
+	// when an order places that vehicle in a portion. `entry` is the schedule
+	// entry at which the portion starts; `halt` is the stop at which a packet
+	// with that next transfer or destination is delivered.
+	struct cargo_service_context_t
+	{
+		const schedule_t *schedule;
+		uint8 entry;
+		bool reverse;
+		const player_t *owner;
+		halthandle_t halt;
+
+		cargo_service_context_t() : schedule(nullptr), entry(0), reverse(false), owner(nullptr) {}
+	};
+
 	// The return value is whether the consist order can be processed at the current time (i.e., whether there are
 	// sufficient of the right number of vehicles to do so).
 	// If split_candidate is not null, the vehicles displaced from this convoy are collected
@@ -1635,7 +1679,7 @@ public:
 	// laid-over convoy, and that new convoy's handle is stored there. If turn_ticks is not
 	// null, it receives the extra shunting time needed to turn the vehicles whose chosen
 	// orientation differs from their current one.
-	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr, uint32 *turn_ticks = nullptr);
+	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr, uint32 *turn_ticks = nullptr, const cargo_service_context_t *cargo_service = nullptr);
 
 	// True when any vehicle supplies power: a powerless consist cannot run.
 	bool has_power() const;
@@ -1722,6 +1766,41 @@ public:
 
 		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same);
 
+		// A division's vehicle-to-portion plan, derived from the current forward
+		// consist and the two end-state orders. Valid only when both orders can
+		// be satisfied from the current consist alone.
+		struct recombination_plan_t
+		{
+			bool checked;
+			bool valid;
+			uint16 halt_id;
+			uint16 source_unique_id;
+			uint16 target_unique_id;
+			bool target_reversed;
+			linehandle_t target_line;
+			convoihandle_t target_convoy;
+			vector_tpl<vehicle_t*> retained;
+			vector_tpl<bool> retained_reversed;
+			vector_tpl<vehicle_t*> split;
+			vector_tpl<bool> split_reversed;
+
+			recombination_plan_t() : checked(false), valid(false), halt_id(0), source_unique_id(0), target_unique_id(0), target_reversed(false) {}
+		};
+
+		recombination_plan_t recombination_plan;
+
+		// The requirement of a packet for wagon grouping: its next transfer, or
+		// its destination when no next transfer is set.
+		static halthandle_t packet_requirement(const ware_t &w);
+
+		// After a division, move passengers and TPO mail to a portion that
+		// serves them and discharge the remainder at the stop.
+		void redistribute_passengers_after_division(halthandle_t halt, convoihandle_t portion, bool mail_uses_passenger_system, const vector_tpl<vehicle_t*> &original_consist);
+
+		// Discharge loaded wagons whose goods need different portions after an
+		// edit, at the first division where the requirements diverge.
+		void discharge_divergent_wagons(halthandle_t halt, const schedule_t *target_schedule, uint8 target_entry, bool target_reverse, const player_t *target_owner, bool mail_uses_passenger_system);
+
 		// Carry out the current entry's consist order, exchanging with the given
 		// coupling target (unbound: assemble from the stop's pool). Sets SHUNTING
 		// when the consist changes.
@@ -1783,6 +1862,15 @@ public:
 
 			uncouple_target_t() : schedule(nullptr), entry_index(255) {}
 		};
+
+		// Build the plan for a resolved division. The caller has already set
+		// the stop and current-entry identity on the plan. Returns false when
+		// either order cannot be satisfied from the current consist alone.
+		bool build_recombination_plan(const schedule_entry_t &division, const uncouple_target_t &target);
+
+		// Plan the division at the current entry. Used only while processing
+		// that division; the loader plans the next division instead.
+		void ensure_current_division_plan(halthandle_t halt);
 
 		// Resolve an uncouple entry's target as path_explorer.cc does: a line
 		// names that line's schedule; a convoy bound to a line names the line;
@@ -1857,13 +1945,13 @@ public:
 		// convoy's, or, with no joining convoy, the stop's laid-over pool (or the
 		// depot's list). Returns false when neither a stop nor a depot was given
 		// for a pool assembly.
-		bool get_recombination_available_vehicles(halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, vector_tpl<vehicle_t*> &available) const;
+		bool get_recombination_available_vehicles(halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, vector_tpl<vehicle_t*> &available, const cargo_service_context_t *cargo_service = nullptr) const;
 
 		// Match one order against the available vehicles. Does not change any
 		// state. On success, final_consist holds the forward-oriented result
 		// before any re-reversal, and final_reversed holds the chosen
 		// orientation of each vehicle in the same order.
-		consist_order_process_result match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available, const vector_tpl<vehicle_t*> &shadow, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed) const;
+		consist_order_process_result match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available, const vector_tpl<vehicle_t*> &shadow, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed, const cargo_service_context_t *cargo_service = nullptr) const;
 
 		// Solve a pair without changing any state: search for a disjoint pair of
 		// coupling-valid powered final consists satisfying both orders. Returns

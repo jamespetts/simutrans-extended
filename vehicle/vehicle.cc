@@ -1048,9 +1048,39 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 	const uint16 total_capacity = desc->get_total_capacity() + (overcrowd ? desc->get_overcrowded_capacity() : 0);
 	bool other_classes_available = false;
 	uint8 goods_restriction = goods_manager_t::INDEX_NONE;
+	const bool goods_grouping = !cnv->uses_passenger_system(desc->get_freight_type());
+	// The loader reads the committed serving schedule below for every vehicle,
+	// including passenger and TPO mail vehicles that do not use the goods
+	// grouping rules. Build the plan once for this stop before either path.
+	cnv->ensure_recombination_plan(halt);
+	halthandle_t wagon_requirement;
+	if (goods_grouping)
+	{
+		// An existing load already fixes the wagon's requirement. Recompute it
+		// from the vehicle rather than carrying it across loading passes.
+		for (uint8 c = 0; c < number_of_classes && !wagon_requirement.is_bound(); c++)
+		{
+			for (const ware_t &w : fracht[c])
+			{
+				wagon_requirement = w.get_zwischenziel().is_bound() ? w.get_zwischenziel() : w.get_ziel();
+				break;
+			}
+		}
+		if (wagon_requirement.is_bound() && !cnv->recombination_between(wagon_requirement))
+		{
+			// The existing load need not be grouped: no recombination lies
+			// before its next transfer, so the ordinary loading rule applies.
+			wagon_requirement = halthandle_t();
+		}
+	}
 	if (total_freight < total_capacity)
 	{
 		schedule_t *schedule = cnv->get_schedule();
+		const schedule_t *cargo_schedule = schedule;
+		uint8 cargo_entry = schedule->get_current_stop();
+		bool cargo_reverse = cnv->get_reverse_schedule();
+		halthandle_t cargo_start_halt = halt;
+		cnv->get_committed_serving_schedule(this, cargo_schedule, cargo_entry, cargo_reverse, cargo_start_halt);
 		slist_tpl<ware_t> freight_add;
 		uint16 capacity_this_class;
 		uint32 freight_this_class;
@@ -1102,7 +1132,7 @@ bool vehicle_t::load_freight_internal(halthandle_t halt, bool overcrowd, bool *s
 			// the need for higher class passengers/mail to use lower class accommodation.
 			if (capacity_left_this_class >= 0)
 			{
-				*skip_vehicles &= halt->fetch_goods(freight_add, desc->get_freight_type(), capacity_left_this_class, schedule, cnv->get_owner(), cnv, overcrowd, class_reassignments[i], use_lower_classes, other_classes_available, desc->get_mixed_load_prohibition(), goods_restriction);
+				*skip_vehicles &= halt->fetch_goods(freight_add, desc->get_freight_type(), capacity_left_this_class, schedule, cnv->get_owner(), cnv, overcrowd, class_reassignments[i], use_lower_classes, other_classes_available, desc->get_mixed_load_prohibition(), goods_restriction, this, goods_grouping, wagon_requirement, cargo_schedule, cargo_entry, cargo_reverse, cargo_start_halt);
 				if (!freight_add.empty())
 				{
 					cnv->invalidate_weight_summary();
@@ -2456,6 +2486,118 @@ uint16 vehicle_t::get_accommodation_capacity(uint8 a_class, bool include_lower_c
 	return cap;
 }
 
+const ware_t *vehicle_t::get_cargo_at(uint8 a_class, uint32 position) const
+{
+	if (a_class >= number_of_classes)
+	{
+		return nullptr;
+	}
+	uint32 index = 0;
+	for (const ware_t &w : fracht[a_class])
+	{
+		if (index++ == position)
+		{
+			return &w;
+		}
+	}
+	return nullptr;
+}
+
+bool vehicle_t::move_cargo_to(vehicle_t *destination, uint8 a_class, uint32 position)
+{
+	if (!destination || a_class >= number_of_classes)
+	{
+		return false;
+	}
+	uint32 index = 0;
+	for (slist_tpl<ware_t>::iterator it = fracht[a_class].begin(); it != fracht[a_class].end(); ++it, ++index)
+	{
+		if (index != position)
+		{
+			continue;
+		}
+		const ware_t packet = *it;
+		const uint8 destination_class = destination->find_accommodation_for_packet(packet);
+		if (destination_class == 255)
+		{
+			return false;
+		}
+		const uint16 halt_id = packet.get_last_transfer().get_id();
+		const sint64 arrival_time = packet.arrival_time;
+		fracht[a_class].erase(it);
+		total_freight -= packet.menge;
+		sum_weight -= packet.menge * packet.get_desc()->get_weight_per_unit();
+		destination->fracht[destination_class].append(packet);
+		destination->total_freight += packet.menge;
+		destination->sum_weight += packet.menge * packet.get_desc()->get_weight_per_unit();
+		destination->copy_through_departure_from(this, halt_id, arrival_time);
+		if (cnv)
+		{
+			cnv->invalidate_weight_summary();
+		}
+		if (destination->cnv)
+		{
+			destination->cnv->invalidate_weight_summary();
+		}
+		calc_image();
+		destination->calc_image();
+		return true;
+	}
+	return false;
+}
+
+uint8 vehicle_t::find_accommodation_for_packet(const ware_t &packet) const
+{
+	if (number_of_classes == 0 || packet.get_class() >= number_of_classes)
+	{
+		return 255;
+	}
+
+	const uint8 packet_class = packet.get_class();
+	// Use the packet's own class or a lower class that still has a seat.
+	for (int c = (int)packet_class; c >= 0; c--)
+	{
+		const uint16 capacity = get_accommodation_capacity((uint8)c);
+		if (capacity == 0)
+		{
+			continue;
+		}
+		uint32 load = 0;
+		for (const ware_t &w : fracht[c])
+		{
+			load += w.menge;
+		}
+		if (load + packet.menge <= capacity)
+		{
+			return (uint8)c;
+		}
+	}
+
+	// Standing room is available only in the lowest accommodation class.
+	for (uint8 c = 0; c < number_of_classes; c++)
+	{
+		if (get_accommodation_capacity(c) == 0)
+		{
+			continue;
+		}
+		const uint16 standing = get_overcrowded_capacity(packet_class);
+		if (standing > 0)
+		{
+			uint32 load = 0;
+			for (const ware_t &w : fracht[c])
+			{
+				load += w.menge;
+			}
+			if (load + packet.menge <= get_accommodation_capacity(c) + standing)
+			{
+				return c;
+			}
+		}
+		break;
+	}
+	return 255;
+}
+
 uint16 vehicle_t::get_fare_capacity(uint8 fare_class, bool include_lower_classes) const
 {
 	// Take into account class reassignments.
@@ -3349,7 +3491,7 @@ vehicle_t::~vehicle_t()
 	delete through_departures;
 }
 
-bool vehicle_t::has_through_departure(uint16 halt_id) const
+bool vehicle_t::has_through_departure_for(uint16 halt_id, sint64 arrival_time) const
 {
 	if (!through_departures)
 	{
@@ -3357,7 +3499,7 @@ bool vehicle_t::has_through_departure(uint16 halt_id) const
 	}
 	for (const through_departure_t &td : *through_departures)
 	{
-		if (td.halt_id == halt_id)
+		if (td.halt_id == halt_id && td.history_known && td.departure.departure_time >= arrival_time)
 		{
 			return true;
 		}
@@ -3371,11 +3513,63 @@ void vehicle_t::add_through_departure(uint16 halt_id, const departure_data_t &de
 	{
 		through_departures = new through_departures_t();
 	}
+	else
+	{
+		// A moved packet can bring a record that this vehicle already has.
+		// Do not duplicate an identical record, but keep a different record
+		// for the same boarding halt: calc_revenue selects the one that
+		// matches the packet's boarding time.
+		for (const through_departure_t &existing : *through_departures)
+		{
+			if (existing.halt_id != halt_id
+				|| existing.history_known != history_known
+				|| existing.departure.departure_time != dep.departure_time
+				|| existing.departure.get_overall_distance() != dep.get_overall_distance())
+			{
+				continue;
+			}
+			bool same = true;
+			for (uint8 i = 0; i < MAX_PLAYER_COUNT + 2 && same; i++)
+			{
+				same = existing.departure.get_way_distance(i) == dep.get_way_distance(i);
+			}
+			if (same)
+			{
+				return;
+			}
+		}
+	}
 	through_departure_t td;
 	td.halt_id = halt_id;
 	td.history_known = history_known;
 	td.departure = dep;
 	through_departures->append(td);
+}
+
+void vehicle_t::copy_through_departure_from(const vehicle_t *source, uint16 halt_id, sint64 arrival_time)
+{
+	if (!source || !source->through_departures)
+	{
+		return;
+	}
+	const through_departure_t *best = nullptr;
+	for (const through_departure_t &td : *source->through_departures)
+	{
+		if (td.halt_id == halt_id
+			&& td.history_known
+			&& td.departure.departure_time >= arrival_time
+			&& (best == nullptr
+				|| td.departure.departure_time < best->departure.departure_time
+				|| (td.departure.departure_time == best->departure.departure_time
+					&& td.departure.get_overall_distance() > best->departure.get_overall_distance())))
+		{
+			best = &td;
+		}
+	}
+	if (best)
+	{
+		add_through_departure(best->halt_id, best->departure, best->history_known);
+	}
 }
 
 void vehicle_t::clear_through_departures()
@@ -3416,13 +3610,37 @@ void vehicle_t::prune_through_departures()
 	}
 	for (uint32 i = 0; i < through_departures->get_count(); )
 	{
-		const uint16 halt_id = through_departures->get_element(i).halt_id;
+		const through_departure_t &candidate = through_departures->get_element(i);
 		bool still_carried = false;
 		for (uint8 c = 0; c < number_of_classes && !still_carried; c++)
 		{
 			for (const ware_t &w : fracht[c])
 			{
-				if (w.get_last_transfer().get_id() == halt_id)
+				if (w.get_last_transfer().get_id() != candidate.halt_id
+					|| !candidate.history_known
+					|| candidate.departure.departure_time < w.arrival_time)
+				{
+					continue;
+				}
+				// Keep an entry only when it is the one calc_revenue selects
+				// for a packet still aboard: the earliest departure that is
+				// not earlier than that packet's arrival at the halt.
+				bool selected = true;
+				for (const through_departure_t &other : *through_departures)
+				{
+					if (&other != &candidate
+						&& other.halt_id == candidate.halt_id
+						&& other.history_known
+						&& other.departure.departure_time >= w.arrival_time
+						&& (other.departure.departure_time < candidate.departure.departure_time
+							|| (other.departure.departure_time == candidate.departure.departure_time
+								&& other.departure.get_overall_distance() > candidate.departure.get_overall_distance())))
+					{
+						selected = false;
+						break;
+					}
+				}
+				if (selected)
 				{
 					still_carried = true;
 					break;

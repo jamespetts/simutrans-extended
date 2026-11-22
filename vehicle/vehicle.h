@@ -646,14 +646,30 @@ public:
 	static inline sint32 speed_unlimited() {return (std::numeric_limits<sint32>::max)(); }
 
 	const slist_tpl<ware_t> & get_cargo(uint8 a_class) const { return fracht[a_class];}   // list of goods being transported (indexed by accommodation class)
+	const ware_t *get_cargo_at(uint8 a_class, uint32 position) const;
 	uint8 get_number_of_classes() const { return number_of_classes; }
+
+	// Move the packet at the given position in the class list to destination.
+	// The destination must have accommodation for it. The packet's through
+	// record is copied with it. Returns true when the packet moved.
+	bool move_cargo_to(vehicle_t *destination, uint8 a_class, uint32 position);
+
+	// The accommodation class that can take the packet, including lower-class
+	// and standing capacity, or 255 when the vehicle is full.
+	uint8 find_accommodation_for_packet(const ware_t &packet) const;
 
 	// Through journey records (see through_departures).
 	through_departures_t *access_through_departures() { return through_departures; }
 	const through_departures_t *get_through_departures() const { return through_departures; }
 	bool has_through_departures() const { return through_departures != nullptr; }
-	bool has_through_departure(uint16 halt_id) const;
+	// True when a record for the given boarding halt can describe a packet that
+	// arrived there at arrival_time: the record's departure is not earlier than
+	// the packet's arrival.
+	bool has_through_departure_for(uint16 halt_id, sint64 arrival_time) const;
 	void add_through_departure(uint16 halt_id, const departure_data_t &dep, bool history_known);
+	// Copy the record that describes the packet's boarding from another
+	// vehicle. Used when a packet moves between vehicles at a division.
+	void copy_through_departure_from(const vehicle_t *source, uint16 halt_id, sint64 arrival_time);
 	void clear_through_departures();
 	void advance_through_departures(uint32 distance);
 	void advance_through_way_distances(uint8 player, uint32 steps);
