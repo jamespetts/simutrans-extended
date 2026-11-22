@@ -35,7 +35,18 @@ if (MINGW)
 endif ()
 
 if (APPLE)
-	set(CMAKE_PREFIX_PATH "/usr/local/opt/readline")
+	# Homebrew installs readline as keg-only: it is not linked into the
+	# Homebrew prefix, so pkg-config does not search its directory by default.
+	# The Homebrew fluidsynth pkg-config file (fluidsynth.pc) lists readline in
+	# Requires.private; without that directory, pkg-config reports fluidsynth as
+	# found but returns no link flags, and the link fails on the functions
+	# called by music/fluidsynth.cc. Cover the Intel (/usr/local) and Apple
+	# Silicon (/opt/homebrew) Homebrew prefixes.
+	foreach (homebrew_prefix /usr/local /opt/homebrew)
+		if (EXISTS "${homebrew_prefix}/opt/readline/lib/pkgconfig/readline.pc")
+			list(APPEND CMAKE_PREFIX_PATH "${homebrew_prefix}/opt/readline")
+		endif ()
+	endforeach ()
 	link_directories(/usr/local/lib)
     link_directories(/opt/homebrew/lib)
 	set(CMAKE_EXE_LINKER_FLAGS "-framework Cocoa")
