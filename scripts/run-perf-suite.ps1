@@ -76,6 +76,9 @@ param(
   [switch]$Trace,
   [ValidateSet("Window","Load")]
   [string]$TracePhase = "Window",
+  [string[]]$LineFilter,
+  [switch]$FastLinesOnly,
+  [switch]$KeepEtl,
   [switch]$Clean
 )
 
@@ -137,6 +140,7 @@ if (-not (Select-String -Path $helpFile -Pattern "-until" -Quiet)) {
 
 # -Trace preflight: WPT wpr, the SimPerfEtw elevation task, and the analyzer.
 $analyzer = Join-Path $repo "ai\tools\perf\etl-hotspots.exe"
+$lineAnalyzer = Join-Path $repo "ai\tools\perf\etl-lines.exe"
 if ($Trace) {
   if ($Mode -ne "Capture" -and $Mode -ne "CaptureGui") { Write-Output "FAIL: -Trace only applies to Capture/CaptureGui"; exit 1 }
   if (-not (Test-Path "C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\wpr.exe")) {
@@ -147,7 +151,11 @@ if ($Trace) {
     Write-Output "FAIL: scheduled task SimPerfEtw missing; run scripts\perf\install-perf-task.ps1 elevated once"
     exit 1
   }
-  if (-not (Test-Path $analyzer)) { Write-Output "FAIL: analyzer missing at $analyzer"; exit 1 }
+  if (-not $FastLinesOnly -and -not (Test-Path $analyzer)) { Write-Output "FAIL: analyzer missing at $analyzer"; exit 1 }
+  if (($FastLinesOnly -or $LineFilter) -and -not (Test-Path $lineAnalyzer)) {
+    Write-Output "FAIL: line analyzer missing at $lineAnalyzer (build from scripts\perf\etl-lines.cs)"
+    exit 1
+  }
 }
 
 function Invoke-Etw {
@@ -355,32 +363,62 @@ if (Test-Path $crashLog) {
   $summary += "crashlog:  crash-backtrace.log (run crashed; see this file for the backtrace)"
 }
 
-# Hotspot extraction from the trace (TraceEvent analyzer). The raw ETL is
-# deleted after successful analysis (user decision 2026-09-10); kept on failure.
+# Hotspot extraction from the trace (TraceEvent analyzers). The raw ETL is
+# deleted after successful analysis unless -KeepEtl is passed; kept on failure.
 if ($traceOn -and (Test-Path $etlPath)) {
-  $env:_NT_SYMBOL_PATH = "srv*$repo\ai\tools\symbols*https://msdl.microsoft.com/download/symbols;$(Split-Path $Exe -Parent)"
   $procFilter = [System.IO.Path]::GetFileNameWithoutExtension($Exe)
-  Write-Host "[$Mode] analysing trace (can take several minutes)..."
-  $anaOut = & $analyzer $etlPath $procFilter (Join-Path $res "hotspots") 2>&1 | Out-String
-  Write-Host $anaOut
-  if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $res "hotspots-self.csv"))) {
-    $summary += "profile:   hotspots-self.csv / hotspots-incl.csv / hotspots-threads.csv"
-    $topSelf = @(); $topThreads = @(); $inThreads = $false
-    foreach ($l in ($anaOut -split "`r?`n")) {
-      if ($l -match '^top self:') { $inThreads = $false; continue }
-      if ($l -match '^top thread attribution:') { $inThreads = $true; continue }
-      if ($l -match '^\s+\d+\.\d+%') {
-        if ($inThreads) { if ($topThreads.Count -lt 8) { $topThreads += $l.Trim() } }
-        elseif ($topSelf.Count -lt 10) { $topSelf += $l.Trim() }
-      }
+  $pdbPath = [System.IO.Path]::ChangeExtension($Exe, ".pdb")
+  $anaOk = $true
+
+  if (($FastLinesOnly -or $LineFilter) -and (Test-Path $lineAnalyzer) -and (Test-Path $pdbPath)) {
+    $lineArgs = @($etlPath, $procFilter, $pdbPath)
+    if ($LineFilter) { $lineArgs += $LineFilter }
+    Write-Host "[$Mode] running line/RVA analyzer (etl-lines)..."
+    $lineOut = & $lineAnalyzer @lineArgs 2>&1 | Out-String
+    Write-Host $lineOut
+    if ($LASTEXITCODE -eq 0) {
+      Set-Content -Path (Join-Path $res "hotspots-lines.txt") -Value $lineOut -Encoding utf8
+      $summary += "lines:     hotspots-lines.txt"
     }
-    if ($topSelf) { $summary += "top_self:"; $summary += ($topSelf | ForEach-Object { "  $_" }) }
-    if ($topThreads) { $summary += "top_threads:"; $summary += ($topThreads | ForEach-Object { "  $_" }) }
+    else {
+      $anaOk = $false
+      $failed += "line analyzer failed (exit $LASTEXITCODE); trace kept at $etlPath"
+    }
+  }
+
+  if (-not $FastLinesOnly) {
+    $env:_NT_SYMBOL_PATH = "srv*$repo\ai\tools\symbols*https://msdl.microsoft.com/download/symbols;$(Split-Path $Exe -Parent)"
+    Write-Host "[$Mode] analysing trace (can take several minutes)..."
+    $anaOut = & $analyzer $etlPath $procFilter (Join-Path $res "hotspots") 2>&1 | Out-String
+    Write-Host $anaOut
+    if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $res "hotspots-self.csv"))) {
+      $summary += "profile:   hotspots-self.csv / hotspots-incl.csv / hotspots-threads.csv"
+      $topSelf = @(); $topThreads = @(); $inThreads = $false
+      foreach ($l in ($anaOut -split "`r?`n")) {
+        if ($l -match '^top self:') { $inThreads = $false; continue }
+        if ($l -match '^top thread attribution:') { $inThreads = $true; continue }
+        if ($l -match '^\s+\d+\.\d+%') {
+          if ($inThreads) { if ($topThreads.Count -lt 8) { $topThreads += $l.Trim() } }
+          elseif ($topSelf.Count -lt 10) { $topSelf += $l.Trim() }
+        }
+      }
+      if ($topSelf) { $summary += "top_self:"; $summary += ($topSelf | ForEach-Object { "  $_" }) }
+      if ($topThreads) { $summary += "top_threads:"; $summary += ($topThreads | ForEach-Object { "  $_" }) }
+    }
+    else {
+      $anaOk = $false
+      $failed += "analyzer failed (exit $LASTEXITCODE); trace kept at $etlPath"
+    }
+  }
+
+  if ($anaOk -and -not $KeepEtl) {
     Remove-Item $etlPath -Force -ErrorAction SilentlyContinue
     Remove-Item ([System.IO.Path]::ChangeExtension($etlPath, "etlx")) -Force -ErrorAction SilentlyContinue
     Remove-Item "$etlPath.NGENPDB" -Recurse -Force -ErrorAction SilentlyContinue
   }
-  else { $failed += "analyzer failed (exit $LASTEXITCODE); trace kept at $etlPath" }
+  elseif ($KeepEtl) {
+    $summary += "etl:       $etlPath (kept via -KeepEtl)"
+  }
 }
 
 if ($failed.Count -gt 0) { $summary += "failures:  $($failed -join ' | ')" }
