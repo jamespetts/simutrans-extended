@@ -55,10 +55,12 @@ static void flush_quarantine()
 	vector_tpl<void *> objects;
 	int error = pthread_mutex_lock( &freelist_mutex );
 	assert(error == 0);
-	nodes = quarantined_nodes;
-	objects = quarantined_objects;
-	quarantined_nodes.clear();
-	quarantined_objects.clear();
+	// Swap rather than copy: the copy allocates while freelist_mutex is
+	// held. If that allocation fails, sim_new_handler() builds a fatal_news
+	// window, whose listener list allocates from this same freelist and
+	// deadlocks on the held mutex.
+	swap( nodes, quarantined_nodes );
+	swap( objects, quarantined_objects );
 	error = pthread_mutex_unlock( &freelist_mutex );
 	assert(error == 0);
 	(void)error;
@@ -69,6 +71,17 @@ static void flush_quarantine()
 	for(  uint32 i = 0;  i < objects.get_count();  i++  ) {
 		::operator delete( objects[i] );
 	}
+	// Return the now-empty buffers so that the next window reuses their
+	// capacity instead of growing the vectors from zero again.
+	nodes.clear();
+	objects.clear();
+	error = pthread_mutex_lock( &freelist_mutex );
+	assert(error == 0);
+	swap( nodes, quarantined_nodes );
+	swap( objects, quarantined_objects );
+	error = pthread_mutex_unlock( &freelist_mutex );
+	assert(error == 0);
+	(void)error;
 }
 #endif
 

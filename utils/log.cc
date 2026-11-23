@@ -332,6 +332,53 @@ void log_t::fatal(const char *who, const char *format, ...)
 }
 
 
+/**
+ * writes an error into the log, aborts the program, without allocating.
+ * Used for allocation failures: the fatal_news window constructed by
+ * fatal() itself allocates, which can deadlock or fail recursively.
+ */
+void log_t::fatal_noalloc(const char *who, const char *format, ...)
+{
+	va_list argptr;
+	va_start(argptr, format);
+
+	static char message[8192];
+	int n = snprintf(message, sizeof(message), "FATAL ERROR: %s - ", who);
+	if (n > 0 && (size_t)n < sizeof(message)) {
+		vsnprintf(message + n, sizeof(message) - n, format, argptr);
+	}
+	va_end(argptr);
+
+	static const char *const suffix =
+		"\nAborting program execution ...\n"
+		"\n"
+		"For help with this error or to file a bug report please see the Simutrans forum at\n"
+		"https://forum.simutrans.com\n";
+
+	if (log) {
+		fputs(message, log);
+		fputs(suffix, log);
+		if (force_flush) {
+			fflush(log);
+		}
+	}
+	if (tee && log != tee) {
+		fputs(message, tee);
+		fputs(suffix, tee);
+	}
+#ifdef SYSLOG
+	if (syslog) {
+		::syslog(LOG_ERR, "%s%s", message, suffix);
+	}
+#endif
+	if (tee == NULL && log == NULL && tag == NULL) {
+		fputs(message, stderr);
+		fputs(suffix, stderr);
+	}
+	abort();
+}
+
+
 
 #ifdef NETTOOL
 void log_t::vmessage(const char *, const char *, const char *, va_list )

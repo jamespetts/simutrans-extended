@@ -417,7 +417,7 @@ static void ask_language()
  */
 NORETURN static void sim_new_handler()
 {
-	dbg->fatal("sim_new_handler()", "OUT OF MEMORY or other error allocating new object");
+	dbg->fatal_noalloc("sim_new_handler()", "OUT OF MEMORY or other error allocating new object");
 }
 
 

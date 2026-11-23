@@ -16,7 +16,7 @@ void* xmalloc(size_t const size)
 
 	if (!p) {
 		// use unified error handler instead, since BeOS need this as C style file!
-		dbg->fatal("xmalloc()", "Could not alloc %li bytes.", (long)size );
+		dbg->fatal_noalloc("xmalloc()", "Could not alloc %li bytes.", (long)size );
 	}
 	return p;
 }
@@ -28,7 +28,7 @@ void* xrealloc(void* const ptr, size_t const size)
 
 	if (!p) {
 		// use unified error handler instead, since BeOS need this as C style file!
-		dbg->fatal("realloc()", "Could not alloc %li bytes.", (long)size );
+		dbg->fatal_noalloc("realloc()", "Could not alloc %li bytes.", (long)size );
 	}
 	return p;
 }

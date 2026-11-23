@@ -93,6 +93,13 @@ public:
 	void NORETURN fatal(const char* who, const char* format, ...);
 
 	/**
+	 * writes an error into the log, aborts the program, without allocating.
+	 * Used for allocation failures: the fatal_news window constructed by
+	 * fatal() itself allocates, which can deadlock or fail recursively.
+	 */
+	void NORETURN fatal_noalloc(const char* who, const char* format, ...);
+
+	/**
 	 * writes to log using va_lists
 	 */
 	void vmessage(const char *what, const char *who, const char *format,  va_list args );
