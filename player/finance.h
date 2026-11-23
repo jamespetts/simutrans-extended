@@ -688,6 +688,18 @@ public:
 	 */
 	uint8 assess_credit_rating(sint64 additional_principal = 0, sint64 additional_debt_service = 0) const;
 
+	/**
+	 * Assesses the credit rating for a proposed instrument, including the
+	 * interest that the instrument itself would pay. The interest depends on
+	 * the rate, which depends on the rating, so the rating is iterated from
+	 * the current one until the band stops changing.
+	 * @param type LOAN_TYPE_BANK or LOAN_TYPE_BOND
+	 * @param term the proposed term
+	 * @param amount the principal in Simucents
+	 * @param replaced the instrument that the proposal replaces, or NULL
+	 */
+	uint8 assess_credit_rating_for_instrument(uint8 type, loan_term_t term, sint64 amount, const loan_t *replaced) const;
+
 	/// Reassesses and stores the credit rating. Called once a month.
 	void update_credit_rating();
 

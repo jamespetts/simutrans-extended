@@ -702,6 +702,41 @@ uint8 finance_t::assess_credit_rating(sint64 additional_principal, sint64 additi
 }
 
 
+uint8 finance_t::assess_credit_rating_for_instrument(uint8 type, loan_term_t term, sint64 amount, const loan_t *replaced) const
+{
+	uint8 rating = credit_rating;
+	const sint32 term_months = loan_term_months(term);
+
+	// The interest that the proposed instrument pays is part of its debt
+	// service, but the rate that sets that interest depends on the rating.
+	// A worse band raises the rate and therefore the debt service, so the
+	// sequence from the current rating is monotone and reaches a fixed point.
+	for (uint8 pass = 0; pass < CREDIT_RATING_MAX; pass++)
+	{
+		// Refinancing leaves secured debt unchanged; only a new instrument
+		// increases the secured debt used for the gearing premium.
+		const sint32 rate_bp = get_term_rate_bp(term, rating, replaced == NULL ? amount : 0);
+		loan_t proposed(0, type, world->get_current_month(), term_months, amount, rate_bp, rating);
+		sint64 additional_debt_service = proposed.get_debt_service_for_next_months(12);
+		sint64 additional_principal = amount;
+		if (replaced != NULL)
+		{
+			additional_debt_service -= replaced->get_debt_service_for_next_months(12);
+			additional_principal = 0;
+		}
+
+		const uint8 assessed = assess_credit_rating(additional_principal, additional_debt_service);
+		if (assessed == rating)
+		{
+			return rating;
+		}
+		rating = assessed;
+	}
+
+	return rating;
+}
+
+
 void finance_t::update_credit_rating()
 {
 	credit_rating = assess_credit_rating();
@@ -749,10 +784,9 @@ char const *finance_t::issue_loan(uint8 type, sint64 amount, loan_term_t term)
 		return translator::translate("Invalid amount or term.");
 	}
 
-	// Provisional post-loan assessment, including the new principal and its
-	// debt service.
-	loan_t proposed(0, type, world->get_current_month(), term_months, amount, 0, credit_rating);
-	const uint8 rating = assess_credit_rating(amount, proposed.get_debt_service_for_next_months(12));
+	// Provisional post-loan assessment, including the new principal and the
+	// debt service at the rate the instrument would carry.
+	const uint8 rating = assess_credit_rating_for_instrument(type, term, amount, NULL);
 
 	if (!is_term_available(term, type, rating))
 	{
@@ -862,9 +896,7 @@ char const *finance_t::refinance_loan(uint32 id, loan_term_t term)
 	// The replacement carries the same outstanding principal, so the net
 	// secured debt after refinancing is unchanged. The existing instrument is
 	// replaced, so its debt service is removed from the assessment.
-	const loan_t proposed(0, type, world->get_current_month(), loan_term_months(term), outstanding, 0, credit_rating);
-	const sint64 debt_service_change = proposed.get_debt_service_for_next_months(12) - loan->get_debt_service_for_next_months(12);
-	const uint8 rating = assess_credit_rating(0, debt_service_change);
+	const uint8 rating = assess_credit_rating_for_instrument(type, term, outstanding, loan);
 
 	if (!is_term_available(term, type, rating))
 	{

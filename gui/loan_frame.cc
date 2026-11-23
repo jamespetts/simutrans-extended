@@ -224,8 +224,7 @@ void loan_frame_t::update_quote()
 	finance_t *finance = get_finance();
 	const sint64 amount_simucents = (sint64)amount.get_value() * 100ll;
 	const sint32 term_months = loan_term_months(selected_term);
-	loan_t proposed(0, (uint8)selected_type, welt->get_current_month(), term_months, amount_simucents, 0, finance->get_credit_rating());
-	const uint8 rating = finance->assess_credit_rating(amount_simucents, proposed.get_debt_service_for_next_months(12));
+	const uint8 rating = finance->assess_credit_rating_for_instrument((uint8)selected_type, selected_term, amount_simucents, NULL);
 
 	lb_quote.buf().clear();
 	lb_status.buf().clear();
@@ -257,9 +256,7 @@ void loan_frame_t::update_quote()
 
 	quote_valid = true;
 	const sint32 rate_bp = finance->get_term_rate_bp(selected_term, rating, amount_simucents);
-	// The proposed instrument is constructed before its rate is known, and
-	// get_total_interest_remaining projects at the instrument's own rate.
-	proposed.rate_bp = rate_bp;
+	loan_t proposed(0, (uint8)selected_type, welt->get_current_month(), term_months, amount_simucents, rate_bp, rating);
 	const sint64 monthly_interest = (amount_simucents * (sint64)rate_bp) / 120000ll;
 	const sint64 monthly_principal = proposed.get_principal_due_this_month();
 
