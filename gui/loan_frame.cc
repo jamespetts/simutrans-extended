@@ -257,6 +257,9 @@ void loan_frame_t::update_quote()
 
 	quote_valid = true;
 	const sint32 rate_bp = finance->get_term_rate_bp(selected_term, rating, amount_simucents);
+	// The proposed instrument is constructed before its rate is known, and
+	// get_total_interest_remaining projects at the instrument's own rate.
+	proposed.rate_bp = rate_bp;
 	const sint64 monthly_interest = (amount_simucents * (sint64)rate_bp) / 120000ll;
 	const sint64 monthly_principal = proposed.get_principal_due_this_month();
 
