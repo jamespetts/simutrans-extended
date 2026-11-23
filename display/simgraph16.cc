@@ -3937,34 +3937,6 @@ void display_calc_proportional_multiline_string_len_width(int &xw, int &yh, cons
 
 
 /**
- * Helper: calculates 8bit mask for clipping.
- * Calculates mask to fit pixel interval [xRL,xR) to clipping interval [cL, cR).
- */
-static unsigned char get_h_mask(const int xL, const int xR, const int cL, const int cR)
-{
-	// do not mask
-	unsigned char mask = 0xff;
-
-	// check, if there is something to display
-	if (xR <= cL || xL >= cR) return 0;
-	// 8bit masks only
-	assert(xR - xL <= 8);
-
-	// check for left border
-	if (xL < cL) {
-		// left border clipped
-		mask = 0xff >> (cL - xL);
-	}
-	// check for right border
-	if (xR > cR) {
-		// right border clipped
-		mask &= 0xff << (xR - cR);
-	}
-	return mask;
-}
-
-
-/**
  * len parameter added - use -1 for previous behaviour.
  * completely renovated for unicode and 10 bit width and variable height
  */
@@ -4017,18 +3989,6 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 	// store the initial x (for dirty marking)
 	const scr_coord_val x0 = x;
 
-	scr_coord_val y_offset = 0; // real y for display with clipping
-	scr_coord_val glyph_height = fnt->get_linespace();
-	const scr_coord_val yy = y + fnt->get_linespace();
-
-	// calculate vertical y clipping parameters
-	if (y < cT) {
-		y_offset = cT - y;
-	}
-	if (yy > cB) {
-		glyph_height -= yy - cB;
-	}
-
 	// big loop, draw char by char
 	utf8_decoder_t decoder((utf8 const*)txt);
 	size_t iTextPos = 0; // pointer on text position
@@ -4048,48 +4008,31 @@ int display_text_proportional_len_clip_rgb(scr_coord_val x, scr_coord_val y, con
 		}
 
 		// get the data from the font
-		int glyph_width = fnt->get_glyph_width(c);
-		const uint8 glyph_yoffset = std::max(fnt->get_glyph_yoffset(c), (uint8)y_offset);
+		const font_t::glyph_t &glyph = fnt->get_glyph(c);
+		const uint8 *p = glyph.bitmap;
 
-		// currently max character width 16 bit supported by font.h/font.cc
-		for(  int i=0;  i<2;  i++  ) {
-			const uint8 bits = std::min(8, glyph_width);
-			uint8 mask = get_h_mask(x + i*8, x + i*8 + bits, cL, cR);
-			glyph_width -= bits;
+		int screen_pos = (y + glyph.top) * disp_width + x + glyph.left;
 
-			const uint8 *p = fnt->get_glyph_bitmap(c) + glyph_yoffset + i*GLYPH_BITMAP_HEIGHT;
-			if(  mask!=0  ) {
-				int screen_pos = (y+glyph_yoffset) * disp_width + x + i*8;
+		// glyph x clipping
+		const int g_left  = std::max(cL - x - glyph.left, 0);
+		const int g_right = std::min(cR - x - glyph.left, (int)glyph.width);
 
-				for (int h = glyph_yoffset; h < glyph_height; h++) {
-					unsigned int dat = *p++ & mask;
-					PIXVAL* dst = textur + screen_pos;
-#if defined LOW_LEVEL
-					// low level c++
-					if (dat != 0) {
-						if (dat & 0x80) dst[0] = color;
-						if (dat & 0x40) dst[1] = color;
-						if (dat & 0x20) dst[2] = color;
-						if (dat & 0x10) dst[3] = color;
-						if (dat & 0x08) dst[4] = color;
-						if (dat & 0x04) dst[5] = color;
-						if (dat & 0x02) dst[6] = color;
-						if (dat & 0x01) dst[7] = color;
+		// all visible rows
+		for(  int h = 0;  h < glyph.height;  h++  ) {
+			const int line = y + glyph.top + h;
+			if(  line >= cT  &&  line < cB  ) {
+				PIXVAL *dst = textur + screen_pos + g_left;
+
+				// all columns
+				for(  int gx = g_left;  gx < g_right;  gx++  ) {
+					const int alpha = p[h*glyph.width + gx];
+					if(  alpha != 0  ) {
+						*dst = alpha > 31 ? color : colors_blend_alpha32(*dst, color, alpha);
 					}
-#else
-
-					// high level c++
-					if(  dat  !=  0  ) {
-						for(  size_t dat_offset = 0 ; dat_offset < 8 ; dat_offset++  ) {
-							if(  (dat & (0x80 >> dat_offset))  ) {
-								dst[dat_offset] = color;
-							}
-						}
-					}
-#endif
-					screen_pos += disp_width;
+					dst++;
 				}
 			}
+			screen_pos += disp_width;
 		}
 
 		x += fnt->get_glyph_advance(c);

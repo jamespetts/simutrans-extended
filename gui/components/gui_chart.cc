@@ -73,7 +73,7 @@ uint32 gui_chart_t::add_curve(PIXVAL color, const sint64 *values, int size, int 
 	new_curve.show_value = show_value;
 	new_curve.type = type;
 	switch (type) {
-		case MONEY:    new_curve.suffix = "$";    break;
+		case MONEY:    new_curve.suffix = MONEY_SYMBOL;    break;
 		case PERCENT:  new_curve.suffix = "%";    break;
 		case DISTANCE: new_curve.suffix = "km";   break;
 		case FORCE:    new_curve.suffix = "kN";   break;

@@ -134,6 +134,8 @@ scr_coord_val gui_theme_t::gui_hspace;
 scr_coord_val gui_theme_t::gui_vspace;
 scr_coord_val gui_theme_t::gui_filelist_vspace;
 
+scr_size gui_theme_t::gui_default_window_extra;
+
 /* those are the 3x3 images which are used for stretching
  * also 1x3 and 3x1 subsets are possible
  * first entry is the normal state
@@ -287,6 +289,7 @@ void gui_theme_t::init_gui_defaults()
 	gui_hspace           = 4;
 	gui_vspace           = 4;
 	gui_filelist_vspace  = 0;
+	gui_default_window_extra = scr_size(0, 0);
 	gui_waitingbar_width = 4;
 	gui_divider_size.h   = D_V_SPACE*2;
 
@@ -681,6 +684,7 @@ bool gui_theme_t::themes_init(const char *file_name, bool init_fonts, bool init_
 
 	// those two may be rather an own control later on?
 	gui_theme_t::gui_indicator_size = contents.get_scr_size("gui_indicator_size",  gui_theme_t::gui_indicator_size );
+	gui_theme_t::gui_default_window_extra = contents.get_scr_size("gui_default_window_extra", gui_theme_t::gui_default_window_extra);
 
 	gui_tab_panel_t::header_vsize = (uint32)contents.get_int("gui_tab_header_vsize", gui_tab_panel_t::header_vsize );
 

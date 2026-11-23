@@ -1080,11 +1080,8 @@ int simu_main(int argc, char** argv)
 	if(  !themes_ok  ) {
 		dr_chdir( env_t::data_dir );
 		dr_chdir( "themes" );
-#ifndef __ANDROID__
-		themes_ok = gui_theme_t::themes_init("themes.tab",true,false);
-#else
+		// Modern (large size) is the default theme.
 		themes_ok = gui_theme_t::themes_init("theme-large.tab", true, false);
-#endif
 	}
 	if(  !themes_ok  ) {
 		dbg->fatal( "simu_main()", "No GUI themes found! Please re-install!" );

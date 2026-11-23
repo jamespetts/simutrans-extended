@@ -78,9 +78,11 @@ gui_color_chart_lines_zero = #005C9E
 gui_color_chart_lines_odd = #338FCC
 gui_color_chart_lines_even = #005C9E
 
-gui_color_list_text_selected_focus = #FAFAFA
-gui_color_list_text_selected_nofocus = #FAFAFA
-gui_color_list_background_selected_focus = #72B2DD
+gui_color_list_text_selected_focus         = #FAFAFA
+gui_color_list_text_selected_nofocus       = #FAFAFA
+gui_color_list_background_even             = #B5DBEF
+gui_color_list_background_odd              = #DEF3FF
+gui_color_list_background_selected_focus   = #72B2DD
 gui_color_list_background_selected_nofocus = #72B2DD
 
 gui_color_button_text = #FAFAFA

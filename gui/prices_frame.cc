@@ -11,6 +11,7 @@
 #include "../descriptor/vehicle_desc.h"
 #include "../dataobj/settings.h"
 #include "../dataobj/translator.h"
+#include "../utils/simstring.h"
 
 
 // Distinct fixed colours cycled over the series of each chart.
@@ -364,7 +365,7 @@ void prices_frame_t::build_table(section_t& s)
 		for (uint8 c = 0; c < s.series_count; c++) {
 			series_t& ser = series[s.first_series + c];
 			ser.cells[j] = grid->new_component<gui_table_cell_buf_t>("", band, gui_label_t::right, true);
-			ser.cells[j]->set_min_width(proportional_string_width(s.curve_type == gui_chart_t::PERCENT ? "88,888%" : "88,888.88$"));
+			ser.cells[j]->set_min_width(proportional_string_width(s.curve_type == gui_chart_t::PERCENT ? "88,888%" : "88,888.88" MONEY_SYMBOL));
 		}
 	}
 	s.cont.end_table();

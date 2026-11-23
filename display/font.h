@@ -13,14 +13,6 @@
 #include <vector>
 
 
-#define GLYPH_BITMAP_HEIGHT (23u)
-#define GLYPH_BITMAP_WIDTH  (16u)
-#define GLYPH_BITMAP_BPP    (1u) // cannot be changed currently
-
-// Size in bytes of a single row
-#define GLYPH_ROW_PITCH (((GLYPH_BITMAP_WIDTH*GLYPH_BITMAP_BPP)+CHAR_BIT-1)/CHAR_BIT)
-
-
 /**
  * Terminology:
  *  - glyph:        display data of a single character
@@ -32,20 +24,25 @@
 class font_t
 {
 public:
-	/// glyph data is stored dense in an array
-	/// 23 rows of bytes, second column for widths between 8 and 16
+	/// glyph data, with each bitmap stored separately
 	struct glyph_t
 	{
 		glyph_t();
 
-		uint8 bitmap[GLYPH_ROW_PITCH * GLYPH_BITMAP_HEIGHT];
-		uint8 yoff; // = ascent - bearingY
-		uint8 width;
+		uint8 *bitmap; ///< 8 bit alpha per pixel, 32 = opaque
+		sint16 height;
+		sint16 width;
 		uint8 advance;
+		sint16 top;
+		sint16 left;
 	};
 
 public:
 	font_t();
+	~font_t();
+
+	font_t(const font_t&);
+	font_t& operator=(const font_t&);
 
 public:
 	/// @returns true on success
@@ -64,15 +61,8 @@ public:
 	/// @returns size in pixels between the start of this glyph and the next glyph
 	uint8 get_glyph_advance(utf32 c) const;
 
-	/// @returns width in pixels of the glyph of a character
-	uint8 get_glyph_width(utf32 c) const;
-
-	/// @returns yoffset in pixels of the glyph of a character
-	uint8 get_glyph_yoffset(uint32 c) const;
-
 	/// @returns glyph data of a character
-	/// @sa font_t::glyph_t::bitmap
-	const uint8 *get_glyph_bitmap(utf32 c) const;
+	const glyph_t& get_glyph(utf32 c) const;
 
 private:
 	/// Load a BDF font
@@ -85,6 +75,12 @@ private:
 	/// Load a freetype font
 	bool load_from_freetype(const char *fname, int pixel_height);
 #endif
+
+	/// Frees all glyph bitmaps and empties the glyph array
+	void release_glyphs();
+
+	/// Gives the cent code point the dollar glyph artwork in the legacy bitmap fonts
+	void alias_cent_glyph();
 
 	void print_debug() const;
 

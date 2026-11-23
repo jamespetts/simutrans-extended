@@ -167,7 +167,12 @@ DBG_DEBUG("depot_frame_t::depot_frame_t()","get_max_convoi_length()=%i",depot->g
 	line_selector.set_width(convoy_selector.get_size().w);
 	line_selector.set_width_fixed(true);
 	set_resizemode( diagonal_resize );
-	set_windowsize(get_min_windowsize());
+	// A depot window carries a lot of text; never open narrower than the theme's
+	// default dialogue width, which grows with the font.
+	scr_size min_size = get_min_windowsize();
+	min_size.w = max(min_size.w, D_DEFAULT_WIDTH);
+	set_min_windowsize(min_size);
+	set_windowsize(min_size);
 	resize(scr_size(0,0));
 
 	depot->clear_command_pending();

@@ -120,6 +120,13 @@ protected:
 	virtual void set_windowsize(scr_size size);
 
 	/**
+	 * Minimum window size, limited to the usable screen area. A font or theme
+	 * can request a minimum larger than the display; without this limit the
+	 * window could not be shrunk to fit the screen.
+	 */
+	scr_size get_limited_min_windowsize() const;
+
+	/**
 	 * Set minimum size of the window
 	 */
 	void set_min_windowsize(scr_size new_size) { min_windowsize = new_size; }

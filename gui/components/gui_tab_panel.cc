@@ -82,19 +82,29 @@ void gui_tab_panel_t::set_size(scr_size size)
 
 scr_size gui_tab_panel_t::get_min_size() const
 {
-	scr_size t_size(0, required_size.h);
+	scr_size t_size(8, required_size.h);
 	scr_size c_size(0, 0);
 	gui_component_t *last_component = NULL;
 	for(tab const& iter : tabs) {
 		if (iter.title) {
 			t_size.h = max(t_size.h, LINESPACE + D_V_SPACE);
+			t_size.w += D_H_SPACE*2 + proportional_string_width(iter.title);
+		}
+		else if (iter.img) {
+			t_size.h = max(t_size.h, iter.img->get_pic()->h + D_V_SPACE);
+			t_size.w += max(2 + iter.img->get_pic()->w, D_H_SPACE*2+IMG_WIDTH);
+		}
+		else {
+			t_size.w += 8 + IMG_WIDTH;
 		}
 		if (iter.component != last_component) {
 			c_size.clip_lefttop( iter.component->get_min_size() );
 			last_component = iter.component;
 		}
 	}
-	return t_size + c_size;
+	// The tab row sits above the active page, so widths take the larger of the
+	// two and heights add.
+	return scr_size(max(t_size.w, c_size.w), t_size.h + c_size.h);
 }
 
 

@@ -94,7 +94,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_label_t>(bridge->get_desc()->get_name(), bridge->get_owner() ? color_idx_to_rgb(bridge->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_bridge = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(bridge->get_desc()->get_maintenance()), infrastructure) / 100.0;
-				lb_bridge->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
+				lb_bridge->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 				lb_bridge->update();
 
 				const sint32 top_speed = !hang ? bridge->get_desc()->get_topspeed() : hang == 1 ? bridge->get_desc()->get_topspeed_gradient_1() : bridge->get_desc()->get_topspeed_gradient_2();
@@ -108,7 +108,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_label_t>(tunnel->get_desc()->get_name(), tunnel->get_owner() ? color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_tunnel = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()), infrastructure) / 100.0;
-				lb_tunnel->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile);
+				lb_tunnel->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile);
 				lb_tunnel->update();
 
 				const sint32 top_speed = !hang ? tunnel->get_desc()->get_topspeed() : hang == 1 ? tunnel->get_desc()->get_topspeed_gradient_1() : tunnel->get_desc()->get_topspeed_gradient_2();
@@ -123,7 +123,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			new_component<gui_label_t>(way->get_desc()->get_name(), way->get_owner() != NULL ? color_idx_to_rgb(way->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : SYSCOL_TEXT);
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(way->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
 			const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()), infrastructure) / 100.0;
-			lb->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
+			lb->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 			lb->update();
 
 			lb = new_component<gui_label_buf_t>(potential_way_speed > way->get_max_speed(false) ? COL_WARNING : SYSCOL_TEXT, gui_label_t::right);
@@ -142,7 +142,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				lb = new_component<gui_label_buf_t>(wayobj->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(wayobj->get_desc()->get_maintenance()), infrastructure) / 100.0;
 
-				lb->buf().printf(translator::translate(" %1.2f$/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
+				lb->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
 				lb->update();
 				lb = new_component<gui_label_buf_t>(way->get_max_speed(true) != way->get_max_speed(false) ? COL_WARNING : SYSCOL_TEXT, gui_label_t::right);
 				lb->buf().printf(translator::translate("%ikm/h"), wayobj->get_desc()->get_topspeed());
@@ -785,7 +785,10 @@ way_info_t::way_info_t(const grund_t* gr_) :
 
 	update();
 	set_resizemode(diagonal_resize);
-	set_windowsize(scr_size(get_min_windowsize().w, D_TITLEBAR_HEIGHT + D_TAB_HEADER_HEIGHT + tabs.get_pos().y + LINESPACE*18));
+	// Open tall enough for the way details themselves; the scroll pane otherwise
+	// reports only its own small minimum and the last rows are cut off.
+	const scr_coord_val content_h = max( cont_way1.get_min_size().h, cont_way2.get_min_size().h );
+	set_windowsize(scr_size(get_min_windowsize().w, max(get_min_windowsize().h, D_TITLEBAR_HEIGHT + D_TAB_HEADER_HEIGHT + tabs.get_pos().y + content_h + D_MARGINS_Y)));
 }
 
 bool way_info_t::is_weltpos()
@@ -1361,6 +1364,19 @@ void way_info_t::draw(scr_coord pos, scr_size size)
 	update();
 
 	gui_frame_t::draw(pos, size);
+
+	// The way detail content is rebuilt in its own draw(), so its minimum height
+	// is only known after the first frame. Grow once to fit it, capped to the
+	// usable display height.
+	if(  first_draw  ) {
+		first_draw = false;
+		const scr_coord_val content_h = max( cont_way1.get_min_size().h, cont_way2.get_min_size().h );
+		scr_coord_val wanted_h = D_TITLEBAR_HEIGHT + D_TAB_HEADER_HEIGHT + tabs.get_pos().y + content_h + D_MARGINS_Y;
+		wanted_h = min( wanted_h, (scr_coord_val)( display_get_height() - env_t::iconsize.h - win_get_statusbar_height() ) );
+		if(  wanted_h > get_windowsize().h  ) {
+			set_windowsize( scr_size( get_windowsize().w, wanted_h ) );
+		}
+	}
 }
 
 void way_info_t::map_rotate90(sint16 new_ysize)

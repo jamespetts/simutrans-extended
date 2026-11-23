@@ -947,7 +947,7 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 						break;
 					case SPEC_RUNNING_COST:
 						if( veh_type->get_running_cost() ) {
-							lb->buf().printf("%1.2f$", veh_type->get_running_cost(world()) / 100.0);
+							lb->buf().printf("%1.2f" MONEY_SYMBOL, veh_type->get_running_cost(world()) / 100.0);
 						}
 						else {
 							lb->buf().append("-");
@@ -956,7 +956,7 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 						break;
 					case SPEC_FIXED_COST:
 						if( veh_type->get_fixed_cost() ) {
-							lb->buf().printf("%1.2f$", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
+							lb->buf().printf("%1.2f" MONEY_SYMBOL, veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
 						}
 						else {
 							lb->buf().append("-");
@@ -964,7 +964,7 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 						}
 						break;
 					case SPEC_VALUE:
-						lb->buf().printf("%1.2f$", cnv->get_vehicle(j)->calc_sale_value() / 100.0);
+						lb->buf().printf("%1.2f" MONEY_SYMBOL, cnv->get_vehicle(j)->calc_sale_value() / 100.0);
 						break;
 					case SPEC_MAINTENANCE_INTERVAL:
 					{
@@ -990,7 +990,7 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 						break;
 					}
 					case SPEC_OVERHAUL_COST:
-						lb->buf().printf("%1.2f$", veh_type->get_initial_overhaul_cost() / 100.0);
+						lb->buf().printf("%1.2f" MONEY_SYMBOL, veh_type->get_initial_overhaul_cost() / 100.0);
 						total += veh_type->get_initial_overhaul_cost();
 						break;
 					case SPEC_NEED_STAFF:
@@ -1026,7 +1026,7 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 				case SPEC_FIXED_COST:
 					td->buf().printf("%.2f$/%s", world()->calc_adjusted_monthly_figure(cnv->get_fixed_cost()) / 100.0, translator::translate("month")); break;
 				case SPEC_VALUE:
-					td->buf().printf("%.2f$", cnv->get_purchase_cost() / 100.0); break;
+					td->buf().printf("%.2f" MONEY_SYMBOL, cnv->get_purchase_cost() / 100.0); break;
 				case SPEC_MAINTENANCE_INTERVAL:
 				case SPEC_OVERHAUL_INTERVAL:
 					// Convoy min value
@@ -1044,10 +1044,10 @@ void gui_convoy_spec_table_t::insert_maintenance_rows()
 					break;
 
 				case SPEC_OVERHAUL_COST:
-					td->buf().printf("%1.2f$", total / 100.0);
+					td->buf().printf("%1.2f" MONEY_SYMBOL, total / 100.0);
 					break;
 				case SPEC_NEED_STAFF:
-					td->buf().printf("%1.2f$", cnv->get_salaries(100) / 100.0);
+					td->buf().printf("%1.2f" MONEY_SYMBOL, cnv->get_salaries(100) / 100.0);
 					break;
 				case SPEC_CAN_UPGRADE:
 				default:

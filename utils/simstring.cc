@@ -73,7 +73,7 @@ void set_large_amount(const char *s, const double v)
 
 /**
  * Formats a money value. Uses thousand separator. Two digits precision.
- * Concludes format with $ sign. Buffer must be large enough, no checks
+ * Concludes the format with MONEY_SYMBOL. Buffer must be large enough, no checks
  * are made!
  */
 void money_to_string(char * p, double f, const bool show_decimal)
@@ -129,7 +129,9 @@ void money_to_string(char * p, double f, const bool show_decimal)
 			*p++ = tp[i++];
 		}
 	}
-	*p++ = '$';
+	for(  const char *s = MONEY_SYMBOL;  *s != 0;  s++  ) {
+		*p++ = *s;
+	}
 	*p = 0;
 }
 

@@ -12,6 +12,7 @@
 #include "../player/finance.h" // MAX_PLAYER_HISTORY_YEARS
 #include "../vehicle/vehicle.h"
 #include "../path_explorer.h"
+#include "../utils/simstring.h"
 #include "settings_stats.h"
 #include "components/gui_divider.h"
 
@@ -179,7 +180,7 @@ void settings_extended_general_stats_t::init( settings_t *sets )
 	{
 		INIT_LB("revenue of");
 		INIT_LB("above\nminutes");
-		INIT_LB("get\nrevenue $");
+		INIT_LB("get\nrevenue " MONEY_SYMBOL);
 
 		INIT_NUM_RANGE("travelling post office", sets->get_tpo_min_minutes(), 0, 14400, sets->get_tpo_revenue(), 0, 10000);
 	}
@@ -488,7 +489,7 @@ void settings_extended_revenue_stats_t::init( settings_t *sets )
 
 		INIT_LB("catering bonus\nfor travelling");
 		INIT_LB("duration\nin minutes");
-		INIT_LB("max catering\nrevenue $");
+		INIT_LB("max catering\nrevenue " MONEY_SYMBOL);
 
 		INIT_LB("min traveltime");
 		gui_numberinput_t *ni_mt = new_component<gui_numberinput_t>();

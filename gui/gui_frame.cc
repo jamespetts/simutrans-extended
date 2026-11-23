@@ -39,6 +39,17 @@ gui_frame_t::gui_frame_t(char const* const name, player_t const* const player)
 
 
 /**
+ * Minimum window size, limited to the usable screen area.
+ */
+scr_size gui_frame_t::get_limited_min_windowsize() const
+{
+	scr_size min_size = min_windowsize;
+	min_size.clip_rightbottom( scr_size( display_get_width(), display_get_height() - env_t::iconsize.h - win_get_statusbar_height() ) );
+	return min_size;
+}
+
+
+/**
  * Set the window size
  */
 void gui_frame_t::set_windowsize(scr_size new_windowsize)
@@ -51,7 +62,7 @@ void gui_frame_t::set_windowsize(scr_size new_windowsize)
 		mark_rect_dirty_wc( pos.x, pos.y, pos.x+windowsize.w, pos.y+windowsize.h );
 
 		// minimum size //25-may-02  markus weber  added
-		new_windowsize.clip_lefttop(min_windowsize);
+		new_windowsize.clip_lefttop(get_limited_min_windowsize());
 
 		windowsize = new_windowsize;
 		dirty = true;
@@ -120,7 +131,7 @@ bool gui_frame_t::infowin_event(const event_t *ev)
 		return true;  // don't pass to children!
 	}
 	else if(IS_WINDOW_MAKE_MIN_SIZE(ev)) {
-		set_windowsize( get_min_windowsize() ) ;
+		set_windowsize( get_limited_min_windowsize() ) ;
 		resize( scr_coord(0,0) ) ;
 		return true;  // don't pass to children!
 	}
@@ -146,7 +157,7 @@ void gui_frame_t::resize(const scr_coord delta)
 	scr_size new_size = windowsize + delta;
 
 	// resize window to the minimum size
-	new_size.clip_lefttop(min_windowsize);
+	new_size.clip_lefttop(get_limited_min_windowsize());
 	scr_coord size_change = new_size - windowsize;
 	// resize window
 	set_windowsize(new_size);

@@ -122,7 +122,7 @@ static uint8 current_sort_mode = 0;
 
 #define LINE_NAME_COLUMN_WIDTH ((D_BUTTON_WIDTH*3)+11+4)
 #define SCL_HEIGHT (min(L_DEFAULT_WINDOW_HEIGHT/2+D_TAB_HEADER_HEIGHT,(15*LINESPACE)))
-#define L_DEFAULT_WINDOW_HEIGHT max(305, 24*LINESPACE)
+#define L_DEFAULT_WINDOW_HEIGHT max(305, 30*LINESPACE)
 
 /// selected convoy tab
 static uint8 selected_convoy_tab = 0;
@@ -592,7 +592,11 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	update_lineinfo( line );
 
 	// resize button
-	set_min_windowsize(scr_size(LINE_NAME_COLUMN_WIDTH + D_BUTTON_WIDTH*3 + D_MARGIN_LEFT*2, L_DEFAULT_WINDOW_HEIGHT));
+	// Leave enough room to the right of the line list for all info tabs: their
+	// labels scale with the font, so a fixed number of button widths no longer fits.
+	const scr_coord_val tabs_min_w = info_tabs.get_min_size().w;
+	const scr_coord_val min_width = max( LINE_NAME_COLUMN_WIDTH - 4 + D_MARGIN_RIGHT + tabs_min_w, LINE_NAME_COLUMN_WIDTH + D_BUTTON_WIDTH*3 + D_MARGIN_LEFT*2 );
+	set_min_windowsize(scr_size(min_width, L_DEFAULT_WINDOW_HEIGHT));
 	set_resizemode(diagonal_resize);
 	resize(scr_coord(0,0));
 	resize(scr_coord(D_BUTTON_WIDTH, LINESPACE*3+D_V_SPACE)); // suitable for 4 buttons horizontally and 5 convoys vertically

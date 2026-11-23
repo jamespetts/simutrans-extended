@@ -41,6 +41,7 @@ class way_info_t : public gui_frame_t, public action_listener_t
 	weg_t *way1, *way2;
 	uint8 has_way = 0;
 	bool has_road=false;
+	bool first_draw = true;
 
 	//cbuffer_t way_tooltip;
 	location_view_t way_view;

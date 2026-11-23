@@ -21,16 +21,19 @@
 #include <cstring>
 
 
-// if defined, for the old .fnt files a .bdf core will be generated
-// #define DUMP_OLD_FONTS
+// maximum dimensions of a BDF glyph, in pixels
+#define BDF_GLYPH_HEIGHT (23)
+#define BDF_GLYPH_WIDTH  (32)
 
 
 font_t::glyph_t::glyph_t() :
-	yoff(0),
+	bitmap(NULL),
+	height(0),
 	width(0),
-	advance(0xFF)
+	advance(0xFF),
+	top(0),
+	left(0)
 {
-	memset(bitmap, 0, sizeof(bitmap));
 }
 
 
@@ -42,32 +45,118 @@ font_t::font_t() :
 }
 
 
-/// Decodes a single line of a glyph
-static void dsp_decode_bdf_data_row(font_t::glyph_t *target, int y, int xoff, int g_width, const char *str)
+font_t::~font_t()
 {
-	char buf[3];
-	buf[0] = str[0];
-	buf[1] = str[1];
-	buf[2] = '\0';
+	release_glyphs();
+}
 
-	uint16 data = (uint16)strtol(buf, NULL, 16)<<8;
 
-	// read second byte but use only first nibble
-	if(  g_width > 8  ) {
-		buf[0] = str[2];
-		buf[1] = str[3];
-		buf[2] = '\0';
-		data |= strtol(buf, NULL, 16);
+font_t::font_t(const font_t &other) :
+	linespace(other.linespace),
+	descent(other.descent)
+{
+	tstrncpy( fname, other.fname, lengthof(fname) );
+	glyphs.resize(other.glyphs.size());
+	for(  size_t i = 0;  i < glyphs.size();  i++  ) {
+		const glyph_t &src = other.glyphs[i];
+		glyphs[i] = src;
+		glyphs[i].bitmap = NULL;
+		if(  src.bitmap  ) {
+			const size_t size = (size_t)src.width * src.height;
+			glyphs[i].bitmap = (uint8 *)malloc(size);
+			memcpy( glyphs[i].bitmap, src.bitmap, size );
+		}
+	}
+}
+
+
+font_t& font_t::operator=(const font_t &other)
+{
+	if(  this != &other  ) {
+		release_glyphs();
+		linespace = other.linespace;
+		descent   = other.descent;
+		tstrncpy( fname, other.fname, lengthof(fname) );
+		glyphs.resize(other.glyphs.size());
+		for(  size_t i = 0;  i < glyphs.size();  i++  ) {
+			const glyph_t &src = other.glyphs[i];
+			glyphs[i] = src;
+			glyphs[i].bitmap = NULL;
+			if(  src.bitmap  ) {
+				const size_t size = (size_t)src.width * src.height;
+				glyphs[i].bitmap = (uint8 *)malloc(size);
+				memcpy( glyphs[i].bitmap, src.bitmap, size );
+			}
+		}
+	}
+	return *this;
+}
+
+
+void font_t::release_glyphs()
+{
+	for(  size_t i = 0;  i < glyphs.size();  i++  ) {
+		free( glyphs[i].bitmap );
+	}
+	glyphs.clear();
+}
+
+
+void font_t::alias_cent_glyph()
+{
+	// The legacy bitmap fonts draw a cent sign in the dollar glyph, but have no
+	// glyph at U+00A2, which is the money symbol used by the interface.
+	if(  glyphs.size() <= (uint32)'$'  ||  glyphs['$'].advance == 0xFF  ) {
+		return;
+	}
+	if(  glyphs.size() <= 0xA2  ) {
+		glyphs.resize(0xA3);
 	}
 
-	data >>= xoff;
+	glyph_t &cent = glyphs[0xA2];
+	free( cent.bitmap );
+	cent = glyphs['$'];
+	cent.bitmap = NULL;
 
-	// now store them, and the second nibble store interleaved
-	target->bitmap[y] = data>>8;
-
-	if(  g_width+xoff > 8  ) {
-		target->bitmap[y+GLYPH_BITMAP_HEIGHT] = data;
+	if(  glyphs['$'].bitmap  ) {
+		const size_t size = (size_t)glyphs['$'].width * glyphs['$'].height;
+		cent.bitmap = (uint8 *)malloc(size);
+		memcpy( cent.bitmap, glyphs['$'].bitmap, size );
 	}
+}
+
+
+/// Decodes a single line of a glyph into a 32 bit wide, 23 row temporary cell
+static void dsp_decode_bdf_data_row(uint8 cell[BDF_GLYPH_HEIGHT][4], int y, int xoff, const char *str)
+{
+	size_t len = strlen(str);
+	while(  len > 0  &&  (str[len-1] == '\n'  ||  str[len-1] == '\r')  ) {
+		len--;
+	}
+	if(  len > 8  ) {
+		len = 8;
+	}
+
+	uint32 data = 0;
+	for(  size_t i = 0;  i < len;  i++  ) {
+		const char c = str[i];
+		data = (data << 4) | (uint32)(c >= 'a' ? c - 'a' + 10 : c >= 'A' ? c - 'A' + 10 : c - '0');
+	}
+
+	// align the row so that its first pixel is the most significant bit
+	const int bits = (int)len * 4;
+	if(  bits < 32  ) {
+		data <<= 32 - bits;
+	}
+
+	if(  xoff > 0  ) {
+		data >>= xoff;
+	}
+
+	cell[y][0] = (uint8)(data >> 24);
+	cell[y][1] = (uint8)(data >> 16);
+	cell[y][2] = (uint8)(data >> 8);
+	cell[y][3] = (uint8)data;
 }
 
 
@@ -79,6 +168,8 @@ static sint32 dsp_read_bdf_glyph(FILE *bdf_file, std::vector<font_t::glyph_t> &d
 	int g_width = 0, h = 0, g_desc = 0;
 	int glyph_advance = -1;
 	int xoff = 0;
+	uint8 cell[BDF_GLYPH_HEIGHT][4];
+	memset(cell, 0, sizeof(cell));
 
 	while(  !feof(bdf_file)  ) {
 		char str[256];
@@ -94,6 +185,7 @@ static sint32 dsp_read_bdf_glyph(FILE *bdf_file, std::vector<font_t::glyph_t> &d
 				dbg->error("dsp_read_bdf_glyph", "Unexpected glyph (%i) for %i glyph font!\n", glyph_nr, glyph_limit);
 				glyph_nr = 0;
 			}
+			memset(cell, 0, sizeof(cell));
 			continue;
 		}
 
@@ -113,8 +205,8 @@ static sint32 dsp_read_bdf_glyph(FILE *bdf_file, std::vector<font_t::glyph_t> &d
 		if (strstart(str, "BITMAP")) {
 			const int top = f_height + f_desc - h - g_desc;
 
-			// maximum size GLYPH_HEIGHT pixels
-			h = min(h + top, (int)GLYPH_BITMAP_HEIGHT);
+			// maximum size BDF_GLYPH_HEIGHT pixels
+			h = min(h + top, BDF_GLYPH_HEIGHT);
 
 			// read for height times
 			for (int y = top; y < h; y++) {
@@ -123,7 +215,7 @@ static sint32 dsp_read_bdf_glyph(FILE *bdf_file, std::vector<font_t::glyph_t> &d
 				}
 
 				if(  y>=0  ) {
-					dsp_decode_bdf_data_row(&data[glyph_nr], y, xoff, g_width, str);
+					dsp_decode_bdf_data_row(cell, y, xoff, str);
 				}
 			}
 			continue;
@@ -131,31 +223,47 @@ static sint32 dsp_read_bdf_glyph(FILE *bdf_file, std::vector<font_t::glyph_t> &d
 
 		// finally add width information (width = 0: not there!)
 		if(  strstart(str, "ENDCHAR")  ) {
-			uint8 start_h = 0;
+			int start_h = 0;
 
 			// find the start offset
-			for(  uint8 i=0;  i<GLYPH_BITMAP_HEIGHT;  i++  ) {
-				if(data[glyph_nr].bitmap[i]==0  &&  data[glyph_nr].bitmap[GLYPH_BITMAP_HEIGHT+i]==0) {
-					start_h++;
-				}
-				else {
-					break;
-				}
+			while(  start_h < BDF_GLYPH_HEIGHT  &&  cell[start_h][0]==0  &&  cell[start_h][1]==0  &&  cell[start_h][2]==0  &&  cell[start_h][3]==0  ) {
+				start_h++;
 			}
 
-			if(  start_h==GLYPH_BITMAP_HEIGHT  ) {
-				g_width = 0;
+			int end_h = BDF_GLYPH_HEIGHT;
+			while(  end_h > start_h  &&  cell[end_h-1][0]==0  &&  cell[end_h-1][1]==0  &&  cell[end_h-1][2]==0  &&  cell[end_h-1][3]==0  ) {
+				end_h--;
 			}
 
-			data[glyph_nr].yoff  = start_h;
-			data[glyph_nr].width = g_width;
+			font_t::glyph_t &glyph = data[glyph_nr];
+
+			glyph.top    = end_h > start_h ? start_h : 0;
+			glyph.left   = 0;
+			glyph.width  = end_h > start_h ? min(g_width + xoff, BDF_GLYPH_WIDTH) : 0;
+			glyph.height = end_h - start_h;
 			if(  glyph_advance == -1  ) {
 				// no screen width: should not happen, but we can recover
 				dbg->warning( "dsp_read_bdf_glyph", "BDF warning: Glyph %i has no advance (screen width) assigned!\n", glyph_nr);
 				glyph_advance = g_width + 1;
 			}
 
-			data[glyph_nr].advance = glyph_advance;
+			glyph.advance = (uint8)clamp(glyph_advance, 1, 255);
+
+			if(  glyph.width > 0  &&  glyph.height > 0  ) {
+				free( glyph.bitmap );
+				glyph.bitmap = (uint8 *)calloc((size_t)glyph.width * glyph.height, 1);
+				for(  int y = start_h;  y < end_h;  y++  ) {
+					for(  int x = 0;  x < glyph.width;  x++  ) {
+						if(  cell[y][x/8] & (0x80 >> (x%8))  ) {
+							glyph.bitmap[(y-start_h)*glyph.width + x] = 32;
+						}
+					}
+				}
+			}
+			else {
+				free( glyph.bitmap );
+				glyph.bitmap = NULL;
+			}
 
 			// finished
 			return glyph_nr;
@@ -169,7 +277,7 @@ static sint32 dsp_read_bdf_glyph(FILE *bdf_file, std::vector<font_t::glyph_t> &d
 bool font_t::load_from_bdf(FILE *bdf_file)
 {
 	dbg->message("font_t::load_from_bdf", "Loading BDF font '%s'", fname);
-	glyphs.clear();
+	release_glyphs();
 
 	uint32 f_height = 0;
 	int f_desc = 0;
@@ -193,7 +301,7 @@ bool font_t::load_from_bdf(FILE *bdf_file)
 			f_numglyphs = atoi(str + 5) <= 0x100 ? 0x100 : 0xFFFE;
 
 			glyphs.resize(max(f_numglyphs, 0));
-			glyphs[(uint32)' '].advance = clamp(f_height / 2, 3u, GLYPH_BITMAP_HEIGHT);
+			glyphs[(uint32)' '].advance = clamp(f_height / 2, 3u, 255u);
 			continue;
 		}
 
@@ -211,25 +319,31 @@ bool font_t::load_from_bdf(FILE *bdf_file)
 
 	// init default glyph for missing glyphs (just a box)
 
-	const int real_font_height = min(f_height, (int)GLYPH_BITMAP_HEIGHT);
-	int h = 2;
+	const int real_font_height = min((int)f_height, BDF_GLYPH_HEIGHT);
+	const int box_height = max(real_font_height - 2, 3);
 
-	glyphs[0].bitmap[1]     = 0x7E; // 0111 1110
-	for(  ; h < real_font_height-2;  h++  ) {
-		glyphs[0].bitmap[h] = 0x42; // 0100 0010
-	}
-	glyphs[0].bitmap[h++]   = 0x7E; // 0111 1110
-
-
-	glyphs[0].yoff  = 1; // y-offset
-	glyphs[0].width = 7; // real width
+	glyphs[0].width   = 7;
+	glyphs[0].height  = box_height;
+	glyphs[0].top     = 1;
+	glyphs[0].left    = 0;
 	glyphs[0].advance = 8;
+	glyphs[0].bitmap  = (uint8 *)calloc(7 * box_height, 1);
+
+	for(  int y = 0;  y < box_height;  y++  ) {
+		for(  int x = 0;  x < 7;  x++  ) {
+			if(  y == 0  ||  y == box_height-1  ||  x == 0  ||  x == 6  ) {
+				glyphs[0].bitmap[y*7 + x] = 32;
+			}
+		}
+	}
 
 	linespace = f_height;
 	descent   = f_desc;
 
 	// Use only needed amount
 	glyphs.resize( (uint32)max_glyph+1 );
+
+	alias_cent_glyph();
 
 	return true;
 }
@@ -241,10 +355,13 @@ bool font_t::load_from_bdf(FILE *bdf_file)
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
 #include FT_TRUETYPE_TABLES_H
+#include FT_BITMAP_H
 
 
 bool font_t::load_from_freetype(const char *fname, int pixel_height)
 {
+	dbg->message( "font_t::load_from_freetype", "trying to load '%s' in size %d", fname, pixel_height);
+
 	FT_Library ft_library = NULL;
 	if(  FT_Init_FreeType(&ft_library) != FT_Err_Ok  ) {
 		dbg->error( "font_t::load_from_freetype", "Freetype initialization failed" );
@@ -261,33 +378,44 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 	}
 
 	if(  FT_Set_Pixel_Sizes( face, 0, pixel_height ) != FT_Err_Ok  ) {
-		dbg->error( "font_t::load_from_freetype", "Cannot load %s", fname);
+		dbg->error( "font_t::load_from_freetype", "Cannot set pixel size %d for %s", pixel_height, fname);
 		FT_Done_Face(face);
 		FT_Done_FreeType(ft_library);
 		return false;
 	}
 
+	release_glyphs();
 	glyphs.resize(0x10000);
 
 	const sint16 ascent = face->size->metrics.ascender/64;
-	linespace           = min( face->size->metrics.height/64, (FT_Pos)GLYPH_BITMAP_HEIGHT );
+	linespace           = face->size->metrics.height/64;
 	descent             = face->size->metrics.descender/64;
 
 	tstrncpy( this->fname, fname, lengthof(this->fname) );
 
 	uint32 num_glyphs = 0;
 
+	// 8 bit bitmap used for converting glyphs that are not rendered in greyscale
+	FT_Bitmap bitmap_8;
+	FT_Bitmap_Init(&bitmap_8);
+
 	for(  uint32 glyph_nr=0;  glyph_nr<0xFFFF;  glyph_nr++  ) {
 
+		if(  glyph_nr > 0  &&  FT_Get_Char_Index( face, glyph_nr ) == 0  ) {
+			// glyph not in font => nothing to render
+			glyphs[glyph_nr].advance = 0xFF;
+			continue;
+		}
+
 		/* load glyph image into the slot (erase previous one) */
-		if(  FT_Load_Char( face, glyph_nr, FT_LOAD_RENDER | FT_LOAD_MONOCHROME ) != FT_Err_Ok  ) {
+		if(  FT_Load_Char( face, glyph_nr, FT_LOAD_RENDER ) != FT_Err_Ok  ) {
 			// glyph not there ...
 			glyphs[glyph_nr].advance = 0xFF;
 			continue;
 		}
 
-		const FT_Error error = FT_Render_Glyph( face->glyph, FT_RENDER_MODE_MONO );
-		if(  error != FT_Err_Ok  ||  face->glyph->bitmap.pitch == 0  ) {
+		const FT_Error error = FT_Render_Glyph( face->glyph, FT_RENDER_MODE_NORMAL );
+		if(  error != FT_Err_Ok  ) {
 			// glyph not there ...
 			glyphs[glyph_nr].advance = 0xFF;
 			continue;
@@ -296,34 +424,66 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 		// use only needed amount
 		num_glyphs = glyph_nr+1;
 
-		/* now render into cache
-		 * the bitmap is at slot->bitmap
-		 * the glyph base is at slot->bitmap_left, CELL_HEIGHT - slot->bitmap_top
-		 */
+		glyph_t &glyph = glyphs[glyph_nr];
 
-		// if the glyph is too high
-		int y_off = ascent - face->glyph->bitmap_top;
-		int by_off = 0;
-		if(  y_off < 0  ) {
-			by_off -= y_off;
-			y_off = 0;
+		FT_Bitmap *bitmap = &face->glyph->bitmap;
+		bool one_bit_pp = false;
+
+		// some fonts (e.g. bitmap fonts) do not render with 8 bit alpha
+		if(  bitmap->pixel_mode != FT_PIXEL_MODE_GRAY  ) {
+			if(  FT_Bitmap_Convert( ft_library, &face->glyph->bitmap, &bitmap_8, 4 ) != FT_Err_Ok  ) {
+				glyph.advance = 0xFF;
+				continue;
+			}
+			bitmap = &bitmap_8;
+			one_bit_pp = true;
 		}
 
-		// asked for monocrome so slot->pixel_mode == FT_PIXEL_MODE_MONO
-		for(  uint32 y = y_off, by = by_off;  y < GLYPH_BITMAP_HEIGHT  &&  (uint32)by < face->glyph->bitmap.rows;  y++, by++ ) {
-			glyphs[glyph_nr].bitmap[y] = face->glyph->bitmap.buffer[by * face->glyph->bitmap.pitch];
-		}
+		// set glyph size
+		glyph.height  = bitmap->rows;
+		glyph.width   = bitmap->width;
+		glyph.advance = (uint8)min(255, (face->glyph->advance.x + 31) / 64);
 
-		if(  face->glyph->bitmap.width > 8  ) {
-			// render second row
-			for(  int y = y_off, by = by_off;  y < (int)GLYPH_BITMAP_HEIGHT  &&  (uint)by < face->glyph->bitmap.rows;  y++, by++ ) {
-				glyphs[glyph_nr].bitmap[y+GLYPH_BITMAP_HEIGHT] = face->glyph->bitmap.buffer[by * face->glyph->bitmap.pitch+1];
+		// the bitmaps are all top aligned. Bitmap top is the ascent
+		// above the base line
+		// to find the real top position, we must take the font ascent
+		// and reduce it by the glyph ascent
+		glyph.top  = ascent - face->glyph->bitmap_top - 1;
+		glyph.left = face->glyph->bitmap_left;
+
+		// transform glyph to Simutrans bitmap
+		if(  glyph.height > 0  &&  glyph.width > 0  ) {
+			glyph.bitmap = (uint8 *)calloc((size_t)glyph.height * glyph.width, 1);
+
+			if(  !one_bit_pp  ) {
+				// 8 bit alpha per pixel
+				for(  int y = 0;  y < glyph.height;  y++  ) {
+					for(  int x = 0;  x < glyph.width;  x++  ) {
+						const uint16 alpha = bitmap->buffer[y * bitmap->pitch + x];
+						// the text blitter wants alpha in 0..32
+						glyph.bitmap[y * glyph.width + x] = (uint8)((alpha * 32) / 255);
+					}
+				}
+			}
+			else {
+				// 1 bit per pixel
+				for(  int y = 0;  y < glyph.height;  y++  ) {
+					for(  int x = 0;  x < glyph.width;  x++  ) {
+						if(  bitmap->buffer[y * bitmap->pitch + x]  ) {
+							glyph.bitmap[y * glyph.width + x] = 32;
+						}
+					}
+				}
 			}
 		}
 
-		glyphs[glyph_nr].advance = face->glyph->bitmap.width+1;
-		glyphs[glyph_nr].yoff  = y_off; // h_offset
-		glyphs[glyph_nr].width = max(16u, face->glyph->bitmap.width);
+		FT_Bitmap_Done( ft_library, &bitmap_8 );
+
+		// find out if invalid character
+		if(  glyph_nr  &&  glyph.height>0  &&  glyphs[0].height == glyph.height  &&  glyphs[0].width == glyph.width  &&  memcmp(glyphs[0].bitmap, glyph.bitmap, glyph.height * glyph.width) == 0  ) {
+			// same bitmap as character zero ?!?!
+			glyph.advance = 0xFF;
+		}
 	}
 
 	if(  num_glyphs<0x80  ) {
@@ -336,12 +496,15 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 	if(  glyphs[0x3000].advance == 0xFF  &&  glyphs[0x3001].advance != 0xFF  ) {
 		glyphs[0x3000].advance = glyphs[0x3001].advance;
 		glyphs[0x3000].width = 0;
-		glyphs[0x3000].yoff = GLYPH_BITMAP_HEIGHT;
+		glyphs[0x3000].top = 0;
+	}
+
+	if(  glyphs[' '].advance == 0xFF  ) {
+		glyphs[' '].advance = glyphs['n'].advance;
 	}
 
 	// Use only needed amount
 	glyphs.resize(num_glyphs);
-	glyphs[(uint32)' '].advance = glyphs[(uint32)'n'].advance;
 
 	FT_Done_Face( face );
 	FT_Done_FreeType( ft_library );
@@ -356,22 +519,9 @@ void font_t::print_debug() const
 	dbg->debug("font_t::print_debug", "Loaded font %s with %i glyphs\n", get_fname(), get_num_glyphs());
 	dbg->debug("font_t::print_debug", "height: %i, descent: %i", linespace, descent );
 
-	for(  uint8 glyph_nr = ' ';  glyph_nr<128; glyph_nr ++  ) {
-		char msg[128 + GLYPH_BITMAP_HEIGHT * (GLYPH_BITMAP_WIDTH+1)]; // +1 for trailing newline
-
-		char *c = msg + sprintf(msg, "glyph %c: width %i, top %i\n", glyph_nr, get_glyph_width(glyph_nr), get_glyph_yoffset(glyph_nr) );
-
-		for(  uint32 y = 0;  y < GLYPH_BITMAP_HEIGHT;  y++  ) {
-			for(  uint32 x = 0;  x < (uint32)min(GLYPH_BITMAP_WIDTH, get_glyph_width(glyph_nr));  x++  ) {
-				const uint8 data = get_glyph_bitmap(glyph_nr)[y+(x/CHAR_BIT)*GLYPH_BITMAP_HEIGHT];
-				const bool bit_set = (data & (0x80>>(x%CHAR_BIT))) != 0;
-
-				*c++ = bit_set ? '*' : ' ';
-			}
-			*c++ = '\n';
-		}
-		*c++ = 0;
-		dbg->debug("font_t::print_debug", "glyph data: %s", msg );
+	for(  uint32 glyph_nr = ' ';  glyph_nr < 128  &&  glyph_nr < get_num_glyphs();  glyph_nr++  ) {
+		const glyph_t &glyph = glyphs[glyph_nr];
+		dbg->debug("font_t::print_debug", "glyph %c: width %i, height %i, top %i, left %i, advance %i", glyph_nr, glyph.width, glyph.height, glyph.top, glyph.left, glyph.advance );
 	}
 }
 
@@ -437,72 +587,46 @@ bool font_t::load_from_fnt(FILE *f)
 
 	fclose(f);
 
-#ifdef DUMP_OLD_FONTS
-	f = fopen("C:\\prop.bdf","w");
-#endif
-
 	// convert to new standard font
+	release_glyphs();
 	glyphs.resize(0x100);
 
 	linespace = 11;
 	descent   = -2;
 
 	for(  int i = 0; i < 0x100; i++  ) {
-		uint8 start_h;
-
 		glyphs[i].advance = npr_fonttab[0x100 + i];
 		if(  glyphs[i].advance == 0  ) {
 			glyphs[i].advance = 0xFF; // undefined glyph
 		}
 
-		int j = 0;
-		for (; j < 10; j++) {
-			glyphs[i].bitmap[j] = npr_fonttab[512 + i * 10 + j];
+		glyphs[i].top    = 0;
+		glyphs[i].left   = 0;
+		glyphs[i].height = 10;
+		glyphs[i].width  = npr_fonttab[i];
+		if(  glyphs[i].width == 0  ) {
+			glyphs[i].height = 0;
 		}
+		glyphs[i].bitmap = glyphs[i].width > 0 ? (uint8 *)calloc((size_t)glyphs[i].width * glyphs[i].height, 1) : NULL;
 
-		for (; j < (int)sizeof(glyphs[i].bitmap); j++) {
-			glyphs[i].bitmap[j] = 0;
-		}
-
-		// find the start offset
-		for( start_h=0;  glyphs[i].bitmap[start_h]==0  &&  start_h<10;  start_h++  ) {
-			;
-		}
-
-		glyphs[i].yoff  = start_h;
-		glyphs[i].width = npr_fonttab[i];
-
-#ifdef DUMP_OLD_FONTS
-		//try to make bdf
-		if(  start_h<10  ) {
-			// find bounding box
-			int h=10;
-			while(h>start_h  &&  glyphs[i].bitmap[h-1]==0) {
-				h--;
+		// expand the 1 bit per pixel rows of the old font to 8 bit alpha
+		for(  int y = 0;  y < 10;  y++  ) {
+			const uint8 row = npr_fonttab[512 + i * 10 + y];
+			for(  int x = 0;  x < glyphs[i].width  &&  x < 8;  x++  ) {
+				if(  row & (0x80 >> x)  ) {
+					glyphs[i].bitmap[y * glyphs[i].width + x] = 32;
+				}
 			}
-
-			// emulate character
-			fprintf( f, "STARTCHAR char%0i\n", i );
-			fprintf( f, "ENCODING %i\n", i );
-			fprintf( f, "SWIDTH %i 0\n", (int)(0.5+77.875*(double)glyphs[i].advance) );
-			fprintf( f, "DWIDTH %i\n", glyphs[i].advance );
-			fprintf( f, "BBX %i %i %i %i\n", glyphs[i].advance, h-start_h, 0, 8-h );
-			fprintf( f, "BITMAP\n" );
-
-			for(  j=start_h;  j<h;  j++ ) {
-				fprintf( f, "%02x\n", glyphs[i].bitmap[j] );
-			}
-
-			fprintf( f, "ENDCHAR\n" );
 		}
-#endif
 	}
-#ifdef DUMP_OLD_FONTS
-	fclose(f);
-#endif
 
 	glyphs[(uint32)' '].advance = 4;
 	glyphs[(uint32)' '].width = 0;
+	glyphs[(uint32)' '].height = 0;
+	free( glyphs[(uint32)' '].bitmap );
+	glyphs[(uint32)' '].bitmap = NULL;
+
+	alias_cent_glyph();
 
 	dbg->message( "font_t::load_from_fnt", "%s successfully loaded as old format prop font!", fname);
 	return true;
@@ -522,40 +646,16 @@ uint8 font_t::get_glyph_advance(utf32 c) const
 }
 
 
-uint8 font_t::get_glyph_width(utf32 c) const
+const font_t::glyph_t& font_t::get_glyph(utf32 c) const
 {
-	if(  !is_loaded()  ) {
-		return 0;
+	static glyph_t dummy;
+	if(  is_loaded()  ) {
+		if(  c < get_num_glyphs()  &&  glyphs[c].advance != 0xFF  ) {
+			return glyphs[c];
+		}
+		else {
+			return glyphs[0];
+		}
 	}
-	else if(  c >= get_num_glyphs()  ) {
-		c = 0;
-	}
-
-	return glyphs[c].width;
-}
-
-
-uint8 font_t::get_glyph_yoffset(uint32 c) const
-{
-	if(  !is_loaded()  ) {
-		return 0;
-	}
-	else if(  c >= get_num_glyphs()  ) {
-		c = 0;
-	}
-
-	return glyphs[c].yoff;
-}
-
-
-const uint8 *font_t::get_glyph_bitmap(utf32 c) const
-{
-	if(  !is_loaded()  ) {
-		return NULL;
-	}
-	else if(  c >= get_num_glyphs()  ) {
-		c = 0;
-	}
-
-	return glyphs[c].bitmap;
+	return dummy;
 }

@@ -60,9 +60,18 @@ char *make_single_line_string(const char *in,int number_of_lines);
 
 
 /**
+ * The currency symbol appended to money amounts. This is the cent sign (U+00A2)
+ * in UTF-8. The legacy bitmap fonts draw a cent sign in their dollar glyph and
+ * have no cent code point, so font.cc aliases U+00A2 to the dollar artwork for
+ * those fonts; TrueType fonts render the real cent sign.
+ */
+#define MONEY_SYMBOL "\xC2\xA2"
+
+
+/**
  * Formats a money value. Uses thousand separator. Two digits precision.
- * Concludes format with $ sign. Buffer must be large enough, no checks
- * are made!
+ * Concludes the format with MONEY_SYMBOL. Buffer must be large enough, no
+ * checks are made!
  */
 void money_to_string(char * buf, double f, const bool show_decimal = true);
 

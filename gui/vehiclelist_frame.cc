@@ -364,7 +364,7 @@ vehiclelist_frame_t::vehiclelist_frame_t() :
 	// calculate table cell width
 	cell_width[VL_IMAGE] = max(cell_width[VL_IMAGE], bt_table_sort[VL_IMAGE].get_min_size().w);
 	cell_width[VL_STATUSBAR] = VEHICLE_BAR_HEIGHT*4+D_H_SPACE*2+1;
-	cell_width[VL_COST] = max(proportional_string_width("88,888,888$"), bt_table_sort[VL_COST].get_min_size().w) + D_H_SPACE*2+1;
+	cell_width[VL_COST] = max(proportional_string_width("88,888,888" MONEY_SYMBOL), bt_table_sort[VL_COST].get_min_size().w) + D_H_SPACE*2+1;
 	cell_width[VL_ENGINE_TYPE] = 0; // need initialization for refresh
 	for (uint8 i = 0; i < 11; i++) {
 		cell_width[VL_ENGINE_TYPE]=max(cell_width[VL_ENGINE_TYPE], proportional_string_width( translator::translate( vehicle_builder_t::engine_type_names[i] )));

@@ -21,11 +21,11 @@ static scr_coord_val large_money_width = 0;
 gui_label_t::gui_label_t(const char* text, PIXVAL color_, align_t align_) :
 	align(align_), tooltip(NULL)
 {
-	separator_width = proportional_string_width( ",00$" );
+	separator_width = proportional_string_width( ",00" MONEY_SYMBOL );
 
 	if (get_large_money_string()) {
 		cbuffer_t buf;
-		buf.printf("%s$", get_large_money_string());
+		buf.printf("%s" MONEY_SYMBOL, get_large_money_string());
 		large_money_width = proportional_string_width((const char*) buf);
 	}
 	else {

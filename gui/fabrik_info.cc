@@ -93,10 +93,14 @@ void fabrik_info_t::init(fabrik_t* fab_, const gebaeude_t* /*gb*/)
 	prod.recalc_size();
 	add_component( &prod );
 
-	const sint16 offset_below_viewport = D_MARGIN_TOP+D_V_SPACE+ max( prod.get_size().h + storage.get_size().h, view.get_size().h + 8 ) + LINESPACE;
+	storage.recalc_size();
+
+	// Start the goods list below the longer of the production text and the
+	// building view (plus the staffing bar). Using prod.get_size().h alone would
+	// omit prod's own y position and overlap the last lines of the text.
+	const sint16 offset_below_viewport = max( prod.get_pos().y + prod.get_size().h, D_MARGIN_TOP + view.get_size().h + 8 + D_V_SPACE ) + LINESPACE;
 
 	storage.set_pos(scr_coord(0, offset_below_viewport));
-	storage.recalc_size();
 	add_component(&storage);
 
 	tabs.set_pos(scr_coord(0, offset_below_viewport + storage.get_size().h + LINESPACE));

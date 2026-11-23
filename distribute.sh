@@ -77,7 +77,7 @@ getSDL2mac()
 distribute()
 {
 	# pack all files of the current release
-	FILELISTE=$(find simutrans -type f "(" -name "*.tab" -o -name "*.mid" -o -name "*.bdf" -o -name "*.fnt" -o -name "*.txt"  -o -name "*.dll" -o -name "*.pak" -o -name "*.nut" -o -name "*.dll" ")")
+	FILELISTE=$(find simutrans -type f "(" -name "*.tab" -o -name "*.mid" -o -name "*.bdf" -o -name "*.fnt" -o -name "*.ttf" -o -name "*.txt"  -o -name "*.dll" -o -name "*.pak" -o -name "*.nut" -o -name "*.dll" ")")
 	zip -9 $simarchiv.zip $FILELISTE simutrans/$simexe_name simutrans/$updater 1>/dev/null
 }
 
