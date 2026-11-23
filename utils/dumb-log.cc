@@ -136,6 +136,31 @@ void log_t::fatal(const char *who, const char *format, ...)
 }
 
 
+/**
+ * writes an error to stderr and aborts the program, without allocating.
+ */
+void log_t::fatal_noalloc(const char *who, const char *format, ...)
+{
+	va_list argptr;
+	va_start(argptr, format);
+
+	static char message[8192];
+	int n = snprintf(message, sizeof(message), "FATAL ERROR: %s - ", who);
+	if (n > 0 && (size_t)n < sizeof(message)) {
+		vsnprintf(message + n, sizeof(message) - n, format, argptr);
+	}
+	va_end(argptr);
+
+	fputs(message, stderr);
+	fputs("\nAborting program execution ...\n", stderr);
+	if (force_flush) {
+		fflush(stderr);
+	}
+
+	abort();
+}
+
+
 
 void log_t::vmessage(const char *what, const char *who, const char *format, va_list args )
 {
