@@ -1,15 +1,23 @@
 ---
 status: draft
-verified: ex-15 @ c1e914343 plus working-tree comfort performance changes (comfort routing; 2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index profiling and route-unreserve removal (2026-11-14); rest @ ex-15-industry-growth-test @ 7c379b4
+verified: master @ 9f562f85e6 (profiling pipeline and profiling-method link; 2026-11-23); comfort routing @ ex-15 @ c1e914343 (2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index profiling and route-unreserve removal (2026-11-14); rest @ ex-15-industry-growth-test @ 7c379b4
 ---
 # Performance & profiling
 
-**Covers:** scripts/run-perf-suite.ps1, the automated ETW profiling pipeline in scripts/perf/
-(cpu-sample.wprp, etl-hotspots.cs, etw-ctl.ps1, install-perf-task.ps1; analyzer deployed under
-ai/tools/perf/, symbol cache ai/tools/symbols/, both gitignored), the profiling fixture
-(bb-10-sep-2023.sve + branch pakset binaries in simutrans/), the MSVC "Profile" configuration,
-the DEBUG/PROFILE-only benchmark command-line options (`-until`, `-times`, `-fast-network-sync`
-in simmain.cc), and the performance hotspot inventory (play fixture and `-generate_map` worldgen).
+**Covers:** scripts/run-perf-suite.ps1, the automated Event Tracing for Windows (ETW) profiling
+pipeline in scripts/perf/ (cpu-sample.wprp, etl-hotspots.cs, etl-lines.cs, pdb-sizes.cs,
+etw-ctl.ps1, install-perf-task.ps1; analyzers deployed under ai/tools/perf/, symbol cache
+ai/tools/symbols/, both gitignored), the profiling fixture (bb-10-sep-2023.sve + branch pakset
+binaries in simutrans/), the MSVC "Profile" configuration, the DEBUG/PROFILE-only benchmark
+command-line options (`-until`, `-times`, `-fast-network-sync` in simmain.cc), and the performance
+hotspot inventory (play fixture and `-generate_map` worldgen).
+
+Read [profiling-method](performance/profiling-method.md) before starting any hot-path profiling,
+disassembly drill-down, object-size verification, or A/B performance comparison: it holds the
+two-tier capture workflow (30 s source-line and Relative Virtual Address (RVA) diagnosis vs 120 s
+canonical verification), `etl-lines` and `dumpbin` cache-miss attribution, CPU-bound throughput
+comparison via unchanged-subsystem scaling, one-shot runtime distribution censuses, `pdb-sizes`,
+and A/B build hygiene.
 
 ## Why this doc
 
@@ -138,25 +146,38 @@ non-interactively [EXECUTION-VERIFIED:2026-09-10]:
    `scripts/perf/install-perf-task.ps1`; command/status-file protocol in ai/temp/perf/). Use the
    WPT wpr.exe — the inbox wpr (System32) has a broken `-stop` (RPC_E_CHANGED_MODE) on this
    machine [EXECUTION-VERIFIED:2026-09-10].
-3. At window end the TraceEvent analyzer (source `scripts/perf/etl-hotspots.cs`; deployed with
-   its managed + native DLLs in `ai/tools/perf/`) writes `hotspots-self.csv` /
-   `hotspots-incl.csv` (function, samples, %) into the results dir and the top-10 self list into
-   summary.txt. The raw ETL is deleted on success, kept on failure. Analyzer caveats, both
-   handled in the checked-in source: DIA-based PDB parsing needs TraceEvent's native DLLs
-   (amd64\msdia140 etc.) beside the exe, and the MS symbol servers reject .NET 4.0's default
-   TLS 1.0 (TLS 1.2 is forced).
-4. Comparing runs: diff the pct columns of two hotspots CSVs (same machine, mode, window,
-   fixture, threads). Compare function CPU share, not absolute wall time; wall-time comparisons
-   only between clean-exit modes (Load/Times).
+3. At window end the TraceEvent function analyzer (source `scripts/perf/etl-hotspots.cs`; deployed
+   with its managed + native DLLs in `ai/tools/perf/`) writes `hotspots-self.csv`,
+   `hotspots-incl.csv`, and `hotspots-threads.csv` into the results dir and the top-10 self list
+   into `summary.txt`. Passing `-LineFilter <substrings>` also runs `ai/tools/perf/etl-lines.exe`
+   (source `scripts/perf/etl-lines.cs`), which streams the raw Event Trace Log (`.etl`) directly
+   against the local Program Database (`.pdb`) in under one second and writes source-line and
+   Relative Virtual Address (RVA) counts to `hotspots-lines.txt`. Passing `-FastLinesOnly` skips
+   `etl-hotspots.exe` for fast exploratory iterations; passing `-KeepEtl` retains `trace.etl` for
+   repeated queries instead of deleting it on success. Analyzer caveats, both handled in the
+   checked-in source: Debug Interface Access (DIA)-based PDB parsing needs TraceEvent's native
+   DLLs (`amd64\msdia140.dll` etc.) beside the exe, and the Microsoft symbol servers reject
+   .NET 4.0's default TLS 1.0 (TLS 1.2 is forced in `etl-hotspots.cs`; `etl-lines.cs` does not
+   contact symbol servers).
+4. Comparing runs: on a CPU-bound server capture (`bb-10-sep-2023.sve`), total CPU remains at
+   one saturated core after a main-thread speedup because the server runs more steps per second,
+   and inlining shifts self-% between caller and callee. Measure whole-simulation throughput gain
+   from the inclusive-sample ratio of several independent unchanged per-step and per-sync-step
+   functions (such as `karte_t::step`, `step_passengers_and_mail_threaded`,
+   `convoi_t::calc_acceleration`, and `float32e8_t::operator*`) across identical-window canonical
+   captures, and divide the optimised function's samples by that factor for per-step cost. Full
+   procedure, disassembly skid rules, and A/B build hygiene:
+   [profiling-method](performance/profiling-method.md).
 - gprof is unusable on this toolchain: mingw64 gcc 16.2 `-pg` emits zero instrumentation
   (no mcount/fentry calls) [EXECUTION-VERIFIED:2026-09-10].
 - **Visual Studio Performance Profiler** remains the manual fallback for interactive drill-down
   (launch/attach against the Profile builds; PDBs next to the exe). PerfView CLI has no analysis
   commands (GUI-only) [EXECUTION-VERIFIED:2026-09-10].
-- **Window length:** one to two minutes of paced running on this fixture is enough to identify
-  hotspots for most purposes; much longer runs are only needed to observe long-cycle behaviour
-  (e.g. a complete path-explorer run), which is rare and better studied on a small map (the CI
-  demo fixture) [RECOLLECTION:2026-09-09].
+- **Window length:** 30 s with `-SettleSec 10 -FastLinesOnly` (~30k main-thread samples) is
+  sufficient for fast line/RVA diagnosis during tuning; use the default 120 s full `-Trace`
+  window for final A/B verification [EXECUTION-VERIFIED:2026-11-23]. Much longer runs are only
+  needed to observe long-cycle behaviour (e.g. a complete path-explorer run), which is rare and
+  better studied on a small map (the CI demo fixture) [RECOLLECTION:2026-09-09].
 
 ## Mapgen profiling (`-generate_map`)
 
