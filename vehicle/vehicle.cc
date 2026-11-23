@@ -617,6 +617,28 @@ vehicle_base_t *vehicle_base_t::get_blocking_vehicle(const grund_t *gr, const co
 		cnv_overtaking = false; //treat as convoi is not overtaking.
 		break;
 	}
+	// The entering vehicle's path through the target tile. next_direction is
+	// the direction across the target tile and next_90direction is the
+	// direction off it, so the entry direction is the other component of a
+	// turning path. A same-path vehicle ahead in the same lateral position may
+	// be followed when the following rule finds room behind it; any other
+	// vehicle on a conflicting path still blocks.
+	road_space::user_t entering;
+	bool have_entering = false;
+	if ((cnv != NULL || pcar != NULL) && road_space::allows_queueing(gr))
+	{
+		entering.object = cnv != NULL ? (const vehicle_base_t *)cnv->front() : (const vehicle_base_t *)pcar;
+		entering.convoi = cnv;
+		entering.exit_direction = next_90direction;
+		entering.entry_direction = next_90direction == ribi_t::none
+			? next_direction
+			: road_space::entry_direction(next_direction, next_90direction);
+		entering.speed = cnv != NULL ? cnv->get_akt_speed() : pcar->get_current_speed();
+		entering.length = cnv != NULL ? cnv->get_length_in_steps() : pcar->get_length_in_steps();
+		entering.overtaking = cnv_overtaking;
+		entering.pulled_over = false;
+		have_entering = true;
+	}
 	// Search vehicle
 	for(  uint8 pos=1;  pos < gr->get_top();  pos++  ) {
 		if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos))  ) {
@@ -651,13 +673,20 @@ vehicle_base_t *vehicle_base_t::get_blocking_vehicle(const grund_t *gr, const co
 
 			// ok, there is another car ...
 			if(  other_direction != 255  ) {
+				const ribi_t::ribi other_90direction = (gr->get_pos().get_2d() == v->get_pos_next().get_2d()) ? other_direction : calc_direction(gr->get_pos(),v->get_pos_next());
+				if (have_entering && road_space::can_follow(gr, entering, v))
+				{
+					// A vehicle ahead on the same path through a queueing tile,
+					// far enough ahead that this vehicle may follow it. This
+					// covers straight tiles and the same arm of a junction.
+					continue;
+				}
 				if(  next_direction == other_direction  &&  !ribi_t::is_threeway(gr->get_weg_ribi(road_wt))  &&  cnv_overtaking == other_overtaking  ) {
 					// only consider cars on same lane.
 					// cars going in the same direction and no crossing => that mean blocking ...
 					return v;
 				}
 
-				const ribi_t::ribi other_90direction = (gr->get_pos().get_2d() == v->get_pos_next().get_2d()) ? other_direction : calc_direction(gr->get_pos(),v->get_pos_next());
 				if(  other_90direction == next_90direction  &&  cnv_overtaking == other_overtaking  ) {
 					// Want to exit in same as other   ~50% of the time
 					return v;

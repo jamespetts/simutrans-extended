@@ -28,23 +28,62 @@ namespace road_space
 {
 	/**
 	 * Whether this tile may hold more than one vehicle in one lateral
-	 * position: a straight road tile which is neither an intersection nor a
-	 * crossing. Diagonal road tiles are excluded.
+	 * position: a straight road tile or a road junction (a tile with three or
+	 * more road arms). Bends, diagonal road tiles and level crossings are
+	 * excluded. A junction tile uses the same following rule as a straight
+	 * tile, but only between vehicles that enter by the same edge and leave by
+	 * the same edge, or where one of them has reached the end of its route and
+	 * has no exit edge; a vehicle on a conflicting path must still be refused
+	 * entry by get_blocking_vehicle().
 	 */
 	bool allows_queueing(const grund_t *gr);
+
+	/**
+	 * Whether @p gr is a road junction: a road tile with three or more arms,
+	 * not a level crossing or a diagonal road tile. A junction is the only
+	 * queueing tile that requires the exit-clearance rule (see
+	 * junction_exit_clear()).
+	 */
+	bool is_junction(const grund_t *gr);
 
 	/// The state of one road user that the following rules need.
 	struct user_t
 	{
 		const vehicle_base_t *object; ///< the vehicle itself, to skip it
 		const convoi_t *convoi;       ///< owning convoy, or NULL for a private car
-		ribi_t::ribi direction;       ///< direction of travel
+		ribi_t::ribi entry_direction; ///< direction of travel onto this tile
+		ribi_t::ribi exit_direction;  ///< direction of travel off this tile
 		sint32 speed;                 ///< current speed, internal units
 		uint32 length;                ///< length in vehicle steps
 		bool leading = true;          ///< front vehicle of a convoy, or a private car
 		bool overtaking;              ///< travelling in the passing lane
 		bool pulled_over;             ///< stopped at a stop stand beside the travel lane
 	};
+
+	/**
+	 * The direction of travel onto a tile, given the direction of travel across
+	 * the tile and the direction of travel off it. A vehicle which turns through
+	 * a junction records the diagonal direction from its previous tile to its
+	 * next tile, so the entry direction is the component of that diagonal that
+	 * is not the exit direction. A vehicle travelling straight or along a
+	 * diagonal road has the same entry and exit direction.
+	 */
+	ribi_t::ribi entry_direction(ribi_t::ribi overall, ribi_t::ribi exit);
+
+	/**
+	 * Whether @p exit has room for the rear of the vehicle described by
+	 * @p self to clear the junction when the vehicle crosses it. The check is
+	 * made when the vehicle enters the junction, using the tile it will enter
+	 * after the junction and the direction in which it will leave the junction.
+	 * A vehicle on @p exit which entered from the junction in the same lateral
+	 * position must leave at least the vehicle's length plus the standstill gap
+	 * clear; a vehicle which entered from another arm is treated as blocking;
+	 * oncoming traffic and vehicles beside the lane are ignored. This is the
+	 * "do not block the box" rule: it keeps a vehicle from entering a junction
+	 * unless it can clear the junction even if it has to stop behind the queue
+	 * on the exit tile.
+	 */
+	bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi exit_direction);
 
 	/// The distance in vehicle steps that a follower must keep clear behind
 	/// the vehicle ahead, in the same lateral position. @p leader_moving
@@ -142,7 +181,9 @@ private:
 	bool choose_route(sint32 &restart_speed, ribi_t::ribi start_direction, uint16 index);
 
 	// Clears a blocker that this vehicle may follow onto a queueing tile.
-	void apply_following_rule(const grund_t *gr, vehicle_base_t *&blocker, sint8 lane) const;
+	// Returns false when the junction exit tile has no room for this vehicle,
+	// even if there is no blocker on the junction tile itself.
+	bool apply_following_rule(const grund_t *gr, vehicle_base_t *&blocker, sint8 lane) const;
 
 public:
 	bool check_next_tile(const grund_t *bd) const OVERRIDE;

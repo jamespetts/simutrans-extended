@@ -815,31 +815,36 @@ uint32 private_car_t::get_length_in_steps() const
 }
 
 
-void private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const
+bool private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const
 {
-	if (blocker == NULL)
-	{
-		return;
-	}
-	if (road_space::is_beside_lane(blocker))
-	{
-		blocker = NULL;
-		return;
-	}
 	road_space::user_t self;
 	self.object = this;
 	self.convoi = NULL;
-	self.direction = ribi_type(get_pos(), gr->get_pos());
+	self.entry_direction = ribi_type(get_pos(), gr->get_pos());
+	const bool has_exit = pos_next_next != koord3d::invalid
+		&& pos_next_next != get_pos() && pos_next_next != gr->get_pos();
+	self.exit_direction = has_exit
+		? ribi_type(gr->get_pos(), pos_next_next)
+		: self.entry_direction;
 	self.speed = current_speed;
 	self.length = get_length_in_steps();
 	// next_lane is 1 when the car enters the passing lane, -1 when it enters
 	// the traffic lane and 0 when the lane is unchanged.
 	self.overtaking = next_lane > 0 ? true : (next_lane < 0 ? false : is_overtaking());
 	self.pulled_over = false;
-	if (road_space::can_follow(gr, self, blocker))
+	if (blocker != NULL)
 	{
-		blocker = NULL;
+		if (road_space::is_beside_lane(blocker) || road_space::can_follow(gr, self, blocker))
+		{
+			blocker = NULL;
+		}
 	}
+	if (road_space::is_junction(gr))
+	{
+		const grund_t *exit = has_exit ? welt->lookup(pos_next_next) : NULL;
+		return road_space::junction_exit_clear(exit, self, self.exit_direction);
+	}
+	return true;
 }
 
 
@@ -848,7 +853,8 @@ bool private_car_t::try_resume_behind_leader()
 	road_space::user_t self;
 	self.object = this;
 	self.convoi = NULL;
-	self.direction = get_direction();
+	self.exit_direction = get_90direction();
+	self.entry_direction = road_space::entry_direction(get_direction(), self.exit_direction);
 	self.speed = current_speed;
 	self.length = get_length_in_steps();
 	self.overtaking = is_overtaking();
@@ -903,7 +909,8 @@ uint32 private_car_t::do_drive(uint32 distance)
 		road_space::user_t self;
 		self.object = this;
 		self.convoi = NULL;
-		self.direction = get_direction();
+		self.exit_direction = get_90direction();
+		self.entry_direction = road_space::entry_direction(get_direction(), self.exit_direction);
 		self.speed = current_speed;
 		self.length = get_length_in_steps();
 		self.overtaking = is_overtaking();
@@ -1291,10 +1298,11 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 	// entry when it is too close; do_drive() keeps the follower behind it once
 	// it is on the tile. This is checked after the overtake decisions above, so
 	// that a faster car first has the chance to pass instead of settling into
-	// the queue.
-	if (dt != NULL)
+	// the queue. On a junction, the exit tile must also have room for this car,
+	// so that a car does not stop in the junction and block crossing traffic.
+	if ((dt != NULL || road_space::is_junction(gr)) && !apply_following_rule(gr, dt))
 	{
-		apply_following_rule(gr, dt);
+		return false;
 	}
 
 	if(dt==NULL  &&  current_speed==0) {

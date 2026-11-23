@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 03b576987f plus working-tree lateral rendering, reversal stand and following-traffic changes
+verified: ex-15 @ a201bf056d plus working-tree junction queueing changes
 ---
 # Road vehicle operations: implementation
 
@@ -14,17 +14,20 @@ tests or its remaining gaps. The design, current behaviour and resource audit ar
 [road-vehicle-operations](../road-vehicle-operations.md).
 
 The first two work packages of the parent document are implemented on ex-15: road space and
-queueing, and stop stands with terminal capacity. The motorway lane package and pulled-over
-waiting are not implemented.
+queueing, and stop stands with terminal capacity. Queueing covers straight road tiles and road
+junctions; the junction exit-clearance rule described below prevents a vehicle from stopping in
+a junction and blocking the cross traffic. The motorway lane package and pulled-over waiting
+are not implemented.
 
 ## Road space and queueing
 
 `vehicle/road_vehicle.cc` holds the shared rules in the namespace `road_space`:
 
 - `road_space::allows_queueing` accepts a road tile whose unmasked ribi is straight
-  (`ribi_t::is_straight`) and which is neither an intersection nor a crossing
-  (`strasse_t::is_crossing`). Corners, T junctions, crossroads and diagonal tiles keep the
-  one-vehicle-per-lane rule.
+  (`ribi_t::is_straight`) or has three or four arms (`ribi_t::is_threeway`). It rejects a level
+  crossing (`strasse_t::is_crossing`), a diagonal road (`strasse_t::is_diagonal`) and a bend.
+  `road_space::is_junction` identifies the subset with three or four arms; that subset also
+  requires the exit-clearance rule.
 - `road_space::following_gap` computes the gap in vehicle steps from a standstill gap of one
   metre (`STANDSTILL_GAP_MM`) plus, when the vehicle ahead is moving, a perception and
   reaction time of 1.5 seconds (`REACTION_TIME_MS`) at the follower's speed.
@@ -35,32 +38,43 @@ waiting are not implemented.
   result is rounded up, so a real gap never becomes zero.
 - `road_space::following_limit` returns the furthest position, in vehicle steps, that a
   road user's front may reach on its tile, or `-1` when nothing constrains it. It compares
-  only road users in the same lateral position and travelling in the same direction. A
-  vehicle whose front is on the same tile constrains the follower whenever that front is
-  ahead of the follower's front; the limit is the vehicle's rear boundary (its front minus
-  its length) less the gap. A vehicle which is already overlapping the follower is
-  therefore still a blocker: the follower waits instead of driving through it. The limit
-  is clamped to zero because `-1` means "no constraint"; a negative value would otherwise
-  let the follower drive to the end of its tile when the gap grows, as it does when a
-  stopped queue starts moving and the reaction distance replaces the standstill gap.
+  only road users in the same lateral position and on the same path through the tile. The
+  path comparison requires the same entry direction (the direction of travel onto the tile)
+  and the same exit direction (the direction of travel off it). A vehicle
+  which has reached the end of its route has no exit direction; it is treated as on the same
+  path as a vehicle entering by the same edge, so a vehicle can enter a terminal tile behind a
+  vehicle already standing there. A vehicle whose front is on the same tile constrains the
+  follower whenever that front is ahead of the follower's front; the limit is the vehicle's
+  rear boundary (its front minus its length) less the gap. A vehicle which is already
+  overlapping the follower is therefore still a blocker: the follower waits instead of driving
+  through it. The limit is clamped to zero because `-1` means "no constraint"; a negative value
+  would otherwise let the follower drive to the end of its tile when the gap grows, as it does
+  when a stopped queue starts moving and the reaction distance replaces the standstill gap.
 - `following_limit` also looks ahead into the tile returned by
   `vehicle_base_t::get_pos_next`. A vehicle whose front has crossed into the next tile
   still has its rear on the follower's tile while its front is shorter than its length,
   and it constrains the follower in the same way. A vehicle on the next tile is considered
-  only if its recorded direction shows that it entered through the shared tile edge, so
-  that both vehicles' step coordinates start at that edge.
+  only if it entered through the shared tile edge, so that both vehicles' step coordinates
+  start at that edge. A vehicle loading at a stop stand is skipped only when its whole body
+  is inside the next tile; while its rear is still at the boundary it continues to cap the
+  follower, so a vehicle cannot overlap it as it enters its stand.
   `road_space::step_scale` returns the length of one step on a tile in 512ths of a
   straight step; a diagonal tile's step covers
-  `vehicle_base_t::get_diagonal_multiplier()` 512ths.
+  `vehicle_base_t::get_diagonal_multiplier()` 512ths. The same conversion is used for a
+  vehicle turning on a cardinal junction tile, because such a vehicle also uses the diagonal
+  step count.
 - `road_space::get_user_state` gives a leading convoy vehicle the whole convoy length,
   because the convoy's rear is that vehicle's front minus the convoy length. A trailing
   vehicle gives its own length instead, which is the rear of the part of the convoy on its
   tile. Each vehicle of a convoy is therefore a rear boundary of the convoy's body, not a
   separate road user with the full convoy length.
 - `road_space::can_follow` is the entry test: the follower's front enters at step 0, so an
-  accepted leader's rear boundary must be more than one gap ahead. Only a private car or a
-  convoy's leading vehicle can clear a blocker; a trailing convoy vehicle's own length does
-  not prove that the convoy's rear is clear.
+  accepted leader's rear boundary must be more than one gap ahead. It also requires the same
+  path (entry and exit direction) and lateral position. `vehicle_base_t::get_blocking_vehicle`
+  calls it for each vehicle on a queueing target tile, so a same-path vehicle which is far
+  enough ahead does not block entry, while a vehicle on a conflicting path still does. Only a
+  private car or a convoy's leading vehicle can clear a blocker; a trailing convoy vehicle's
+  own length does not prove that the convoy's rear is clear.
 - `road_space::drive_until_limit` performs one base `vehicle_base_t::do_drive` call for at
   most one tile boundary. `road_vehicle_t::do_drive` and the new `private_car_t::do_drive`
   repeat it after each hop and recompute the leader, so a vehicle cannot pass the leader while
@@ -75,6 +89,29 @@ waiting are not implemented.
   smaller than one vehicle step is left in `weg_next`, so a car whose speed gives less than
   one vehicle step of distance per `private_car_t::sync_step` call accumulates distance until
   it can move.
+
+### Junction entry and exit clearance
+
+`road_space::junction_exit_clear` is called by `road_vehicle_t::apply_following_rule` and
+`private_car_t::apply_following_rule` when the target tile is a junction. It scans the tile the
+vehicle will enter after the junction and measures the distance from its entry edge to the
+nearest vehicle ahead in the same lateral position which entered that tile from the junction.
+The distance must be at least the entering vehicle's length plus the one-metre standstill gap,
+so the entering vehicle can stop behind the queue with its whole body clear of the junction.
+The requirement is capped at one tile's length: a vehicle longer than one tile cannot clear a
+one-tile junction and is allowed to pass through.
+
+The scan skips a vehicle beside the lane at a stop stand, and skips oncoming traffic whose entry
+direction is the reverse of the entering vehicle's exit direction. A vehicle on the exit tile
+which entered from another arm is treated as blocking, because its path may conflict with the
+entering vehicle. A vehicle which entered from the junction is converted from its tile's step
+scale to straight steps with `road_space::step_scale` before its rear is compared with the
+required distance; this handles a vehicle turning on a cardinal junction tile.
+
+The check is made at junction entry, not every step. If the exit tile fills after a vehicle has
+entered the junction, the ordinary following rule still prevents an overlap; the exit-clearance
+rule prevents the common gridlock case where a vehicle deliberately stops in the junction and
+blocks the crossing traffic that the vehicle ahead needs in order to leave.
 
 ### Following speed and overtake priority
 
@@ -274,7 +311,8 @@ bytes per halt tile on x64.
 ## Tests
 
 `tests/pending-runtime/road-harness.nut` and `tests/pending-runtime/road-cases/` provide the
-`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains twelve cases:
+`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains thirteen
+cases:
 
 - `single-run`: one convoy crosses a straight road to its destination without a false block or
   stall.
@@ -299,6 +337,12 @@ bytes per halt tile on x64.
   not overlap it; the check is skipped while either vehicle is on the passing lane.
 - `junction`: two convoys leave separate depots on an east-west trunk and a north branch and
   cross a T junction from different arms; both must reach the trunk-end terminal.
+- `crossroads`: five convoys approach an unsignalised crossroads from four arms. Two leave the
+  west depot in the same step and must share the junction tile at some observation, which
+  exercises same-direction junction queueing; the other three approach from the remaining arms
+  and exercise the conflicting-path and exit-clearance rules. All five must reach their
+  destinations. The run reached at least two westbound convoys on the junction tile and
+  passed.
 - `queue`: two convoys leave one depot in the same step and follow one another on a straight
   road. The following vehicle must stay behind the leading vehicle's rear whenever both are
   on one tile and when the follower is on the tile immediately behind the leader's tile, and
@@ -349,8 +393,10 @@ scripts\run-pending-runtime-reload-tests.ps1 -CaseName save-reload-stand
   -Exe simutrans\Simutrans-Extended-Debug.exe
 ```
 
-The twelve road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
-(about 44 s with six jobs). The standard Squirrel suite passes (81 of 81). The `division`,
+The thirteen road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
+(about 56 s with six jobs). The standard Squirrel suite passes (81 of 81). The network smoke
+test passes with 1049 per-step private-car route hashes identical between two runs. The
+`division`,
 `pair`, `choose` and `ownership` pending-runtime groups pass (37 cases). `save-reload-stand`
 passes on the server after the join and in the fresh offline load.
 
@@ -387,7 +433,18 @@ change.
   with an unusually large `length`.
 - The leader scan is one object-list scan per moving road user per tile crossing, plus a
   second scan of the next tile. The performance suite has not been run; if profiling shows
-  the scan matters, a transient per-tile leader cache is the next step.
+  the scan matters, a transient per-tile leader cache is the next step. The junction
+  exit-clearance scan and the `road_space::can_follow` calls in
+  `vehicle_base_t::get_blocking_vehicle` also run at tile entries rather than every step, and
+  have not been measured separately.
+- The junction exit-clearance rule looks only at the tile immediately after the junction. Two
+  adjacent junctions can still gridlock if the exit tile of the first is the second junction
+  and that second junction fills after the first vehicle enters. The rule prevents the common
+  single-junction case; a multi-junction reservation would need more state and is not
+  implemented.
+- A vehicle which is already inside a junction can still be blocked by the exit tile filling
+  after it entered. It remains subject to the ordinary following rule and cannot overlap the
+  queue, but it may block cross traffic until the exit queue moves.
 
 ## Not implemented
 

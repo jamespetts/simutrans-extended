@@ -113,8 +113,10 @@ private:
 
 	void calc_disp_lane();
 
-	// Clears a blocker that this car may follow onto a queueing tile.
-	void apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const;
+	// Clears a blocker that this car may follow onto a queueing tile. Returns
+	// false when the junction exit tile has no room for this car, even if
+	// there is no blocker on the junction tile itself.
+	bool apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const;
 
 	/**
 	 * Rendering-only signed blend of the overtaking lane offset: 0 is the

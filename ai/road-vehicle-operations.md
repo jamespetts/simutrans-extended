@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 03b576987f plus working-tree lateral rendering changes; implementation on branch road-vehicle-operations @ ef449777d1
+verified: ex-15 @ a201bf056d plus working-tree junction queueing changes
 ---
 # Road vehicle operations
 
@@ -15,10 +15,11 @@ road-space and stop-stand code does, its measured object sizes, its tests or its
 gaps.
 
 The first two work packages below (road space and queueing, and stop stands with terminal
-capacity) are implemented on branch `road-vehicle-operations`. The motorway lane package and
-pulled-over waiting remain planned. The player-visible intent is also described in
-[project-roadmap](project-roadmap.md#road-stop-improvements); [ex-15](ex-15.md) records
-non-blocking road vehicles as deferred to after 15.x.
+capacity) are implemented on ex-15. Queueing now covers straight road tiles and road junctions
+(a road tile with three or four arms), with an exit-clearance rule for junction entry. The
+motorway lane package and pulled-over waiting remain planned. The player-visible intent is also
+described in [project-roadmap](project-roadmap.md#road-stop-improvements); [ex-15](ex-15.md)
+records non-blocking road vehicles as deferred to after 15.x.
 
 ## Terms
 
@@ -158,11 +159,30 @@ exact values should be chosen from road-design or driver-behaviour references an
 in the code. `VEHICLE_STEPS_PER_TILE` and `YARDS_PER_VEHICLE_STEP_SHIFT` provide the unit
 conversions.
 
-For the first implementation, apply this rule only on straight road tiles that are not
-intersections or crossings. Intersections and crossings keep the current one-vehicle rule
-because their path-conflict logic in `vehicle_base_t::get_blocking_vehicle` depends on
-knowing that a vehicle on the tile is committed to a path. Diagonals can be included or
-excluded after testing; excluding them initially is the conservative choice.
+Apply this rule on straight road tiles and on road junctions (T junctions and crossroads).
+Bends, diagonal road tiles and level crossings keep the one-vehicle rule. A junction tile uses
+the same following rule only between vehicles that enter by the same edge and leave by the
+same edge; `vehicle_base_t::get_blocking_vehicle` still refuses entry to a vehicle on a
+conflicting path. A vehicle whose route ends on the tile has no exit direction and is treated
+as on the same path as any vehicle entering by the same edge.
+
+### Junction entry and exit clearance
+
+A junction tile cannot safely admit a queue without a further rule: a vehicle which stops
+inside the junction can block the crossing traffic. A vehicle entering a junction therefore
+also requires room on the tile it will enter after the junction. The room is the distance from
+the exit tile's entry edge to the nearest vehicle ahead in the same lateral position that
+entered the exit tile from the junction. That distance must be at least the entering vehicle's
+length plus the standstill gap, so the vehicle can stop behind the queue with its whole body
+clear of the junction. A vehicle longer than one tile is capped at one tile's length, because
+such a vehicle cannot clear a one-tile junction and must be allowed to pass through.
+
+A vehicle on the exit tile that entered from another arm is treated as blocking, because its
+path may conflict with the entering vehicle. Oncoming traffic in the other carriageway and
+vehicles beside the lane at a stop stand are ignored. This is the road equivalent of the rule
+that a driver must not enter a box junction unless the exit is clear. It prevents the gridlock
+case where a vehicle enters a junction, stops behind a queue, and blocks the cross traffic
+which the vehicle ahead needs in order to leave.
 
 The entry check belongs in the road-specific `can_enter_tile` functions. The movement cap
 belongs in `road_vehicle_t::do_drive` and a new `private_car_t::do_drive` override. The cap
@@ -224,8 +244,9 @@ extending that logic is a separate work package.
 
 1. **Road position and queue core.** Use the existing lane state, add the packed stand mask
    to `road_vehicle_t`, derive the pulled-over state, and add the same-position leader
-   search, gap calculation and movement cap. Restrict queueing to straight non-intersection
-   tiles. Add scripted queue cases and measure the private-car cost.
+   search, gap calculation and movement cap. Apply queueing to straight tiles and to road
+   junctions, with the junction exit-clearance rule. Add scripted queue and crossroads cases
+   and measure the private-car cost.
 2. **Stop stands and terminal capacity.** Extend `haltestelle_t::tile_t` to four
    reservations, make `get_empty_lane`, `reserve_position`, `is_reservable` and
    `find_free_position` stand-aware, use the existing layout count 4 as the terminal test,
@@ -294,6 +315,15 @@ Performance:
   profiling shows the scan is material.
 - `get_empty_lane` builds the four-bit mask in one pass. It is called during target selection
   and on arrival, not every step. Four stands can reduce queue length and congestion.
+- Junction queueing adds no per-step scan beyond the existing following scan: `allows_queueing`
+  now also accepts a junction tile, and `following_limit` runs the same object-list scan there.
+  `vehicle_base_t::get_blocking_vehicle` calls `road_space::can_follow` for each vehicle on a
+  queueing target tile, so a same-path vehicle that is far enough ahead is skipped and a
+  conflicting vehicle is still returned; this happens at a tile entry, not every step.
+  `road_space::junction_exit_clear` adds one scan of the exit tile when a vehicle enters a
+  junction. The entry check builds the road-user state only when there is a blocker or the
+  target tile is a junction, so an ordinary clear tile entry does not pay for it. The rule
+  adds no persistent field to any vehicle or tile.
 - The private car occupancy rule changes the number of cars directly. The child document
   gives the expected cars per packet for a uniform packet size of 1 to 7.
 

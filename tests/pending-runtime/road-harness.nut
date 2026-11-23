@@ -45,6 +45,22 @@ local JUNCTION_BRANCH_END = coord3d(7, 1, 0)
 local JUNCTION_DEPOT_POS = coord3d(1, 5, 0)
 local JUNCTION_SECOND_STOP = coord3d(3, 5, 0)
 
+// The crossroads case uses an east-west road at y = 5 and a north-south road at
+// x = 7. Each arm ends in a depot, with a return stop inside it.
+local CROSSROADS_POS = coord3d(7, 5, 0)
+local CROSSROADS_WEST_END = coord3d(1, 5, 0)
+local CROSSROADS_EAST_END = coord3d(14, 5, 0)
+local CROSSROADS_NORTH_END = coord3d(7, 1, 0)
+local CROSSROADS_SOUTH_END = coord3d(7, 9, 0)
+local CROSSROADS_WEST_DEPOT = coord3d(1, 5, 0)
+local CROSSROADS_EAST_DEPOT = coord3d(14, 5, 0)
+local CROSSROADS_NORTH_DEPOT = coord3d(7, 1, 0)
+local CROSSROADS_SOUTH_DEPOT = coord3d(7, 9, 0)
+local CROSSROADS_WEST_STOP = coord3d(3, 5, 0)
+local CROSSROADS_EAST_STOP = coord3d(12, 5, 0)
+local CROSSROADS_NORTH_STOP = coord3d(7, 3, 0)
+local CROSSROADS_SOUTH_STOP = coord3d(7, 7, 0)
+
 // The through-pass-oncoming case uses a two-way road between two depots, with
 // a through stop in the middle, a second stop west of it for the westbound
 // stream's first entry, and a terminal on a branch at each end.
@@ -112,7 +128,13 @@ local fixture = {
 	passer_started = false,
 	cross_seen = false,
 	holder_held = false,
-	distinct_oncoming = {}
+	distinct_oncoming = {},
+	// crossroads
+	crossroads_destinations = [],
+	crossroads_west_ids = [],
+	crossroads_arrived = {},
+	crossroads_max_on_junction = 0,
+	crossroads_max_west_on_junction = 0
 }
 
 
@@ -1166,6 +1188,158 @@ function observe_junction()
 }
 
 
+function setup_crossroads(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, CROSSROADS_WEST_END, CROSSROADS_EAST_END, road, true), "build the east-west road"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, CROSSROADS_NORTH_END, CROSSROADS_SOUTH_END, road, true), "build the north-south road"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, CROSSROADS_WEST_STOP), "build the west return stop"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, CROSSROADS_EAST_STOP), "build the east return stop"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, CROSSROADS_NORTH_STOP), "build the north return stop"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, CROSSROADS_SOUTH_STOP), "build the south return stop"))
+	{
+		return false
+	}
+	local depot_positions = [CROSSROADS_WEST_DEPOT, CROSSROADS_EAST_DEPOT, CROSSROADS_NORTH_DEPOT, CROSSROADS_SOUTH_DEPOT]
+	local depots = []
+	foreach (pos in depot_positions)
+	{
+		if (!check_tool(command_x.build_depot(pl, pos, depot_desc_for(wt_road)), "build a crossroads depot"))
+		{
+			return false
+		}
+		local depot = depot_x(pos.x, pos.y, pos.z)
+		if (!check(depot != null, "a crossroads depot was not found after building"))
+		{
+			return false
+		}
+		depots.append(depot)
+	}
+	fixture.depot = depots[0]
+	fixture.second_depot = depots[1]
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// Two convoys leave the west depot in the same step. They follow the same
+	// path through the junction, so they must be able to share the junction
+	// tile. The other three approach from the remaining arms and must cross
+	// without deadlocking against the westbound pair.
+	local west_one = make_convoy_at(depots[0], pl, desc,
+		[make_entry(CROSSROADS_EAST_STOP, 201, 0), make_entry(CROSSROADS_WEST_STOP, 202, 0)], "first west convoy")
+	local west_two = make_convoy_at(depots[0], pl, desc,
+		[make_entry(CROSSROADS_EAST_STOP, 203, 0), make_entry(CROSSROADS_WEST_STOP, 204, 0)], "second west convoy")
+	local from_east = make_convoy_at(depots[1], pl, desc,
+		[make_entry(CROSSROADS_WEST_STOP, 205, 0), make_entry(CROSSROADS_EAST_STOP, 206, 0)], "east convoy")
+	local from_north = make_convoy_at(depots[2], pl, desc,
+		[make_entry(CROSSROADS_SOUTH_STOP, 207, 0), make_entry(CROSSROADS_NORTH_STOP, 208, 0)], "north convoy")
+	local from_south = make_convoy_at(depots[3], pl, desc,
+		[make_entry(CROSSROADS_NORTH_STOP, 209, 0), make_entry(CROSSROADS_SOUTH_STOP, 210, 0)], "south convoy")
+	if (west_one == null || west_two == null || from_east == null || from_north == null || from_south == null)
+	{
+		return false
+	}
+	fixture.convoys = [west_one, west_two, from_east, from_north, from_south]
+	fixture.crossroads_destinations = [CROSSROADS_EAST_STOP, CROSSROADS_EAST_STOP,
+		CROSSROADS_WEST_STOP, CROSSROADS_SOUTH_STOP, CROSSROADS_NORTH_STOP]
+	fixture.crossroads_west_ids = [west_one.id, west_two.id]
+	local starts = [ [depots[0], west_one], [depots[0], west_two], [depots[1], from_east],
+		[depots[2], from_north], [depots[3], from_south] ]
+	foreach (start in starts)
+	{
+		if (!check_tool(start[0].start_convoy(pl, start[1]), "start a crossroads convoy"))
+		{
+			return false
+		}
+		fixture.started.append(true)
+	}
+	return true
+}
+
+
+function observe_crossroads()
+{
+	local on_junction = 0
+	local west_on_junction = 0
+	for (local i = 0; i < fixture.convoys.len(); i++)
+	{
+		local slot = front_slot(fixture.convoys[i])
+		if (slot == null)
+		{
+			continue
+		}
+		if (same_pos(slot.pos, CROSSROADS_POS))
+		{
+			on_junction++
+			if (fixture.crossroads_west_ids.find(fixture.convoys[i].id) != null)
+			{
+				west_on_junction++
+			}
+		}
+		if (same_pos(slot.pos, fixture.crossroads_destinations[i])
+			&& !(fixture.convoys[i].id in fixture.crossroads_arrived))
+		{
+			fixture.crossroads_arrived[fixture.convoys[i].id] <- true
+			print("RUNTIME CASE " + case_name + ": convoy " + fixture.convoys[i].id
+				+ " reached " + pos_text(slot.pos))
+		}
+	}
+	if (on_junction > fixture.crossroads_max_on_junction)
+	{
+		fixture.crossroads_max_on_junction = on_junction
+	}
+	if (west_on_junction > fixture.crossroads_max_west_on_junction)
+	{
+		fixture.crossroads_max_west_on_junction = west_on_junction
+	}
+	if ((fixture.observations % 200) == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": on junction " + on_junction
+			+ " (westbound " + west_on_junction + "), arrived " + fixture.crossroads_arrived.len()
+			+ " of " + fixture.convoys.len())
+	}
+	if (fixture.crossroads_arrived.len() < fixture.convoys.len())
+	{
+		return
+	}
+	if (!check(fixture.crossroads_max_west_on_junction >= 2,
+		"the two westbound convoys never shared the junction tile; maximum westbound on the junction was "
+		+ fixture.crossroads_max_west_on_junction))
+	{
+		return
+	}
+	if (!check(fixture.crossroads_max_on_junction >= 2,
+		"the junction never held more than one convoy at a time"))
+	{
+		return
+	}
+	print("RUNTIME CASE " + case_name + ": all " + fixture.convoys.len()
+		+ " convoys crossed the junction; up to " + fixture.crossroads_max_on_junction
+		+ " shared it, " + fixture.crossroads_max_west_on_junction + " of them westbound")
+	pass()
+}
+
+
 function setup_terminal(pl)
 {
 	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
@@ -1989,6 +2163,10 @@ function setup()
 	{
 		return setup_junction(pl)
 	}
+	if (case_name == "crossroads")
+	{
+		return setup_crossroads(pl)
+	}
 	if (case_name == "stop-release")
 	{
 		return setup_stop_release(pl)
@@ -2048,6 +2226,10 @@ function observe()
 	else if (case_name == "junction")
 	{
 		observe_junction()
+	}
+	else if (case_name == "crossroads")
+	{
+		observe_crossroads()
 	}
 	else if (case_name == "stop-release")
 	{

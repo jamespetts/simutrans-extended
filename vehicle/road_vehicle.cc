@@ -91,10 +91,35 @@ bool allows_queueing(const grund_t *gr)
 		return false;
 	}
 	const strasse_t *str = dynamic_cast<const strasse_t *>(gr->get_weg(road_wt));
-	// is_straight() is true only for north-south, east-west and single
-	// direction road tiles: corners, T junctions, crossroads and diagonals
-	// are all excluded.
-	return str != NULL && !str->is_crossing() && ribi_t::is_straight(str->get_ribi_unmasked());
+	if (str == NULL || str->is_crossing() || str->is_diagonal())
+	{
+		return false;
+	}
+	// is_straight() is true for north-south, east-west and single-direction
+	// road tiles. is_threeway() is true for a tile with three or four arms,
+	// that is, a T junction or a crossroads. Bends are neither.
+	const ribi_t::ribi ribi = str->get_ribi_unmasked();
+	return ribi_t::is_straight(ribi) || ribi_t::is_threeway(ribi);
+}
+
+bool is_junction(const grund_t *gr)
+{
+	if (gr == NULL)
+	{
+		return false;
+	}
+	const strasse_t *str = dynamic_cast<const strasse_t *>(gr->get_weg(road_wt));
+	return str != NULL && !str->is_crossing() && !str->is_diagonal()
+		&& ribi_t::is_threeway(str->get_ribi_unmasked());
+}
+
+ribi_t::ribi entry_direction(ribi_t::ribi overall, ribi_t::ribi exit)
+{
+	if (exit != overall && ribi_t::is_single(exit) && (overall & exit) != 0)
+	{
+		return (ribi_t::ribi)(overall & ~exit);
+	}
+	return overall;
 }
 
 uint32 following_gap(const sint32 follower_speed, const bool leader_moving)
@@ -172,6 +197,19 @@ static sint32 step_scale(const uint8 steps_next)
 		: (sint32)vehicle_base_t::get_diagonal_multiplier();
 }
 
+/// Whether two road users follow the same path through a tile. A user at the
+/// end of its route has no exit direction; it is still on the same path as a
+/// vehicle which entered by the same edge, so the entry direction alone is
+/// compared in that case. This lets a vehicle enter a terminal tile behind a
+/// vehicle which is already standing there.
+static bool same_path(const user_t &a, const user_t &b)
+{
+	return a.entry_direction == b.entry_direction
+		&& (a.exit_direction == ribi_t::none
+			|| b.exit_direction == ribi_t::none
+			|| a.exit_direction == b.exit_direction);
+}
+
 /// Reads the part of a road vehicle's state that the following rules need.
 /// Returns false for objects which are not road vehicles or private cars.
 /// A leading convoy vehicle contributes the whole convoy length, because the
@@ -193,21 +231,27 @@ static bool get_user_state(const vehicle_base_t *v, user_t &out)
 		}
 		out.object = rv;
 		out.convoi = cnv;
-		out.direction = rv->get_direction();
+		out.exit_direction = rv->get_90direction();
+		out.entry_direction = entry_direction(rv->get_direction(), out.exit_direction);
 		out.speed = cnv->get_akt_speed();
 		out.leading = rv->is_leading();
 		out.length = out.leading
 			? cnv->get_length_in_steps()
 			: rv->get_desc()->get_length_in_steps();
 		out.overtaking = cnv->is_overtaking();
-		out.pulled_over = rv->is_pulled_over();
+		// A vehicle is beside the lane only once its whole body is inside the
+		// tile it occupies. A vehicle which has just entered its stop tile still
+		// has its rear at the tile boundary and must keep blocking traffic
+		// there, even though it is already loading.
+		out.pulled_over = rv->is_pulled_over() && (uint32)rv->get_steps() >= out.length;
 		return true;
 	}
 	if (const private_car_t *pc = obj_cast<private_car_t>(v))
 	{
 		out.object = pc;
 		out.convoi = NULL;
-		out.direction = pc->get_direction();
+		out.exit_direction = pc->get_90direction();
+		out.entry_direction = entry_direction(pc->get_direction(), out.exit_direction);
 		out.speed = pc->get_current_speed();
 		out.leading = true;
 		out.length = pc->get_length_in_steps();
@@ -243,10 +287,14 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 			{
 				continue;
 			}
-			// Vehicles in another lateral position or travelling the other way
-			// constrain nothing: the stop stands and the opposing carriageway are
-			// separate road space.
-			if (other.direction != self.direction
+			// Vehicles in another lateral position, on another path through
+			// this tile, or travelling the other way constrain nothing: the
+			// stop stands, the opposing carriageway and the other arms of a
+			// junction are separate road space. Requiring both the entry and
+			// the exit direction also keeps two turning vehicles that share a
+			// diagonal direction but use different arms from being compared:
+			// their step coordinates start at different tile edges.
+			if (!same_path(other, self)
 				|| other.overtaking != self.overtaking
 				|| other.pulled_over != self.pulled_over)
 			{
@@ -298,12 +346,7 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 		{
 			// The step coordinate of a vehicle on the next tile starts at the
 			// edge through which it entered. Only a vehicle which entered from
-			// our tile has its steps measured from the same edge as ours. A road
-			// vehicle records its entry direction. A private car records the
-			// direction from the tile it came from to the tile it will leave by,
-			// so comparing that direction with the one from our tile to the car's
-			// exit tile identifies the same entry, including when the car turns on
-			// the next tile.
+			// our tile has its steps measured from the same edge as ours.
 			const ribi_t::ribi entry = ribi_type(self.object->get_pos(), next_pos);
 			const sint32 our_scale = step_scale(steps_next);
 			for (uint8 pos = 0; pos < next->get_top(); pos++)
@@ -318,12 +361,8 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 				{
 					continue;
 				}
-				const bool private_car_from_here = other.convoi == NULL
-					&& v->get_pos_next() != koord3d::invalid
-					&& ribi_type(self.object->get_pos(), v->get_pos_next()) == other.direction;
-				if ((other.direction != entry && !private_car_from_here)
-					|| other.overtaking != self.overtaking
-					|| other.pulled_over != self.pulled_over)
+				if (other.entry_direction != entry
+					|| other.overtaking != self.overtaking)
 				{
 					continue;
 				}
@@ -334,9 +373,32 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 				const sint32 rear = (sint32)VEHICLE_STEPS_PER_TILE * 512
 					+ (sint32)v->get_steps() * other_scale
 					- (sint32)other.length * 512;
-				// The same rear boundary in this tile's steps. A queueing tile
-				// is straight, so our_scale is 512; the division is kept for
-				// clarity and to match the limit conversion below.
+				const bool rear_on_this_tile = rear < (sint32)VEHICLE_STEPS_PER_TILE * 512;
+				if (!rear_on_this_tile)
+				{
+					// The whole vehicle is on the next tile, so it does not cap
+					// this tile's position. A pulled-over vehicle is beside the
+					// lane and is not a leader at all; any other vehicle is still
+					// the nearest leader for the following-speed rule.
+					if (other.pulled_over)
+					{
+						continue;
+					}
+					const sint32 raw_gap = rear / our_scale - (sint32)steps;
+					if (nearest_gap < 0 || raw_gap < nearest_gap)
+					{
+						nearest_gap = raw_gap;
+						nearest_speed = other.speed;
+						nearest_moving = other.speed > 0;
+						nearest_convoy = other.convoi != NULL ? other.convoi->self : convoihandle_t();
+					}
+					continue;
+				}
+				// The rear is still on this tile. Even a pulled-over vehicle's
+				// body is at the tile boundary until its rear clears it, so it
+				// must cap this vehicle's position. Otherwise a vehicle loading
+				// just inside the next tile can be overlapped while it enters
+				// its stand.
 				const sint32 raw_gap = rear / our_scale - (sint32)steps;
 				if (nearest_gap < 0 || raw_gap < nearest_gap)
 				{
@@ -344,13 +406,6 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 					nearest_speed = other.speed;
 					nearest_moving = other.speed > 0;
 					nearest_convoy = other.convoi != NULL ? other.convoi->self : convoihandle_t();
-				}
-				if (rear >= (sint32)VEHICLE_STEPS_PER_TILE * 512)
-				{
-					// The whole vehicle is on the next tile, so it does not cap
-					// this tile's position. It is still the nearest leader for
-					// the following-speed rule.
-					continue;
 				}
 				const sint32 gap = (sint32)following_gap(self.speed, other.speed > 0);
 				// Convert the limit back to this tile's steps. A limit before the
@@ -398,7 +453,7 @@ bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *lea
 	// convoy's rear, may clear the blocker.
 	if (!get_user_state(leader, other)
 		|| !other.leading
-		|| other.direction != self.direction
+		|| !same_path(other, self)
 		|| other.overtaking != self.overtaking
 		|| other.pulled_over != self.pulled_over)
 	{
@@ -409,10 +464,77 @@ bool can_follow(const grund_t *gr, const user_t &self, const vehicle_base_t *lea
 	return rear > (sint32)following_gap(self.speed, other.speed > 0);
 }
 
+bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi exit_direction)
+{
+	if (exit == NULL || self.object == NULL || exit->get_pos() == self.object->get_pos())
+	{
+		// The route ends on the junction, or the vehicle turns on the same tile.
+		return true;
+	}
+	const strasse_t *str = dynamic_cast<const strasse_t *>(exit->get_weg(road_wt));
+	if (str == NULL)
+	{
+		// No road: the ordinary entry check reports the missing way.
+		return true;
+	}
+	// How much of the exit tile the vehicle's rear needs in order to be clear of
+	// the junction when it stops behind the queue. A vehicle longer than one
+	// tile cannot clear a one-tile junction, so cap the requirement at one
+	// tile's length; such a vehicle must be allowed to pass through.
+	const uint32 standstill_gap = following_gap(0, false);
+	const sint32 required = (sint32)min(self.length + standstill_gap, (uint32)VEHICLE_STEPS_PER_TILE);
+	for (uint8 pos = 0; pos < exit->get_top(); pos++)
+	{
+		vehicle_base_t *const v = obj_cast<vehicle_base_t>(exit->obj_bei(pos));
+		if (v == NULL || v == self.object)
+		{
+			continue;
+		}
+		user_t other;
+		if (!get_user_state(v, other))
+		{
+			if (v->get_typ() != obj_t::pedestrian && v->get_waytype() == road_wt)
+			{
+				// A road user that is not a road vehicle or private car (for
+				// example a moving object) blocks the way.
+				return false;
+			}
+			continue;
+		}
+		if (other.pulled_over || other.overtaking != self.overtaking)
+		{
+			continue;
+		}
+		if (other.entry_direction == exit_direction)
+		{
+			// A vehicle on the same path as the one entering the junction. Its
+			// rear must be far enough along the exit tile that the entering
+			// vehicle can stop behind it without its own rear remaining in the
+			// junction. Convert its front to straight steps first, because a
+			// vehicle turning on a cardinal junction uses the diagonal step
+			// count even though the way itself is not flagged diagonal.
+			const sint32 other_scale = step_scale(v->get_steps_next());
+			const sint32 front = (sint32)v->get_steps() * other_scale / 512;
+			if (front - (sint32)other.length < required)
+			{
+				return false;
+			}
+		}
+		else if (other.entry_direction != ribi_t::backward(exit_direction))
+		{
+			// A vehicle which entered the exit tile from another arm could
+			// conflict with the path through the junction. Oncoming traffic is
+			// in the other carriageway and does not block.
+			return false;
+		}
+	}
+	return true;
+}
+
 bool is_beside_lane(const vehicle_base_t *v)
 {
-	const road_vehicle_t *rv = obj_cast<road_vehicle_t>(v);
-	return rv != NULL && rv->is_pulled_over();
+	user_t state;
+	return get_user_state(v, state) && state.pulled_over;
 }
 
 uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance, leader_t *leader)
@@ -1024,34 +1146,44 @@ void road_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 }
 
 
-void road_vehicle_t::apply_following_rule(const grund_t *gr, vehicle_base_t *&blocker, sint8 lane) const
+bool road_vehicle_t::apply_following_rule(const grund_t *gr, vehicle_base_t *&blocker, sint8 lane) const
 {
-	if (blocker == NULL || !leading || cnv == NULL)
+	if (!leading || cnv == NULL)
 	{
-		return;
-	}
-	// A vehicle loading at a stop stand is beside the travel lane, so it does
-	// not block a vehicle in the travel lane even though both are on the tile.
-	if (road_space::is_beside_lane(blocker))
-	{
-		blocker = NULL;
-		return;
+		return true;
 	}
 	road_space::user_t self;
 	self.object = this;
 	self.convoi = cnv;
-	// The direction of travel onto the target tile.
-	self.direction = ribi_type(get_pos(), gr->get_pos());
+	self.entry_direction = ribi_type(get_pos(), gr->get_pos());
+	route_t const& r = *cnv->get_route();
+	const bool has_exit = route_index < r.get_count() - 1u && r.at(route_index + 1u) != gr->get_pos();
+	self.exit_direction = has_exit
+		? ribi_type(gr->get_pos(), r.at(route_index + 1u))
+		: self.entry_direction;
 	self.speed = cnv->get_akt_speed();
 	self.length = cnv->get_length_in_steps();
 	// next_lane is 1 when the vehicle enters the passing lane, -1 when it
 	// enters the traffic lane and 0 when the lane is unchanged.
 	self.overtaking = lane > 0 ? true : (lane < 0 ? false : cnv->is_overtaking());
-	self.pulled_over = is_pulled_over();
-	if (road_space::can_follow(gr, self, blocker))
+	self.pulled_over = false;
+	if (blocker != NULL)
 	{
-		blocker = NULL;
+		// A vehicle loading at a stop stand is beside the travel lane, so it
+		// does not block a vehicle in the travel lane even though both are on
+		// the tile. A vehicle ahead on the same path is a blocker only when it
+		// is still too close.
+		if (road_space::is_beside_lane(blocker) || road_space::can_follow(gr, self, blocker))
+		{
+			blocker = NULL;
+		}
 	}
+	if (road_space::is_junction(gr))
+	{
+		const grund_t *exit = has_exit ? welt->lookup(r.at(route_index + 1u)) : NULL;
+		return road_space::junction_exit_clear(exit, self, self.exit_direction);
+	}
+	return true;
 }
 
 
@@ -1515,10 +1647,14 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		// blocks entry when it is too close; the movement cap in do_drive()
 		// keeps the follower behind it once it is on the tile. This is checked
 		// after the overtake decision above, so that a faster convoy first has
-		// the chance to pass instead of settling into the queue.
-		if (obj != NULL && target_gr != NULL)
+		// the chance to pass instead of settling into the queue. On a junction,
+		// the exit tile must also have room for this vehicle, so that a vehicle
+		// does not stop in the junction and block the crossing traffic.
+		if (target_gr != NULL && (obj != NULL || road_space::is_junction(target_gr))
+			&& !apply_following_rule(target_gr, obj, next_lane))
 		{
-			apply_following_rule(target_gr, obj, next_lane);
+			restart_speed = 0;
+			return false;
 		}
 
 		const koord3d pos_next2 = route_index < r.get_count() - 1u ? r.at(route_index + 1u) : pos_next;
@@ -1758,7 +1894,8 @@ uint32 road_vehicle_t::do_drive(uint32 distance)
 		road_space::user_t self;
 		self.object = this;
 		self.convoi = cnv;
-		self.direction = get_direction();
+		self.exit_direction = get_90direction();
+		self.entry_direction = road_space::entry_direction(get_direction(), self.exit_direction);
 		self.speed = cnv->get_akt_speed();
 		self.length = cnv->get_length_in_steps();
 		self.overtaking = cnv->is_overtaking();
