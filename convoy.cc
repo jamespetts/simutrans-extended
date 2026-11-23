@@ -373,7 +373,12 @@ void convoy_t::calc_move(const settings_t &settings, long delta_t, const weight_
 			bool is_braking = v >= _110_percent * vsoll;
 			if (dx >= xbrk)
 			{
-				vsoll = vlim;
+				// A limit point ahead never raises the desired speed above
+				// the convoy's own desired speed. This matters when a road
+				// vehicle is following a slower vehicle: akt_speed_soll is
+				// capped at the leader's speed, and an upcoming way limit that
+				// is higher must not override that cap.
+				vsoll = fl_min(vsoll, vlim);
 				is_braking = true;
 			}
 

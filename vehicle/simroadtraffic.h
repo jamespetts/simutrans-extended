@@ -132,6 +132,27 @@ private:
 	mutable uint32 lateral_last_distance;
 
 	/**
+	 * Advances current_speed towards the way and vehicle limit by the existing
+	 * per-tile increment (max_speed >> 2) applied over the number of ticks a
+	 * tile takes at the vehicle's top speed. This makes the car respond to a
+	 * higher safe speed immediately instead of waiting for the next tile
+	 * boundary, which at low speed can take a long time.
+	 */
+	void accelerate(uint32 delta_t);
+
+	/**
+	 * Re-evaluates the following rule for a stationary car.
+	 * A car held behind another vehicle does not run do_drive(), so nothing
+	 * else refreshes overtaker_t::following_speed while it waits, and the
+	 * vehicle ahead may move away at any time. Sets current_speed to the
+	 * restart speed and returns true when the gap has opened enough for the
+	 * car to move. Returns false when there is no vehicle ahead, when the
+	 * vehicle ahead is still too close, or when the car is at the end of its
+	 * tile and has already had one entry attempt for the current gap.
+	 */
+	bool try_resume_behind_leader();
+
+	/**
 	 * Advances the rendering-only overtaking blend from the forward distance
 	 * travelled. Called from do_drive().
 	 */
@@ -172,7 +193,6 @@ public:
 
 	void enter_tile(grund_t* gr) OVERRIDE;
 
-	void calc_current_speed(grund_t*);
 	uint16 get_current_speed() const {return current_speed;}
 
 	uint32 get_max_speed() override;

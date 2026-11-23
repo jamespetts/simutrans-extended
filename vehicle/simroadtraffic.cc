@@ -642,16 +642,29 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 		return SYNC_DELETE;
 	}
 
-	if(  current_speed==0  ) {
+	bool stopped = current_speed == 0;
+	if(  stopped  ) {
+		// A car held behind a vehicle on its own tile does not run do_drive(),
+		// so nothing else refreshes following_speed while it waits, and the
+		// vehicle ahead may move away at any time. The gap is therefore
+		// re-evaluated on every sync step instead of only when the retry gate
+		// below opens; otherwise every car in a standing queue waits for up to
+		// 1024 ticks after the vehicle in front has moved.
+		stopped = !try_resume_behind_leader();
+	}
+	if(  stopped  ) {
 		// stuck in traffic jam
 		uint32 old_ms_traffic_jam = ms_traffic_jam;
 		ms_traffic_jam += delta_t;
-		// check only every 1.024 s if stopped
+		// check only when the counter crosses a 1024-tick boundary
 		if(  (ms_traffic_jam>>10) != (old_ms_traffic_jam>>10)  ) {
 			pos_next_next = koord3d::invalid;
 			if(  hop_check()  ) {
 				ms_traffic_jam = 0;
 				current_speed = 48;
+				// The car is moving again; the first do_drive() recomputes the
+				// limit from the current leader.
+				following_speed = SPEED_UNLIMITED;
 			}
 			else {
 				if(  ms_traffic_jam > welt->ticks_per_world_month  &&  old_ms_traffic_jam<=welt->ticks_per_world_month  ) {
@@ -662,7 +675,14 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 		}
 		weg_next = 0;
 	}
-	else {
+	if(  !stopped  ) {
+		if (current_speed > following_speed)
+		{
+			// A slower vehicle ahead limits the speed the car may use on the
+			// next movement. following_speed was measured by the previous
+			// do_drive() call; the position cap remains the overlap guard.
+			current_speed = following_speed;
+		}
 		if(ms_traffic_jam == SINT32_MAX_VALUE)
 		{
 			ms_traffic_jam = 0;
@@ -674,7 +694,8 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 		{
 			weg_next += current_speed * delta_t;
 		}
-		const uint32 distance = do_drive( weg_next );
+		const uint32 requested = weg_next;
+		const uint32 distance = do_drive( requested );
 		add_distance(distance);
 		// hop_check could have set weg_next to zero, check for possible underflow here
 		if (weg_next > distance) {
@@ -682,6 +703,13 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 		}
 		else {
 			weg_next = 0;
+		}
+		// A sub-step remainder means the car is still accumulating distance at
+		// a low speed, not standing behind an obstruction, so it accelerates.
+		// A car held with a whole step or more available does not.
+		if (distance > 0 || requested < (1u << YARDS_PER_VEHICLE_STEP_SHIFT))
+		{
+			accelerate(delta_t);
 		}
 	}
 
@@ -815,10 +843,61 @@ void private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) 
 }
 
 
+bool private_car_t::try_resume_behind_leader()
+{
+	road_space::user_t self;
+	self.object = this;
+	self.convoi = NULL;
+	self.direction = get_direction();
+	self.speed = current_speed;
+	self.length = get_length_in_steps();
+	self.overtaking = is_overtaking();
+	self.pulled_over = false;
+	road_space::leader_t leader;
+	const sint32 limit = road_space::following_limit(get_grund(), self, steps, steps_next, &leader);
+	if (leader.gap < 0)
+	{
+		// No vehicle ahead on this tile or the next one: the car is waiting
+		// for something else, which hop_check() must decide.
+		return false;
+	}
+	const sint32 tile_end = (sint32)steps_next + 1;
+	if ((limit < 0 ? tile_end : min(limit, tile_end)) <= (sint32)steps)
+	{
+		// The vehicle ahead is still too close to move behind it.
+		return false;
+	}
+	const sint32 previous = following_speed;
+	const sint32 safe_speed = road_space::safe_following_speed(leader.gap, leader.speed, leader.moving);
+	following_speed = safe_speed;
+	if (safe_speed <= 0)
+	{
+		return false;
+	}
+	if (steps >= steps_next && previous > 0)
+	{
+		// The car is at the end of its tile, so moving needs the hop_check()
+		// call that the retry gate in sync_step() throttles. Attempt that once
+		// when the gap opens and leave later attempts to the gate, so that a
+		// car also blocked by a sign or a crossing cannot call hop_check() on
+		// every sync step.
+		return false;
+	}
+	// Restart exactly as the hop_check() success path does, so that the
+	// movement code below uses the gap measured here.
+	ms_traffic_jam = 0;
+	current_speed = 48;
+	return true;
+}
+
+
 uint32 private_car_t::do_drive(uint32 distance)
 {
 	update_lateral_blend();
 	uint32 distance_travelled = 0;
+	road_space::leader_t leader;
+	bool leader_updated = false;
+	uint32 last_travelled = 0;
 	while (distance > 0)
 	{
 		road_space::user_t self;
@@ -830,13 +909,28 @@ uint32 private_car_t::do_drive(uint32 distance)
 		self.overtaking = is_overtaking();
 		self.pulled_over = false;
 		const koord3d pos_before = get_pos();
-		const uint32 travelled = road_space::drive_until_limit(this, self, steps, steps_next, distance);
-		distance_travelled += travelled;
-		distance -= travelled;
+		last_travelled = road_space::drive_until_limit(this, self, steps, steps_next, distance, &leader);
+		leader_updated = true;
+		distance_travelled += last_travelled;
+		distance -= last_travelled;
 		if (get_pos() == pos_before)
 		{
 			break;
 		}
+	}
+	if (leader_updated)
+	{
+		if (leader.gap >= 0 && last_travelled > 0)
+		{
+			// The leader state was measured before this call moved the car, so
+			// reduce the gap by the distance travelled.
+			leader.gap -= (sint32)(last_travelled >> YARDS_PER_VEHICLE_STEP_SHIFT);
+			if (leader.gap < 0)
+			{
+				leader.gap = 0;
+			}
+		}
+		following_speed = road_space::safe_following_speed(leader.gap, leader.speed, leader.moving);
 	}
 	if (distance >= (1u << YARDS_PER_VEHICLE_STEP_SHIFT))
 	{
@@ -939,7 +1033,6 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		// turning around => single check
 		const uint8 next_direction = ribi_t::backward(this_direction);
 		dt = get_blocking_vehicle(gr, NULL, next_direction, next_direction, next_direction, this, 0);
-		apply_following_rule(gr, dt);
 
 		// do not block railroad crossing
 		if(dt==NULL  &&  str->is_crossing()  &&  current_gr) {
@@ -986,10 +1079,6 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		else {
 			// not a crossing => skip 90 degrees check!
 			dt = get_blocking_vehicle(gr, NULL, this_direction, next_direction, next_90direction, this, next_lane);
-			// On a queueing tile a car ahead in the same lateral position only
-			// blocks entry when it is too close; do_drive() keeps the follower
-			// behind it once it is on the tile.
-			apply_following_rule(gr, dt);
 			frei = true;
 		}
 		//If this car is overtaking, the car must avoid a head-on crash.
@@ -1198,9 +1287,20 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		}
 	}
 
+	// On a queueing tile a car ahead in the same lateral position only blocks
+	// entry when it is too close; do_drive() keeps the follower behind it once
+	// it is on the tile. This is checked after the overtake decisions above, so
+	// that a faster car first has the chance to pass instead of settling into
+	// the queue.
+	if (dt != NULL)
+	{
+		apply_following_rule(gr, dt);
+	}
+
 	if(dt==NULL  &&  current_speed==0) {
 		ms_traffic_jam = 0;
 		current_speed = 48;
+		following_speed = SPEED_UNLIMITED;
 	}
 
 	return dt==NULL;
@@ -1528,6 +1628,7 @@ grund_t* private_car_t::hop_check()
 		if(city_exit_u_turn || can_enter_tile(from)) {
 			// ok, this direction is fine!
 			ms_traffic_jam = 0;
+			following_speed = SPEED_UNLIMITED;
 			if(current_speed<48) {
 				current_speed = 48;
 			}
@@ -1538,6 +1639,7 @@ grund_t* private_car_t::hop_check()
 		if(from  &&  (city_exit_u_turn || can_enter_tile(from))) {
 			// ok, this direction is fine!
 			ms_traffic_jam = 0;
+			following_speed = SPEED_UNLIMITED;
 			if(current_speed<48) {
 				current_speed = 48;
 			}
@@ -1608,8 +1710,6 @@ void private_car_t::hop(grund_t* to)
 	set_pos(pos_next);
 	enter_tile(to);
 
-	calc_current_speed(to);
-
 	strasse_t *str = (strasse_t*)(to->get_weg(road_wt));
 	//decide if overtaking citycar should go back to the traffic lane.
 	if(  get_tiles_overtaking() == 1  &&  str->get_overtaking_mode() <= oneway_mode  ){
@@ -1645,18 +1745,34 @@ void private_car_t::calc_image()
 
 
 
-void private_car_t::calc_current_speed(grund_t *)
+void private_car_t::accelerate(uint32 delta_t)
 {
-	const weg_t * weg = get_weg();
-	sint32 max_speed = desc ? desc->get_topspeed() : kmh_to_speed(90);
-	const sint32 speed_limit = weg ? kmh_to_speed(weg->get_max_speed()) : max_speed;
-	current_speed += max_speed>>2;
-	if(current_speed > max_speed) {
-		current_speed = max_speed;
+	if (current_speed == 0 || delta_t == 0 || desc == NULL)
+	{
+		return;
 	}
-	if(current_speed > speed_limit) {
-		current_speed = speed_limit;
+	const sint32 max_speed = desc->get_topspeed();
+	if (max_speed <= 0)
+	{
+		return;
 	}
+	const weg_t *const weg = get_weg();
+	const sint32 target = weg != NULL ? min(max_speed, kmh_to_speed(weg->get_max_speed())) : max_speed;
+	// One tile is (1 << YARDS_PER_TILE_SHIFT) yards and speed is in yards per
+	// tick, so this is the number of ticks one tile takes at the top speed.
+	// delta_t is also in ticks, so the increment below is the share of the
+	// per-tile increment max_speed >> 2 that this sync step has earned.
+	const sint32 tile_ticks = (sint32)((1u << YARDS_PER_TILE_SHIFT) / max_speed);
+	if (tile_ticks <= 0)
+	{
+		return;
+	}
+	sint32 increment = (sint32)(((sint64)(max_speed >> 2) * delta_t) / tile_ticks);
+	if (increment < 1)
+	{
+		increment = 1;
+	}
+	current_speed = (uint16)min(target, min(following_speed, (sint32)current_speed + increment));
 }
 
 
@@ -1815,11 +1931,20 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 			check_pos += koord(direction);
 		}
 		set_tiles_overtaking( 3+(steps_other-1)/(CARUNITS_PER_TILE*VEHICLE_STEPS_PER_CARUNIT) );
+		following_speed = SPEED_UNLIMITED;
 		return true;
 	}
 
+	// The speed the car would use if the following-speed rule were not
+	// holding it back. A capped car can still overtake when its own limit is
+	// higher than the vehicle ahead, so the decision must not use the capped
+	// current speed alone.
+	const sint32 max_speed = desc != NULL ? desc->get_topspeed() : kmh_to_speed(90);
+	const sint32 way_speed = str != NULL ? kmh_to_speed(str->get_max_speed()) : max_speed;
+	const sint32 overtake_speed = max((sint32)current_speed, min(max_speed, way_speed));
+
 	// On one-way road, other_speed is current speed. Otherwise, other_speed is the theoretical max power speed.
-	sint32 diff_speed = (sint32)current_speed - other_speed;
+	sint32 diff_speed = overtake_speed - other_speed;
 	if(  diff_speed < kmh_to_speed(2)  ) {
 		// not fast enough to overtake
 		return false;
@@ -1834,7 +1959,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 	 * convoi_length for city cars? ==> a bit over half a tile (10)
 	 */
 	sint32 time_overtaking = 0;
-	sint32 distance = current_speed*((10<<4)+steps_other)/max(desc->get_topspeed()-other_speed,diff_speed);
+	sint32 distance = overtake_speed*((10<<4)+steps_other)/max(desc->get_topspeed()-other_speed,diff_speed);
 
 	// Conditions for overtaking:
 	// Flat tiles, with no stops, no crossings, no signs, no change of road speed limit
@@ -1953,11 +2078,11 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 	//   Each empty tile will subtract tile_dimension/max_street_speed.
 	//   If time is exhausted, we are guaranteed that no facing traffic will
 	//   invade the dangerous zone.
-	if(current_speed == 0)
+	if(overtake_speed == 0)
 	{
 		return false;
 	}
-	time_overtaking = (time_overtaking << 16)/(sint32)current_speed;
+	time_overtaking = (time_overtaking << 16)/(sint32)overtake_speed;
 	do {
 		// we can allow crossings or traffic lights here, since they will stop also oncoming traffic
 		if(  ribi_t::is_straight(str->get_ribi())  ) {
@@ -2019,6 +2144,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 	} while( time_overtaking > 0 );
 
 	set_tiles_overtaking( 1+n_tiles );
+	following_speed = SPEED_UNLIMITED;
 
 	return true;
 }

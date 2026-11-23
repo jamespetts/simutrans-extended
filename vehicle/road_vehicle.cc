@@ -109,6 +109,27 @@ uint32 following_gap(const sint32 follower_speed, const bool leader_moving)
 	return (uint32)((gap_mm * VEHICLE_STEPS_PER_TILE + millimetres_per_tile - 1) / millimetres_per_tile);
 }
 
+sint32 safe_following_speed(const sint32 gap_steps, const sint32 leader_speed, const bool leader_moving)
+{
+	if (gap_steps < 0)
+	{
+		return SPEED_UNLIMITED;
+	}
+	// The equilibrium gap is the standstill gap plus the leader's reaction
+	// distance. The follower may use the surplus over that gap to close it
+	// over one reaction time, so that the speed increases as the gap opens
+	// and falls as the follower closes it.
+	const sint32 equilibrium_steps = (sint32)following_gap(leader_speed, leader_moving);
+	const sint64 millimetres_per_tile = (sint64)world()->get_settings().get_meters_per_tile() * 1000;
+	const sint64 surplus_steps = (sint64)gap_steps - (sint64)equilibrium_steps;
+	const sint64 surplus_mm = surplus_steps * millimetres_per_tile / VEHICLE_STEPS_PER_TILE;
+	// surplus_mm / REACTION_TIME_MS is mm/ms, which is m/s. Convert to km/h
+	// and then to internal speed units.
+	const sint64 surplus_kmh = (surplus_mm * 3600) / (REACTION_TIME_MS * 1000);
+	const sint32 safe_speed = leader_speed + kmh_to_speed((sint32)surplus_kmh);
+	return max(0, safe_speed);
+}
+
 sint16 advance_lateral_blend(const sint16 current, const sint16 target, const uint32 forward_steps, const uint32 blend_steps)
 {
 	if (forward_steps == 0 || blend_steps == 0)
@@ -197,13 +218,17 @@ static bool get_user_state(const vehicle_base_t *v, user_t &out)
 	return false;
 }
 
-sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps, const uint8 steps_next)
+sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps, const uint8 steps_next, leader_t *leader)
 {
 	if (gr == NULL || self.object == NULL)
 	{
 		return -1;
 	}
 	sint32 limit = -1;
+	sint32 nearest_gap = -1;
+	sint32 nearest_speed = 0;
+	bool nearest_moving = false;
+	convoihandle_t nearest_convoy;
 	if (allows_queueing(gr))
 	{
 		for (uint8 pos = 0; pos < gr->get_top(); pos++)
@@ -240,6 +265,14 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 			// already overlapping it: stop rather than drive through it. The
 			// vehicle ahead is unaffected, so this cannot freeze both.
 			const sint32 rear = front - (sint32)other.length;
+			const sint32 raw_gap = rear - (sint32)steps;
+			if (nearest_gap < 0 || raw_gap < nearest_gap)
+			{
+				nearest_gap = raw_gap;
+				nearest_speed = other.speed;
+				nearest_moving = other.speed > 0;
+				nearest_convoy = other.convoi != NULL ? other.convoi->self : convoihandle_t();
+			}
 			const sint32 gap = (sint32)following_gap(self.speed, other.speed > 0);
 			// A real limit is never negative: a negative value would be read as
 			// "no leader" by drive_until_limit. Clamp to the start of the tile,
@@ -301,9 +334,22 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 				const sint32 rear = (sint32)VEHICLE_STEPS_PER_TILE * 512
 					+ (sint32)v->get_steps() * other_scale
 					- (sint32)other.length * 512;
+				// The same rear boundary in this tile's steps. A queueing tile
+				// is straight, so our_scale is 512; the division is kept for
+				// clarity and to match the limit conversion below.
+				const sint32 raw_gap = rear / our_scale - (sint32)steps;
+				if (nearest_gap < 0 || raw_gap < nearest_gap)
+				{
+					nearest_gap = raw_gap;
+					nearest_speed = other.speed;
+					nearest_moving = other.speed > 0;
+					nearest_convoy = other.convoi != NULL ? other.convoi->self : convoihandle_t();
+				}
 				if (rear >= (sint32)VEHICLE_STEPS_PER_TILE * 512)
 				{
-					// The whole vehicle is on the next tile.
+					// The whole vehicle is on the next tile, so it does not cap
+					// this tile's position. It is still the nearest leader for
+					// the following-speed rule.
 					continue;
 				}
 				const sint32 gap = (sint32)following_gap(self.speed, other.speed > 0);
@@ -317,6 +363,23 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 					limit = candidate;
 				}
 			}
+		}
+	}
+	if (leader != NULL)
+	{
+		if (nearest_gap < 0)
+		{
+			leader->gap = -1;
+			leader->speed = 0;
+			leader->moving = false;
+			leader->convoy = convoihandle_t();
+		}
+		else
+		{
+			leader->gap = max(0, nearest_gap);
+			leader->speed = nearest_speed;
+			leader->moving = nearest_moving;
+			leader->convoy = nearest_convoy;
 		}
 	}
 	return limit;
@@ -352,9 +415,9 @@ bool is_beside_lane(const vehicle_base_t *v)
 	return rv != NULL && rv->is_pulled_over();
 }
 
-uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance)
+uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance, leader_t *leader)
 {
-	const sint32 limit = following_limit(v->get_grund(), self, steps, steps_next);
+	const sint32 limit = following_limit(v->get_grund(), self, steps, steps_next, leader);
 	// At most one tile boundary per call, so that the limit is recomputed on
 	// the new tile before any further distance is added.
 	const sint32 tile_end = (sint32)steps_next + 1;
@@ -1016,6 +1079,10 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 
 		assert(gr);
 
+		// Keep the immediate target tile: the following rule must be evaluated
+		// against it even after the crossing loop has moved gr forward.
+		const grund_t *const target_gr = gr;
+
 		const strasse_t *str = (strasse_t *)gr->get_weg(road_wt);
 		if(  !str  ||  gr->get_top() > 250  ) {
 			// too many cars here or no street
@@ -1100,11 +1167,6 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		ribi_t::ribi next_direction   = calc_direction(get_pos(), next);
 		ribi_t::ribi next_90direction = calc_direction(pos_next, next);
 		obj = get_blocking_vehicle(gr, cnv, curr_direction, next_direction, next_90direction, NULL, next_lane);
-
-		// On a queueing tile a vehicle ahead in the same lateral position only
-		// blocks entry when it is too close; the movement cap in do_drive()
-		// keeps the follower behind it once it is on the tile.
-		apply_following_rule(gr, obj, next_lane);
 
 		//If this convoi is overtaking, the convoi must avoid a head-on crash.
 		if(  cnv->is_overtaking()  ){
@@ -1449,6 +1511,16 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			}
 		}
 
+		// On a queueing tile a vehicle ahead in the same lateral position only
+		// blocks entry when it is too close; the movement cap in do_drive()
+		// keeps the follower behind it once it is on the tile. This is checked
+		// after the overtake decision above, so that a faster convoy first has
+		// the chance to pass instead of settling into the queue.
+		if (obj != NULL && target_gr != NULL)
+		{
+			apply_following_rule(target_gr, obj, next_lane);
+		}
+
 		const koord3d pos_next2 = route_index < r.get_count() - 1u ? r.at(route_index + 1u) : pos_next;
 		// We have to calculate offset.
 		uint32 offset = 0;
@@ -1679,6 +1751,8 @@ uint32 road_vehicle_t::do_drive(uint32 distance)
 		return vehicle_base_t::do_drive(distance);
 	}
 	uint32 distance_travelled = 0;
+	bool leader_updated = false;
+	road_space::leader_t nearest;
 	while (distance > 0)
 	{
 		road_space::user_t self;
@@ -1690,7 +1764,18 @@ uint32 road_vehicle_t::do_drive(uint32 distance)
 		self.overtaking = cnv->is_overtaking();
 		self.pulled_over = is_pulled_over();
 		const koord3d pos_before = get_pos();
-		const uint32 travelled = road_space::drive_until_limit(this, self, steps, steps_next, distance);
+		const uint32 travelled = road_space::drive_until_limit(this, self, steps, steps_next, distance, &nearest);
+		leader_updated = true;
+		if (nearest.gap >= 0)
+		{
+			// The leader state was measured before this call moved the
+			// vehicle, so reduce its gap by the distance travelled.
+			nearest.gap -= (sint32)(travelled >> YARDS_PER_VEHICLE_STEP_SHIFT);
+			if (nearest.gap < 0)
+			{
+				nearest.gap = 0;
+			}
+		}
 		distance_travelled += travelled;
 		distance -= travelled;
 		if (get_pos() == pos_before)
@@ -1700,6 +1785,10 @@ uint32 road_vehicle_t::do_drive(uint32 distance)
 			// be recomputed by adding more distance here.
 			break;
 		}
+	}
+	if (leader_updated)
+	{
+		following_leader = nearest;
 	}
 	add_distance(distance_travelled);
 	// Render-only odometer for the lateral blends. Only the leading vehicle

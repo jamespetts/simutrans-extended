@@ -145,6 +145,8 @@ void convoi_t::reset()
 
 	set_akt_speed(0);          // momentane Geschwindigkeit / current speed
 	sp_soll = 0;
+	akt_speed_soll_unlimited = 0;
+	following_cap_active = false;
 	//brake_speed_soll = 2147483647; // ==SPEED_UNLIMITED
 
 	highest_axle_load = 0;
@@ -207,6 +209,8 @@ void convoi_t::init(player_t *player)
 	//speed_limit = SPEED_UNLIMITED;
 	//brake_speed_soll = SPEED_UNLIMITED;
 	akt_speed_soll = 0;					// target speed
+	akt_speed_soll_unlimited = 0;		// target speed before the following rule
+	following_cap_active = false;
 	set_akt_speed(0);					// current speed
 	sp_soll = 0;
 
@@ -1191,6 +1195,53 @@ void convoi_t::calc_acceleration(uint32 delta_t)
 	 * calculate movement in the next delta_t ticks.
 	 */
 	akt_speed_soll = min(kmh_to_speed(get_schedule()->get_current_entry().max_speed_kmh), min(get_min_top_speed(), max_signal_speed));
+	akt_speed_soll_unlimited = akt_speed_soll;
+	// A road vehicle must not run into a slower vehicle ahead. The follower's
+	// safe speed rises continuously as the gap opens and falls as it closes,
+	// so a car recovers as soon as the vehicle ahead moves away instead of
+	// waiting for a gap sized for its top speed. The position cap in the
+	// road-space rule remains the last resort that prevents an overlap.
+	if (front.get_waytype() == road_wt)
+	{
+		const road_vehicle_t *const rv = static_cast<const road_vehicle_t *>(&front);
+		const road_space::leader_t &leader = rv->get_following_leader();
+		if (leader.gap < 0 || is_overtaking())
+		{
+			following_cap_active = false;
+		}
+		sint32 safe_speed = akt_speed_soll;
+		bool cap_following_speed = false;
+		if (leader.gap >= 0)
+		{
+			safe_speed = road_space::safe_following_speed(leader.gap, leader.speed, leader.moving);
+			cap_following_speed = safe_speed < akt_speed_soll;
+		}
+		if (cap_following_speed && !following_cap_active && !is_overtaking()
+			&& get_state() == convoi_t::DRIVING && leader.convoy.is_bound() && leader.speed > 0)
+		{
+			// The convoy has just come close enough that it would have to slow
+			// down. Try to overtake once before slowing: a vehicle that can pass
+			// must not settle into the queue behind a slower one. If this
+			// succeeds, is_overtaking() becomes true and the next step no longer
+			// sees the overtaken vehicle as a leader in this lane.
+			following_cap_active = true;
+			convoi_t *const leader_convoy = &*leader.convoy;
+			overtaker_t *const other = leader_convoy;
+			if (other != NULL)
+			{
+				const sint16 steps_other = leader_convoy->get_length_in_steps() + leader_convoy->front()->get_steps();
+				const bool overtake_started = can_overtake(other, leader.speed, steps_other);
+				if (overtake_started)
+				{
+					cap_following_speed = false;
+				}
+			}
+		}
+		if (cap_following_speed)
+		{
+			akt_speed_soll = min(akt_speed_soll, safe_speed);
+		}
+	}
 	if(  yielding_quit_index != -1  &&  akt_speed_soll>kmh_to_speed(15)  ) {
 		akt_speed_soll -= kmh_to_speed(15);
 	}
@@ -8575,7 +8626,13 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 		const sint32 tiles = (steps_other-1)/(CARUNITS_PER_TILE*VEHICLE_STEPS_PER_CARUNIT) + get_tile_length() + 1;
 
 		for (sint32 i = 0; i < tiles; i++) {
-			grund_t *gr = welt->lookup(route.at(idx + i));
+			const uint32 route_pos = idx + i;
+			if (route_pos >= route.get_count())
+			{
+				// The route ends before the whole overtake can be checked.
+				return false;
+			}
+			grund_t *gr = welt->lookup(route.at(route_pos));
 			if (gr == NULL) {
 				return false;
 			}
@@ -8637,14 +8694,19 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 		return false;
 	}
 	// Do not overtake a vehicle which has higher max_power_speed than this.
-	if(  other_overtaker->get_max_power_speed() - this->get_max_power_speed() > kmh_to_speed(2)  ) {
+	const sint32 own_max_power_speed = get_max_power_speed();
+	if(  other_overtaker->get_max_power_speed() - own_max_power_speed > kmh_to_speed(2)  ) {
 		return false;
 	}
 
 	// The flag whether the convoi is in traffic jam. When this is true, we must calculate overtaking in a different way.
 	// On one-way road, other_speed is current speed. Otherwise, other_speed is the theoretical max power speed.
 	bool in_congestion = false;
-	int diff_speed = akt_speed - other_speed;
+	// A follower that has slowed to the speed of the vehicle in front still
+	// has its own desired speed, so the decision must not use the capped
+	// current speed alone.
+	const sint32 overtake_speed = max(akt_speed, akt_speed_soll_unlimited);
+	int diff_speed = overtake_speed - other_speed;
 	if(  diff_speed < kmh_to_speed(2)  ) {
 		// Overtaking in traffic jam is only accepted on one-way road.
 		if(  overtaking_mode <= oneway_mode  ) {
@@ -8652,7 +8714,7 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 			strasse_t *str=(strasse_t *)gr->get_weg(road_wt);
 			if(  str==NULL  ) {
 				return false;
-			}else if(  akt_speed < fmin(get_max_power_speed(), str->get_max_speed(is_electric))/2  &&  diff_speed >= kmh_to_speed(0)  ){
+			}else if( akt_speed < fmin(own_max_power_speed, str->get_max_speed(is_electric))/2  &&  diff_speed >= kmh_to_speed(0)  ){
 				//Warning: diff_speed == 0 is acceptable. We must consider the case diff_speed == 0.
 				in_congestion = true;
 			}else{
@@ -8672,10 +8734,16 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 	// tiles_to_overtake = convoi_length + current pos within tile + (pos_other_convoi within tile + length of other convoi) - one tile
 	int distance = 1;
 	if(  !in_congestion  ) {
-		distance = akt_speed*(front()->get_steps()+get_length_in_steps()+steps_other-VEHICLE_STEPS_PER_TILE)/diff_speed;
+		distance = overtake_speed*(front()->get_steps()+get_length_in_steps()+steps_other-VEHICLE_STEPS_PER_TILE)/diff_speed;
 	}
 	else {
-		distance = get_max_power_speed()*(front()->get_steps()+get_length_in_steps()+steps_other-VEHICLE_STEPS_PER_TILE)/(get_max_power_speed()-other_speed);
+		if (own_max_power_speed <= other_speed)
+		{
+			// No speed advantage to use: dividing by the difference would be
+			// a division by zero (or a negative distance).
+			return false;
+		}
+		distance = own_max_power_speed*(front()->get_steps()+get_length_in_steps()+steps_other-VEHICLE_STEPS_PER_TILE)/(own_max_power_speed-other_speed);
 	}
 	int time_overtaking = 0;
 
@@ -8780,57 +8848,62 @@ bool convoi_t::can_overtake(overtaker_t *other_overtaker, sint32 other_speed, si
 	//   If time is exhausted, we are guaranteed that no facing traffic will
 	//   invade the dangerous zone.
 	// Conditions for the street are milder: e.g. if no street, no facing traffic
-	if(akt_speed == 0)
+	// A one-way road has no facing traffic to check: its passing lane is an
+	// additional lane in the same direction, not the opposing carriageway.
+	if(overtake_speed == 0)
 	{
 		return false;
 	}
-	time_overtaking = (time_overtaking << 16)/ akt_speed;
-	while(  time_overtaking > 0  ) {
+	if(overtaking_mode != oneway_mode)
+	{
+		time_overtaking = (time_overtaking << 16)/ overtake_speed;
+		while(  time_overtaking > 0  ) {
 
-		if(  route_index >= route.get_count()  ) {
-			return false;
-		}
-
-		pos_next = route.at(route_index++);
-		grund_t *gr= welt->lookup(pos);
-		if(  gr==NULL  ) {
-			// will cause a route search, but is ok
-			break;
-		}
-
-		weg_t *str = gr->get_weg(road_wt);
-		if(  str==NULL  ) {
-			break;
-		}
-
-		if(  ribi_t::is_straight(str->get_ribi())  ) {
-			// The code from Standard can produce a division be zero error.
-			if (kmh_to_speed(str->get_max_speed(is_electric)) > 0)
-			{
-				time_overtaking -= (VEHICLE_STEPS_PER_TILE << 16) / kmh_to_speed(str->get_max_speed(is_electric));
-			}
-		}
-		else {
-			time_overtaking -= (vehicle_base_t::get_diagonal_vehicle_steps_per_tile()<<16) / kmh_to_speed(str->get_max_speed(is_electric));
-		}
-
-		// Check for other vehicles in facing direction
-		ribi_t::ribi their_direction = ribi_t::backward( front()->calc_direction(pos_prev, pos_next) );
-		const uint8 top = gr->get_top();
-		for(  uint8 j=1;  j<top;  j++ ) {
-			vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(j));
-			if (v && v->get_direction() == their_direction && v->get_overtaker()) {
+			if(  route_index >= route.get_count()  ) {
 				return false;
 			}
+
+			pos_next = route.at(route_index++);
+			grund_t *gr= welt->lookup(pos);
+			if(  gr==NULL  ) {
+				// will cause a route search, but is ok
+				break;
+			}
+
+			weg_t *str = gr->get_weg(road_wt);
+			if(  str==NULL  ) {
+				break;
+			}
+
+			if(  ribi_t::is_straight(str->get_ribi())  ) {
+				// The code from Standard can produce a division be zero error.
+				if (kmh_to_speed(str->get_max_speed(is_electric)) > 0)
+				{
+					time_overtaking -= (VEHICLE_STEPS_PER_TILE << 16) / kmh_to_speed(str->get_max_speed(is_electric));
+				}
+			}
+			else {
+				time_overtaking -= (vehicle_base_t::get_diagonal_vehicle_steps_per_tile()<<16) / kmh_to_speed(str->get_max_speed(is_electric));
+			}
+
+			// Check for other vehicles in facing direction
+			ribi_t::ribi their_direction = ribi_t::backward( front()->calc_direction(pos_prev, pos_next) );
+			const uint8 top = gr->get_top();
+			for(  uint8 j=1;  j<top;  j++ ) {
+				vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(j));
+				if (v && v->get_direction() == their_direction && v->get_overtaker()) {
+					return false;
+				}
+			}
+			pos_prev = pos;
+			pos = pos_next;
 		}
-		pos_prev = pos;
-		pos = pos_next;
 	}
 
 	set_tiles_overtaking( 1+n_tiles );
 	//The parameter about being overtaken is no longer meaningful on one-way road.
 	if(  overtaking_mode > oneway_mode  ) {
-		other_overtaker->set_tiles_overtaking( -1-(n_tiles*(akt_speed-diff_speed))/akt_speed );
+		other_overtaker->set_tiles_overtaking( -1-(n_tiles*(overtake_speed-diff_speed))/overtake_speed );
 	}
 	return true;
 }

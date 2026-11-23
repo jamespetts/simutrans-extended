@@ -400,6 +400,20 @@ private:
 	// needed for speed control/calculation
 	sint32 akt_speed;	        // current speed
 	sint32 akt_speed_soll;		// Target speed
+	/**
+	 * The target speed before the road following rule caps it at the speed of
+	 * the vehicle in front. The overtaking decision uses this value, because a
+	 * follower that has already slowed to the leader's speed is still able to
+	 * overtake if its own desired speed is higher. Derived each step; not
+	 * saved.
+	 */
+	sint32 akt_speed_soll_unlimited;
+	/**
+	 * Whether the following-speed cap was active on the previous step. Used to
+	 * try an overtake once when a slower leader is first reached, before the
+	 * convoy is slowed to the leader's speed. Derived each step; not saved.
+	 */
+	bool following_cap_active;
 	sint32 sp_soll;				// steps to go
 	sint32 previous_delta_v;	// Stores the previous delta_v value; otherwise these digits are lost during calculation and vehicle do not accelrate
 	float32e8_t v; // current speed in m/s.

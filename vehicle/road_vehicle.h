@@ -51,6 +51,28 @@ namespace road_space
 	/// selects the reaction-time headway instead of the standstill gap.
 	uint32 following_gap(const sint32 follower_speed, const bool leader_moving);
 
+	/**
+	 * The highest speed a follower may use at @p gap_steps behind a leader.
+	 * The standstill gap and reaction time of following_gap() give the
+	 * equilibrium gap at the leader's speed; the follower may use the distance
+	 * beyond that gap to close it over one reaction time. The result is in
+	 * internal speed units and is clamped to zero; it may exceed the caller's
+	 * desired speed, in which case the caller applies no cap. A negative
+	 * @p gap_steps means that there is no leader and returns SPEED_UNLIMITED.
+	 */
+	sint32 safe_following_speed(const sint32 gap_steps, const sint32 leader_speed, const bool leader_moving);
+
+	/// The nearest vehicle ahead of a follower in the same lateral position,
+	/// as found by following_limit(). A gap of -1 means that no vehicle ahead
+	/// constrains the follower.
+	struct leader_t
+	{
+		sint16 gap = -1;     ///< steps from the follower's front to the leader's rear
+		uint16 speed = 0;    ///< the leader's speed, internal units
+		bool moving = false; ///< whether the leader is moving
+		convoihandle_t convoy; ///< the leader convoy, or unbound for a private car
+	};
+
 	/// Forward distance in vehicle steps over which a full lane offset is
 	/// blended when a road vehicle changes lane or overtakes.
 	const uint32 LANE_CHANGE_BLEND_STEPS = 192;
@@ -75,9 +97,10 @@ namespace road_space
 	 * constrains it. @p steps is the user's front position on @p gr and
 	 * @p steps_next the last step of that tile. A vehicle whose front has
 	 * entered the tile in front of @p gr is also considered while its rear is
-	 * still on @p gr.
+	 * still on @p gr. When @p leader is not NULL, it receives the nearest
+	 * vehicle ahead in the same lateral position.
 	 */
-	sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps, const uint8 steps_next);
+	sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps, const uint8 steps_next, leader_t *leader = NULL);
 
 	/**
 	 * Whether the blocker @p leader is far enough ahead on @p gr that the user
@@ -95,13 +118,14 @@ namespace road_space
 	 * Drives @p v by at most one tile boundary, stopping at the limit given by
 	 * following_limit() on the tile it is on. The caller must refresh @p self
 	 * and re-read steps after a hop, and must not add more distance than the
-	 * value returned.
+	 * value returned. When @p leader is not NULL, it receives the nearest
+	 * vehicle ahead in the same lateral position.
 	 * @return the distance travelled in yards.
 	 * @note This is a helper for the road-specific do_drive() overrides. It is
 	 * never called for a vehicle that is not leading its convoy, because a
 	 * convoy follows the leading vehicle exactly.
 	 */
-	uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance);
+	uint32 drive_until_limit(vehicle_base_t *v, const user_t &self, const uint8 steps, const uint8 steps_next, const uint32 distance, leader_t *leader = NULL);
 }
 
 
@@ -166,6 +190,14 @@ protected:
 	mutable uint32 lateral_distance;
 	mutable uint32 lateral_last_distance;
 
+	/**
+	 * The nearest vehicle ahead in the same lateral position, from the last
+	 * call to do_drive(). It is derived from the map each step and is not
+	 * saved. convoi_t::calc_acceleration() uses it to limit the leading
+	 * vehicle's desired speed to the speed of the vehicle in front.
+	 */
+	road_space::leader_t following_leader;
+
 public:
 	void enter_tile(grund_t*) OVERRIDE;
 	void leave_tile() OVERRIDE;
@@ -173,6 +205,9 @@ public:
 	virtual uint32 do_drive(uint32 distance) OVERRIDE;
 
 	void rdwr_from_convoi(loadsave_t *file) OVERRIDE;
+
+	/// The nearest vehicle ahead recorded by the last do_drive() call.
+	const road_space::leader_t &get_following_leader() const { return following_leader; }
 
 	/**
 	 * Advances the rendering-only pull-in and overtaking blends from the

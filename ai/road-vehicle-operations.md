@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ b2bfc8d plus working-tree lateral rendering changes; implementation on branch road-vehicle-operations @ ef449777d1
+verified: ex-15 @ 03b576987f plus working-tree lateral rendering changes; implementation on branch road-vehicle-operations @ ef449777d1
 ---
 # Road vehicle operations
 
@@ -170,6 +170,14 @@ must be re-evaluated after each tile hop, so the road-specific `do_drive` should
 most one tile boundary per iteration and then recompute the leader. This avoids changing
 `vehicle_base_t::do_drive`, which is shared with rail, air and water vehicles.
 
+The implemented rule also caps the follower's speed, not only its position: convoys cap the
+desired speed in `convoi_t::calc_acceleration`, and private cars cap `current_speed` in
+`private_car_t::sync_step`. A vehicle that can overtake tries to do so before the cap is
+applied. A stopped private car calls `private_car_t::try_resume_behind_leader` on every sync
+step, so it starts as soon as the gap to the vehicle ahead opens, without waiting for the
+1024-tick `private_car_t::sync_step` retry gate. See
+[implementation](road-vehicle-operations/implementation.md#following-speed-and-overtake-priority).
+
 ### Stop stands and pull-over
 
 Replace the two-lane reservation with four stand reservations:
@@ -276,11 +284,14 @@ Performance:
   line as the vehicle, needs no allocation or pointer chase, and fits existing padding.
   Placing it in padding avoids shifting later fields and cache-line offsets. The cost is the
   comparison in the blocking test and the extra leader scan, not storage.
-- The leader scan runs only when the current tile has more than one object and the vehicle
-  is moving. A stopped jam member calls `hop_check` only when `ms_traffic_jam` crosses a
-  1.024-second boundary (`ms_traffic_jam >> 10` changes), so stationary queues are cheap.
-  The worst case is one extra object-list scan per moving road user per sync step. Use the
-  existing object list; add a transient cache only if profiling shows the scan is material.
+- `road_space::following_limit` walks the object list of the vehicle's tile and, when the
+  vehicle's next tile differs from it, the next tile's list as well, on every call. A moving
+  road vehicle calls it at least once per sync step while it has distance to travel, and
+  again after each tile hop. A stopped private car calls it once per sync step in
+  `private_car_t::try_resume_behind_leader`; the `hop_check` call at the `ms_traffic_jam`
+  gate remains once per 1024 ticks. The worst case is one extra object-list scan per stopped
+  private car per sync step. Use the existing object list; add a transient cache only if
+  profiling shows the scan is material.
 - `get_empty_lane` builds the four-bit mask in one pass. It is called during target selection
   and on arrival, not every step. Four stands can reduce queue length and congestion.
 - The private car occupancy rule changes the number of cars directly. The child document

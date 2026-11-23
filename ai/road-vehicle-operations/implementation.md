@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ b2bfc8d plus working-tree lateral rendering, reversal stand and following-traffic changes
+verified: ex-15 @ 03b576987f plus working-tree lateral rendering, reversal stand and following-traffic changes
 ---
 # Road vehicle operations: implementation
 
@@ -75,6 +75,99 @@ waiting are not implemented.
   smaller than one vehicle step is left in `weg_next`, so a car whose speed gives less than
   one vehicle step of distance per `private_car_t::sync_step` call accumulates distance until
   it can move.
+
+### Following speed and overtake priority
+
+`road_space::following_limit` records the nearest vehicle ahead in the same lateral position
+in a `road_space::leader_t`. The record holds the distance from the follower's front to the
+leader's rear in vehicle steps, the leader's speed in internal speed units, whether the
+leader is moving, and a `convoihandle_t` for a convoy leader. The handle is unbound when the
+leader is a private car. The next-tile scan also records a leader whose rear is entirely on
+the next tile; that leader does not cap the follower's position on the current tile, but it is
+still the nearest leader for the speed rule.
+
+`road_vehicle_t::do_drive` stores the record on the leading vehicle. `convoi_t::calc_acceleration`
+reads it and applies `road_space::safe_following_speed`. That function takes the equilibrium gap
+at the leader's speed from `road_space::following_gap`, so a stopped leader uses the standstill
+gap and a moving leader uses the standstill gap plus the leader's reaction distance. The
+follower may use any surplus over that equilibrium gap to close it over one reaction time, so
+its safe speed is the leader's speed plus the surplus divided by the reaction time. The safe
+speed rises continuously as the gap opens and falls as the follower closes it. A convoy caps
+`convoi_t::akt_speed_soll` at the safe speed when that is below its own desired speed. The
+position cap in `road_space::following_limit` remains the last resort that prevents an overlap.
+
+If the safe speed is below the desired speed and the convoy is not already overtaking, the
+convoy calls `convoi_t::can_overtake` once for a convoy leader before applying the cap. The
+call uses `convoi_t::akt_speed_soll_unlimited` in the overtake decision. If it starts an
+overtake, the cap is not applied: a vehicle that can pass does not slow down first. The call is
+made once per following episode; `convoi_t::following_cap_active` records that it has been made
+and is cleared when the convoy loses the leader or starts overtaking. A private car leader does
+not trigger this proactive call; the ordinary overtake decision in
+`road_vehicle_t::can_enter_tile` still handles it at a tile boundary. While the convoy is
+following, that decision is evaluated at every tile boundary, so it keeps looking for an
+opportunity to pass.
+
+`private_car_t` applies the same rule to city traffic. `private_car_t::do_drive` calls
+`road_space::drive_until_limit`, so it also receives the `road_space::leader_t` and sets
+`overtaker_t::following_speed` to `road_space::safe_following_speed`.
+`private_car_t::sync_step` clamps `current_speed` to `overtaker_t::following_speed` before the
+car moves. After `private_car_t::do_drive` it calls `private_car_t::accelerate(delta_t)` unless
+the car was held with a whole vehicle step of distance accumulated: a car held by an obstruction
+does not accelerate, while a car with only a sub-step remainder is still accumulating distance
+at a low speed and does accelerate.
+`private_car_t::accelerate` spreads the per-tile increment `max_speed >> 2`, where `max_speed` is
+`desc->get_topspeed()`, over the ticks that a tile takes at the car's top speed. A tile is
+`1 << YARDS_PER_TILE_SHIFT` yards and the top speed is in yards per tick, so the tile takes
+`(1 << YARDS_PER_TILE_SHIFT) / max_speed` ticks; the `delta_t` argument is also in ticks. Each
+call therefore adds `(max_speed >> 2) * delta_t / tile_ticks`, with a minimum of one speed unit,
+and then applies the way limit, the vehicle top speed and `overtaker_t::following_speed`. A car
+that has been held at a low speed therefore accelerates as soon as the safe speed rises.
+`private_car_t::hop_check` clears the limit when the car restarts. `private_car_t::can_overtake`
+uses the speed the car would use without the following rule,
+`max(current_speed, min(desc->get_topspeed(), kmh_to_speed(str->get_max_speed())))`, in the speed
+difference, distance and time calculations, so a car that has slowed behind a leader can still
+overtake. `private_car_t::can_enter_tile` applies the following rule only after the overtake
+decision, as `road_vehicle_t::can_enter_tile` does, so the overtake gets the first chance.
+
+A car with `private_car_t::current_speed == 0` does not run `private_car_t::do_drive`, so nothing
+in the movement code refreshes `overtaker_t::following_speed` while it waits. The stopped branch
+of `private_car_t::sync_step` therefore calls `private_car_t::try_resume_behind_leader` on every
+sync step. That function builds the same `road_space::user_t` as `private_car_t::do_drive`, calls
+`road_space::following_limit` for the leader on the car's tile and the next one, and returns
+`false` when there is no leader, when the position limit still holds the car, or when
+`road_space::safe_following_speed` is zero. Otherwise it sets
+`overtaker_t::following_speed`, resets `private_car_t::ms_traffic_jam`, sets `current_speed` to
+the restart speed 48 and lets the normal movement code run in the same step. A car stopped at the
+end of its tile needs `private_car_t::hop_check` to move, and that call is expensive, so the
+function resumes a car at a tile end only when the gap has just opened and leaves later attempts
+to the retry gate described next. The gate is the `ms_traffic_jam >> 10` boundary test in
+`private_car_t::sync_step`; `ms_traffic_jam` is a count of ticks, so the gate opens once every
+1024 ticks. Without the per-step evaluation, `overtaker_t::following_speed` keeps the zero value
+from the last `private_car_t::do_drive` call, and a car held behind a vehicle could start only
+when the gate opened, regardless of how soon the vehicle ahead moved.
+
+Two changes keep `convoi_t::can_overtake` usable after the following rule has reduced the
+convoy's current speed. The speed difference and the overtake distance use
+`max(akt_speed, akt_speed_soll_unlimited)` instead of `akt_speed` alone. The oncoming-traffic
+phase, the second `while` loop in `convoi_t::can_overtake`, is skipped only when
+`strasse_t::get_overtaking_mode()` returns `oneway_mode`, because a one-way road has no facing
+traffic. A `halt_mode` road is a two-way road and still runs the phase. The loading branch's
+route scan also stops at the end of the route instead of reading past it. The in-congestion
+distance calculation stores `convoi_t::get_max_power_speed()` in `own_max_power_speed` and
+returns false when that is not greater than `other_speed`, so the division by their difference
+cannot be a division by zero.
+
+The speed rule calls `road_space::following_gap` once per road convoy and once per private car
+per step while a leader is in the current or next tile, and performs a few integer
+multiplications and divisions. The private car rule reuses the leader record that
+`private_car_t::do_drive` already obtains, so it adds no scan for a moving car.
+`private_car_t::accelerate` adds one integer multiplication and one division per moving car per
+step. A stopped car calls `road_space::following_limit` once per step, which scans its own tile
+and the next one. That adds one scan per stopped car per step to the existing
+`private_car_t::hop_check` call at the 1024-tick gate, which does the same scan plus the private
+car route lookup and `private_car_t::can_enter_tile`. The performance suite has not been run for
+the stopped-car rule; the `road` pending-runtime group, the standard automated suite and the
+network smoke test are the automated coverage.
 
 The lateral position of a road vehicle is the existing traffic or passing lane
 (`convoi_t::is_overtaking`, `private_car_t::is_overtaking`) plus the pulled-over state.
@@ -164,18 +257,19 @@ The stand mask is saved by the `road_vehicle_t::rdwr_from_convoi` override, whic
 
 ## Measured sizes
 
-On the built `Debug|x64` MSVC configuration, `sizeof(road_vehicle_t)` is 720 bytes,
-`sizeof(private_car_t)` 224 and `sizeof(haltestelle_t::tile_t)` 24. On the default
-(non-`_DEBUG`) configuration the vehicle classes are 712 and 216, and the halt record is still
-24. Removing the stand mask from `road_vehicle_t` left its size unchanged in both
+On the built `Debug|x64` MSVC configuration, `sizeof(private_car_t)` is 232 bytes and
+`sizeof(haltestelle_t::tile_t)` is 24. The earlier 224-byte private car figure predated the
+rendering-only lateral blends. The following-speed storage replaced the unused
+`overtaker_t::max_power_speed` field, so it does not enlarge `private_car_t`. The
+`road_space::leader_t` cached on `road_vehicle_t` is 8 bytes (a 16-bit gap, a 16-bit speed, a
+bool and a `convoihandle_t`); `sizeof(road_vehicle_t)` has not been re-measured for this
+change. Removing the stand mask from `road_vehicle_t` left its size unchanged in both
 configurations, so the four-bit mask costs no object memory; it is packed with the existing
 `is_checker` bit. `convoihandle_t` holds a `uint16`: the old record used 8 bytes for the
 pointer and 4 bytes for two reservations, 12 bytes padded to 16. Four reservations use 16
 bytes, which still fits that padding, but the added one-byte `stands` count makes the record
 17 bytes, which the 8-byte alignment pads to 24. `haltestelle_t::tile_t` therefore grows by 8
-bytes per halt tile on x64. The rendering-only lateral blends add up to 16 bytes to
-`road_vehicle_t` and up to 12 bytes to `private_car_t`; the size probe has not been rerun,
-so the vehicle figures above predate those fields.
+bytes per halt tile on x64.
 
 ## Tests
 
@@ -184,18 +278,25 @@ so the vehicle figures above predate those fields.
 
 - `single-run`: one convoy crosses a straight road to its destination without a false block or
   stall.
-- `moving-gap`: a fast follower catches a slow leader near the end of the route, where road
-  overtaking is refused. While both fronts are on one tile, the gap in
-  vehicle steps must be at least the standstill gap plus the 1.5 s reaction distance at the
-  follower's speed, converted at the fixture's 125 m per tile, less a small observation
-  tolerance. At 50 km/h the bound is about 45 vehicle steps; the earlier 1000x scaling error
-  produced a gap of a few steps and fails it. While the follower is on the tile immediately
-  behind the leader's tile, the follower's front must not pass the leader's rear boundary
-  expressed in the follower's tile coordinates. The case also requires both convoys to reach
-  the destination.
+- `moving-gap`: a fast follower catches a slow leader near the end of a 14-tile road. The
+  follower starts when the leader is at x = 10, so the remaining route is too short for
+  `convoi_t::can_overtake` and the follower must follow. Once both fronts have been on the
+  same tile for more than 20 observations, the follower's speed must be within 15 km/h of the
+  leader's speed when the gap is near the equilibrium, and a follower at the leader's speed
+  must have settled within twice the equilibrium gap plus eight steps. This catches both the
+  old behaviour, where the desired speed stayed at the follower's top speed, and a queue that
+  waits for room for the top speed instead of closing up. While both are on the same tile and
+  the follower is in the traffic lane, the gap in vehicle steps must be at least the standstill
+  gap plus the 1.5 s reaction distance at the follower's speed, converted at the fixture's
+  125 m per tile, less a small observation tolerance. At 50 km/h the bound is about 45 vehicle
+  steps; the earlier 1000x scaling error produced a gap of a few steps and fails it. The case
+  also requires both convoys to reach the destination. The overlap checks are skipped after
+  either convoy has reversed at the terminal.
 - `overtake`: the fastest and slowest available road vehicle descriptors are selected in one
   pass from the pakset; the fast vehicle starts second and must arrive first, which can only
-  happen if it overtook the slow vehicle without a deadlock or head-on conflict.
+  happen if it overtook the slow vehicle without a deadlock or head-on conflict. While the
+  fast vehicle is still in the traffic lane behind the slow one and has not arrived, it must
+  not overlap it; the check is skipped while either vehicle is on the passing lane.
 - `junction`: two convoys leave separate depots on an east-west trunk and a north branch and
   cross a T junction from different arms; both must reach the trunk-end terminal.
 - `queue`: two convoys leave one depot in the same step and follow one another on a straight
@@ -257,7 +358,11 @@ The reaction distance also has a compile-time test: the two `static_assert`s on
 `road_space::reaction_gap_mm` in `vehicle/road_vehicle.cc`.
 
 There is no scripted case for private car occupancy or the information-window links; see
-[private-cars](private-cars.md).
+[private-cars](private-cars.md). There is also no scripted case that creates and drives a
+private car for the following-speed rule, so the per-step stopped-car evaluation and
+`private_car_t::accelerate` have no runtime assertion. The network smoke test
+(`scripts/run-smoke-tests.sh` with `tests/demo.sve`) exercises city traffic, including the
+per-step private-car route hash, and the standard automated suite passes.
 
 Run all game/binary tests with `-nomidi`. Use `scripts/run-perf-suite.ps1` for a performance
 comparison; the suite needs a Profile build and a recorded baseline and was not run for this
@@ -265,6 +370,16 @@ change.
 
 ## Known limitations
 
+- A private car's acceleration uses the existing per-tile increment `max_speed >> 2`, applied
+  over the number of ticks a tile takes at the car's top speed by `private_car_t::accelerate`.
+  It is not the convoy physics; the safe speed limits the result.
+- A private car stopped at the end of its tile makes one entry attempt when the gap ahead opens.
+  If a sign, a crossing or a vehicle in another lane refuses entry, later attempts wait for the
+  1024-tick gate in `private_car_t::sync_step` rather than one per step.
+- An overtake that ends while the overtaking vehicle is still alongside the overtaken vehicle
+  relies on the existing `other_lane_blocked` check in `road_vehicle_t::enter_tile` to keep it
+  in the passing lane. The harness's overlap assertion skips vehicles on the passing lane, so
+  it does not verify the lateral separation during that phase.
 - The following scan covers a vehicle whose front is on the follower's own tile or on the
   immediately following tile. A vehicle longer than one tile whose front is two or more
   tiles ahead can still have its rear on the follower's tile without being seen. Road

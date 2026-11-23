@@ -26,9 +26,15 @@ protected:
 	sint8 prev_tiles_overtaking;
 	sint8 diff;
 
-	sint32 max_power_speed; // NOT CURRENTLY USED. max achievable speed at current power/weight
+	/**
+	 * Storage for a subclass speed limit. The base class does not use it.
+	 * private_car_t stores the following-speed limit set by the road-space
+	 * rule here; convoi_t uses its own akt_speed_soll instead.
+	 */
+	sint32 following_speed;
+
 public:
-	overtaker_t():tiles_overtaking(0), diff(0), max_power_speed(SPEED_UNLIMITED) {}
+	overtaker_t():tiles_overtaking(0), diff(0), following_speed(SPEED_UNLIMITED) {}
 	virtual ~overtaker_t() {}
 
 	bool is_overtaking() const { return diff < 0; }

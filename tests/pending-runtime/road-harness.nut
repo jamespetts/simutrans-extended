@@ -30,8 +30,8 @@ local REVERSE_EAST_DEPOT = coord3d(12, 2, 0)
 
 // The moving-gap case uses a short road so that the follower meets the leader
 // near the end of its route, where road overtaking is refused.
-local GAP_ROAD_END = coord3d(8, 2, 0)
-local GAP_MID_STOP = coord3d(6, 2, 0)
+local GAP_ROAD_END = coord3d(14, 2, 0)
+local GAP_MID_STOP = coord3d(12, 2, 0)
 
 // The overtake case needs a long straight so that the faster vehicle catches
 // the slower one well before the end of the route.
@@ -88,8 +88,9 @@ local fixture = {
 	following_at_end = false,
 	// moving-gap
 	saw_moving_pair = false,
-	min_gap_seen = 0,
+	min_gap_seen = -1,
 	min_gap_speed = 0,
+	same_tile_observations = 0,
 	// overtake
 	slow_arrival = -1,
 	fast_arrival = -1,
@@ -403,13 +404,17 @@ function length_steps(slot)
 }
 
 
+// convoi_t::REVERSING in simconvoi.h. The overlap check below compares step
+// positions on the assumption that both convoys face the same way; a convoy
+// reversing at a dead end does not.
+local CONVOI_STATE_REVERSING = 17
+
+
 // Asserts that a follower does not overlap the vehicle in front: a vehicle
 // whose front is behind another vehicle's front must stay behind that vehicle's
 // rear, both when the two fronts share a tile and when the follower is on the
-// tile immediately behind the leader's tile. Vehicles overtaking are skipped:
-// their steps pass the other vehicle's front while they are in the other lane,
-// which the snapshot does not expose. All fixture vehicles have the same top
-// speed, so the queue cases do not overtake.
+// tile immediately behind the leader's tile. Vehicles on the passing lane are
+// skipped: their step coordinates describe the other lane.
 function check_no_overlap(leader, follower)
 {
 	if (leader.is_loading() || follower.is_loading() || leader.is_in_depot() || follower.is_in_depot())
@@ -424,9 +429,30 @@ function check_no_overlap(leader, follower)
 	{
 		return true
 	}
+	if (a.reversed || b.reversed)
+	{
+		// A convoy that has reversed at a dead end faces the other way. The
+		// step ordering below assumes that both vehicles face the same way, so
+		// it cannot compare their bodies after a reversal.
+		return true
+	}
+	if (leader.get_state() == CONVOI_STATE_REVERSING || follower.get_state() == CONVOI_STATE_REVERSING
+		|| leader.is_reverse_schedule() || follower.is_reverse_schedule())
+	{
+		// The convoys have reversed at the route end. The former follower is
+		// now the leading vehicle in the return direction, so the step
+		// ordering below no longer describes this pair.
+		return true
+	}
 	if (a.pulled_over && !b.pulled_over)
 	{
 		// The leader is beside the travel lane.
+		return true
+	}
+	if (a.overtaking || b.overtaking)
+	{
+		// The two vehicles are in different lanes. Their step coordinates are
+		// not comparable while either is on the passing lane.
 		return true
 	}
 	// The queue and moving-gap fixtures run east, so a follower one tile west of
@@ -459,7 +485,9 @@ function check_no_overlap(leader, follower)
 	local rear = a.steps - length_steps(a)
 	if (!check(b.steps <= rear,
 		"vehicle of convoy " + follower.id + " at steps " + b.steps
+		+ " (state " + follower.get_state() + ")"
 		+ " overlaps the rear (" + rear + ") of the vehicle of convoy " + leader.id
+		+ " (state " + leader.get_state() + ")"
 		+ " on " + pos_text(a.pos)))
 	{
 		return false
@@ -705,7 +733,7 @@ function observe_moving_gap()
 		// Give the leader a head start, then start the fast follower so that it
 		// catches the leader near the end of the route, where overtaking is
 		// refused.
-		if (a.pos.x >= 4 && leader.get_speed() > 0)
+		if (a.pos.x >= 10 && leader.get_speed() > 0)
 		{
 			fixture.second_started = true
 			if (!check_tool(fixture.depot.start_convoy(player_x(0), follower), "start the fast follower"))
@@ -717,34 +745,92 @@ function observe_moving_gap()
 		}
 		return
 	}
-	if (!check_no_overlap(leader, follower))
+	// The return leg begins once both convoys have reached the terminal. The
+	// overlap and gap assertions describe the eastbound following pair only;
+	// after the reversal the former follower is the leading vehicle.
+	if (same_pos(a.pos, GAP_ROAD_END))
 	{
-		return
+		fixture.leading_at_end = true
 	}
-	if (same_pos(a.pos, b.pos) && !leader.is_in_depot() && !follower.is_in_depot()
-		&& leader.get_speed() > 0 && follower.get_speed() > 0
-		&& b.steps <= a.steps && a.steps > 0)
+	if (same_pos(b.pos, GAP_ROAD_END))
 	{
-		local gap = a.steps - length_steps(a) - b.steps;
-		local kmh = follower.get_speed();
-		if (kmh >= 25)
+		fixture.following_at_end = true
+	}
+	if (!(fixture.leading_at_end && fixture.following_at_end))
+	{
+		if (!check_no_overlap(leader, follower))
 		{
-			local required = moving_gap_steps(kmh);
-			// The leader moves on between its entry check and this observation,
-			// so allow a small tolerance. The earlier 1000x scaling error gave
-			// a gap of a few steps at every speed.
-			if (!check(gap >= required - 8,
-				"moving follower at " + kmh + " km/h kept " + gap + " steps behind the leader's rear on "
-				+ pos_text(a.pos) + ", below the reaction bound of " + required + " steps"))
-			{
-				return
-			}
-			if (!fixture.saw_moving_pair || gap < fixture.min_gap_seen)
-			{
-				fixture.min_gap_seen = gap;
-				fixture.min_gap_speed = kmh;
-			}
+			return
+		}
+		if (same_pos(a.pos, b.pos) && !same_pos(a.pos, GAP_ROAD_END) && !leader.is_in_depot() && !follower.is_in_depot()
+			&& !b.overtaking && leader.get_speed() > 0 && follower.get_speed() > 0
+			&& b.steps <= a.steps && a.steps > 0)
+		{
+			++fixture.same_tile_observations;
+			local gap = a.steps - length_steps(a) - b.steps;
+			local kmh = follower.get_speed();
 			fixture.saw_moving_pair = true;
+			// Give the follower a settling period: the first observation on the
+			// leader's tile can be before the following-speed rule has had a
+			// step to act, or while an overtake attempt is being refused.
+			if (fixture.same_tile_observations > 20)
+			{
+				// The follower may legitimately travel faster than the leader while
+				// the gap is large; the rule is about what happens when it closes.
+				// Check the speed only when the gap is near the equilibrium gap at
+				// the leader's speed, where the follower should have settled.
+				local leader_equilibrium = moving_gap_steps(leader.get_speed());
+				if (gap < leader_equilibrium * 2)
+				{
+					// The follower must slow down to the leader's speed rather than
+					// accelerate up to its own top speed and be stopped by the position
+					// cap at the next tile boundary. The earlier behaviour kept the
+					// follower's calculated speed at 50-80 km/h while it was physically
+					// held behind a 5 km/h leader.
+					if (!check(kmh <= leader.get_speed() + 15,
+						"following vehicle at " + kmh + " km/h behind a " + leader.get_speed()
+						+ " km/h leader with a gap of " + gap + " steps on " + pos_text(a.pos)
+						+ ", more than 15 km/h above the leader's speed"))
+					{
+						return
+					}
+				}
+				if (kmh <= leader.get_speed() + 15)
+				{
+					// A follower travelling at the leader's speed must also have
+					// settled near the equilibrium gap. A much larger gap is the
+					// regression where the follower waits for room for its top speed.
+					if (!check(gap <= leader_equilibrium * 2 + 8,
+						"following vehicle kept " + gap + " steps behind the leader on "
+						+ pos_text(a.pos) + ", more than twice the equilibrium gap of "
+						+ leader_equilibrium + " steps at the leader's speed"))
+					{
+						return
+					}
+				}
+			}
+			if (kmh >= 25)
+			{
+				local required = moving_gap_steps(kmh);
+				// The leader moves on between its entry check and this observation,
+				// so allow a small tolerance. The earlier 1000x scaling error gave
+				// a gap of a few steps at every speed.
+				if (!check(gap >= required - 8,
+					"moving follower at " + kmh + " km/h kept " + gap + " steps behind the leader's rear on "
+					+ pos_text(a.pos) + ", below the reaction bound of " + required + " steps"))
+				{
+					return
+				}
+			}
+			if (fixture.min_gap_seen < 0 || gap < fixture.min_gap_seen)
+			{
+				fixture.min_gap_seen = gap
+				fixture.min_gap_speed = kmh
+			}
+		}
+		else
+		{
+			fixture.same_tile_observations = 0
 		}
 	}
 	if ((fixture.observations % 100) == 0)
@@ -946,6 +1032,17 @@ function observe_overtake()
 				+ "; starting the fast vehicle")
 		}
 		return
+	}
+	if (fixture.fast_arrival < 0 && !b.overtaking && (b.pos.x < a.pos.x || (same_pos(a.pos, b.pos) && b.steps <= a.steps))
+		&& !same_pos(a.pos, LONG_ROAD_END))
+	{
+		// While the fast vehicle is in the traffic lane behind the slow one, it
+		// must not overlap it. While overtaking, the step coordinates describe
+		// the other lane and are not comparable.
+		if (!check_no_overlap(slow_cnv, fast_cnv))
+		{
+			return
+		}
 	}
 	if (fixture.slow_arrival < 0 && same_pos(a.pos, LONG_ROAD_END))
 	{
