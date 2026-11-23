@@ -537,7 +537,10 @@ grund_t::~grund_t()
 		get_halt()->rem_grund(this);
 	}
 
-	if (!welt->is_destroying()) {
+	// world() is NULL when this runs for a static ground object during process
+	// exit, after the karte_t has been destroyed (for example the dummy
+	// grounds in way_builder_t::is_allowed_step).
+	if (world() != NULL && !welt->is_destroying()) {
 		if (objlist.get_road_user_count() > 0) {
 			welt->recompute_road_occupancy(pos.get_2d(), this);
 		}

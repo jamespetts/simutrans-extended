@@ -168,18 +168,21 @@ static obj_t** dl_alloc(uint8 slots)
 }
 
 
-static inline void add_road_dir_bits(uint16 &counts, ribi_t::ribi d)
+// Takes and returns the counts by value: objlist_t is GCC_PACKED, so its
+// uint16 road_dir_counts member cannot be bound to a reference on GCC.
+static inline uint16 add_road_dir_bits(uint16 counts, ribi_t::ribi d)
 {
 	if (d & ribi_t::north) { if ((counts & 0x000Fu) < 0x000Fu) counts += 0x0001u; }
 	if (d & ribi_t::east)  { if ((counts & 0x00F0u) < 0x00F0u) counts += 0x0010u; }
 	if (d & ribi_t::south) { if ((counts & 0x0F00u) < 0x0F00u) counts += 0x0100u; }
 	if (d & ribi_t::west)  { if ((counts & 0xF000u) < 0xF000u) counts += 0x1000u; }
+	return counts;
 }
 
 
 void objlist_t::on_road_user_added_dir(const obj_t *obj)
 {
-	add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(obj)->get_direction());
+	road_dir_counts = add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(obj)->get_direction());
 }
 
 
@@ -195,7 +198,7 @@ void objlist_t::recompute_road_dir_counts()
 		obj_t *const single = get_single_main_thread();
 		if (single && is_road_user_obj(single))
 		{
-			add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(single)->get_direction());
+			road_dir_counts = add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(single)->get_direction());
 		}
 		return;
 	}
@@ -205,7 +208,7 @@ void objlist_t::recompute_road_dir_counts()
 		obj_t *const obj = a[i];
 		if (is_road_user_obj(obj))
 		{
-			add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(obj)->get_direction());
+			road_dir_counts = add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(obj)->get_direction());
 		}
 	}
 }
@@ -218,7 +221,20 @@ void objlist_t::on_road_user_removed_dir(const obj_t *obj)
 		road_dir_counts = 0;
 		return;
 	}
-	const ribi_t::ribi d = static_cast<const vehicle_base_t *>(obj)->get_direction();
+	// obj_t::~obj_t() removes the object from its tile after the derived class
+	// destructors have run (and vehicle_t and private_car_t remove themselves
+	// early only when the world is not being destroyed), so the object may
+	// have been destroyed down to obj_t and its direction is no longer
+	// readable. dynamic_cast reports the dynamic type at this point and
+	// returns NULL for such an object; the object has already been unlinked,
+	// so rebuild the counts from the objects that remain.
+	const vehicle_base_t *const v = dynamic_cast<const vehicle_base_t *>(obj);
+	if (v == NULL)
+	{
+		recompute_road_dir_counts();
+		return;
+	}
+	const ribi_t::ribi d = v->get_direction();
 	bool saturated = false;
 	if (d & ribi_t::north)
 	{
