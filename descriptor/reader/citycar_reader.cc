@@ -98,6 +98,9 @@ obj_desc_t * citycar_reader_t::read_node(FILE *fp, obj_node_info_t &node)
 		dbg->warning( "citycar_reader_t::read_node()", "citycar must have minimum speed => changed to 1.25 km/h!" );
 		desc->topspeed = 16;
 	}
+	// Ticks for one tile at the top speed. Derived here so that the per-step
+	// acceleration does not divide by the top speed.
+	desc->tile_ticks = (1u << YARDS_PER_TILE_SHIFT) / desc->topspeed;
 	DBG_DEBUG("citycar_reader_t::read_node()", "version=%i, speed=%i, chance=%i, intro=%i/%i, retire=%i/%i",
 		version,
 		speed_to_kmh(desc->topspeed),

@@ -154,6 +154,26 @@ private:
 	 */
 	uint8 mutation_version;
 
+	/**
+	 * Count of road vehicles (obj_t::road_vehicle) and private cars
+	 * (obj_t::road_user) currently in this list. Written and read on the main
+	 * thread only; occupies existing alignment padding in grund_t on 64-bit
+	 * builds (0 extra bytes in grund_t on both MSVC and GCC/Clang).
+	 */
+	uint8 road_user_count;
+
+	/**
+	 * Per-cardinal-direction saturated 4-bit counts (0..15) of road users on
+	 * this tile: nibble 0 = north, 1 = east, 2 = south, 3 = west. A turning
+	 * vehicle with two bits set increments both nibbles. Fits in existing
+	 * alignment padding on 64-bit MSVC and GCC/Clang (0 extra bytes in grund_t).
+	 * Main thread only.
+	 */
+	uint16 road_dir_counts;
+
+	void on_road_user_added_dir(const obj_t *obj);
+	void on_road_user_removed_dir(const obj_t *obj);
+
 	// --- seqlock writer protocol (the writer is always the main thread) ---
 	void mutation_begin()
 	{
@@ -342,6 +362,52 @@ public:
 	bool ist_da(const obj_t* obj) const;
 
 	inline uint8 get_top() const {return OLIST_ATOMIC_LOAD(&top);}
+
+	/// Whether @p obj is counted in road_user_count (road vehicles and private cars).
+	static inline bool is_road_user_obj(const obj_t *obj)
+	{
+		const obj_t::typ t = obj->get_typ();
+		return t == obj_t::road_user || t == obj_t::road_vehicle;
+	}
+
+	/// Count of road vehicles and private cars on this list (main thread only).
+	inline uint8 get_road_user_count() const { return road_user_count; }
+
+	/**
+	 * Saturated count (0..15) of road users on this list whose direction shares
+	 * the single cardinal direction @p single_dir (north=1, east=2, south=4,
+	 * west=8). Returns road_user_count if @p single_dir is not a single bit.
+	 * Main thread only.
+	 */
+	inline uint8 get_road_dir_count(ribi_t::ribi single_dir) const
+	{
+		static const uint8 dir_shift[9] = { 0, 0, 4, 0, 8, 0, 0, 0, 12 };
+		if (!ribi_t::is_single(single_dir))
+		{
+			return road_user_count;
+		}
+		return (uint8)((road_dir_counts >> dir_shift[single_dir]) & 0xFu);
+	}
+
+	/// Recomputes road_dir_counts from the current list contents (main thread only).
+	void recompute_road_dir_counts();
+
+	/**
+	 * Direct pointer to element 0 of the backing array, or NULL when the list
+	 * is empty or holds a single inline element. Main thread only (the main
+	 * thread is the sole writer of objlist_t, so it does not need the seqlock
+	 * retry loop of bei()).
+	 */
+	inline obj_t *const *get_array_main_thread() const
+	{
+		return (optr & INLINE_TAG) ? NULL : ((obj_t *const *)optr) + 1;
+	}
+
+	/// The single inline object, or NULL when empty or backed by an array (main thread only).
+	inline obj_t *get_single_main_thread() const
+	{
+		return (optr & INLINE_TAG) ? (obj_t *)(optr & ~(uintptr_t)TAG_MASK) : NULL;
+	}
 
 	/**
 	* sorts the trees according to their offsets

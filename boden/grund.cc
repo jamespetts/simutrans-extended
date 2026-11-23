@@ -458,6 +458,9 @@ void grund_t::rdwr(loadsave_t *file)
 
 	// all objects on this tile
 	objlist.rdwr(file, get_pos());
+	if (file->is_loading() && objlist.get_road_user_count() > 0) {
+		welt->add_road_occupancy(pos.get_2d(), objlist.get_road_user_count());
+	}
 
 	// need to add a crossing for old games ...
 	if (file->is_loading()  &&  ist_uebergang()  &&  !find<crossing_t>(2)) {
@@ -533,6 +536,32 @@ grund_t::~grund_t()
 	if(flags&is_halt_flag && !welt->is_destroying()) {
 		get_halt()->rem_grund(this);
 	}
+
+	if (!welt->is_destroying()) {
+		if (objlist.get_road_user_count() > 0) {
+			welt->recompute_road_occupancy(pos.get_2d(), this);
+		}
+		// Invalidate any cached next_gr pointer that might refer to this ground.
+		welt->bump_road_way_generation();
+	}
+}
+
+
+void grund_t::on_road_user_added()
+{
+	welt->inc_road_occupancy(pos.get_2d());
+}
+
+
+void grund_t::on_road_user_removed()
+{
+	welt->dec_road_occupancy(pos.get_2d());
+}
+
+
+void grund_t::on_road_users_cleared()
+{
+	welt->recompute_road_occupancy(pos.get_2d());
 }
 
 
@@ -573,6 +602,9 @@ void grund_t::rotate90()
 	// if more than one tree on a tile .. resort since offsets changed
 	if(trees > 1) {
 		objlist.sort_trees(offset-trees+1u, trees);
+	}
+	if (objlist.get_road_user_count() > 0) {
+		objlist.recompute_road_dir_counts();
 	}
 }
 
@@ -615,13 +647,25 @@ void grund_t::enlarge_map( sint16, sint16 /*new_size_y*/ )
 }
 
 
+void grund_t::transfer_objs_from(grund_t *other_gr)
+{
+	while (other_gr->get_top() > 0) {
+		obj_t *const obj = other_gr->obj_remove_top();
+		if (obj) {
+			obj_add(obj);
+			if (vehicle_base_t *const v = obj_cast<vehicle_base_t>(obj)) {
+				v->update_cached_grund(this);
+			}
+		}
+	}
+}
+
+
 // moves all objects from the old to the new grund_t
 void grund_t::take_obj_from(grund_t* other_gr)
 {
 	// transfer all things
-	while( other_gr->get_top() ) {
-		objlist.add( other_gr->obj_remove_top() );
-	}
+	transfer_objs_from(other_gr);
 	// transfer the way flags
 	if(other_gr->get_flag(has_way1)) {
 		flags |= has_way1;
@@ -2179,6 +2223,18 @@ sint32 grund_t::weg_entfernen(waytype_t wegtyp, bool ribi_rem)
 					}
 				}
 			}
+		}
+
+		// Clear cached way pointers on any vehicle currently on this tile
+		// before deleting the way, so no vehicle retains a dangling weg pointer.
+		const uint8 top = get_top();
+		for (uint8 i = get_way_count(); i < top; i++) {
+			if (vehicle_base_t *const v = obj_cast<vehicle_base_t>(obj_bei(i))) {
+				v->clear_cached_weg(weg);
+			}
+		}
+		if (wegtyp == road_wt) {
+			welt->bump_road_way_generation();
 		}
 
 		sint32 costs = (weg->get_desc()->get_value() / 2); // Costs for removal are half construction costs.

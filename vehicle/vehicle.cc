@@ -155,6 +155,7 @@ vehicle_base_t::vehicle_base_t():
 #endif
 	, gr(NULL)
 	, weg(NULL)
+	, next_gr(NULL)
 	, direction(ribi_t::none)
 	, use_calc_height(true)
 	, drives_on_left(false)
@@ -163,12 +164,14 @@ vehicle_base_t::vehicle_base_t():
 	, dy(0)
 	, steps(0)
 	, steps_next(VEHICLE_STEPS_PER_TILE -1)
+	, next_lane(0)
 	, pos_next(koord3d::invalid)
 	, zoff_start(0)
 	, zoff_end(0)
+	, road_way_cache_flags(0)
 	, image(IMG_EMPTY)
-	, next_lane(0)
-	, class_reassignments(NULL)
+	, way_cache_gen(0)
+	, cached_way_speed_internal(0)
 {
 	set_flag( obj_t::is_vehicle );
 }
@@ -183,6 +186,7 @@ vehicle_base_t::vehicle_base_t(koord3d pos):
 #endif
 	, gr(NULL)
 	, weg(NULL)
+	, next_gr(NULL)
 	, direction(ribi_t::none)
 	, use_calc_height(true)
 	, drives_on_left(false)
@@ -191,12 +195,14 @@ vehicle_base_t::vehicle_base_t(koord3d pos):
 	, dy(0)
 	, steps(0)
 	, steps_next(VEHICLE_STEPS_PER_TILE -1)
+	, next_lane(0)
 	, pos_next(pos)
 	, zoff_start(0)
 	, zoff_end(0)
+	, road_way_cache_flags(0)
 	, image(IMG_EMPTY)
-	, next_lane(0)
-	, class_reassignments(NULL)
+	, way_cache_gen(0)
+	, cached_way_speed_internal(0)
 {
 	set_flag( obj_t::is_vehicle );
 }
@@ -212,6 +218,8 @@ void vehicle_base_t::rotate90()
 	sint8 new_dx = -dy*2;
 	dy = dx/2;
 	dx = new_dx;
+	next_gr = NULL;
+	way_cache_gen = 0;
 }
 
 
@@ -251,6 +259,8 @@ void vehicle_base_t::leave_tile()
 				dbg->warning("vehicle_base_t::leave_tile()","removed vehicle typ %i (%p) from %d %d",get_typ(), this, get_pos().x, get_pos().y);
 			}
 			gr = NULL;
+			next_gr = NULL;
+			way_cache_gen = 0;
 			return;
 		}
 
@@ -272,6 +282,65 @@ void vehicle_base_t::leave_tile()
 		}
 	}
 	gr = NULL;
+	next_gr = NULL;
+	way_cache_gen = 0;
+}
+
+
+void vehicle_base_t::populate_road_way_cache(const weg_t *w) const
+{
+	if (w != NULL)
+	{
+		uint8 flags_val = 2u; // has road way
+		const strasse_t *const str = static_cast<const strasse_t *>(w);
+		if (!str->is_crossing() && !str->is_diagonal())
+		{
+			const ribi_t::ribi ribi = str->get_ribi_unmasked();
+			if (ribi_t::is_straight(ribi) || ribi_t::is_threeway(ribi))
+			{
+				flags_val |= 1u; // allows queueing
+			}
+		}
+		road_way_cache_flags = flags_val;
+		const sint32 spd = kmh_to_speed(w->get_max_speed());
+		cached_way_speed_internal = (uint16)(spd > 65535 ? 65535 : (spd < 0 ? 0 : spd));
+	}
+	else
+	{
+		road_way_cache_flags = 0;
+		cached_way_speed_internal = 0;
+	}
+	next_gr = NULL;
+	way_cache_gen = welt->get_road_way_generation();
+}
+
+
+void vehicle_base_t::refresh_road_way_cache() const
+{
+	const grund_t *const cur_gr = get_grund();
+	weg_t *const w = cur_gr != NULL ? cur_gr->get_weg(road_wt) : NULL;
+	weg = w;
+	populate_road_way_cache(w);
+}
+
+
+void vehicle_base_t::init_tile_cache(grund_t *tile)
+{
+	this->gr = tile;
+	next_gr = NULL;
+	if (tile != NULL)
+	{
+		weg = tile->get_weg(get_waytype());
+		if (get_waytype() == road_wt)
+		{
+			populate_road_way_cache(weg);
+		}
+	}
+	else
+	{
+		weg = NULL;
+		way_cache_gen = 0;
+	}
 }
 
 
@@ -286,7 +355,17 @@ void vehicle_base_t::enter_tile(grund_t* gr)
 	{
 		dbg->error("vehicle_base_t::enter_tile()","'%s failed to be added to the object list", get_name());
 	}
-	weg = gr->get_weg(get_waytype());
+	// Cache the tile as well as the way: get_grund() is called on every
+	// movement step, and looking the tile up again from the position costs a
+	// map access. leave_tile() clears the cache before the vehicle is moved.
+	this->gr = gr;
+	next_gr = NULL;
+	const waytype_t wt = get_waytype();
+	weg = gr->get_weg(wt);
+	if (wt == road_wt)
+	{
+		populate_road_way_cache(weg);
+	}
 }
 
 
@@ -1420,6 +1499,8 @@ void vehicle_t::initialise_journey(uint16 start_route_index, bool recalc)
 			check_for_finish = true;
 		}
 		set_pos(r.at(start_route_index));
+		// Clear tile/way caches defensively: position changed without enter_tile().
+		init_tile_cache(NULL);
 
 		// recalc directions
 		previous_direction = direction;
@@ -3527,6 +3608,18 @@ vehicle_t::~vehicle_t()
 {
 	if(!welt->is_destroying())
 	{
+		if (!get_flag(not_on_map))
+		{
+			// Remove from the tile while vehicle_base_t is still alive so that
+			// objlist_t::remove() reads direction before ~vehicle_base_t() runs.
+			if (grund_t *const cur_gr = welt->lookup(get_pos()))
+			{
+				if (cur_gr->obj_remove(this))
+				{
+					set_flag(not_on_map);
+				}
+			}
+		}
 		// remove vehicle's marker from the minimap
 		minimap_t::get_instance()->calc_map_pixel(get_pos().get_2d());
 	}

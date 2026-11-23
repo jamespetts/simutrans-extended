@@ -13,6 +13,15 @@
 #include <math.h>
 #include <sys/stat.h>
 
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
+#include <xmmintrin.h>
+#define SIM_PREFETCH_T0(addr) _mm_prefetch(reinterpret_cast<const char *>(addr), _MM_HINT_T0)
+#elif defined(__GNUC__) || defined(__clang__)
+#define SIM_PREFETCH_T0(addr) __builtin_prefetch((addr), 0, 3)
+#else
+#define SIM_PREFETCH_T0(addr) ((void)(addr))
+#endif
+
 #include "path_explorer.h"
 
 #include "dataobj/route.h"
@@ -598,6 +607,11 @@ void karte_t::destroy()
 
 	ls.set_progress( old_progress );
 
+	// Clear road_occupancy before destroying plan so ~grund_t skips updates.
+	delete [] road_occupancy;
+	road_occupancy = NULL;
+	road_occ_blocks_x = 0;
+
 	// dinge aufraeumen
 	cached_grid_size.x = cached_grid_size.y = 1;
 	cached_size.x = cached_size.y = 0;
@@ -791,6 +805,8 @@ void karte_t::init_tiles()
 	MEMZERON(grid_hgts, (x + 1) * (y + 1));
 	water_hgts = new sint8[x * y];
 	MEMZERON(water_hgts, x * y);
+	alloc_road_occupancy((sint16)x, (sint16)y);
+	road_way_generation.store(1, std::memory_order_relaxed);
 
 	win_set_world( this );
 	minimap_t::get_instance()->init();
@@ -3040,6 +3056,7 @@ void karte_t::enlarge_map(settings_t const* sets, sint8 const* const h_field)
 	grid_hgts = new_grid_hgts;
 	delete [] water_hgts;
 	water_hgts = new_water_hgts;
+	rebuild_road_occupancy();
 
 	if (old_x == 0) {
 		// init max and min with defaults
@@ -3404,6 +3421,9 @@ karte_t::karte_t() :
 
 	grid_hgts = 0;
 	water_hgts = 0;
+	road_occupancy = NULL;
+	road_occ_blocks_x = 0;
+	road_way_generation.store(1, std::memory_order_relaxed);
 	schedule_counter = 0;
 	nosave_warning = nosave = false;
 
@@ -4205,6 +4225,9 @@ DBG_MESSAGE( "karte_t::rotate90()", "called" );
 	cached_grid_size.x = cached_grid_size.y;
 	cached_grid_size.y = wx;
 
+	rebuild_road_occupancy();
+	bump_road_way_generation();
+
 	//fixed order factory, halts, convois
 	for(auto const f : fab_list)
 	{
@@ -4549,12 +4572,161 @@ void karte_t::sync_list_t::clear()
 	sync_step_running = false;
 }
 
+void karte_t::alloc_road_occupancy(sint16 x, sint16 y)
+{
+	delete [] road_occupancy;
+	road_occupancy = NULL;
+	road_occ_blocks_x = 0;
+	if (x <= 0 || y <= 0)
+	{
+		return;
+	}
+	road_occ_blocks_x = ((uint32)x + 15u) >> 4;
+	const uint32 blocks_y = ((uint32)y + 15u) >> 4;
+	const size_t total_bytes = (size_t)road_occ_blocks_x * (size_t)blocks_y * 64u;
+	road_occupancy = new uint8[total_bytes];
+	MEMZERON(road_occupancy, total_bytes);
+}
+
+
+void karte_t::add_road_occupancy(koord k, uint8 count)
+{
+	if (count == 0
+		|| road_occupancy == NULL
+		|| (uint32)k.x >= (uint32)cached_grid_size.x
+		|| (uint32)k.y >= (uint32)cached_grid_size.y)
+	{
+		return;
+	}
+	const uint32 bx = (uint32)k.x >> 4;
+	const uint32 by = (uint32)k.y >> 4;
+	const uint32 lx = (uint32)k.x & 15u;
+	const uint32 ly = (uint32)k.y & 15u;
+	const size_t byte_idx = (((size_t)by * road_occ_blocks_x + bx) << 6) | (ly << 2) | (lx >> 2);
+	const uint32 shift = (lx & 3u) << 1;
+	const uint8 cur = (road_occupancy[byte_idx] >> shift) & 3u;
+	const uint8 next = (uint8)min(3u, (uint32)cur + (uint32)count);
+	road_occupancy[byte_idx] = (uint8)((road_occupancy[byte_idx] & ~(3u << shift)) | (next << shift));
+}
+
+
+void karte_t::dec_road_occupancy(koord k)
+{
+	if (road_occupancy == NULL
+		|| (uint32)k.x >= (uint32)cached_grid_size.x
+		|| (uint32)k.y >= (uint32)cached_grid_size.y)
+	{
+		return;
+	}
+	const uint32 bx = (uint32)k.x >> 4;
+	const uint32 by = (uint32)k.y >> 4;
+	const uint32 lx = (uint32)k.x & 15u;
+	const uint32 ly = (uint32)k.y & 15u;
+	const size_t byte_idx = (((size_t)by * road_occ_blocks_x + bx) << 6) | (ly << 2) | (lx >> 2);
+	const uint32 shift = (lx & 3u) << 1;
+	const uint8 cur = (road_occupancy[byte_idx] >> shift) & 3u;
+	if (cur == 0u)
+	{
+		return;
+	}
+	if (cur < 3u)
+	{
+		road_occupancy[byte_idx] = (uint8)((road_occupancy[byte_idx] & ~(3u << shift)) | ((cur - 1u) << shift));
+		return;
+	}
+	recompute_road_occupancy(k);
+}
+
+
+void karte_t::recompute_road_occupancy(koord k, const grund_t *exclude_gr)
+{
+	if (road_occupancy == NULL
+		|| plan == NULL
+		|| (uint32)k.x >= (uint32)cached_grid_size.x
+		|| (uint32)k.y >= (uint32)cached_grid_size.y)
+	{
+		return;
+	}
+	const planquadrat_t *const pl = access_nocheck(k);
+	uint32 sum = 0;
+	const uint8 gcount = pl->get_boden_count();
+	for (uint8 i = 0; i < gcount; i++)
+	{
+		const grund_t *const gr = pl->get_boden_bei(i);
+		if (gr != NULL && gr != exclude_gr)
+		{
+			sum += gr->get_road_user_count();
+			if (sum >= 3u)
+			{
+				sum = 3u;
+				break;
+			}
+		}
+	}
+	const uint32 bx = (uint32)k.x >> 4;
+	const uint32 by = (uint32)k.y >> 4;
+	const uint32 lx = (uint32)k.x & 15u;
+	const uint32 ly = (uint32)k.y & 15u;
+	const size_t byte_idx = (((size_t)by * road_occ_blocks_x + bx) << 6) | (ly << 2) | (lx >> 2);
+	const uint32 shift = (lx & 3u) << 1;
+	road_occupancy[byte_idx] = (uint8)((road_occupancy[byte_idx] & ~(3u << shift)) | (sum << shift));
+}
+
+
+void karte_t::rebuild_road_occupancy()
+{
+	alloc_road_occupancy(cached_grid_size.x, cached_grid_size.y);
+	if (road_occupancy == NULL || plan == NULL)
+	{
+		return;
+	}
+	for (sint16 y = 0; y < cached_grid_size.y; y++)
+	{
+		for (sint16 x = 0; x < cached_grid_size.x; x++)
+		{
+			const planquadrat_t *const pl = access_nocheck(x, y);
+			const uint8 gcount = pl->get_boden_count();
+			uint32 sum = 0;
+			for (uint8 i = 0; i < gcount; i++)
+			{
+				const grund_t *const gr = pl->get_boden_bei(i);
+				if (gr != NULL)
+				{
+					sum += gr->get_road_user_count();
+					if (sum >= 3u)
+					{
+						sum = 3u;
+						break;
+					}
+				}
+			}
+			if (sum > 0u)
+			{
+				add_road_occupancy(koord(x, y), (uint8)sum);
+			}
+		}
+	}
+}
+
+
 void karte_t::sync_list_t::sync_step(uint32 delta_t)
 {
 	sync_step_running = true;
 	currently_deleting = NULL;
 
 	for(uint32 i=0; i<list.get_count();i++) {
+		if (i + 8 < list.get_count()) {
+			// Prefetch the sync_steppable object 8 iterations ahead to hide
+			// DRAM latency across the pointer-chased sync list. For
+			// private_car_t (192 bytes), sync_steppable sits at offset +80
+			// after vehicle_base_t, so three lines cover all hot fields:
+			// [0..63] (vehicle_base_t), [64..127] (sync_steppable/road_user_t/
+			// overtaker_t), and [128..191] (traffic_vehicle_t/private_car_t).
+			const char *pf = reinterpret_cast<const char *>(list[i + 8]);
+			SIM_PREFETCH_T0(pf - 80);
+			SIM_PREFETCH_T0(pf - 16);
+			SIM_PREFETCH_T0(pf + 48);
+		}
 		sync_steppable *ss = list[i];
 		switch(ss->sync_step(delta_t)) {
 			case SYNC_OK:

@@ -558,6 +558,15 @@ void weg_t::init()
 }
 
 
+void weg_t::notify_road_way_changed() const
+{
+	if (world() != NULL)
+	{
+		world()->bump_road_way_generation();
+	}
+}
+
+
 weg_t::~weg_t()
 {
 	if (!welt->is_destroying())
@@ -565,6 +574,10 @@ weg_t::~weg_t()
 #ifdef MULTI_THREAD
 		welt->await_private_car_threads();
 #endif
+		if (wtyp == road_wt)
+		{
+			notify_road_way_changed();
+		}
 		// This is possibly unnecessary and may lead to crashes
 		//delete_all_routes_from_here();
 
@@ -986,6 +999,8 @@ void weg_t::rotate90()
  */
 void weg_t::count_sign()
 {
+	const uint8 old_crossing = flags & HAS_CROSSING;
+	const uint16 old_max_speed = max_speed;
 	// Either only sign or signal please ...
 	flags &= ~(HAS_SIGN|HAS_SIGNAL|HAS_CROSSING);
 	const grund_t *gr=welt->lookup(get_pos());
@@ -1000,6 +1015,9 @@ void weg_t::count_sign()
 			if(  top_speed < max_speed  ) {
 				max_speed = top_speed;
 			}
+		}
+		if (wtyp == road_wt && ((flags & HAS_CROSSING) != old_crossing || max_speed != old_max_speed)) {
+			notify_road_way_changed();
 		}
 		// since way 0 is at least present here ...
 		for( ;  i<gr->get_top();  i++  ) {
@@ -1020,6 +1038,9 @@ void weg_t::count_sign()
 				}
 			}
 		}
+	}
+	else if (wtyp == road_wt && old_crossing != 0) {
+		notify_road_way_changed();
 	}
 }
 
@@ -1255,12 +1276,16 @@ void weg_t::calc_image()
 // checks, if this way qualifies as diagonal
 void weg_t::check_diagonal()
 {
+	const uint8 old_diag = flags & IS_DIAGONAL;
 	bool diagonal = false;
 	flags &= ~IS_DIAGONAL;
 
 	const ribi_t::ribi ribi = get_ribi_unmasked();
 	if(  !ribi_t::is_bend(ribi)  ) {
 		// This is not a curve, it can't be a diagonal
+		if (wtyp == road_wt && old_diag != 0) {
+			notify_road_way_changed();
+		}
 		return;
 	}
 
@@ -1269,6 +1294,9 @@ void weg_t::check_diagonal()
 
 	if(from->get_typ()==grund_t::pierdeck){
 		flags |= IS_DIAGONAL;
+		if (wtyp == road_wt && old_diag == 0) {
+			notify_road_way_changed();
+		}
 		return;
 	}
 
@@ -1290,6 +1318,9 @@ void weg_t::check_diagonal()
 
 	if(  diagonal  ) {
 		flags |= IS_DIAGONAL;
+	}
+	if (wtyp == road_wt && (flags & IS_DIAGONAL) != old_diag) {
+		notify_road_way_changed();
 	}
 }
 
@@ -1622,6 +1653,9 @@ void weg_t::degrade()
 				// Only do this once, or else this will carry on reducing for ever.
 				max_speed /= 2;
 				degraded = true;
+				if (wtyp == road_wt) {
+					notify_road_way_changed();
+				}
 			}
 		}
 		else
@@ -1629,6 +1663,9 @@ void weg_t::degrade()
 			// Totally worn out: impassable.
 			max_speed = 0;
 			degraded = true;
+			if (wtyp == road_wt) {
+				notify_road_way_changed();
+			}
 			const way_desc_t* mothballed_type = way_builder_t::way_search_mothballed(get_waytype(), (systemtype_t)desc->get_styp());
 			if(mothballed_type)
 			{

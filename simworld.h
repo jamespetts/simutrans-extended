@@ -572,6 +572,24 @@ private:
 	 * @see cached_grid_size
 	 */
 	sint8 *water_hgts;
+
+	/**
+	 * Transient 2-bit-per-tile count (0, 1, 2, or 3 = 3+) of road vehicles and
+	 * private cars across all ground heights at each (x, y) tile, arranged in
+	 * 16x16 tile blocks (64 bytes = one cache line per block) so neighbouring
+	 * tiles usually share a cache line. Derived from each grund_t's objlist_t;
+	 * not saved and not synced. Main thread only.
+	 */
+	uint8 *road_occupancy;
+	uint32 road_occ_blocks_x;
+
+	/**
+	 * Incremented whenever any road way changes its speed limit, ribi,
+	 * crossing/diagonal flags, or is removed. Road vehicles compare this
+	 * against their cached per-tile way generation before using cached
+	 * allows_queueing and way max_speed values. Never zero while live.
+	 */
+	std::atomic<uint32> road_way_generation;
 	/** @} */
 
 	/**
@@ -2541,6 +2559,77 @@ public:
 	}
 
 	inline sint8 get_water_hgt(koord k) const { return get_water_hgt(k.x, k.y); }
+
+	/**
+	 * Returns the 2-bit saturated count (0, 1, 2, or 3 for 3+) of road vehicles
+	 * and private cars across all ground heights at (x, y). Returns 3 when
+	 * uninitialised or out of bounds so callers fall back to scanning.
+	 * Main thread only.
+	 */
+#if defined(_MSC_VER)
+	__forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+	inline __attribute__((always_inline))
+#else
+	inline
+#endif
+	uint8 get_road_occupancy(koord k) const
+	{
+		if (road_occupancy == NULL
+			|| (uint32)k.x >= (uint32)cached_grid_size.x
+			|| (uint32)k.y >= (uint32)cached_grid_size.y)
+		{
+			return 3;
+		}
+		const uint32 bx = (uint32)k.x >> 4;
+		const uint32 by = (uint32)k.y >> 4;
+		const uint32 lx = (uint32)k.x & 15u;
+		const uint32 ly = (uint32)k.y & 15u;
+		const size_t byte_idx = (((size_t)by * road_occ_blocks_x + bx) << 6) | (ly << 2) | (lx >> 2);
+		const uint32 shift = (lx & 3u) << 1;
+		return (road_occupancy[byte_idx] >> shift) & 3u;
+	}
+
+	inline void inc_road_occupancy(koord k)
+	{
+		if (road_occupancy == NULL
+			|| (uint32)k.x >= (uint32)cached_grid_size.x
+			|| (uint32)k.y >= (uint32)cached_grid_size.y)
+		{
+			return;
+		}
+		const uint32 bx = (uint32)k.x >> 4;
+		const uint32 by = (uint32)k.y >> 4;
+		const uint32 lx = (uint32)k.x & 15u;
+		const uint32 ly = (uint32)k.y & 15u;
+		const size_t byte_idx = (((size_t)by * road_occ_blocks_x + bx) << 6) | (ly << 2) | (lx >> 2);
+		const uint32 shift = (lx & 3u) << 1;
+		const uint8 cur = (road_occupancy[byte_idx] >> shift) & 3u;
+		if (cur < 3u)
+		{
+			road_occupancy[byte_idx] = (uint8)((road_occupancy[byte_idx] & ~(3u << shift)) | ((cur + 1u) << shift));
+		}
+	}
+
+	void add_road_occupancy(koord k, uint8 count);
+	void dec_road_occupancy(koord k);
+	void recompute_road_occupancy(koord k, const grund_t *exclude_gr = NULL);
+	void alloc_road_occupancy(sint16 x, sint16 y);
+	void rebuild_road_occupancy();
+
+	inline uint32 get_road_way_generation() const
+	{
+		return road_way_generation.load(std::memory_order_relaxed);
+	}
+
+	inline void bump_road_way_generation()
+	{
+		const uint32 next = road_way_generation.fetch_add(1, std::memory_order_relaxed) + 1;
+		if (next == 0)
+		{
+			road_way_generation.store(1, std::memory_order_relaxed);
+		}
+	}
 
 
 	bool is_near_land(sint16 x, sint16 y, uint16 distance);

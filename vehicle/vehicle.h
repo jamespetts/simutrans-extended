@@ -69,7 +69,11 @@ class vehicle_base_t : public obj_t
 {
 	// BG, 15.02.2014: gr and weg are cached in enter_tile() and reset to NULL in leave_tile().
 	grund_t* gr;
-	weg_t* weg;
+	mutable weg_t* weg;
+	// Transient pointer to the ground at pos_next, validated by way_cache_gen
+	// against welt->get_road_way_generation() (which bumps whenever any ground
+	// is destroyed) and by next_gr->get_pos() == pos_next. Main thread only.
+	mutable grund_t* next_gr;
 public:
 	inline grund_t* get_grund() const
 	{
@@ -92,7 +96,81 @@ public:
 		}
 		return weg;
 	}
+
+	/// Updates the cached ground pointer when a tile ground is replaced at the same position.
+	inline void update_cached_grund(grund_t *new_gr)
+	{
+		gr = new_gr;
+		next_gr = NULL;
+		way_cache_gen = 0;
+	}
+
+	/// Clears the cached way pointer before that way is deleted.
+	inline void clear_cached_weg(const weg_t *removed)
+	{
+		if (weg == removed)
+		{
+			weg = NULL;
+		}
+		next_gr = NULL;
+		way_cache_gen = 0;
+	}
+
+	/// Populates gr, weg and road-way cache fields for a vehicle already on @p tile (e.g. finish_rd).
+	void init_tile_cache(grund_t *tile);
+
+	/// Returns the cached next_gr pointer without dereferencing it, or NULL if
+	/// the generation has changed (safe for software prefetching). Main thread only.
+	inline const grund_t *peek_cached_next_grund(uint32 gen) const
+	{
+		return way_cache_gen == gen ? next_gr : NULL;
+	}
+
+	/// Returns the ground at @p next_pos, using next_gr when still valid and
+	/// caching the lookup result otherwise. Main thread only.
+	inline const grund_t *get_cached_next_grund(const koord3d &next_pos, uint32 gen) const
+	{
+		if (way_cache_gen == gen && next_gr != NULL && next_gr->get_pos() == next_pos)
+		{
+			return next_gr;
+		}
+		grund_t *const found = welt->lookup(next_pos);
+		if (way_cache_gen == gen)
+		{
+			next_gr = found;
+		}
+		else
+		{
+			next_gr = NULL;
+		}
+		return found;
+	}
+
+	/// Cached road_space::allows_queueing() for this vehicle's current road tile (main thread only).
+	inline bool get_cached_allows_queueing() const
+	{
+		if (way_cache_gen != welt->get_road_way_generation())
+		{
+			refresh_road_way_cache();
+		}
+		return (road_way_cache_flags & 1u) != 0;
+	}
+
+	/// Cached internal speed limit (kmh_to_speed(weg->get_max_speed()), clamped to uint16)
+	/// for this vehicle's current road tile (main thread only).
+	inline uint16 get_cached_way_speed_internal(bool &has_way) const
+	{
+		if (way_cache_gen != welt->get_road_way_generation())
+		{
+			refresh_road_way_cache();
+		}
+		has_way = (road_way_cache_flags & 2u) != 0;
+		return cached_way_speed_internal;
+	}
+
 protected:
+	void populate_road_way_cache(const weg_t *w) const;
+	void refresh_road_way_cache() const;
 	// offsets for different directions
 	static sint8 dxdy[16];
 
@@ -141,6 +219,14 @@ protected:
 	uint8 steps, steps_next;
 
 	/**
+	 * this vehicle will enter passing lane in the next tile -> 1
+	 * this vehicle will enter traffic lane in the next tile -> -1
+	 * Unclear -> 0
+	 * @author THLeaderH
+	 */
+	sint8 next_lane;
+
+	/**
 	 * Next position on our path
 	 */
 	koord3d pos_next;
@@ -152,20 +238,27 @@ protected:
 	 */
 	uint8 zoff_start:4, zoff_end:4;
 
+	/**
+	 * Transient cache of the current tile's road properties (main thread only;
+	 * bit 0 = allows_queueing, bit 1 = has road way). Kept in its own byte,
+	 * separate from drives_on_left so convoy worker threads never race on it.
+	 */
+	mutable uint8 road_way_cache_flags;
+
 	// cached image
 	image_id image;
 
-	// The current livery of this vehicle.
-	// @author: jamespetts, April 2011
-	std::string current_livery;
+	/**
+	 * Generation of karte_t::road_way_generation at which road_way_cache_flags,
+	 * cached_way_speed_internal and next_gr were validated; 0 means uncached.
+	 * Main thread only; not saved and not synced.
+	 */
+	mutable uint32 way_cache_gen;
 
 	/**
-	 * this vehicle will enter passing lane in the next tile -> 1
-	 * this vehicle will enter traffic lane in the next tile -> -1
-	 * Unclear -> 0
-	 * @author THLeaderH
+	 * Cached internal speed limit of the current road tile (main thread only).
 	 */
-	sint8 next_lane;
+	mutable uint16 cached_way_speed_internal;
 
 	/**
 	 * Vehicle movement: check whether this vehicle can enter the next tile (pos_next).
@@ -193,10 +286,6 @@ protected:
 
 	// only needed for old way of moving vehicles to determine position at loading time
 	bool is_about_to_hop( const sint8 neu_xoff, const sint8 neu_yoff ) const;
-
-	// Players are able to reassign classes of accommodation in vehicles manually
-	// during the game. Track these reassignments here with this array.
-	uint8 *class_reassignments;
 
 public:
 	// only called during load time: set some offsets
@@ -259,8 +348,6 @@ public:
 	koord3d get_pos_next() const {return pos_next;}
 
 	waytype_t get_waytype() const OVERRIDE = 0;
-
-	void set_class_reassignment(uint8 original_class, uint8 new_class);
 
 	// true, if this vehicle did not moved for some time
 	virtual bool is_stuck() { return true; }
@@ -445,6 +532,14 @@ protected:
 	bool collection_credit_pending = false;
 	sint64 collection_loose_since = 0;
 	sint64 collection_time = 0;
+
+	// The current livery of this vehicle (convoy vehicles only; moved from
+	// vehicle_base_t so private cars and pedestrians do not pay 32 bytes for it).
+	std::string current_livery;
+
+	// Players are able to reassign classes of accommodation in vehicles manually
+	// during the game. Track these reassignments here with this array.
+	uint8 *class_reassignments;
 
 	void calc_image() OVERRIDE;
 

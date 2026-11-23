@@ -327,7 +327,12 @@ void road_user_t::rdwr(loadsave_t *file)
 
 void road_user_t::finish_rd()
 {
-	calc_height(NULL);
+	grund_t *gr = welt->lookup(get_pos());
+	if (gr != NULL)
+	{
+		init_tile_cache(gr);
+	}
+	calc_height(gr);
 	calc_image();
 }
 
@@ -550,6 +555,12 @@ private_car_t::~private_car_t()
 	if (gr)
 	{
 		gr->mark_image_dirty();
+		// Remove from the tile while vehicle_base_t is still alive so that
+		// objlist_t::remove() reads direction before ~vehicle_base_t() runs.
+		if (!welt->is_destroying() && !get_flag(not_on_map) && gr->obj_remove(this))
+		{
+			set_flag(not_on_map);
+		}
 	}
 
 	// just to be sure we are removed from this list!
@@ -695,7 +706,7 @@ sync_result private_car_t::sync_step(uint32 delta_t)
 			weg_next += current_speed * delta_t;
 		}
 		const uint32 requested = weg_next;
-		const uint32 distance = do_drive( requested );
+		const uint32 distance = private_car_t::do_drive( requested );
 		add_distance(distance);
 		// hop_check could have set weg_next to zero, check for possible underflow here
 		if (weg_next > distance) {
@@ -807,14 +818,6 @@ void private_car_t::rdwr(loadsave_t *file)
 }
 
 
-uint32 private_car_t::get_length_in_steps() const
-{
-	return desc != NULL
-		? (uint32)desc->get_length() * VEHICLE_STEPS_PER_CARUNIT
-		: (uint32)citycar_desc_t::DEFAULT_LENGTH * VEHICLE_STEPS_PER_CARUNIT;
-}
-
-
 bool private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const
 {
 	road_space::user_t self;
@@ -850,6 +853,15 @@ bool private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) 
 
 bool private_car_t::try_resume_behind_leader()
 {
+	// A car stopped at the end of its tile with following_speed > 0 has either
+	// already had its single immediate retry or was stopped by hop_check() for
+	// another reason (traffic light, crossing, full junction exit, bend). It
+	// must wait for the 1024-tick retry gate in sync_step() rather than
+	// scanning its current and next tile on every sync step.
+	if (steps >= steps_next && following_speed > 0)
+	{
+		return false;
+	}
 	road_space::user_t self;
 	self.object = this;
 	self.convoi = NULL;
@@ -904,17 +916,20 @@ uint32 private_car_t::do_drive(uint32 distance)
 	road_space::leader_t leader;
 	bool leader_updated = false;
 	uint32 last_travelled = 0;
+	// The fields that do not change while the car stays on one tile are set
+	// once; the direction and speed fields are refreshed on every iteration
+	// because a hop changes them.
+	road_space::user_t self;
+	self.object = this;
+	self.convoi = NULL;
+	self.length = get_length_in_steps();
+	self.pulled_over = false;
 	while (distance > 0)
 	{
-		road_space::user_t self;
-		self.object = this;
-		self.convoi = NULL;
 		self.exit_direction = get_90direction();
 		self.entry_direction = road_space::entry_direction(get_direction(), self.exit_direction);
 		self.speed = current_speed;
-		self.length = get_length_in_steps();
 		self.overtaking = is_overtaking();
-		self.pulled_over = false;
 		const koord3d pos_before = get_pos();
 		last_travelled = road_space::drive_until_limit(this, self, steps, steps_next, distance, &leader);
 		leader_updated = true;
@@ -1031,8 +1046,8 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 	vehicle_base_t *dt = NULL;
 	// The ground beneath the car can be missing (deleted while the car was on
 	// it). The uses of current_str tolerate a missing way, so keep driving.
-	const grund_t* current_gr = welt->lookup(get_pos());
-	const strasse_t* current_str = current_gr ? (const strasse_t*)current_gr->get_weg(road_wt) : NULL;
+	const grund_t* current_gr = get_grund();
+	const strasse_t* current_str = static_cast<const strasse_t*>(get_weg());
 	if(current_gr==NULL) {
 		dbg->warning("private_car_t::can_enter_tile()", "Car at %s has no ground beneath it", get_pos().get_str());
 	}
@@ -1053,7 +1068,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		// do not block this crossing (if possible)
 		if(ribi_t::is_threeway(str->get_ribi_unmasked())) {
 			// but leaving from railroad crossing is more important
-			grund_t *gr_here = welt->lookup(get_pos());
+			grund_t *gr_here = get_grund();
 			if(  gr_here  &&  gr_here->ist_uebergang()  ) {
 				return true;
 			}
@@ -1091,7 +1106,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 		//If this car is overtaking, the car must avoid a head-on crash.
 		if(  is_overtaking()  &&  current_str  ) {
 			grund_t* sg[2];
-			sg[0] = welt->lookup(pos_next);
+			sg[0] = gr;
 			sg[1] = welt->lookup(pos_next_next);
 			for(uint8 i = 0; i < 2; i++) {
 				for(  uint8 pos=1;  sg[i] && pos < sg[i]->get_top();  pos++  ) {
@@ -1210,7 +1225,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 				return false;
 			}
 			// no further check, when already entered a crossing (to allow leaving it)
-			grund_t *gr_here = welt->lookup(get_pos());
+			grund_t *gr_here = get_grund();
 			if(gr_here  &&  gr_here->ist_uebergang()) {
 				return true;
 			}
@@ -1341,7 +1356,7 @@ grund_t* private_car_t::hop_check()
 	// game (768 towns) in the modern era (2004) of Pak128.Britain-Ex.
 
 	// weg_position_t changed to grund_t::get_neighbour()
-	grund_t *const from = welt->lookup(pos_next);
+	grund_t *const from = const_cast<grund_t *>(get_cached_next_grund(pos_next, welt->get_road_way_generation()));
 	if(from==NULL) {
 		// nothing to go? => destroy ...
 		time_to_life = 0;
@@ -1365,13 +1380,18 @@ grund_t* private_car_t::hop_check()
 		if(  rs_desc->is_traffic_light()  &&  (rs->get_dir()&direction90)==0  ) {
 			// red traffic light, but we go on, if we are already on a traffic light
 			bool go_on = false;
-			if(  const grund_t *gr_current = welt->lookup(get_pos())  ) {
+			if(  const grund_t *gr_current = get_grund()  ) {
 				if(  const roadsign_t *rs = gr_current->find<roadsign_t>()  ) {
 					go_on = rs  &&  rs->get_desc()->is_traffic_light()  &&  !from->ist_uebergang();
 				}
 			}
 			if(  !go_on   ) {
-				direction = direction90;
+				if (direction != direction90) {
+					direction = direction90;
+					if (grund_t *const gr_current = get_grund()) {
+						gr_current->recompute_road_dir_counts();
+					}
+				}
 				calc_image();
 				// wait here
 				current_speed = 48;
@@ -1685,7 +1705,7 @@ void private_car_t::hop(grund_t* to)
 	grund_t* gr = get_grund();
 	if(gr)
 	{
-		strasse_t* str = (strasse_t*)gr->get_weg(road_wt);
+		strasse_t* str = static_cast<strasse_t*>(get_weg());
 		if(str)
 		{
 			flush_travel_times(str);
@@ -1718,7 +1738,7 @@ void private_car_t::hop(grund_t* to)
 	set_pos(pos_next);
 	enter_tile(to);
 
-	strasse_t *str = (strasse_t*)(to->get_weg(road_wt));
+	strasse_t *str = static_cast<strasse_t*>(way);
 	//decide if overtaking citycar should go back to the traffic lane.
 	if(  get_tiles_overtaking() == 1  &&  str->get_overtaking_mode() <= oneway_mode  ){
 		vehicle_base_t* v = NULL;
@@ -1764,18 +1784,28 @@ void private_car_t::accelerate(uint32 delta_t)
 	{
 		return;
 	}
-	const weg_t *const weg = get_weg();
-	const sint32 target = weg != NULL ? min(max_speed, kmh_to_speed(weg->get_max_speed())) : max_speed;
+	bool has_way = false;
+	const uint16 way_speed = get_cached_way_speed_internal(has_way);
+	const sint32 target = has_way ? min(max_speed, (sint32)way_speed) : max_speed;
+	// Most moving cars are already cruising at their target speed without
+	// being capped below it; return without dividing or modifying speed.
+	if ((sint32)current_speed == target && (sint32)current_speed <= following_speed)
+	{
+		return;
+	}
 	// One tile is (1 << YARDS_PER_TILE_SHIFT) yards and speed is in yards per
 	// tick, so this is the number of ticks one tile takes at the top speed.
 	// delta_t is also in ticks, so the increment below is the share of the
 	// per-tile increment max_speed >> 2 that this sync step has earned.
-	const sint32 tile_ticks = (sint32)((1u << YARDS_PER_TILE_SHIFT) / max_speed);
+	// The descriptor caches the tile time, so this costs no division.
+	const sint32 tile_ticks = (sint32)desc->get_tile_ticks();
 	if (tile_ticks <= 0)
 	{
 		return;
 	}
-	sint32 increment = (sint32)(((sint64)(max_speed >> 2) * delta_t) / tile_ticks);
+	// max_speed is a uint16 descriptor value, so (max_speed >> 2) * delta_t
+	// cannot overflow 32 bits (delta_t is clamped to 10000 by karte_t::sync_step).
+	sint32 increment = ((max_speed >> 2) * (sint32)delta_t) / tile_ticks;
 	if (increment < 1)
 	{
 		increment = 1;
@@ -2168,7 +2198,7 @@ vehicle_base_t* private_car_t::other_lane_blocked(const bool only_search_top) co
 		}
 	}
 	if(  !only_search_top  ) {
-		gr = welt->lookup(get_pos());
+		gr = get_grund();
 		if(  gr  ) {
 			if(  vehicle_base_t* v = is_there_car(gr)  ) {
 				return v;

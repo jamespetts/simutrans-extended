@@ -236,9 +236,7 @@ void planquadrat_t::boden_ersetzen(grund_t *alt, grund_t *neu)
 			alt->clear_flag(grund_t::has_text);
 		}
 		// transfer all objects
-		while(  alt->get_top()>0  ) {
-			neu->obj_add( alt->obj_remove_top() );
-		}
+		neu->transfer_objs_from(alt);
 		delete alt;
 	}
 }
@@ -294,9 +292,7 @@ void planquadrat_t::rdwr(loadsave_t *file, koord pos )
 				}
 
 				// transfer all objects
-				while(  gr->get_top()>0  ) {
-					neu->obj_add( gr->obj_remove_top() );
-				}
+				neu->transfer_objs_from(gr);
 
 				delete gr;
 				gr = neu;

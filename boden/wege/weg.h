@@ -436,7 +436,17 @@ public:
 	 */
 	bool check_season(const bool calc_only_season_change) OVERRIDE;
 
-	void set_max_speed(sint32 s) { max_speed = s; }
+	void set_max_speed(sint32 s)
+	{
+		if (max_speed != (uint16)s)
+		{
+			max_speed = s;
+			if (wtyp == road_wt)
+			{
+				notify_road_way_changed();
+			}
+		}
+	}
 
 	void set_max_axle_load(uint32 w) { max_axle_load = w; }
 	void set_bridge_weight_limit(uint32 value) { bridge_weight_limit = value; }
@@ -554,7 +564,18 @@ public:
 	* @note After changing of ribi the image of the way is wrong. To correct this,
 	* grund_t::calc_image needs to be called. This is not done here (Too expensive).
 	*/
-	void ribi_add(ribi_t::ribi ribi) { this->ribi |= (uint8)ribi;}
+	void ribi_add(ribi_t::ribi ribi)
+	{
+		const uint8 next = this->ribi | (uint8)ribi;
+		if (next != this->ribi)
+		{
+			this->ribi = next;
+			if (wtyp == road_wt)
+			{
+				notify_road_way_changed();
+			}
+		}
+	}
 
 	/**
 	* Remove direction bits (ribi) for a way.
@@ -562,7 +583,18 @@ public:
 	* @note After changing of ribi the image of the way is wrong. To correct this,
 	* grund_t::calc_image needs to be called. This is not done here (Too expensive).
 	*/
-	void ribi_rem(ribi_t::ribi ribi) { this->ribi &= (uint8)~ribi;}
+	void ribi_rem(ribi_t::ribi ribi)
+	{
+		const uint8 next = this->ribi & (uint8)~ribi;
+		if (next != this->ribi)
+		{
+			this->ribi = next;
+			if (wtyp == road_wt)
+			{
+				notify_road_way_changed();
+			}
+		}
+	}
 
 	/**
 	* Set direction bits (ribi) for the way.
@@ -570,7 +602,17 @@ public:
 	* @note After changing of ribi the image of the way is wrong. To correct this,
 	* grund_t::calc_image needs to be called. This is not done here (Too expensive).
 	*/
-	void set_ribi(ribi_t::ribi ribi) { this->ribi = (uint8)ribi;}
+	void set_ribi(ribi_t::ribi ribi)
+	{
+		if (this->ribi != (uint8)ribi)
+		{
+			this->ribi = (uint8)ribi;
+			if (wtyp == road_wt)
+			{
+				notify_road_way_changed();
+			}
+		}
+	}
 
 	/**
 	* Get the unmasked direction bits (ribi) for the way (without signals or other ribi changer).
@@ -630,7 +672,22 @@ public:
 	inline bool is_snow() const {return flags&IS_SNOW; }
 
 	// this is needed during a change from crossing to tram track
-	void clear_crossing() { flags &= ~HAS_CROSSING; }
+	void clear_crossing()
+	{
+		if (flags & HAS_CROSSING)
+		{
+			flags &= ~HAS_CROSSING;
+			if (wtyp == road_wt)
+			{
+				notify_road_way_changed();
+			}
+		}
+	}
+
+private:
+	void notify_road_way_changed() const;
+
+public:
 
 	/**
 	 * Clear the has-sign flag when roadsign or signal got deleted.

@@ -168,8 +168,87 @@ static obj_t** dl_alloc(uint8 slots)
 }
 
 
+static inline void add_road_dir_bits(uint16 &counts, ribi_t::ribi d)
+{
+	if (d & ribi_t::north) { if ((counts & 0x000Fu) < 0x000Fu) counts += 0x0001u; }
+	if (d & ribi_t::east)  { if ((counts & 0x00F0u) < 0x00F0u) counts += 0x0010u; }
+	if (d & ribi_t::south) { if ((counts & 0x0F00u) < 0x0F00u) counts += 0x0100u; }
+	if (d & ribi_t::west)  { if ((counts & 0xF000u) < 0xF000u) counts += 0x1000u; }
+}
+
+
+void objlist_t::on_road_user_added_dir(const obj_t *obj)
+{
+	add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(obj)->get_direction());
+}
+
+
+void objlist_t::recompute_road_dir_counts()
+{
+	road_dir_counts = 0;
+	if (road_user_count == 0 || top == 0)
+	{
+		return;
+	}
+	if (optr & INLINE_TAG)
+	{
+		obj_t *const single = get_single_main_thread();
+		if (single && is_road_user_obj(single))
+		{
+			add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(single)->get_direction());
+		}
+		return;
+	}
+	obj_t *const *const a = get_array_main_thread();
+	for (uint8 i = 0; i < top; i++)
+	{
+		obj_t *const obj = a[i];
+		if (is_road_user_obj(obj))
+		{
+			add_road_dir_bits(road_dir_counts, static_cast<const vehicle_base_t *>(obj)->get_direction());
+		}
+	}
+}
+
+
+void objlist_t::on_road_user_removed_dir(const obj_t *obj)
+{
+	if (road_user_count == 0)
+	{
+		road_dir_counts = 0;
+		return;
+	}
+	const ribi_t::ribi d = static_cast<const vehicle_base_t *>(obj)->get_direction();
+	bool saturated = false;
+	if (d & ribi_t::north)
+	{
+		const uint16 n = road_dir_counts & 0x000Fu;
+		if (n == 0x000Fu) saturated = true; else if (n > 0) road_dir_counts -= 0x0001u;
+	}
+	if (d & ribi_t::east)
+	{
+		const uint16 n = road_dir_counts & 0x00F0u;
+		if (n == 0x00F0u) saturated = true; else if (n > 0) road_dir_counts -= 0x0010u;
+	}
+	if (d & ribi_t::south)
+	{
+		const uint16 n = road_dir_counts & 0x0F00u;
+		if (n == 0x0F00u) saturated = true; else if (n > 0) road_dir_counts -= 0x0100u;
+	}
+	if (d & ribi_t::west)
+	{
+		const uint16 n = road_dir_counts & 0xF000u;
+		if (n == 0xF000u) saturated = true; else if (n > 0) road_dir_counts -= 0x1000u;
+	}
+	if (saturated)
+	{
+		recompute_road_dir_counts();
+	}
+}
+
+
 objlist_t::objlist_t()
-	: optr(INLINE_TAG), capacity(0), top(0), mutation_version(0)
+	: optr(INLINE_TAG), capacity(0), top(0), mutation_version(0), road_user_count(0), road_dir_counts(0)
 {
 }
 
@@ -201,6 +280,8 @@ objlist_t::~objlist_t()
 	}
 	optr = INLINE_TAG;
 	capacity = top = 0;
+	road_user_count = 0;
+	road_dir_counts = 0;
 }
 
 
@@ -323,6 +404,10 @@ bool objlist_t::append_intern(obj_t *new_obj)
 		store_single(new_obj);
 		OLIST_ATOMIC_STORE(&top, 1);
 		capacity = 1;
+		if(is_road_user_obj(new_obj)) {
+			if (road_user_count < 255) road_user_count++;
+			on_road_user_added_dir(new_obj);
+		}
 		return true;
 	}
 
@@ -332,6 +417,10 @@ bool objlist_t::append_intern(obj_t *new_obj)
 	}
 
 	intern_insert_at(new_obj, top);
+	if(is_road_user_obj(new_obj)) {
+		if (road_user_count < 255) road_user_count++;
+		on_road_user_added_dir(new_obj);
+	}
 	return true;
 }
 
@@ -426,11 +515,16 @@ void objlist_t::sort_trees_intern(uint8 index, uint8 count)
 
 bool objlist_t::add_intern(obj_t* new_obj)
 {
+	const bool is_ru = is_road_user_obj(new_obj);
 	if(capacity==0) {
 		// the first one save direct
 		store_single(new_obj);
 		OLIST_ATOMIC_STORE(&top, 1);
 		capacity = 1;
+		if(is_ru) {
+			if (road_user_count < 255) road_user_count++;
+			on_road_user_added_dir(new_obj);
+		}
 		return true;
 	}
 
@@ -440,6 +534,10 @@ bool objlist_t::add_intern(obj_t* new_obj)
 	}
 	if(top==0) {
 		intern_insert_at( new_obj, 0 );
+		if(is_ru) {
+			if (road_user_count < 255) road_user_count++;
+			on_road_user_added_dir(new_obj);
+		}
 		return true;
 	}
 	// now top>0
@@ -449,7 +547,12 @@ bool objlist_t::add_intern(obj_t* new_obj)
 
 	// vehicles need a special order
 	if(pri==moving_obj_pri) {
-		return intern_add_moving(new_obj);
+		const bool added = intern_add_moving(new_obj);
+		if(added && is_ru) {
+			if (road_user_count < 255) road_user_count++;
+			on_road_user_added_dir(new_obj);
+		}
+		return added;
 	}
 
 	obj_t **a = write_array();
@@ -502,6 +605,10 @@ bool objlist_t::add_intern(obj_t* new_obj)
 		intern_insert_at(new_obj, i);
 	}
 	// then correct the upper border
+	if(is_ru) {
+		if (road_user_count < 255) road_user_count++;
+		on_road_user_added_dir(new_obj);
+	}
 	return true;
 }
 
@@ -529,6 +636,10 @@ obj_t *objlist_t::remove_last_intern()
 			array_write(a, top, NULL);
 		}
 	}
+	if(last_obj && is_road_user_obj(last_obj)) {
+		if (road_user_count > 0) road_user_count--;
+		on_road_user_removed_dir(last_obj);
+	}
 	return last_obj;
 }
 
@@ -543,6 +654,10 @@ bool objlist_t::remove_intern(const obj_t* remove_obj)
 			store_single(NULL);
 			capacity = 0;
 			OLIST_ATOMIC_STORE(&top, 0);
+			if(is_road_user_obj(remove_obj)) {
+				if (road_user_count > 0) road_user_count--;
+				on_road_user_removed_dir(remove_obj);
+			}
 			return true;
 		}
 		return false;
@@ -559,6 +674,10 @@ bool objlist_t::remove_intern(const obj_t* remove_obj)
 				i++;
 			}
 			array_write(a, top, NULL);
+			if(is_road_user_obj(remove_obj)) {
+				if (road_user_count > 0) road_user_count--;
+				on_road_user_removed_dir(remove_obj);
+			}
 			return true;
 		}
 	}
@@ -602,6 +721,10 @@ obj_t *objlist_t::unlink_last_intern(uint8 offset)
 		OLIST_ATOMIC_STORE(&top, top-1);
 		obj_t *const obj = array_read(a, top);
 		array_write(a, top, NULL);
+		if(obj && is_road_user_obj(obj)) {
+			if (road_user_count > 0) road_user_count--;
+			on_road_user_removed_dir(obj);
+		}
 		return obj;
 	}
 	if(  capacity==1  ) {
@@ -609,6 +732,10 @@ obj_t *objlist_t::unlink_last_intern(uint8 offset)
 		store_single(NULL);
 		capacity = 0;
 		OLIST_ATOMIC_STORE(&top, 0);
+		if(obj && is_road_user_obj(obj)) {
+			if (road_user_count > 0) road_user_count--;
+			on_road_user_removed_dir(obj);
+		}
 		return obj;
 	}
 	return NULL;

@@ -51,6 +51,14 @@ class citycar_desc_t : public obj_desc_timelined_t {
 	uint16 maximum_comfortable_journey = 0;
 	uint16 maximum_tolerable_journey = 0;
 
+	/**
+	 * Ticks that one tile of travel takes at topspeed:
+	 * (1 << YARDS_PER_TILE_SHIFT) / topspeed. Derived from topspeed by the
+	 * reader, so that private_car_t::accelerate() does not divide by the
+	 * top speed on every sync step. Not saved and not checksummed.
+	 */
+	uint32 tile_ticks = 0;
+
 	// The passenger wealth classes for which this car is available, as integer
 	// class indices (0 is the lowest class). Empty means all classes.
 	vector_tpl<uint8> available_classes;
@@ -75,6 +83,9 @@ public:
 
 	/// topspeed in internal speed units !!! not km/h!!!
 	uint16 get_topspeed() const { return topspeed; }
+
+	/// Ticks that one tile of travel takes at topspeed; set by the reader.
+	uint32 get_tile_ticks() const { return tile_ticks; }
 
 	/// Passenger capacity of one car; zero when the pakset does not define it.
 	uint8 get_capacity() const { return capacity; }

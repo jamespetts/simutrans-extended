@@ -607,20 +607,66 @@ public:
 
 	inline obj_t *first_obj() const { return objlist.bei(offsets[flags/has_way1]); }
 	obj_t *suche_obj(obj_t::typ typ) const { return objlist.suche(typ,0); }
-	obj_t *obj_remove_top() { return objlist.remove_last(); }
+	obj_t *obj_remove_top()
+	{
+		obj_t *const obj = objlist.remove_last();
+		if (obj && objlist_t::is_road_user_obj(obj)) {
+			on_road_user_removed();
+		}
+		return obj;
+	}
 
 	template<typename T> T* find(uint start = 0) const { return static_cast<T*>(objlist.suche(map_obj<T>::code, start)); }
 
-	bool obj_add(obj_t *obj) { return objlist.add(obj); }
-	bool obj_remove(const obj_t* obj) { return objlist.remove(obj); }
-	bool obj_loesche_alle(player_t *player) { return objlist.loesche_alle(player,offsets[flags/has_way1]); }
+	bool obj_add(obj_t *obj)
+	{
+		const bool ok = objlist.add(obj);
+		if (ok && objlist_t::is_road_user_obj(obj)) {
+			on_road_user_added();
+		}
+		return ok;
+	}
+	bool obj_remove(const obj_t* obj)
+	{
+		const bool ok = objlist.remove(obj);
+		if (ok && objlist_t::is_road_user_obj(obj)) {
+			on_road_user_removed();
+		}
+		return ok;
+	}
+	bool obj_loesche_alle(player_t *player)
+	{
+		const uint8 before = objlist.get_road_user_count();
+		const bool ok = objlist.loesche_alle(player,offsets[flags/has_way1]);
+		if (before != objlist.get_road_user_count()) {
+			on_road_users_cleared();
+		}
+		return ok;
+	}
 	bool obj_ist_da(const obj_t* obj) const { return objlist.ist_da(obj); }
 	obj_t * obj_bei(uint8 n) const { return objlist.bei(n); }
+	uint8  get_way_count() const { return offsets[flags/has_way1]; }
 	uint8  obj_count() const { return objlist.get_top()-offsets[flags/has_way1]; }
 	uint8 get_top() const {return objlist.get_top();}
+	uint8 get_road_user_count() const { return objlist.get_road_user_count(); }
+	uint8 get_road_dir_count(ribi_t::ribi single_dir) const { return objlist.get_road_dir_count(single_dir); }
+	void recompute_road_dir_counts() { objlist.recompute_road_dir_counts(); }
+	obj_t *const *get_objs_array_main_thread() const { return objlist.get_array_main_thread(); }
+	obj_t *get_single_obj_main_thread() const { return objlist.get_single_main_thread(); }
 
-	// moves all object from the old to the new grund_t
+	// moves all object from the old to the new grund_t (and way flags)
 	void take_obj_from( grund_t *gr);
+
+	// transfers all objects from other_gr to this without moving way flags
+	// (used when replacing a ground tile at the same coordinate)
+	void transfer_objs_from(grund_t *other_gr);
+
+private:
+	void on_road_user_added();
+	void on_road_user_removed();
+	void on_road_users_cleared();
+
+public:
 
 	/**
 	* @return NULL wenn OK, oder Meldung, warum nicht

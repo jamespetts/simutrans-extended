@@ -10,6 +10,7 @@
 #include "road_vehicle.h"
 #include "overtaker.h"
 
+#include "../descriptor/citycar_desc.h"
 #include "../tpl/slist_tpl.h"
 #include "../tpl/stringhashtable_tpl.h"
 #include "../ifc/sync_steppable.h"
@@ -163,8 +164,14 @@ private:
 public:
 	uint32 do_drive(uint32 distance) OVERRIDE;
 
-	/// Length of this car in vehicle steps.
-	uint32 get_length_in_steps() const;
+	/// Length of this car in vehicle steps. Defined here so that the following
+	/// scan, which reads it for every candidate car, can inline it.
+	inline uint32 get_length_in_steps() const
+	{
+		return desc != NULL
+			? (uint32)desc->get_length() * VEHICLE_STEPS_PER_CARUNIT
+			: (uint32)citycar_desc_t::DEFAULT_LENGTH * VEHICLE_STEPS_PER_CARUNIT;
+	}
 
 protected:
 	void rdwr(loadsave_t *file) OVERRIDE;

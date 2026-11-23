@@ -24,6 +24,15 @@
 
 #include "../utils/cbuffer_t.h"
 
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
+#include <xmmintrin.h>
+#define ROAD_PREFETCH_T0(addr) _mm_prefetch(reinterpret_cast<const char *>(addr), _MM_HINT_T0)
+#elif defined(__GNUC__) || defined(__clang__)
+#define ROAD_PREFETCH_T0(addr) __builtin_prefetch((addr), 0, 3)
+#else
+#define ROAD_PREFETCH_T0(addr) ((void)(addr))
+#endif
+
 
 /**
  * Forward distance over which the rendering-only lateral pull-in blend moves
@@ -90,7 +99,8 @@ bool allows_queueing(const grund_t *gr)
 	{
 		return false;
 	}
-	const strasse_t *str = dynamic_cast<const strasse_t *>(gr->get_weg(road_wt));
+	// A way of the road waytype is always a strasse_t (weg_t::create()).
+	const strasse_t *str = static_cast<const strasse_t *>(gr->get_weg(road_wt));
 	if (str == NULL || str->is_crossing() || str->is_diagonal())
 	{
 		return false;
@@ -108,7 +118,8 @@ bool is_junction(const grund_t *gr)
 	{
 		return false;
 	}
-	const strasse_t *str = dynamic_cast<const strasse_t *>(gr->get_weg(road_wt));
+	// A way of the road waytype is always a strasse_t (weg_t::create()).
+	const strasse_t *str = static_cast<const strasse_t *>(gr->get_weg(road_wt));
 	return str != NULL && !str->is_crossing() && !str->is_diagonal()
 		&& ribi_t::is_threeway(str->get_ribi_unmasked());
 }
@@ -218,12 +229,10 @@ static bool same_path(const user_t &a, const user_t &b)
 /// the convoy on its tile.
 static bool get_user_state(const vehicle_base_t *v, user_t &out)
 {
-	if (v->get_typ() == obj_t::pedestrian)
+	const obj_t::typ typ = v->get_typ();
+	if (typ == obj_t::road_vehicle)
 	{
-		return false;
-	}
-	if (const road_vehicle_t *rv = obj_cast<road_vehicle_t>(v))
-	{
+		const road_vehicle_t *rv = static_cast<const road_vehicle_t *>(v);
 		const convoi_t *cnv = rv->get_convoi();
 		if (cnv == NULL)
 		{
@@ -246,8 +255,9 @@ static bool get_user_state(const vehicle_base_t *v, user_t &out)
 		out.pulled_over = rv->is_pulled_over() && (uint32)rv->get_steps() >= out.length;
 		return true;
 	}
-	if (const private_car_t *pc = obj_cast<private_car_t>(v))
+	if (typ == obj_t::road_user)
 	{
+		const private_car_t *pc = static_cast<const private_car_t *>(v);
 		out.object = pc;
 		out.convoi = NULL;
 		out.exit_direction = pc->get_90direction();
@@ -262,6 +272,30 @@ static bool get_user_state(const vehicle_base_t *v, user_t &out)
 	return false;
 }
 
+/**
+ * The following gap for one candidate inside following_limit(). The gap
+ * depends only on the follower's own speed and on whether the leader is
+ * moving, so a call needs at most two values; caching them here avoids a
+ * conversion for every candidate on the tile.
+ */
+static sint32 following_gap_cached(const user_t &self, const sint32 other_speed, sint32 &moving_cache, sint32 &stopped_cache)
+{
+	if (other_speed > 0)
+	{
+		if (moving_cache < 0)
+		{
+			moving_cache = (sint32)following_gap(self.speed, true);
+		}
+		return moving_cache;
+	}
+	if (stopped_cache < 0)
+	{
+		stopped_cache = (sint32)following_gap(self.speed, false);
+	}
+	return stopped_cache;
+}
+
+
 sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps, const uint8 steps_next, leader_t *leader)
 {
 	if (gr == NULL || self.object == NULL)
@@ -273,149 +307,375 @@ sint32 following_limit(const grund_t *gr, const user_t &self, const uint8 steps,
 	sint32 nearest_speed = 0;
 	bool nearest_moving = false;
 	convoihandle_t nearest_convoy;
-	if (allows_queueing(gr))
+	sint32 gap_moving = -1;
+	sint32 gap_stopped = -1;
+	const karte_t *const welt = world();
+	const koord3d self_pos = self.object->get_pos();
+	const koord3d next_pos = self.object->get_pos_next();
+	const uint8 occ_here = welt->get_road_occupancy(self_pos.get_2d());
+	if (occ_here > 1u)
 	{
-		for (uint8 pos = 0; pos < gr->get_top(); pos++)
+		ROAD_PREFETCH_T0(gr);
+	}
+	const bool check_next = next_pos != koord3d::invalid && next_pos != self_pos;
+	const uint8 occ_next = check_next ? welt->get_road_occupancy(next_pos.get_2d()) : 0u;
+	if (occ_here <= 1u && occ_next == 0u)
+	{
+		if (leader != NULL)
 		{
-			vehicle_base_t *const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos));
-			if (v == NULL || v == self.object)
+			leader->gap = -1;
+			leader->speed = 0;
+			leader->moving = false;
+			leader->convoy = convoihandle_t();
+		}
+		return -1;
+	}
+	const uint32 way_gen = welt->get_road_way_generation();
+	if (occ_here > 1u && occ_next > 0u)
+	{
+		if (const grund_t *const pf_next = self.object->peek_cached_next_grund(way_gen))
+		{
+			ROAD_PREFETCH_T0(pf_next);
+		}
+	}
+
+	// Only touch the current tile's objlist when at least two road users share
+	// this (x, y) coordinate AND at least two road users on gr share
+	// self.entry_direction (skipping oncoming-only tiles completely).
+	if (occ_here > 1u && self.object->get_cached_allows_queueing())
+	{
+		uint8 remaining = gr->get_road_user_count();
+		const bool single_entry = ribi_t::is_single(self.entry_direction);
+		const uint8 dir_count = single_entry ? gr->get_road_dir_count(self.entry_direction) : remaining;
+		if (remaining > 1u && (!single_entry || dir_count > 1u))
+		{
+			const uint8 top = gr->get_top();
+			const uint8 way_count = gr->get_way_count();
+			obj_t *const *const objs = gr->get_objs_array_main_thread();
+			if (objs != NULL)
 			{
-				continue;
-			}
-			user_t other;
-			if (!get_user_state(v, other))
-			{
-				continue;
-			}
-			// Vehicles in another lateral position, on another path through
-			// this tile, or travelling the other way constrain nothing: the
-			// stop stands, the opposing carriageway and the other arms of a
-			// junction are separate road space. Requiring both the entry and
-			// the exit direction also keeps two turning vehicles that share a
-			// diagonal direction but use different arms from being compared:
-			// their step coordinates start at different tile edges.
-			if (!same_path(other, self)
-				|| other.overtaking != self.overtaking
-				|| other.pulled_over != self.pulled_over)
-			{
-				continue;
-			}
-			// A vehicle whose front is level with or behind our front is not
-			// ahead of us. Skipping it lets two vehicles which already share a
-			// position separate; treating it as a leader would stop both.
-			const sint32 front = (sint32)v->get_steps();
-			if (front <= (sint32)steps)
-			{
-				continue;
-			}
-			// The rear boundary of the vehicle ahead, in the same tile
-			// coordinates as our own front. If it is behind our front, we are
-			// already overlapping it: stop rather than drive through it. The
-			// vehicle ahead is unaffected, so this cannot freeze both.
-			const sint32 rear = front - (sint32)other.length;
-			const sint32 raw_gap = rear - (sint32)steps;
-			if (nearest_gap < 0 || raw_gap < nearest_gap)
-			{
-				nearest_gap = raw_gap;
-				nearest_speed = other.speed;
-				nearest_moving = other.speed > 0;
-				nearest_convoy = other.convoi != NULL ? other.convoi->self : convoihandle_t();
-			}
-			const sint32 gap = (sint32)following_gap(self.speed, other.speed > 0);
-			// A real limit is never negative: a negative value would be read as
-			// "no leader" by drive_until_limit. Clamp to the start of the tile,
-			// which stops a vehicle that is already inside the gap. This happens
-			// when the vehicle ahead starts moving and the required gap grows
-			// from the standstill gap to the reaction distance.
-			const sint32 candidate = max(0, rear - gap);
-			if (limit < 0 || candidate < limit)
-			{
-				limit = candidate;
+				const bool track_dir = single_entry && dir_count < 15u;
+				uint8 dir_remaining = dir_count;
+				// objlist_t places static objects before moving objects and sorts
+				// moving objects by disp_lane (1 then 3 for road traffic). When
+				// the tile has only ways and road users and our lane is disp_lane
+				// <= 1, scanning forwards hits our lane first and exits before
+				// touching oncoming disp_lane 3 vehicles; otherwise scan backwards
+				// to skip static objects at the front of the list.
+				const bool forward = (self.object->get_disp_lane() <= 1u)
+					&& (top == (uint8)(way_count + remaining));
+				const sint32 step = forward ? 1 : -1;
+				const sint32 pos_end = forward ? (sint32)top : (sint32)way_count - 1;
+				for (sint32 pos = forward ? (sint32)way_count : (sint32)top - 1;
+					pos != pos_end && remaining > 0; pos += step)
+				{
+					obj_t *const obj = objs[pos];
+					if (obj == self.object)
+					{
+						remaining--;
+						if (track_dir && --dir_remaining == 0u)
+						{
+							break;
+						}
+						continue;
+					}
+					if (pos + step != pos_end)
+					{
+						ROAD_PREFETCH_T0(objs[pos + step]);
+					}
+					const obj_t::typ typ = obj->get_typ();
+					if (typ == obj_t::road_user)
+					{
+						remaining--;
+						const private_car_t *const pc = static_cast<const private_car_t *>(obj);
+						const ribi_t::ribi odir = pc->get_direction();
+						// The entry direction is a subset of the travel direction
+						// bits, so reject non-overlapping directions before reading
+						// exit direction or length.
+						if (self.entry_direction != ribi_t::none && (odir & self.entry_direction) == 0)
+						{
+							continue;
+						}
+						if (track_dir)
+						{
+							dir_remaining--;
+						}
+						// A vehicle whose front is level with or behind our front is
+						// not ahead of us. Check this before computing exit direction.
+						const sint32 front = (sint32)pc->get_steps();
+						if (front <= (sint32)steps)
+						{
+							if (track_dir && dir_remaining == 0u) break;
+							continue;
+						}
+						// A private car is never pulled over.
+						if (pc->is_overtaking() != self.overtaking || self.pulled_over)
+						{
+							if (track_dir && dir_remaining == 0u) break;
+							continue;
+						}
+						const ribi_t::ribi oexit = pc->get_90direction();
+						const ribi_t::ribi oentry = ribi_t::is_single(odir) ? odir : entry_direction(odir, oexit);
+						if (oentry != self.entry_direction
+							|| (oexit != ribi_t::none && self.exit_direction != ribi_t::none && oexit != self.exit_direction))
+						{
+							if (track_dir && dir_remaining == 0u) break;
+							continue;
+						}
+						const sint32 other_speed = pc->get_current_speed();
+						const sint32 rear = front - (sint32)pc->get_length_in_steps();
+						const sint32 raw_gap = rear - (sint32)steps;
+						if (nearest_gap < 0 || raw_gap < nearest_gap)
+						{
+							nearest_gap = raw_gap;
+							nearest_speed = other_speed;
+							nearest_moving = other_speed > 0;
+							nearest_convoy = convoihandle_t();
+						}
+						const sint32 gap = following_gap_cached(self, other_speed, gap_moving, gap_stopped);
+						const sint32 candidate = max(0, rear - gap);
+						if (limit < 0 || candidate < limit)
+						{
+							limit = candidate;
+						}
+						if (track_dir && dir_remaining == 0u) break;
+					}
+					else if (typ == obj_t::road_vehicle)
+					{
+						remaining--;
+						const road_vehicle_t *const rv = static_cast<const road_vehicle_t *>(obj);
+						const ribi_t::ribi odir = rv->get_direction();
+						if (self.entry_direction != ribi_t::none && (odir & self.entry_direction) == 0)
+						{
+							continue;
+						}
+						if (track_dir)
+						{
+							dir_remaining--;
+						}
+						const sint32 front = (sint32)rv->get_steps();
+						if (front <= (sint32)steps)
+						{
+							if (track_dir && dir_remaining == 0u) break;
+							continue;
+						}
+						const convoi_t *const cnv = rv->get_convoi();
+						if (cnv == NULL || cnv->is_overtaking() != self.overtaking)
+						{
+							if (track_dir && dir_remaining == 0u) break;
+							continue;
+						}
+						const ribi_t::ribi oexit = rv->get_90direction();
+						const ribi_t::ribi oentry = ribi_t::is_single(odir) ? odir : entry_direction(odir, oexit);
+						if (oentry != self.entry_direction
+							|| (oexit != ribi_t::none && self.exit_direction != ribi_t::none && oexit != self.exit_direction))
+						{
+							if (track_dir && dir_remaining == 0u) break;
+							continue;
+						}
+						const uint32 other_len = rv->is_leading()
+							? cnv->get_length_in_steps()
+							: rv->get_desc()->get_length_in_steps();
+						const bool other_pulled_over = rv->is_pulled_over() && (uint32)front >= other_len;
+						if (other_pulled_over != self.pulled_over)
+						{
+							if (track_dir && dir_remaining == 0u) break;
+							continue;
+						}
+						const sint32 other_speed = cnv->get_akt_speed();
+						const sint32 rear = front - (sint32)other_len;
+						const sint32 raw_gap = rear - (sint32)steps;
+						if (nearest_gap < 0 || raw_gap < nearest_gap)
+						{
+							nearest_gap = raw_gap;
+							nearest_speed = other_speed;
+							nearest_moving = other_speed > 0;
+							nearest_convoy = cnv->self;
+						}
+						const sint32 gap = following_gap_cached(self, other_speed, gap_moving, gap_stopped);
+						const sint32 candidate = max(0, rear - gap);
+						if (limit < 0 || candidate < limit)
+						{
+							limit = candidate;
+						}
+						if (track_dir && dir_remaining == 0u) break;
+					}
+				}
 			}
 		}
 	}
 	// A vehicle whose front has crossed into the next tile still has its rear on
-	// this tile while its front is shorter than its length. It therefore
-	// constrains us although it is not on this tile. Without this check of the
-	// next tile we can drive to the end of our tile, which is past its rear.
-	const koord3d next_pos = self.object->get_pos_next();
-	if (next_pos != koord3d::invalid && next_pos != self.object->get_pos())
+	// this tile while its front is shorter than its length, and a vehicle wholly
+	// on the next tile can still be the nearest leader for the speed rule.
+	// Skip the tile lookup completely when road_occupancy reports zero road users
+	// at next_pos, and skip the objlist scan when no road user on next shares
+	// the entry direction from this tile.
+	if (occ_next > 0u)
 	{
-		const grund_t *next = world()->lookup(next_pos);
-		if (next != NULL && next->get_top() > 1)
+		const grund_t *const next = self.object->get_cached_next_grund(next_pos, way_gen);
+		if (next != NULL)
 		{
-			// The step coordinate of a vehicle on the next tile starts at the
-			// edge through which it entered. Only a vehicle which entered from
-			// our tile has its steps measured from the same edge as ours.
-			const ribi_t::ribi entry = ribi_type(self.object->get_pos(), next_pos);
-			const sint32 our_scale = step_scale(steps_next);
-			for (uint8 pos = 0; pos < next->get_top(); pos++)
+			uint8 remaining = next->get_road_user_count();
+			if (remaining > 0u)
 			{
-				vehicle_base_t *const v = obj_cast<vehicle_base_t>(next->obj_bei(pos));
-				if (v == NULL || v == self.object)
+				// The step coordinate of a vehicle on the next tile starts at the
+				// edge through which it entered. Only a vehicle which entered from
+				// our tile has its steps measured from the same edge as ours.
+				const ribi_t::ribi entry = ribi_type(self_pos, next_pos);
+				const uint8 dir_count = next->get_road_dir_count(entry);
+				if (dir_count > 0u)
 				{
-					continue;
-				}
-				user_t other;
-				if (!get_user_state(v, other))
-				{
-					continue;
-				}
-				if (other.entry_direction != entry
-					|| other.overtaking != self.overtaking)
-				{
-					continue;
-				}
-				// The other vehicle's rear, in 512ths of a straight step from the
-				// start of our tile. Our tile boundary is VEHICLE_STEPS_PER_TILE
-				// straight steps ahead.
-				const sint32 other_scale = step_scale(v->get_steps_next());
-				const sint32 rear = (sint32)VEHICLE_STEPS_PER_TILE * 512
-					+ (sint32)v->get_steps() * other_scale
-					- (sint32)other.length * 512;
-				const bool rear_on_this_tile = rear < (sint32)VEHICLE_STEPS_PER_TILE * 512;
-				if (!rear_on_this_tile)
-				{
-					// The whole vehicle is on the next tile, so it does not cap
-					// this tile's position. A pulled-over vehicle is beside the
-					// lane and is not a leader at all; any other vehicle is still
-					// the nearest leader for the following-speed rule.
-					if (other.pulled_over)
+					const bool track_dir = ribi_t::is_single(entry) && dir_count < 15u;
+					uint8 dir_remaining = dir_count;
+					const sint32 our_scale = step_scale(steps_next);
+					const uint8 next_top = next->get_top();
+					const uint8 next_way_count = next->get_way_count();
+					obj_t *const *const objs = next->get_objs_array_main_thread();
+					obj_t *const single_obj = objs == NULL ? next->get_single_obj_main_thread() : NULL;
+					const bool forward = objs != NULL
+						&& (self.object->get_disp_lane() <= 1u)
+						&& (next_top == (uint8)(next_way_count + remaining));
+					const sint32 step = forward ? 1 : -1;
+					const sint32 start_pos = objs != NULL
+						? (forward ? (sint32)next_way_count : (sint32)next_top - 1)
+						: (single_obj != NULL ? 0 : -1);
+					const sint32 pos_end = objs != NULL
+						? (forward ? (sint32)next_top : (sint32)next_way_count - 1)
+						: -1;
+					for (sint32 pos = start_pos; pos != pos_end && remaining > 0; pos += step)
 					{
-						continue;
+						obj_t *const obj = objs != NULL ? objs[pos] : single_obj;
+						if (obj == self.object)
+						{
+							remaining--;
+							continue;
+						}
+						if (objs != NULL && pos + step != pos_end)
+						{
+							ROAD_PREFETCH_T0(objs[pos + step]);
+						}
+						const obj_t::typ typ = obj->get_typ();
+						if (typ == obj_t::road_user)
+						{
+							remaining--;
+							const private_car_t *const pc = static_cast<const private_car_t *>(obj);
+							const ribi_t::ribi odir = pc->get_direction();
+							if ((odir & entry) == 0)
+							{
+								continue;
+							}
+							if (track_dir)
+							{
+								dir_remaining--;
+							}
+							if (pc->is_overtaking() != self.overtaking)
+							{
+								if (track_dir && dir_remaining == 0u) break;
+								continue;
+							}
+							// When odir is a single cardinal direction, entry_direction(odir, exit)
+							// is always odir regardless of exit, so skip get_90direction().
+							const ribi_t::ribi oentry = ribi_t::is_single(odir) ? odir : entry_direction(odir, pc->get_90direction());
+							if (oentry != entry)
+							{
+								if (track_dir && dir_remaining == 0u) break;
+								continue;
+							}
+							const sint32 other_scale = step_scale(pc->get_steps_next());
+							const sint32 rear = (sint32)VEHICLE_STEPS_PER_TILE * 512
+								+ (sint32)pc->get_steps() * other_scale
+								- (sint32)pc->get_length_in_steps() * 512;
+							const sint32 other_speed = pc->get_current_speed();
+							const sint32 raw_gap = rear / our_scale - (sint32)steps;
+							if (nearest_gap < 0 || raw_gap < nearest_gap)
+							{
+								nearest_gap = raw_gap;
+								nearest_speed = other_speed;
+								nearest_moving = other_speed > 0;
+								nearest_convoy = convoihandle_t();
+							}
+							if (rear < (sint32)VEHICLE_STEPS_PER_TILE * 512)
+							{
+								const sint32 gap = following_gap_cached(self, other_speed, gap_moving, gap_stopped);
+								const sint32 candidate = max(0, (rear - gap * 512) / our_scale);
+								if (limit < 0 || candidate < limit)
+								{
+									limit = candidate;
+								}
+							}
+							if (track_dir && dir_remaining == 0u) break;
+						}
+						else if (typ == obj_t::road_vehicle)
+						{
+							remaining--;
+							const road_vehicle_t *const rv = static_cast<const road_vehicle_t *>(obj);
+							const ribi_t::ribi odir = rv->get_direction();
+							if ((odir & entry) == 0)
+							{
+								continue;
+							}
+							if (track_dir)
+							{
+								dir_remaining--;
+							}
+							const convoi_t *const cnv = rv->get_convoi();
+							if (cnv == NULL || cnv->is_overtaking() != self.overtaking)
+							{
+								if (track_dir && dir_remaining == 0u) break;
+								continue;
+							}
+							const ribi_t::ribi oentry = ribi_t::is_single(odir) ? odir : entry_direction(odir, rv->get_90direction());
+							if (oentry != entry)
+							{
+								if (track_dir && dir_remaining == 0u) break;
+								continue;
+							}
+							const uint32 other_len = rv->is_leading()
+								? cnv->get_length_in_steps()
+								: rv->get_desc()->get_length_in_steps();
+							const sint32 other_scale = step_scale(rv->get_steps_next());
+							const sint32 other_steps = (sint32)rv->get_steps();
+							const sint32 rear = (sint32)VEHICLE_STEPS_PER_TILE * 512
+								+ other_steps * other_scale
+								- (sint32)other_len * 512;
+							const bool rear_on_this_tile = rear < (sint32)VEHICLE_STEPS_PER_TILE * 512;
+							if (!rear_on_this_tile)
+							{
+								if (rv->is_pulled_over() && (uint32)other_steps >= other_len)
+								{
+									if (track_dir && dir_remaining == 0u) break;
+									continue;
+								}
+								const sint32 other_speed = cnv->get_akt_speed();
+								const sint32 raw_gap = rear / our_scale - (sint32)steps;
+								if (nearest_gap < 0 || raw_gap < nearest_gap)
+								{
+									nearest_gap = raw_gap;
+									nearest_speed = other_speed;
+									nearest_moving = other_speed > 0;
+									nearest_convoy = cnv->self;
+								}
+								if (track_dir && dir_remaining == 0u) break;
+								continue;
+							}
+							const sint32 other_speed = cnv->get_akt_speed();
+							const sint32 raw_gap = rear / our_scale - (sint32)steps;
+							if (nearest_gap < 0 || raw_gap < nearest_gap)
+							{
+								nearest_gap = raw_gap;
+								nearest_speed = other_speed;
+								nearest_moving = other_speed > 0;
+								nearest_convoy = cnv->self;
+							}
+							const sint32 gap = following_gap_cached(self, other_speed, gap_moving, gap_stopped);
+							const sint32 candidate = max(0, (rear - gap * 512) / our_scale);
+							if (limit < 0 || candidate < limit)
+							{
+								limit = candidate;
+							}
+							if (track_dir && dir_remaining == 0u) break;
+						}
 					}
-					const sint32 raw_gap = rear / our_scale - (sint32)steps;
-					if (nearest_gap < 0 || raw_gap < nearest_gap)
-					{
-						nearest_gap = raw_gap;
-						nearest_speed = other.speed;
-						nearest_moving = other.speed > 0;
-						nearest_convoy = other.convoi != NULL ? other.convoi->self : convoihandle_t();
-					}
-					continue;
-				}
-				// The rear is still on this tile. Even a pulled-over vehicle's
-				// body is at the tile boundary until its rear clears it, so it
-				// must cap this vehicle's position. Otherwise a vehicle loading
-				// just inside the next tile can be overlapped while it enters
-				// its stand.
-				const sint32 raw_gap = rear / our_scale - (sint32)steps;
-				if (nearest_gap < 0 || raw_gap < nearest_gap)
-				{
-					nearest_gap = raw_gap;
-					nearest_speed = other.speed;
-					nearest_moving = other.speed > 0;
-					nearest_convoy = other.convoi != NULL ? other.convoi->self : convoihandle_t();
-				}
-				const sint32 gap = (sint32)following_gap(self.speed, other.speed > 0);
-				// Convert the limit back to this tile's steps. A limit before the
-				// start of this tile means the other vehicle's body covers the
-				// whole tile, so clamp it to zero rather than to the negative
-				// "no leader" value.
-				const sint32 candidate = max(0, (rear - gap * 512) / our_scale);
-				if (limit < 0 || candidate < limit)
-				{
-					limit = candidate;
 				}
 			}
 		}
@@ -471,7 +731,8 @@ bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi e
 		// The route ends on the junction, or the vehicle turns on the same tile.
 		return true;
 	}
-	const strasse_t *str = dynamic_cast<const strasse_t *>(exit->get_weg(road_wt));
+	// A way of the road waytype is always a strasse_t (weg_t::create()).
+	const strasse_t *str = static_cast<const strasse_t *>(exit->get_weg(road_wt));
 	if (str == NULL)
 	{
 		// No road: the ordinary entry check reports the missing way.
@@ -860,7 +1121,7 @@ void road_vehicle_t::get_screen_offset( int &xoff, int &yoff, const sint16 raste
 	const road_vehicle_t *source = this;
 	if (cnv != NULL)
 	{
-		const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+		const road_vehicle_t *front = obj_cast<road_vehicle_t>(cnv->front());
 		if (front != NULL)
 		{
 			source = front;
@@ -976,7 +1237,7 @@ bool road_vehicle_t::is_pulled_over() const
 	}
 	// The stand is recorded on the leading vehicle; every vehicle of the
 	// convoy is drawn beside the travel lane while the convoy is at its stand.
-	const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+	const road_vehicle_t *front = obj_cast<road_vehicle_t>(cnv->front());
 	if (front == NULL || front->stand_mask == 0)
 	{
 		return false;
@@ -1003,7 +1264,7 @@ uint8 road_vehicle_t::get_stand_lateral_position() const
 	{
 		return 0;
 	}
-	const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+	const road_vehicle_t *front = obj_cast<road_vehicle_t>(cnv->front());
 	if (front == NULL || front->stand_mask == 0)
 	{
 		return 0;
@@ -1020,7 +1281,7 @@ uint8 road_vehicle_t::get_stand_lateral_position() const
 	// A terminal's four stands are its four lateral positions. A through
 	// stop's stand is a side of the road, and a vehicle loading there is
 	// pulled over in its traffic lane.
-	const grund_t *gr = welt->lookup(get_pos());
+	const grund_t *gr = get_grund();
 	const halthandle_t halt = gr != NULL ? gr->get_halt() : halthandle_t();
 	if (halt.is_bound() && halt->get_stand_count(gr) >= 4)
 	{
