@@ -1053,8 +1053,8 @@ void gebaeude_t::info(cbuffer_t & buf) const
 			// The land value calculation below will need modifying if multi-tile city buildings are ever introduced.
 			sint64 cost = welt->get_settings().get_cost_multiply_remove_house() * 2 * tile->get_desc()->get_level() * tile->get_desc()->get_size().x * tile->get_desc()->get_size().y;
 			cost += welt->get_land_value(get_pos());
-			buf.append(-(cost/100.0),2);
-			buf.append("$\n");
+			buf.append_money(-(cost/100.0));
+			buf.append("\n");
 		}
 	}
 }

@@ -2007,10 +2007,10 @@ const char *tool_clear_reservation_t::work( player_t *player, koord3d pos )
 const char* tool_transformer_t::get_tooltip(const player_t *) const
 {
 	settings_t const& s = welt->get_settings();
-	sprintf(toolstr, "%s, %ld$ (%ld$)",
-		translator::translate("Build drain"),
-		(long)(welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), s.get_cost_transformer(), infrastructure) / -100l),
-		(long)(welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(s.get_cost_maintain_transformer()), infrastructure) / -100l));
+	char cost[64], maintenance[64];
+	money_to_string(cost, (double)(welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), s.get_cost_transformer(), infrastructure) / -100l), false);
+	money_to_string(maintenance, (double)(welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(s.get_cost_maintain_transformer()), infrastructure) / -100l), false);
+	sprintf(toolstr, "%s, %s (%s)", translator::translate("Build drain"), cost, maintenance);
 	return toolstr;
 }
 

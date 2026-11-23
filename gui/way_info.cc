@@ -94,7 +94,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_label_t>(bridge->get_desc()->get_name(), bridge->get_owner() ? color_idx_to_rgb(bridge->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_bridge = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(bridge->get_desc()->get_maintenance()), infrastructure) / 100.0;
-				lb_bridge->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
+				lb_bridge->buf().append(" "); lb_bridge->buf().append_money(way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile, "/mon");
 				lb_bridge->update();
 
 				const sint32 top_speed = !hang ? bridge->get_desc()->get_topspeed() : hang == 1 ? bridge->get_desc()->get_topspeed_gradient_1() : bridge->get_desc()->get_topspeed_gradient_2();
@@ -108,7 +108,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				new_component<gui_label_t>(tunnel->get_desc()->get_name(), tunnel->get_owner() ? color_idx_to_rgb(tunnel->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : color_idx_to_rgb(COL_ORANGE));
 				gui_label_buf_t *lb_tunnel = new_component<gui_label_buf_t>(SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(tunnel->get_desc()->get_maintenance()), infrastructure) / 100.0;
-				lb_tunnel->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile);
+				lb_tunnel->buf().append(" "); lb_tunnel->buf().append_money(way->is_diagonal() ? maint_per_tile * 10 / 14.0 : maint_per_tile, "/mon");
 				lb_tunnel->update();
 
 				const sint32 top_speed = !hang ? tunnel->get_desc()->get_topspeed() : hang == 1 ? tunnel->get_desc()->get_topspeed_gradient_1() : tunnel->get_desc()->get_topspeed_gradient_2();
@@ -123,7 +123,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 			new_component<gui_label_t>(way->get_desc()->get_name(), way->get_owner() != NULL ? color_idx_to_rgb(way->get_owner()->get_player_color1() + env_t::gui_player_color_dark) : SYSCOL_TEXT);
 			gui_label_buf_t *lb = new_component<gui_label_buf_t>(way->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
 			const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(way->get_desc()->get_maintenance()), infrastructure) / 100.0;
-			lb->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
+			lb->buf().append(" "); lb->buf().append_money(way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile, "/mon");
 			lb->update();
 
 			lb = new_component<gui_label_buf_t>(potential_way_speed > way->get_max_speed(false) ? COL_WARNING : SYSCOL_TEXT, gui_label_t::right);
@@ -142,7 +142,7 @@ void gui_way_detail_info_t::draw(scr_coord offset)
 				lb = new_component<gui_label_buf_t>(wayobj->get_desc()->get_maintenance()==0 ? COL_INACTIVE : SYSCOL_TEXT, gui_label_t::right);
 				const double maint_per_tile = (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(wayobj->get_desc()->get_maintenance()), infrastructure) / 100.0;
 
-				lb->buf().printf(translator::translate(" %1.2f" MONEY_SYMBOL "/mon"), way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile);
+				lb->buf().append(" "); lb->buf().append_money(way->is_diagonal() ? maint_per_tile*10/14.0 : maint_per_tile, "/mon");
 				lb->update();
 				lb = new_component<gui_label_buf_t>(way->get_max_speed(true) != way->get_max_speed(false) ? COL_WARNING : SYSCOL_TEXT, gui_label_t::right);
 				lb->buf().printf(translator::translate("%ikm/h"), wayobj->get_desc()->get_topspeed());

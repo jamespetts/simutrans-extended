@@ -148,11 +148,14 @@ void cbuffer_t::append(double n,int decimals)
 	append(tmp);
 }
 
-void cbuffer_t::append_money(double money)
+void cbuffer_t::append_money(double money, const char *suffix)
 {
 	char tmp[128];
 	money_to_string(tmp, money, true);
 	append(tmp);
+	if(  suffix != NULL  ) {
+		append(suffix);
+	}
 }
 
 const char* cbuffer_t::get_str() const

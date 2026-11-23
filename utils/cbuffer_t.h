@@ -123,9 +123,10 @@ public:
 	void append(double n, int precision);
 
 	/**
-	 * appends formatted money string
+	 * Appends a formatted money string, optionally followed by a suffix such as
+	 * "/km" or "/month".
 	 */
-	void append_money(double money);
+	void append_money(double money, const char *suffix = NULL);
 
 	/* Append formatted text to the buffer */
 	void printf(const char *fmt, ...);

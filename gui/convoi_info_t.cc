@@ -629,7 +629,9 @@ void convoi_info_t::update_labels()
 	profit_label.append_money(cnv->get_jahresgewinn()/100.0);
 	profit_label.update();
 
-	running_cost_label.buf().printf("(%1.2f$/km, %1.2f$/month", cnv->get_per_kilometre_running_cost() / 100.0, welt->calc_adjusted_monthly_figure(cnv->get_fixed_cost()) / 100.0);
+	running_cost_label.buf().append("(");
+	running_cost_label.buf().append_money(cnv->get_per_kilometre_running_cost() / 100.0, "/km, ");
+	running_cost_label.buf().append_money(welt->calc_adjusted_monthly_figure(cnv->get_fixed_cost()) / 100.0, "/month");
 	running_cost_label.update();
 
 	weight_label.buf().printf("%s %.1ft (%.1ft)",

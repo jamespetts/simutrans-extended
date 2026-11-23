@@ -154,11 +154,11 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 					{
 						gui_table_cell_buf_t *td = new_component<gui_table_cell_buf_t>();
 						td->set_color(veh_type->get_running_cost() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
-						td->buf().printf("%1.2f$/km", veh_type->get_running_cost() / 100.0);
+						td->buf().append_money(veh_type->get_running_cost() / 100.0, "/km");
 						td->update();
 						td = new_component<gui_table_cell_buf_t>();
 						td->set_color(veh_type->get_adjusted_monthly_fixed_cost() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
-						td->buf().printf("%1.2f$/month", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
+						td->buf().append_money(veh_type->get_adjusted_monthly_fixed_cost() / 100.0, "/month");
 						td->update();
 					}
 					end_table();
@@ -170,7 +170,7 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 						td->set_color(veh_type->get_fuel_per_km() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
 						const sint64 fuel_cost_per_unit = veh_type->get_fuel_cost_per_unit();
 						const sint64 fuel_cost_per_km = (fuel_cost_per_unit * veh_type->get_fuel_per_km()) / world()->get_settings().get_fuel_unit_cost_divider();
-						td->buf().printf("%1.2f$/km", (double)fuel_cost_per_km / 100.0);
+						td->buf().append_money((double)fuel_cost_per_km / 100.0, "/km");
 						td->update();
 						td = new_component<gui_table_cell_buf_t>();
 						td->set_color(veh_type->get_calibration_speed() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
@@ -192,7 +192,7 @@ void gui_vehicle_spec_t::update(uint8 action, uint32 resale_value, uint16 curren
 					}
 
 					total_staff_cost = world()->calc_adjusted_monthly_figure(total_staff_cost);
-					td->buf().printf("%1.2f$/month", (double)total_staff_cost / 100.0);
+					td->buf().append_money((double)total_staff_cost / 100.0, "/month");
 					td->update();
 
 					new_component<gui_table_header_t>("availability", SYSCOL_TH_BACKGROUND_LEFT, gui_label_t::left);
@@ -1654,7 +1654,7 @@ void gui_convoy_assembler_t::update_convoi()
 		lb_convoi_cost.buf().append_money(total_cost / 100.0);
 		lb_convoi_cost.update();
 
-		lb_convoi_maintenance.buf().printf("%1.2f$/km, %1.2f$%s", (double)maint_per_km / 100.0, (double)maint_per_month / 100.0, translator::translate("/mon"));
+		lb_convoi_maintenance.buf().append_money((double)maint_per_km / 100.0, "/km, "); lb_convoi_maintenance.buf().append_money((double)maint_per_month / 100.0, translator::translate("/mon"));
 		lb_convoi_maintenance.update();
 
 		// speed

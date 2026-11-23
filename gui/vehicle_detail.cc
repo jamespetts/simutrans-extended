@@ -463,11 +463,11 @@ void vehicle_detail_t::update_components()
 		cont_maintenance.add_table(1, 2)->set_spacing(scr_size(0, 0));
 		{
 			td = cont_maintenance.new_component<gui_table_cell_buf_t>();
-			td->buf().printf("%1.2f$/km", veh_type->get_running_cost() / 100.0);
+			td->buf().append_money(veh_type->get_running_cost() / 100.0, "/km");
 			td->update();
 			td = cont_maintenance.new_component<gui_table_cell_buf_t>();
 			td->set_color(veh_type->get_adjusted_monthly_fixed_cost() > 0 ? SYSCOL_TEXT : SYSCOL_TEXT_WEAK);
-			td->buf().printf("%1.2f$/month", veh_type->get_adjusted_monthly_fixed_cost() / 100.0);
+			td->buf().append_money(veh_type->get_adjusted_monthly_fixed_cost() / 100.0, "/month");
 			td->update();
 		}
 		cont_maintenance.end_table();

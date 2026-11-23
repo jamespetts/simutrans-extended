@@ -86,7 +86,9 @@ void gui_halt_stats_t::update_table()
 					halt->get_tiles().get_count() > 1 ? translator::translate("tiles") : translator::translate("tile"));
 				lb->set_fixed_width(proportional_string_width("188") + proportional_string_width(translator::translate("tiles,")));
 				lb->update();
-				new_component<gui_label_buf_t>()->buf().printf("%.2f$/%s", (double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(halt->calc_maintenance()), buildings) / 100.0, translator::translate("month"));
+				gui_label_buf_t *maint = new_component<gui_label_buf_t>();
+				maint->buf().append_money((double)world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), world()->calc_adjusted_monthly_figure(halt->calc_maintenance()), buildings) / 100.0, "/");
+				maint->buf().append(translator::translate("month"));
 			}
 			end_table();
 			break;

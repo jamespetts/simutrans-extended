@@ -5863,7 +5863,8 @@ void convoi_t::info(cbuffer_t & buf) const
 	if (v != NULL) {
 		char tmp[128];
 
-		buf.printf("\n %d/%dkm/h (%1.2f$/km)\n", speed_to_kmh(min_top_speed), v->get_desc()->get_topspeed(), get_running_cost(welt) / 100.0F);
+		buf.printf("\n %d/%dkm/h (", speed_to_kmh(min_top_speed), v->get_desc()->get_topspeed());
+		buf.append_money(get_running_cost(welt) / 100.0F, "/km)\n");
 
 		buf.printf(" %s: %ikW\n", translator::translate("Leistung"), sum_power );
 
