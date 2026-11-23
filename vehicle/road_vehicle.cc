@@ -25,6 +25,25 @@
 #include "../utils/cbuffer_t.h"
 
 
+/**
+ * Forward distance over which the rendering-only lateral pull-in blend moves
+ * from the travel lane to the stand, in vehicle steps. The lateral movement is
+ * capped by the distance actually travelled, so the vehicle never appears to
+ * move sideways faster than it moves forward. A through-stop stand uses the
+ * shorter distance; a terminal's passing-lane stands need the longer one
+ * because their lateral offset includes the whole passing-lane separation.
+ */
+static const uint32 PULL_IN_BLEND_STEPS = 64;
+
+/// How far before the end of a through stop's halt tile the blend may start,
+/// in vehicle steps. This leaves the 64-step blend room to finish before the
+/// stop position at the end or the centre of the tile.
+static const uint32 PULL_IN_APPROACH_STEPS = 128;
+
+/// Fully at the stand in the 0 to 256 rendering blend.
+static const uint16 PULL_IN_FACTOR_ONE = 256;
+
+
 namespace road_space
 {
 
@@ -88,6 +107,31 @@ uint32 following_gap(const sint32 follower_speed, const bool leader_moving)
 	const sint64 millimetres_per_tile = (sint64)world()->get_settings().get_meters_per_tile() * 1000;
 	// Round up: a real gap must never shrink to nothing in vehicle steps.
 	return (uint32)((gap_mm * VEHICLE_STEPS_PER_TILE + millimetres_per_tile - 1) / millimetres_per_tile);
+}
+
+sint16 advance_lateral_blend(const sint16 current, const sint16 target, const uint32 forward_steps, const uint32 blend_steps)
+{
+	if (forward_steps == 0 || blend_steps == 0)
+	{
+		return current;
+	}
+	// One call can never need to cover more than the full blend distance; this
+	// also keeps the multiplication below within 32 bits after a large jump.
+	const uint32 capped_steps = min(forward_steps, blend_steps);
+	sint32 step = (sint32)((capped_steps * 256u) / blend_steps);
+	if (step < 1)
+	{
+		step = 1;
+	}
+	if (current < target)
+	{
+		return (sint16)min((sint32)target, (sint32)current + step);
+	}
+	if (current > target)
+	{
+		return (sint16)max((sint32)target, (sint32)current - step);
+	}
+	return current;
 }
 
 /**
@@ -338,7 +382,12 @@ road_vehicle_t::road_vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t
 #else
     vehicle_t(pos, desc, player),
 #endif
-    stand_mask(0)
+    stand_mask(0),
+    pull_in_factor(0),
+    pull_in_lateral(255),
+    overtake_level(0),
+    lateral_distance(0),
+    lateral_last_distance(0)
 {
 	cnv = cn;
 	is_checker = false;
@@ -352,7 +401,12 @@ road_vehicle_t::road_vehicle_t() :
 #else
     vehicle_t(),
 #endif
-    stand_mask(0)
+    stand_mask(0),
+    pull_in_factor(0),
+    pull_in_lateral(255),
+    overtake_level(0),
+    lateral_distance(0),
+    lateral_last_distance(0)
 {
 	// This is blank - just used for the automatic road finder.
 	cnv = NULL;
@@ -365,7 +419,12 @@ road_vehicle_t::road_vehicle_t(loadsave_t *file, bool is_leading, bool is_last) 
 #else
     vehicle_t(),
 #endif
-    stand_mask(0)
+    stand_mask(0),
+    pull_in_factor(0),
+    pull_in_lateral(255),
+    overtake_level(0),
+    lateral_distance(0),
+    lateral_last_distance(0)
 {
 	rdwr_from_convoi(file);
 
@@ -440,11 +499,22 @@ void road_vehicle_t::calc_disp_lane()
 // without synchronisation while convoy worker threads run route finding.
 void road_vehicle_t::release_target_reservations()
 {
+	// The halt reservation is released when the next route is prepared, before
+	// the convoy has actually left the stop. Keep the stand mask while the
+	// convoy is still on the halt tile, so that it stays drawn at its stand and
+	// the stand stays taken until the convoy leaves the tile.
+	const bool keep_stand_mask = leading && stand_mask != 0 && target_halt.is_bound()
+		&& get_grund() != NULL && get_grund()->get_halt() == target_halt;
+	const uint8 mask = stand_mask;
 	if(leading   &&  previous_direction!=ribi_t::none  &&  cnv  &&  target_halt.is_bound() ) {
 		// now reserve our choice (beware: might be longer than one tile!)
 		for(  uint32 length=0;  length<cnv->get_tile_length()  &&  length+1<cnv->get_route()->get_count();  length++  ) {
 			target_halt->unreserve_position( welt->lookup( cnv->get_route()->at( cnv->get_route()->get_count()-length-1) ), cnv->self );
 		}
+	}
+	if (keep_stand_mask)
+	{
+		stand_mask = mask;
 	}
 	target_halt = halthandle_t(); // no block reserved
 }
@@ -596,37 +666,51 @@ bool road_vehicle_t:: is_target(const grund_t *gr, const grund_t *prev_gr)
 // to make smaller steps than the tile granularity, we have to use this trick
 void road_vehicle_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster_width, bool prev_based ) const
 {
+	(void)prev_based;
 	vehicle_base_t::get_screen_offset( xoff, yoff, raster_width );
 
-	if (is_pulled_over())
+	// Every vehicle of a road convoy uses the leading vehicle's lateral state,
+	// because the stand and the convoy's lane are recorded on the leading
+	// vehicle.
+	const road_vehicle_t *source = this;
+	if (cnv != NULL)
 	{
-		// Draw the vehicle beside the travel lane while it loads at its stand.
-		const uint8 lateral = get_stand_lateral_position();
+		const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
+		if (front != NULL)
+		{
+			source = front;
+		}
+	}
+
+	const uint16 factor = source->pull_in_factor;
+	if (source->stand_mask != 0 || factor > 0)
+	{
+		// Draw the vehicle at the blend between the travel lane and its stand.
+		// The lateral position of a held stand is read live; after the stand is
+		// released, the last position is kept while the vehicle glides back.
+		const uint8 lateral = source->stand_mask != 0
+			? source->get_stand_lateral_position()
+			: source->pull_in_lateral;
+		const uint8 dir = ribi_t::get_dir(get_direction());
 		if ((lateral & 2) != 0)
 		{
-			xoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][0], raster_width);
-			yoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][1], raster_width);
+			xoff += (tile_raster_scale_x(overtaking_base_offsets[dir][0], raster_width) * factor) / PULL_IN_FACTOR_ONE;
+			yoff += (tile_raster_scale_x(overtaking_base_offsets[dir][1], raster_width) * factor) / PULL_IN_FACTOR_ONE;
 		}
-		if ((lateral & 1) != 0)
+		if ((lateral & 1) != 0 && factor > 0)
 		{
-			add_pulled_over_offset(xoff, yoff, raster_width);
+			add_pulled_over_offset(xoff, yoff, raster_width, factor);
 		}
 		return;
 	}
 
 	// eventually shift position to take care of overtaking
-	if(cnv) {
-		sint8 tiles_overtaking = prev_based ? cnv->get_prev_tiles_overtaking() : cnv->get_tiles_overtaking();
-		if(  tiles_overtaking>0  ) {
-			/* This means the convoy is overtaking other vehicles. */
-			xoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][0], raster_width);
-			yoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][1], raster_width);
-		}
-		else if(  tiles_overtaking<0  ) {
-			/* This means the convoy is overtaken by other vehicles. */
-			xoff -= tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][0], raster_width)/5;
-			yoff -= tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][1], raster_width)/5;
-		}
+	const sint16 overtake = source->overtake_level;
+	if (overtake != 0)
+	{
+		const uint8 dir = ribi_t::get_dir(get_direction());
+		xoff += (tile_raster_scale_x(overtaking_base_offsets[dir][0], raster_width) * overtake) / PULL_IN_FACTOR_ONE;
+		yoff += (tile_raster_scale_x(overtaking_base_offsets[dir][1], raster_width) * overtake) / PULL_IN_FACTOR_ONE;
 	}
 }
 
@@ -706,19 +790,25 @@ bool road_vehicle_t::is_pulled_over() const
 		return false;
 	}
 	// The stand is recorded on the leading vehicle; every vehicle of the
-	// convoy is drawn beside the travel lane while the convoy loads.
+	// convoy is drawn beside the travel lane while the convoy is at its stand.
 	const road_vehicle_t *front = dynamic_cast<const road_vehicle_t *>(cnv->front());
 	if (front == NULL || front->stand_mask == 0)
 	{
 		return false;
 	}
-	if (!(cnv->is_loading() || cnv->get_state() == convoi_t::LAYOVER))
+	// Stand 0 of a terminal is the normal travel position, not a pulled-over
+	// one: a vehicle there still blocks the lane.
+	if (get_stand_lateral_position() == 0)
 	{
 		return false;
 	}
-	// Stand 0 of a terminal is the normal travel position, not a pulled-over
-	// one: a vehicle there still blocks the lane.
-	return get_stand_lateral_position() != 0;
+	// A convoy which is loading or laid over is beside the lane. A convoy which
+	// has stopped at its stand is also beside it: the leading vehicle is at its
+	// tile limit and the convoy is stationary. That covers the wait for a
+	// reversal or for a free route after loading has ended.
+	const bool stopped_at_stand = front->steps >= front->steps_next
+		&& cnv->get_akt_speed() == 0;
+	return cnv->is_loading() || cnv->get_state() == convoi_t::LAYOVER || stopped_at_stand;
 }
 
 
@@ -755,6 +845,97 @@ uint8 road_vehicle_t::get_stand_lateral_position() const
 }
 
 
+void road_vehicle_t::update_lateral_blend() const
+{
+	const bool first_update = pull_in_lateral == 255;
+	const bool has_stand = stand_mask != 0;
+
+	// A through stop's lateral position is always the traffic lane's pulled-over
+	// position, so the blend can start on the approach. A terminal's stand
+	// position is not known until the stand is reserved, so it starts then.
+	bool approaching = false;
+	if (!has_stand && cnv != NULL && target_halt.is_bound()
+		&& (sint32)steps_next - (sint32)steps < (sint32)PULL_IN_APPROACH_STEPS)
+	{
+		const grund_t *next = welt->lookup(pos_next);
+		if (next != NULL && next->get_halt() == target_halt
+			&& target_halt->get_stand_count(next) < 4)
+		{
+			approaching = true;
+		}
+	}
+
+	if (has_stand)
+	{
+		pull_in_lateral = get_stand_lateral_position();
+	}
+	else if (approaching)
+	{
+		pull_in_lateral = 1;
+	}
+
+	const bool pull_in = has_stand || approaching;
+
+	// Pulling in at a stop takes precedence over the overtaking lane offset.
+	sint16 overtake_target = 0;
+	if (!pull_in && cnv != NULL)
+	{
+		if (cnv->is_overtaking())
+		{
+			overtake_target = (sint16)PULL_IN_FACTOR_ONE;
+		}
+		else if (cnv->is_overtaken())
+		{
+			overtake_target = road_space::OVERTAKEN_LATERAL_LEVEL;
+		}
+	}
+
+	if (first_update)
+	{
+		// First update after creating or loading this vehicle. A vehicle that
+		// already holds a stand is drawn at the stand immediately; otherwise it
+		// starts in the travel lane.
+		lateral_last_distance = lateral_distance;
+		pull_in_factor = pull_in ? PULL_IN_FACTOR_ONE : 0;
+		if (!pull_in)
+		{
+			pull_in_lateral = 0;
+		}
+		overtake_level = overtake_target;
+		return;
+	}
+
+	const uint32 forward_yards = lateral_distance - lateral_last_distance;
+	lateral_last_distance = lateral_distance;
+	const uint32 forward_steps = forward_yards >> YARDS_PER_VEHICLE_STEP_SHIFT;
+	if (forward_steps == 0)
+	{
+		// No forward movement, so no lateral movement: the vehicle must not
+		// appear to slide sideways while it is standing.
+		return;
+	}
+
+	const uint32 pull_in_blend_steps = (pull_in_lateral & 2) != 0
+		? road_space::LANE_CHANGE_BLEND_STEPS
+		: PULL_IN_BLEND_STEPS;
+	pull_in_factor = (uint16)road_space::advance_lateral_blend(
+		(sint16)pull_in_factor,
+		pull_in ? (sint16)PULL_IN_FACTOR_ONE : 0,
+		forward_steps,
+		pull_in_blend_steps);
+	overtake_level = road_space::advance_lateral_blend(
+		overtake_level,
+		overtake_target,
+		forward_steps,
+		road_space::LANE_CHANGE_BLEND_STEPS);
+
+	if (pull_in_factor == 0 && !pull_in)
+	{
+		pull_in_lateral = 0;
+	}
+}
+
+
 void road_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 {
 	vehicle_t::rdwr_from_convoi(file);
@@ -765,6 +946,12 @@ void road_vehicle_t::rdwr_from_convoi(loadsave_t *file)
 		if (file->is_loading())
 		{
 			stand_mask = mask & 0x0F;
+			// A vehicle loaded at a stand is already pulled over; do not draw it
+			// gliding in from the travel lane after the load.
+			if (stand_mask != 0)
+			{
+				pull_in_factor = PULL_IN_FACTOR_ONE;
+			}
 		}
 	}
 	else if (file->is_loading())
@@ -1515,8 +1702,24 @@ uint32 road_vehicle_t::do_drive(uint32 distance)
 		}
 	}
 	add_distance(distance_travelled);
+	// Render-only odometer for the lateral blends. Only the leading vehicle
+	// moves by its own distance; the others follow it.
+	lateral_distance += distance_travelled;
 	return distance_travelled;
 }
+
+void road_vehicle_t::leave_tile()
+{
+	// A route ends on the halt tile, so the final hop can be within that same
+	// tile. Keep the stand through such a hop; a hop to another tile leaves
+	// the stand behind. The pull-in blend then fades as the vehicle moves away.
+	if (leading && stand_mask != 0 && pos_next != get_pos())
+	{
+		stand_mask = 0;
+	}
+	vehicle_base_t::leave_tile();
+}
+
 
 void road_vehicle_t::enter_tile(grund_t* gr)
 {

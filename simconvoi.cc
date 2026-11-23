@@ -1310,6 +1310,15 @@ int convoi_t::get_vehicle_at_length(uint16 length)
 // moves all vehicles of a convoi
 sync_result convoi_t::sync_step(uint32 delta_t)
 {
+	// Advance the rendering-only lateral blends of a road convoy's leading
+	// vehicle, so that it glides sideways at a stop stand and when changing
+	// lane. This must also run while wait_lock pauses the rest of the convoy,
+	// because a loading vehicle can be waiting at its stand.
+	if (vehicle_count > 0 && front()->get_waytype() == road_wt)
+	{
+		static_cast<road_vehicle_t *>(front())->update_lateral_blend();
+	}
+
 	// still have to wait before next action?
 	wait_lock -= delta_t;
 	if(wait_lock > 0) {

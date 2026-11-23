@@ -151,7 +151,8 @@ described in the read/write split above. The injected packet is ordinary saved h
   objects containing each slot's descriptor, owner, reversal, cargo quantity, capacity, `pos`,
   `route_index`, `steps`, `steps_next` and `speed` (the convoy's current speed in km/h), plus the
   road-specific `stand_mask` (the four-bit stop-stand reservation, or zero), `pulled_over`
-  (whether the road vehicle is loading at a stand beside the travel lane) and `overtaking`
+  (whether the road vehicle is beside the travel lane at a stand: loading, laid over or
+  stopped at the stand) and `overtaking`
   (whether the road convoy is in the passing lane; false for other waytypes); it also carries
   the loose recipient (`loose_recipient_id`
   and the `loose_recipient_is_convoy`, `loose_recipient_is_same` and `loose_recipient_is_any` flags),
@@ -302,9 +303,10 @@ Tests section. See [documentation-architecture](documentation-architecture.md) f
   cases or reload runners.
 - [road-vehicle-operations implementation](road-vehicle-operations/implementation.md#tests) — read
   when running the `road-cases/` group of the pending-runtime fixture (`single-run`,
-  `moving-gap`, `overtake`, `junction`, `queue`, `stop-release`, `terminal-stands`,
-  `terminal-turnover`, `through-pass`, `through-pass-oncoming`), the `save-reload-stand` reload
-  case, or extending the road-space, stop-stand and private-car tests.
+  `moving-gap`, `overtake`, `junction`, `queue`, `stop-release`, `reverse-through`,
+  `reverse-through-westbound`, `terminal-stands`, `terminal-turnover`, `through-pass`,
+  `through-pass-oncoming`), the `save-reload-stand` reload case, or extending the road-space,
+  stop-stand and private-car tests.
 
 ## Writing new tests
 

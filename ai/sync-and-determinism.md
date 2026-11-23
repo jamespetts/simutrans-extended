@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 525118eaa; ex-15 @ c05a49e154 plus working-tree step-guard changes (path-explorer row; 2026-11-07); ex-15 @ d257c1296 (tool/UI additions); ex-15 route-unreserve removal (2026-11-14)
+verified: master @ 525118eaa; ex-15 @ b2bfc8d (path-explorer row; 2026-11-07); ex-15 @ d257c1296 (tool/UI additions); ex-15 route-unreserve removal (2026-11-14)
 ---
 # Sync & determinism: rules for simulation code
 

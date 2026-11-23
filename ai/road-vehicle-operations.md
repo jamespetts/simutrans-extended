@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c05a49e154 plus working-tree road-following changes; implementation on branch road-vehicle-operations @ ef449777d1
+verified: ex-15 @ b2bfc8d plus working-tree lateral rendering changes; implementation on branch road-vehicle-operations @ ef449777d1
 ---
 # Road vehicle operations
 
@@ -122,8 +122,8 @@ of a through stop configured with `halt_mode`.
 The road-space model has lateral positions, but a vehicle does not need to store a full
 index in the first two packages. The current traffic/passing lane is already stored in
 `convoi_t::tiles_overtaking` and `private_car_t::tiles_overtaking`. The pulled-over state
-is derived: a road vehicle is pulled over when it holds a stand mask and is loading or in
-layover at the halt. The only new persistent datum for the first two packages is the
+is derived: a road vehicle is pulled over when it holds a stand mask, the stand is not a
+terminal stand 0, and it is loading, in layover, or stopped at the stand. The only new persistent datum for the first two packages is the
 four-bit stand mask on `road_vehicle_t`, and it fits existing padding. The motorway package
 may need a persistent travel-lane index; add it then, not now.
 

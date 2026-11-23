@@ -324,8 +324,9 @@ SQInteger convoy_get_vehicle_snapshot(HSQUIRRELVM vm)
 		// no stand. Every other vehicle reports zero.
 		const road_vehicle_t *rv = dynamic_cast<const road_vehicle_t *>(v);
 		set_slot(vm, "stand_mask", (SQInteger)(rv != NULL ? rv->get_stand_mask() : 0));
-		// True only for a road vehicle that is loading or laid over at a stop
-		// stand beside the travel lane. Any other vehicle reports false.
+		// True for a road vehicle at a stop stand beside the travel lane: while
+		// loading, while laid over, or while stopped at the stand, which
+		// includes the wait for a reversal. Any other vehicle reports false.
 		set_slot(vm, "pulled_over", rv != NULL && rv->is_pulled_over());
 		// True when a road convoy is travelling in the passing lane (overtaking).
 		// Any other vehicle type reports false.

@@ -710,7 +710,8 @@ class vehicle_slot_x {
 	speed = 0
 	/// for a road vehicle, the four-bit stop-stand mask; zero when no stand is held
 	stand_mask = 0
-	/// true only for a road vehicle loading at a stop stand beside the travel lane
+	/// true for a road vehicle at a stop stand beside the travel lane: loading,
+	/// laid over, or stopped at the stand while it waits at the stop
 	pulled_over = false
 	/// true when a road convoy is travelling in the passing lane (overtaking)
 	overtaking = false

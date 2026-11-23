@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c05a49e154 plus working-tree road-following changes
+verified: ex-15 @ b2bfc8d plus working-tree lateral rendering changes
 ---
 # Private cars
 
@@ -262,6 +262,15 @@ or empty. `scenario_info_t::action_triggered` uses the same parser for its
 scenario-square coordinates. `private_car_t::info` wraps the origin city and
 destination building names in links to their world positions; the translated
 format string is unchanged.
+
+### Lateral overtaking drawing
+
+`private_car_t::get_screen_offset` uses the same `road_space::advance_lateral_blend` as
+player road vehicles. The car's `overtake_level` blends between the traffic lane, the passing
+lane and the small being-overtaken offset
+(`road_space::OVERTAKEN_LATERAL_LEVEL`), advanced by the forward distance travelled so that
+the car never moves sideways faster than it moves forward. The blend is rendering-only. The
+shared rules are in [implementation](implementation.md#lateral-drawing).
 
 ### Tests and gaps
 

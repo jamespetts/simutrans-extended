@@ -447,12 +447,19 @@ void vehicle_base_t::get_screen_offset( int &xoff, int &yoff, const sint16 raste
 }
 
 
-void vehicle_base_t::add_pulled_over_offset(int &xoff, int &yoff, const sint16 raster_width) const
+void vehicle_base_t::add_pulled_over_offset(int &xoff, int &yoff, const sint16 raster_width, const uint16 factor) const
 {
 	const uint8 dir = ribi_t::get_dir(get_direction());
 	const sint8 sign = drives_on_left ? 1 : -1;
-	xoff += sign * tile_raster_scale_x(driveleft_base_offsets[dir][0], raster_width) / 2;
-	yoff += sign * tile_raster_scale_y(driveleft_base_offsets[dir][1], raster_width) / 2;
+	// A quarter of the lane separation at full factor, so that the vehicle
+	// stands at the kerb rather than on the pavement. factor is 0 for the
+	// travel lane and 256 for the stand.
+	static const sint32 PULLED_OVER_OFFSET_DIVISOR = 4;
+	const sint32 scale = 256 * PULLED_OVER_OFFSET_DIVISOR;
+	const sint32 pull_in_x = ((sint32)tile_raster_scale_x(driveleft_base_offsets[dir][0], raster_width) * factor) / scale;
+	const sint32 pull_in_y = ((sint32)tile_raster_scale_y(driveleft_base_offsets[dir][1], raster_width) * factor) / scale;
+	xoff += sign * pull_in_x;
+	yoff += sign * pull_in_y;
 }
 
 

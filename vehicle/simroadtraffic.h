@@ -116,6 +116,27 @@ private:
 	// Clears a blocker that this car may follow onto a queueing tile.
 	void apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) const;
 
+	/**
+	 * Rendering-only signed blend of the overtaking lane offset: 0 is the
+	 * normal lane, 256 is the passing lane and
+	 * road_space::OVERTAKEN_LATERAL_LEVEL is the small offset when being
+	 * overtaken. It is advanced with the forward distance travelled so that
+	 * the car never appears to slide sideways faster than it moves forward.
+	 * Not saved and not synced.
+	 */
+	mutable sint16 overtake_level;
+
+	/// Render-only cumulative forward distance in yards, and the value at the
+	/// last blend update.
+	mutable uint32 lateral_distance;
+	mutable uint32 lateral_last_distance;
+
+	/**
+	 * Advances the rendering-only overtaking blend from the forward distance
+	 * travelled. Called from do_drive().
+	 */
+	void update_lateral_blend() const;
+
 public:
 	uint32 do_drive(uint32 distance) OVERRIDE;
 

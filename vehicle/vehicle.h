@@ -225,12 +225,13 @@ public:
 
 	/**
 	 * Adds the screen offset that draws a road vehicle beside the travel lane
-	 * instead of on it, as when it loads at a stop stand. The offset is half
-	 * the lateral separation that the drive-on-the-left offset gives the two
-	 * directions of travel, in the same direction, so it moves the vehicle
-	 * towards the kerb.
+	 * instead of on it, as when it loads at a stop stand. The offset is a
+	 * quarter of the lateral separation that the drive-on-the-left offset gives
+	 * the two directions of travel, on the same side as the vehicle's own lane,
+	 * so it moves the vehicle towards the kerb. @p factor scales it (0 for the
+	 * travel lane, 256 for the stand).
 	 */
-	void add_pulled_over_offset(int &xoff, int &yoff, const sint16 raster_width) const;
+	void add_pulled_over_offset(int &xoff, int &yoff, const sint16 raster_width, const uint16 factor) const;
 
 	/**
 	 * Vehicle movement: calculates z-offset of vehicles on slopes,

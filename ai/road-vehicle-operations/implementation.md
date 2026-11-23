@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c05a49e154 plus working-tree road-following changes
+verified: ex-15 @ b2bfc8d plus working-tree lateral rendering, reversal stand and following-traffic changes
 ---
 # Road vehicle operations: implementation
 
@@ -78,11 +78,16 @@ waiting are not implemented.
 
 The lateral position of a road vehicle is the existing traffic or passing lane
 (`convoi_t::is_overtaking`, `private_car_t::is_overtaking`) plus the pulled-over state.
-`road_vehicle_t::is_pulled_over` is true when the leading vehicle holds a stand bit and the
-convoy is loading (`convoi_t::is_loading`) or laid over (`convoi_t::LAYOVER`), except at a
-terminal stand 0, which is the normal travel position. A vehicle that is pulled over does not
-block traffic in position 0: both `road_vehicle_t::apply_following_rule` and
-`private_car_t::apply_following_rule` clear such a vehicle as a blocker.
+`road_vehicle_t::is_pulled_over` is true when the leading vehicle holds a stand bit, the
+stand is not a terminal stand 0 (which is the normal travel position), and the convoy is
+loading (`convoi_t::is_loading`), laid over (`convoi_t::LAYOVER`) or stopped at the stand
+(the leading vehicle has reached its position limit within the tile and the convoy is
+stationary). The last condition
+covers the wait at the stop after loading, including the wait for a reversal, when the convoy
+is no longer loading but the vehicle is still beside the lane. A vehicle that is pulled over does not
+block traffic in position 0: `road_space::following_limit` skips it, and both
+`road_vehicle_t::apply_following_rule` and `private_car_t::apply_following_rule` clear such a
+vehicle as a blocker.
 
 ## Stop stands and terminal capacity
 
@@ -110,15 +115,47 @@ in `reservation[s]`, and records the bit on the leading vehicle with
 and the vehicle's mask. The reservation is made when the leading vehicle enters the last tile
 of its route and that tile is a halt (`road_vehicle_t::enter_tile`), because normal road route
 finding does not call `reserve_position`; route finding only checks that a stand is free. The
-same function records the halt in `target_halt` when the reservation succeeds, so that
-`road_vehicle_t::release_target_reservations` frees the stand on departure; without that,
-ordinary road convoys left the reservation behind and a through stop lost its stand for the
-rest of the game. `get_empty_lane` ignores the reserving vehicle itself and drops a stand that
-another vehicle occupies in the same lateral position.
+same function records the halt in `target_halt` when the reservation succeeds.
+`release_target_reservations` frees the halt positions when the next route is prepared, but
+the vehicle keeps its stand mask while it is still on the halt tile. This matters at a stop
+where the convoy reverses: the next route is prepared as soon as loading ends, and the convoy
+then waits at the stop for the reversal delay. `road_vehicle_t::leave_tile` clears the mask
+when the vehicle's next position is a different tile, so the mask survives a final hop within
+the halt tile but is cleared on departure. Road convoys keep the same leading vehicle through
+a reversal because `convoi_t::execute_reverse_order` does not swap vehicles when
+`get_terminal_shunt_mode` returns `wye` (the mode in which the convoy turns without
+re-ordering its vehicles), which it does for every non-rail waytype; the stand mask therefore
+stays on the leading vehicle. Without the release, ordinary road convoys left
+the reservation behind and a through stop lost its stand for the rest of the game.
+`get_empty_lane` ignores the reserving vehicle itself and drops a stand that another vehicle
+occupies in the same lateral position.
 
 A vehicle that finds no free stand waits in the travel lane or at its previous tile;
 pulled-over waiting is not implemented. A terminal stand 0 is the normal travel position and
 does not pull the vehicle over.
+
+### Lateral drawing
+
+`road_vehicle_t::get_screen_offset` and `private_car_t::get_screen_offset` draw the lateral
+lane position at a blend between the current lane and the target lane.
+`road_space::advance_lateral_blend` moves the blend at most as far laterally as the vehicle
+moves forward: `LANE_CHANGE_BLEND_STEPS` (192 vehicle steps) covers a full lane offset, and
+`PULL_IN_BLEND_STEPS` (64 steps) covers the through-stop pull-in. The overtaking offset uses
+`overtaking_base_offsets`; a vehicle being overtaken uses
+`road_space::OVERTAKEN_LATERAL_LEVEL` (-51 of 256, a fifth of the full lane offset in the
+opposite direction). A stop stand
+uses `vehicle_base_t::add_pulled_over_offset`, which is a quarter of the
+`driveleft_base_offsets` separation (`PULLED_OVER_OFFSET_DIVISOR` is 4); terminal stands 2
+and 3 also include the passing-lane offset. The pull-in blend starts
+`PULL_IN_APPROACH_STEPS` (128 steps) before a through stop; a terminal's blend starts when
+its stand is reserved. `road_vehicle_t::update_lateral_blend` runs on the leading vehicle
+from `convoi_t::sync_step`; `private_car_t::update_lateral_blend` runs from
+`private_car_t::do_drive`. Both blends are advanced by the forward distance travelled, so a
+vehicle never appears to slide sideways while standing still. The stand mask remains set
+while the vehicle is on the halt tile (see above), so a vehicle that reverses at a stop stays
+drawn at the stand through the reversal wait and starts to fade out only after it leaves the
+tile. The blends are rendering-only: they are not saved, not synced and do not affect
+movement.
 
 The stand mask is saved by the `road_vehicle_t::rdwr_from_convoi` override, which calls
 `vehicle_t::rdwr_from_convoi` and then reads or writes one byte behind
@@ -136,12 +173,14 @@ configurations, so the four-bit mask costs no object memory; it is packed with t
 pointer and 4 bytes for two reservations, 12 bytes padded to 16. Four reservations use 16
 bytes, which still fits that padding, but the added one-byte `stands` count makes the record
 17 bytes, which the 8-byte alignment pads to 24. `haltestelle_t::tile_t` therefore grows by 8
-bytes per halt tile on x64.
+bytes per halt tile on x64. The rendering-only lateral blends add up to 16 bytes to
+`road_vehicle_t` and up to 12 bytes to `private_car_t`; the size probe has not been rerun,
+so the vehicle figures above predate those fields.
 
 ## Tests
 
 `tests/pending-runtime/road-harness.nut` and `tests/pending-runtime/road-cases/` provide the
-`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains ten cases:
+`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains twelve cases:
 
 - `single-run`: one convoy crosses a straight road to its destination without a false block or
   stall.
@@ -166,6 +205,14 @@ bytes per halt tile on x64.
 - `stop-release`: a holder loads at a through stop and departs; a second vehicle then starts,
   reaches the stop, loads and holds the released stand. The saved stand mask must be non-zero
   so that the case proves the stand was reused, not merely that the second vehicle passed.
+- `reverse-through`: a vehicle loads at a through stop whose schedule entry has its `reverse`
+  flag set. It must hold its stand while loading, keep a non-zero stand mask and report
+  `pulled_over` while it waits at the stop for the reversal, and then leave the stop in the
+  opposite direction. The case fails
+  if the stand is released when the next route is prepared while the vehicle is still on the
+  stop tile.
+- `reverse-through-westbound`: the same checks with a westbound approach, where the vehicle
+  stops at the middle of the halt tile rather than at its end.
 - `terminal-stands`: four convoys occupy a terminal while a fifth waits; the number of held
   stands never exceeds four.
 - `terminal-turnover`: four convoys hold the terminal's four stands, one departs, and the
@@ -201,8 +248,8 @@ scripts\run-pending-runtime-reload-tests.ps1 -CaseName save-reload-stand
   -Exe simutrans\Simutrans-Extended-Debug.exe
 ```
 
-The ten road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
-(about 50 s with six jobs). The standard Squirrel suite passes (81 of 81). The `division`,
+The twelve road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
+(about 44 s with six jobs). The standard Squirrel suite passes (81 of 81). The `division`,
 `pair`, `choose` and `ownership` pending-runtime groups pass (37 cases). `save-reload-stand`
 passes on the server after the join and in the fresh offline load.
 

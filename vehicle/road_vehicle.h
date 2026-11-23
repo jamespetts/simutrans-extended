@@ -51,6 +51,24 @@ namespace road_space
 	/// selects the reaction-time headway instead of the standstill gap.
 	uint32 following_gap(const sint32 follower_speed, const bool leader_moving);
 
+	/// Forward distance in vehicle steps over which a full lane offset is
+	/// blended when a road vehicle changes lane or overtakes.
+	const uint32 LANE_CHANGE_BLEND_STEPS = 192;
+
+	/// Lateral blend level for a vehicle that is being overtaken, in 256ths of
+	/// the full lane offset and opposite to the overtaking direction.
+	const sint16 OVERTAKEN_LATERAL_LEVEL = -51;
+
+	/**
+	 * Advances a signed lateral blend from @p current towards @p target by no
+	 * more than the forward distance travelled. @p current and @p target are in
+	 * 256ths of the full lateral offset; @p forward_steps is the forward distance
+	 * since the last call and @p blend_steps is the forward distance over which
+	 * the full offset is covered. This keeps the lateral movement no faster than
+	 * the forward movement, so a vehicle never appears to slide sideways.
+	 */
+	sint16 advance_lateral_blend(const sint16 current, const sint16 target, const uint32 forward_steps, const uint32 blend_steps);
+
 	/**
 	 * The position in vehicle steps that the user described by @p self may not
 	 * pass on @p gr, or -1 when no vehicle in the same lateral position
@@ -121,12 +139,47 @@ protected:
 	 */
 	uint8 stand_mask : 4;
 
+	/**
+	 * Rendering-only blend of the lateral pull-in position: 0 is the travel
+	 * lane and 256 is fully at the stand. update_lateral_blend() advances it
+	 * with the forward distance travelled, so a vehicle glides in and out of
+	 * the stand instead of jumping. Only the leading vehicle updates it; every
+	 * vehicle of the convoy reads the leading vehicle's value. Not saved and
+	 * not synced.
+	 */
+	mutable uint16 pull_in_factor;
+	/// Lateral position (0 to 3) that pull_in_factor is blending towards.
+	/// 255 marks the blend as not yet initialised after creation or loading.
+	mutable uint8 pull_in_lateral;
+
+	/**
+	 * Rendering-only signed blend of the overtaking lane offset: 0 is the
+	 * normal lane, 256 is the passing lane and OVERTAKEN_LATERAL_LEVEL is the
+	 * small offset for a vehicle being overtaken. It is advanced with the
+	 * forward distance travelled by the same update as the pull-in blend.
+	 */
+	mutable sint16 overtake_level;
+
+	/// Render-only cumulative forward distance in yards, and the value at the
+	/// last lateral blend update. Their difference caps the lateral movement so
+	/// that it never exceeds the vehicle's forward movement.
+	mutable uint32 lateral_distance;
+	mutable uint32 lateral_last_distance;
+
 public:
 	void enter_tile(grund_t*) OVERRIDE;
+	void leave_tile() OVERRIDE;
 	virtual void hop(grund_t*) OVERRIDE;
 	virtual uint32 do_drive(uint32 distance) OVERRIDE;
 
 	void rdwr_from_convoi(loadsave_t *file) OVERRIDE;
+
+	/**
+	 * Advances the rendering-only pull-in and overtaking blends from the
+	 * forward distance travelled. Called on the leading vehicle once per sync
+	 * step on the main thread.
+	 */
+	void update_lateral_blend() const;
 
 	uint8 get_stand_mask() const { return stand_mask; }
 	void set_stand_mask(uint8 mask) { stand_mask = mask; }

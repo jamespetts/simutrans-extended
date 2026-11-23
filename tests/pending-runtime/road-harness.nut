@@ -24,6 +24,9 @@ local ROAD_END = coord3d(12, 2, 0)
 local MID_STOP = coord3d(10, 2, 0)
 local STOP_POS = coord3d(5, 2, 0)
 local TERMINAL_ROAD_END = coord3d(7, 2, 0)
+local REVERSE_WEST_STOP = coord3d(3, 2, 0)
+local REVERSE_EAST_STOP = coord3d(7, 2, 0)
+local REVERSE_EAST_DEPOT = coord3d(12, 2, 0)
 
 // The moving-gap case uses a short road so that the follower meets the leader
 // near the end of its route, where road overtaking is refused.
@@ -92,6 +95,9 @@ local fixture = {
 	fast_arrival = -1,
 	// stop-release and terminal-turnover
 	holder_cleared = false,
+	// reverse-through
+	reversal_seen = false,
+	reverse_westbound = false,
 	stand_taken = false,
 	holder_released_seen = false,
 	fifth_started = false,
@@ -1256,6 +1262,125 @@ function observe_stop_release()
 }
 
 
+// A through stop whose schedule entry reverses. The vehicle must keep its
+// stand while it is still on the stop tile, including through the reversal
+// wait, and must then leave the stop in the opposite direction. The
+// westbound variant approaches the stop heading west, where the vehicle stops
+// at the middle of the halt tile rather than at its end.
+function setup_reverse_through(pl)
+{
+	local westbound = case_name == "reverse-through-westbound"
+	local second_stop = westbound ? REVERSE_EAST_STOP : REVERSE_WEST_STOP
+	local depot_pos = westbound ? REVERSE_EAST_DEPOT : DEPOT_POS
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, ROAD_END, road, true), "build the straight road"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, STOP_POS), "build the reversing stop"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, second_stop), "build the stop beyond the reversing stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, depot_pos, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(depot_pos.x, depot_pos.y, depot_pos.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// The maximum wait ends the stop; no passengers are generated in the
+	// empty world, so the vehicle would otherwise wait indefinitely.
+	local stop_entry = make_entry_wait(STOP_POS, 111, 100, 8)
+	stop_entry.reverse = 1
+	local cnv = make_convoy(pl, desc,
+		[stop_entry, make_entry(second_stop, 112, 0)], "reversing vehicle")
+	if (cnv == null)
+	{
+		return false
+	}
+	fixture.convoys = [cnv]
+	fixture.reverse_westbound = westbound
+	if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start the reversing vehicle"))
+	{
+		return false
+	}
+	fixture.started = [true]
+	return true
+}
+
+
+function observe_reverse_through()
+{
+	local cnv = fixture.convoys[0]
+	local a = front_slot(cnv)
+	if (a == null)
+	{
+		return
+	}
+	if (same_pos(a.pos, STOP_POS) && cnv.is_loading())
+	{
+		if (a.stand_mask == 0)
+		{
+			fail("the reversing vehicle is loading at the stop without holding its stand")
+			return
+		}
+		if (!fixture.holder_seen)
+		{
+			fixture.holder_seen = true
+			print("RUNTIME CASE " + case_name + ": loading at the reversing stop with stand mask "
+				+ a.stand_mask)
+		}
+		return
+	}
+	// After loading, the vehicle waits at the stop for the reversal. The stand
+	// must remain held while it is still on the stop tile so that it stays
+	// drawn at the kerb.
+	if (fixture.holder_seen && same_pos(a.pos, STOP_POS) && a.speed == 0 && !cnv.is_loading())
+	{
+		if (a.stand_mask == 0)
+		{
+			fail("the reversing vehicle lost its stand while still on the stop tile")
+			return
+		}
+		if (!a.pulled_over)
+		{
+			// Following traffic, including private cars, passes a vehicle only
+			// when this flag says that it is beside the travel lane.
+			fail("the reversing vehicle is not reported as pulled over while waiting at its stand")
+			return
+		}
+		if (!fixture.reversal_seen)
+		{
+			fixture.reversal_seen = true
+			print("RUNTIME CASE " + case_name + ": holding stand " + a.stand_mask
+				+ " while waiting to reverse")
+		}
+		return
+	}
+	local left_the_stop = fixture.reverse_westbound ? a.pos.x > STOP_POS.x : a.pos.x < STOP_POS.x
+	if (fixture.reversal_seen && left_the_stop)
+	{
+		print("RUNTIME CASE " + case_name + ": reversed away from the stop at " + pos_text(a.pos))
+		pass()
+	}
+}
+
+
 function setup_terminal_turnover(pl)
 {
 	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
@@ -1771,6 +1896,10 @@ function setup()
 	{
 		return setup_stop_release(pl)
 	}
+	if (case_name == "reverse-through" || case_name == "reverse-through-westbound")
+	{
+		return setup_reverse_through(pl)
+	}
 	if (case_name == "terminal-turnover")
 	{
 		return setup_terminal_turnover(pl)
@@ -1826,6 +1955,10 @@ function observe()
 	else if (case_name == "stop-release")
 	{
 		observe_stop_release()
+	}
+	else if (case_name == "reverse-through" || case_name == "reverse-through-westbound")
+	{
+		observe_reverse_through()
 	}
 	else if (case_name == "terminal-turnover")
 	{

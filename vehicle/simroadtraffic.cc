@@ -565,6 +565,9 @@ private_car_t::private_car_t(loadsave_t *file) :
 #else
 	road_user_t()
 #endif
+	, overtake_level(0)
+	, lateral_distance(0)
+	, lateral_last_distance(0xFFFFFFFFu)
 {
 	rdwr(file);
 
@@ -581,7 +584,10 @@ private_car_t::private_car_t(grund_t* gr, koord const target, const citycar_desc
 #else
 	road_user_t(gr, simrand(65535, "private_car_t::private_car_t (weg_next)")),
 #endif
-	desc(desc)
+	desc(desc),
+	overtake_level(0),
+	lateral_distance(0),
+	lateral_last_distance(0xFFFFFFFFu)
 {
 	pos_next_next = koord3d::invalid;
 	time_to_life = welt->get_settings().get_stadtauto_duration() << welt->ticks_per_world_month_shift;
@@ -811,6 +817,7 @@ void private_car_t::apply_following_rule(grund_t *gr, vehicle_base_t *&blocker) 
 
 uint32 private_car_t::do_drive(uint32 distance)
 {
+	update_lateral_blend();
 	uint32 distance_travelled = 0;
 	while (distance > 0)
 	{
@@ -842,7 +849,42 @@ uint32 private_car_t::do_drive(uint32 distance)
 		// stop the car moving at all.
 		weg_next = 0;
 	}
+	lateral_distance += distance_travelled;
 	return distance_travelled;
+}
+
+
+void private_car_t::update_lateral_blend() const
+{
+	sint16 target = 0;
+	if (is_overtaking())
+	{
+		target = 256;
+	}
+	else if (is_overtaken())
+	{
+		target = road_space::OVERTAKEN_LATERAL_LEVEL;
+	}
+
+	if (lateral_last_distance == 0xFFFFFFFFu)
+	{
+		lateral_last_distance = lateral_distance;
+		overtake_level = target;
+		return;
+	}
+
+	const uint32 forward_yards = lateral_distance - lateral_last_distance;
+	lateral_last_distance = lateral_distance;
+	const uint32 forward_steps = forward_yards >> YARDS_PER_VEHICLE_STEP_SHIFT;
+	if (forward_steps == 0)
+	{
+		return;
+	}
+	overtake_level = road_space::advance_lateral_blend(
+		overtake_level,
+		target,
+		forward_steps,
+		road_space::LANE_CHANGE_BLEND_STEPS);
 }
 
 
@@ -1676,19 +1718,17 @@ void private_car_t::info(cbuffer_t & buf) const
 // to make smaller steps than the tile granularity, we have to use this trick
 void private_car_t::get_screen_offset( int &xoff, int &yoff, const sint16 raster_width, bool prev_based ) const
 {
+	(void)prev_based;
 	vehicle_base_t::get_screen_offset( xoff, yoff, raster_width );
 
-	// eventually shift position to take care of overtaking
-	sint8 tiles_overtaking = prev_based ? get_prev_tiles_overtaking() : get_tiles_overtaking();
-	if(  tiles_overtaking>0  ) {
-		/* This means the car is overtaking other vehicles. */
-		xoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][0], raster_width);
-		yoff += tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][1], raster_width);
-	}
-	else if(  tiles_overtaking<0  ) {
-		/* This means the car is overtaken by other vehicles. */
-		xoff -= tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][0], raster_width)/5;
-		yoff -= tile_raster_scale_x(overtaking_base_offsets[ribi_t::get_dir(get_direction())][1], raster_width)/5;
+	// Shift position to follow the blended overtaking lane offset. The blend
+	// advances with the forward distance travelled, so the car glides across
+	// instead of snapping sideways.
+	if (overtake_level != 0)
+	{
+		const uint8 dir = ribi_t::get_dir(get_direction());
+		xoff += (tile_raster_scale_x(overtaking_base_offsets[dir][0], raster_width) * overtake_level) / 256;
+		yoff += (tile_raster_scale_x(overtaking_base_offsets[dir][1], raster_width) * overtake_level) / 256;
 	}
 }
 

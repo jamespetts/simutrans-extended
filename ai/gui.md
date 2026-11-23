@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ c05a49e154 plus working-tree step-guard changes
+verified: ex-15 @ b2bfc8d
 ---
 # GUI
 
