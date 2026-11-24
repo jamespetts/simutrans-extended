@@ -1,0 +1,21 @@
+#
+# This file is part of the Simutrans-Extended project under the Artistic License.
+# (see LICENSE.txt)
+#
+
+CC=clang-14
+CXX=clang++-14
+
+DEBUG=1
+OPTIMISE=0
+MULTI_THREAD=1
+
+# The bundled Liberation Sans font needs FreeType; without it the game falls
+# back to the legacy prop.fnt bitmap font.
+USE_FREETYPE=1
+
+BACKEND=sdl3
+COLOUR_DEPTH=16
+OSTYPE=linux
+
+FLAGS = -DUSE_C -fno-delete-null-pointer-checks -fno-strict-aliasing -std=c++14

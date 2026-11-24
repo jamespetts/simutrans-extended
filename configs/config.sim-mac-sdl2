@@ -11,6 +11,10 @@ AV_FOUNDATION=1
 DEBUG=0
 OPTIMISE=1
 
+# The bundled Liberation Sans font needs FreeType; without it the game falls
+# back to the legacy prop.fnt bitmap font.
+USE_FREETYPE=1
+
 FLAGS = -DUSE_C -fno-delete-null-pointer-checks -fno-strict-aliasing -std=c++11
 
 CFLAGS  += -F /Library/Frameworks

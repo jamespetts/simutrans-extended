@@ -101,8 +101,9 @@ ALLEGRO_CONFIG   ?= allegro-config
 SDL2_CONFIG      ?= pkg-config sdl2
 #SDL2_CONFIG     ?= sdl2-config
 SDL3_CONFIG      ?= pkg-config sdl3
-FREETYPE_CONFIG  ?= pkg-config freetype2
-#FREETYPE_CONFIG ?= freetype-config
+# Use pkg-config where it knows freetype2; otherwise fall back to the older
+# freetype-config, which is all that some pre-2.9.1 installations provide.
+FREETYPE_CONFIG  ?= $(shell pkg-config --exists freetype2 2>/dev/null && echo pkg-config freetype2 || echo freetype-config)
 
 ifneq ($(LTO),)
   CFLAGS += -flto
@@ -171,7 +172,7 @@ ifdef USE_FREETYPE
     CFLAGS   += -DUSE_FREETYPE
     ifneq ($(FREETYPE_CONFIG),)
       CFLAGS += $(shell $(FREETYPE_CONFIG) --cflags)
-      ifeq ($(shell expr $(STATIC) \>= 1), 1)
+      ifneq ($(filter-out 0,$(STATIC)),)
         # since static is not supported by slightly old freetype versions
         FTF = $(shell $(FREETYPE_CONFIG) --libs --static)
         ifneq ($(FTF),)

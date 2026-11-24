@@ -10,6 +10,10 @@ DEBUG=1
 OPTIMISE=0
 MULTI_THREAD=1
 
+# The bundled Liberation Sans font needs FreeType; without it the game falls
+# back to the legacy prop.fnt bitmap font.
+USE_FREETYPE=1
+
 BACKEND=sdl2
 COLOUR_DEPTH=16
 OSTYPE=linux
