@@ -4332,8 +4332,9 @@ void vehicle_t::add_active_service_time(uint32 ticks)
 
 void vehicle_t::update_livery()
 {
-	// Only the owner may change a vehicle's livery: in a mixed-owner consist,
-	// a vehicle owned by another player keeps the livery it wears.
+	// Only the owner may change a vehicle's livery. In a convoy whose vehicles
+	// belong to more than one player, a vehicle owned by a player other than
+	// the convoy's owner keeps the livery it wears.
 	if (get_owner() != cnv->get_owner())
 	{
 		return;
@@ -4351,13 +4352,29 @@ void vehicle_t::update_livery()
 		set_current_livery(liv);
 		return;
 	}
-	// We have no current liveries in this scheme
+	// The current scheme has no livery available for this vehicle.
 	if (scheme->is_available(date))
 	{
-		// If the scheme is not obsolete, do not change the scheme
+		// If the scheme is still available, keep the current livery.
 		return;
 	}
-	// TODO: Add code for applying a suitable new livery scheme - how do we extract livery schemes from vehicles? The depot code does this.
+	// The current scheme is no longer available and has no livery available
+	// for this vehicle. Search the schemes in the order returned by
+	// settings_t::get_livery_schemes() and use the first livery available for
+	// this vehicle, as vehicle_builder_t::build() does. If no scheme has one,
+	// use the default livery.
+	const vector_tpl<livery_scheme_t*>* const schemes = welt->get_settings().get_livery_schemes();
+	for (uint32 i = 0; i < schemes->get_count(); i++)
+	{
+		const livery_scheme_t* const fallback_scheme = schemes->get_element(i);
+		const char* const fallback_livery = fallback_scheme->get_latest_available_livery(date, desc);
+		if (fallback_livery)
+		{
+			set_current_livery(fallback_livery);
+			return;
+		}
+	}
+	set_current_livery("default");
 }
 
 uint8 vehicle_t::get_availability() const

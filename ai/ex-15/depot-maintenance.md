@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2777c3800a plus working-tree changes (2026-11-24); revenue classification, cargo policy and 2016 depot-visit intent @ 872055d188 (2026-11-24); early decision and last-halt discharge @ working tree (2026-11-24)
+verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ working tree (2026-11-24)
 ---
 # ex-15 depot maintenance and vehicle availability
 
@@ -32,6 +32,8 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
 - **Convoy** is the Simutrans name for a consist: the coupled vehicles represented
   by `convoi_t`.
 - **Livery** is a vehicle's configured paint scheme.
+- **Livery scheme** is a named set of liveries with introduction and retirement
+  dates, represented by `livery_scheme_t`.
 - **Routine maintenance** is the periodic depot work derived from availability.
 - **Overhaul** is the less frequent major work that resets the `km_since_last_overhaul` or
   takeoff (flight cycle) counters, resets availability to its starting value and can apply an automatic upgrade.
@@ -161,12 +163,19 @@ zero.
   capital. The whole charge is revenue expenditure. A replacement model is not
   planned for 15.x [RECOLLECTION:2026-11-24 user statement].
 - An overhaul updates an owned vehicle to the latest available livery in the
-  current livery scheme. A vehicle owned by another player in a mixed-owner
-  convoy keeps its livery.
-- When the current scheme has no available livery and is obsolete, the livery
-  falls back to the first scheme in settings order that has an available livery
-  for the vehicle. The existing vehicle builder and convoy assembler use this
-  deterministic rule. `vehicle_t::update_livery()` still needs to apply it.
+  current livery scheme. In a convoy whose vehicles belong to more than one
+  player, a vehicle owned by a player other than the convoy's owner keeps its
+  livery.
+- When the scheme selected by `convoi_t::get_livery_scheme_index()` has no
+  livery available for the vehicle and the scheme is no longer available (that
+  is, `livery_scheme_t::is_available()` returns false),
+  `vehicle_t::update_livery()` calls
+  `livery_scheme_t::get_latest_available_livery()` for each scheme in the order
+  returned by `settings_t::get_livery_schemes()` and uses the first non-null
+  result. If every scheme returns null, it uses the `"default"` livery.
+  `vehicle_builder_t::build()` and
+  `gui_convoy_assembler_t::get_latest_available_livery_image_id()` use the same
+  search order.
 
 ### Maintenance accounting
 
@@ -356,11 +365,10 @@ available policies are under investigation.
    affordability and overhaul accounting.
 2. Verify save/reload and two-process determinism of the active-service counter,
    queue and overhaul financial state.
-3. Apply the livery-scheme fallback in `vehicle_t::update_livery()`.
-4. Add the outstanding user-interface work listed above.
-5. Decide whether to add a schedule-index byte to track a specific conditional
+3. Add the outstanding user-interface work listed above.
+4. Decide whether to add a schedule-index byte to track a specific conditional
    depot; decide the per-line depot limit.
-6. Decide simplified maintenance, overhaul grouping and the replacement trigger
+5. Decide simplified maintenance, overhaul grouping and the replacement trigger
    before exposing those controls.
-7. Re-run the checks with vehicles that have moved between consists, so each
+6. Re-run the checks with vehicles that have moved between consists, so each
    vehicle keeps its own maintenance and active-service history.

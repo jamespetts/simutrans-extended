@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0d41455e7; maintenance article and status ex-15 @ 2777c3800a plus working-tree changes (2026-11-24); revenue classification and cargo policy @ 872055d188 (2026-11-24); early decision @ working tree (2026-11-24)
+verified: ex-15 @ 0d41455e7; maintenance article and status, revenue classification and cargo policy @ 8ad14f9615 (2026-11-24); livery fallback @ working tree (2026-11-24)
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -57,9 +57,13 @@ maintenance queues, maintenance duration, overhauls or overhaul finance on ex-15
   `player_t::book_vehicle_maintenance_one_off()` (no monthly scaling; revenue expenditure, not
   capital expenditure, per [cost-of-capital](../cost-of-capital.md)), applies auto-upgrade
   (`get_auto_upgrade` → set_desc; upgrade price used instead; preserves maintenance history), then
-  `update_livery()` to the latest available livery in the current scheme — own vehicles only: a
-  vehicle owned by another player in a mixed-owner consist keeps its livery
-  ([schedule-and-consists](schedule-and-consists.md)). `overhaul_time` is updated for display.
+  `update_livery()` to the latest available livery in the current livery scheme. If that
+  livery scheme has no livery for the vehicle and is no longer available, `update_livery()`
+  uses the first livery scheme in the order returned by `settings_t::get_livery_schemes()`
+  with a livery for the vehicle, or the `"default"` livery. Own vehicles only: in a convoy whose vehicles
+  belong to more than one player, a vehicle owned by a player other than the convoy's owner
+  keeps its livery ([schedule-and-consists](schedule-and-consists.md)). `overhaul_time` is
+  updated for display.
 - Affordability: `vehicle_t::can_afford_overhaul()` uses `finance_t::can_afford()` for the
   overhaul or upgrade price. A scheduled conditional depot entry is skipped before routing when an
   overhaul is unaffordable and the convoy is not urgently overdue; an urgently overdue convoy enters
@@ -71,10 +75,10 @@ maintenance queues, maintenance duration, overhauls or overhaul finance on ex-15
 - GUI: convoy detail maintenance tab — per-vehicle rows (last overhaul date/count, km/takeoffs
   since, three-segment overhaul bar, cost + delta %, do_not_overhaul and do_not_auto_upgrade
   toggles, auto-upgrade target).
-- Gaps: livery fallback to an available scheme, the open question whether to track a
-  specific conditional depot when a schedule has more than one, the per-line depot limit
-  and the open calibration question about independently timed vehicles are detailed in
-  [depot-maintenance](depot-maintenance.md). Overhaul/replacement integration is future work.
+- Gaps: the open question whether to track a specific conditional depot when a schedule has
+  more than one, the per-line depot limit and the open calibration question about
+  independently timed vehicles are detailed in [depot-maintenance](depot-maintenance.md).
+  Overhaul/replacement integration is future work.
 
 ## Depot visits & availability — PARTIAL
 
