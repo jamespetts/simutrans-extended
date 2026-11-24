@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ working tree (2026-11-24)
+verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24)
 ---
 # ex-15 depot maintenance and vehicle availability
 

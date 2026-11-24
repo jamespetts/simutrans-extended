@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0d41455e7; maintenance article and status, revenue classification and cargo policy @ 8ad14f9615 (2026-11-24); livery fallback @ working tree (2026-11-24)
+verified: ex-15 @ 0d41455e7; maintenance article and status, revenue classification and cargo policy @ 8ad14f9615 (2026-11-24); livery fallback @ 6656e7dce0 (2026-11-24)
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
