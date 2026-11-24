@@ -301,6 +301,29 @@ Rank on discovery; re-rank on triage.
   [ex-15/range-stops-replenishment](ex-15/range-stops-replenishment.md).
   [CODE ex-15 @ 6a9e8d963]
 
+### `float32e8_t` numeric edge cases — priority 3
+
+- **Negative shift in `exp2()`.** `float32e8_t::exp2()` (utils/float32e8_t.cc) logs an error
+  when `e > EXPONENT_BITS` (10) but continues, then computes
+  `sint16 e1 = e > 0 ? m >> (32 - e) : 0`. For `33 <= e <= 1023` the shift count is negative,
+  which is undefined behaviour; for `11 <= e <= 32` the shift is defined but outside the
+  documented input range. `exp2()` is reached through `float32e8_t::pow` from `signed_power` in
+  `convoy_t::calc_max_physical_speed`; the argument is `expo * log2(base)`, and normal convoy
+  values keep it below about 25, so no trigger has been demonstrated. Latent undefined behaviour
+  in a hot physics path [CODE ex-15 @ 1ddc256].
+- **Non-canonical zero from `operator /`.** When the numerator's mantissa is zero and the
+  divisor's is not, `operator /` takes the normal path and returns a value with `m == 0` but an
+  arbitrary exponent and sign. `is_zero()` still reports zero, but `operator ==` compares `m`,
+  `e` and `ms`, so the quotient can compare unequal to `float32e8_t::zero`.
+  `convoy_t::calc_move` (convoy.cc) uses `== float32e8_t::zero` for its `bf`, `speed_ratio` and
+  `fvsoll` "calculate once" guards; a non-canonical zero causes a repeated calculation, not a
+  different numeric result. No gameplay effect is known [CODE ex-15 @ 1ddc256].
+- **Exponent narrowing.** `operator *` and `operator /` assign `e ± x.e` (an `int` expression)
+  to the `sint16` member `r.e`. With valid exponents (-1023..1023) the value is -2046..2046 and
+  fits. Values outside that range require a corrupt saved exponent; the conversion is then
+  implementation-defined, not undefined. `r.e++` on the quotient path is bounded by the
+  following `MAX_EXPONENT` check. Robustness only [CODE ex-15 @ 1ddc256].
+
 ## P0 — critical showstoppers
 
 None assigned. Desync/crash entries in P1 are candidates for escalation to 0 if triage
@@ -381,7 +404,6 @@ confirms they affect current builds in live games.
 | [Coupling constraint issues with locomotives](https://forum.simutrans.com/index.php/topic,22334.0.html) | 2023 | |
 | [Rivers with public right of way cannot be upgraded to canals](https://forum.simutrans.com/index.php/topic,21005.0.html) | 2023 | |
 | [Can't build underground signalboxes](https://forum.simutrans.com/index.php/topic,19461.0.html) | 2023 | |
-| [Log reports division by zero errors](https://forum.simutrans.com/index.php/topic,22321.0.html) | 2023 | |
 | [Reloading changes convoy reversing/shunting behaviour](https://forum.simutrans.com/index.php/topic,22310.0.html) | 2023 | save/load consistency |
 | [Maximum in transit can be zero](https://forum.simutrans.com/index.php/topic,19947.0.html) | 2023 | |
 | [Clicking "replace" in the vehicle window immediately deducts cost of new vehicle](https://forum.simutrans.com/index.php/topic,22206.0.html) | 2023 | |
@@ -416,6 +438,7 @@ confirms they affect current builds in live games.
 | Forum report | Last active | Notes |
 |---|---|---|
 | `REPLENISHING` expiry can fall through to convoy destruction (not a forum report: code inspection 2026-11-16) | — | detailed entry above; latent because `vehicle_t::replenish()` has no caller; must be fixed before range-stop runtime |
+| `float32e8_t` numeric edge cases (not a forum report: code inspection 2026-11-24) | — | detailed entry above; negative shift in `exp2()` for exponents 33..1023, non-canonical zero from `operator /`, and exponent narrowing with corrupt saved exponents; no demonstrated trigger with valid pak/save values |
 | Toolbar scroll arrows are not clickable (not a forum report: third-party usability transcript) | — | `gui/tool_selector.cc`: `tool_selector_t::draw` draws `gui_theme_t::arrow_button_left_img`, `arrow_button_right_img`, `arrow_button_up_img` and `arrow_button_down_img`; `tool_selector_t::infowin_event` handles dragging and icon hits only, so a click on an arrow activates the icon under it, and wheel events are not handled. Workaround: drag the toolbar. Proposed change and context → [gui/usability-considerations](gui/usability-considerations.md) [CODE ex-15 @ 97029f453] |
 | Settings dialogue labels are raw configuration keys (not a forum report: third-party usability transcript) | — | `gui/settings_stats.h`: `INIT_NUM`, `INIT_BOOL`, `INIT_COST`, `INIT_LB` and `INIT_COLOR` call `gui_label_t::set_text_pointer`, which does not translate; many keys (e.g. `frames_per_second`, `max_route_steps`) have no entry in `simutrans/text/en.tab` or `simutrans/pak128.Britain-Ex/text/en.tab`, so they are displayed verbatim. `gui_numberinput_t::draw` adds only a numeric-range tooltip. Display/localisation only. Context → [gui/usability-considerations](gui/usability-considerations.md) [CODE ex-15 @ 97029f453] |
 | Depot auto-continuous-removal preview may use the wrong last-vehicle length (not a forum report: code inspection 2026-11-09) | — | gui/components/gui_convoy_assembler.cc, update_vehicle_info_text(): when the auto-removed block reaches the end of the consist, `new_last_veh_length` is taken from `count-2` (or `count-1`) rather than from the vehicle before the block, so the automatic end margin in the preview is wrong; the code carries a TODO for this case. Display-only. [CODE master @ 48b0fbf4a] |
@@ -449,6 +472,7 @@ confirms they affect current builds in live games.
 | [Erroneous commit tag in game window](https://forum.simutrans.com/index.php/topic,21100.0.html) | 2022 | |
 | [Padded city chart numbers (jobs/visitor demand)](https://forum.simutrans.com/index.php/topic,21236.0.html) | 2022 | |
 | Dead/broken container utilities in tpl/ (not a forum report: code inspection 2026-09-07) | — | koord_pair_hashtable_tpl: `comp()` returns bool (violates the hashtable diff contract → wrong "absent" results) and its companion iterator class cannot compile; quickstone_tpl `(T*,bool)` ctor scan loop increments instead of decrements (both unused); freelist_tpl/freelist_iter_tpl unused, iter variant uncompilable. Fix-or-delete undecided (→ [utilities](utilities.md)) [CODE master @ d91fc8fce] |
+| Profiling suite `-LineFilter` produces an empty line section (not a forum report: execution 2026-11-24) | — | A comma-separated `-LineFilter` value passed through `powershell -File` produces an empty line section; the observed symptom is consistent with `etl-lines.exe` receiving one unmatched filter string. Workaround: run `ai\tools\perf\etl-lines.exe` manually with each substring as a separate argument. Documented in [performance/profiling-method](performance/profiling-method.md) |
 | Dead utils/ files (not a forum report: code inspection 2026-09-07) | — | notification.h (zero includes), snprintf.h (uncompilable PHP-derived stub), dbg_weightmap.* (never-defined DEBUG_WEIGHTMAPS gate, .cc unbuilt), dumb-log.cc (test-only log_t impl), omzet2.c (legacy font converter, unbuilt). User decision 2026-09-07: delete when convenient [RECOLLECTION:2026-09-07]. Note: dumb-log.cc is pulled in by tpl/test_piecewise_linear_tpl.cc (also unbuilt) — deleting it means deleting or rewiring that test (→ [utilities](utilities.md)) [CODE master @ d91fc8fce] |
 | Industry-generation rework: dead code, retained superseded code and diagnostic noise (not a forum report: code inspection) | — | rework branch only; `factory_builder_t::is_final_good` has no callers on either branch, `karte_t::init` declares an unused failure counter, superseded blocks are commented out rather than deleted (incl. four density-accounting sites in simfab.cc and the old mapgen label in gui/welt.cc), per-load `DBG_MESSAGE` noise incl. one message reporting an unconditional action as conditional, and only en.tab/fr.tab carry the renamed mapgen label key so other languages fall back to English (→ [translations](translations.md)); [CODE] → [bug-industry-generation](bug-industry-generation.md) |
 

@@ -339,7 +339,7 @@ public:
 	 * Get maximum possible speed of convoy in km/h according to weight, power/force, inclination, etc.
 	 * Depends on vehicle, adverse and given weight, ignoring any extrinsic speed restrictions.
 	 */
-	sint32 calc_max_physical_speed(const weight_summary_t& weight);
+	virtual sint32 calc_max_physical_speed(const weight_summary_t& weight);
 
 	/**
 	 * Get maximum pullable weight at given inclination of convoy in kg according to maximum force, allowed maximum speed and continuous power.
@@ -387,13 +387,14 @@ public:
 
 enum convoy_detail_e
 {
-	cd_vehicle_summary  = 0x01,
-	cd_adverse_summary  = 0x02,
-	cd_freight_summary  = 0x04,
-	cd_weight_summary   = 0x08,
-	cd_starting_force   = 0x10,
-	cd_continuous_power = 0x20,
-	cd_braking_force    = 0x40,
+	cd_vehicle_summary    = 0x01,
+	cd_adverse_summary    = 0x02,
+	cd_freight_summary    = 0x04,
+	cd_weight_summary     = 0x08,
+	cd_starting_force     = 0x10,
+	cd_continuous_power   = 0x20,
+	cd_braking_force      = 0x40,
+	cd_max_physical_speed = 0x80,
 };
 
 class lazy_convoy_t /*abstract*/ : public convoy_t
@@ -416,7 +417,7 @@ public:
 	// vehicle_summary becomes invalid, when the vehicle list or any vehicle's vehicle_desc_t changes.
 	inline void invalidate_vehicle_summary()
 	{
-		is_valid &= ~(cd_vehicle_summary|cd_adverse_summary|cd_weight_summary|cd_starting_force|cd_continuous_power|cd_braking_force);
+		is_valid &= ~(cd_vehicle_summary|cd_adverse_summary|cd_weight_summary|cd_starting_force|cd_continuous_power|cd_braking_force|cd_max_physical_speed);
 	}
 
 	// vehicle_summary is valid if (is_valid & cd_vehicle_summary != 0)
@@ -448,7 +449,7 @@ public:
 	// or any vehicle's vehicle_desc_t or any vehicle's location/way changes.
 	inline void invalidate_adverse_summary()
 	{
-		is_valid &= ~(cd_adverse_summary|cd_weight_summary|cd_braking_force);
+		is_valid &= ~(cd_adverse_summary|cd_weight_summary|cd_braking_force|cd_max_physical_speed);
 	}
 
 	// adverse_summary is valid if (is_valid & cd_adverse_summary != 0)
@@ -512,7 +513,7 @@ public:
 	// or any vehicle's vehicle_desc_t.
 	inline void invalidate_starting_force()
 	{
-		is_valid &= ~(cd_starting_force);
+		is_valid &= ~(cd_starting_force|cd_max_physical_speed);
 	}
 
 	virtual float32e8_t get_starting_force()
@@ -562,7 +563,7 @@ public:
 	// or any vehicle's vehicle_desc_t.
 	inline void invalidate_continuous_power()
 	{
-		is_valid &= ~(cd_continuous_power);
+		is_valid &= ~(cd_continuous_power|cd_max_physical_speed);
 	}
 
 	virtual float32e8_t get_continuous_power()

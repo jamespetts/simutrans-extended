@@ -82,6 +82,15 @@ static pthread_mutex_t step_convois_mutex = PTHREAD_MUTEX_INITIALIZER;
 //#define snprintf _snprintf
 //#endif
 
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
+#include <xmmintrin.h>
+#define CONVOY_PREFETCH_T0(addr) _mm_prefetch(reinterpret_cast<const char *>(addr), _MM_HINT_T0)
+#elif defined(__GNUC__) || defined(__clang__)
+#define CONVOY_PREFETCH_T0(addr) __builtin_prefetch((addr), 0, 3)
+#else
+#define CONVOY_PREFETCH_T0(addr) ((void)(addr))
+#endif
+
 /*
  * Waiting time for loading (ms)
  */
@@ -248,6 +257,8 @@ convoi_t::convoi_t(loadsave_t* file) :
 {
 	self = convoihandle_t();
 	init(0);
+	cached_max_physical_speed = 0;
+	cached_max_physical_weight.clear();
 	replace = NULL;
 	is_choosing = false;
 	last_stop_was_depot = true;
@@ -283,6 +294,8 @@ convoi_t::convoi_t(player_t* player) : vehicle(max_vehicle, NULL)
 
 	self = convoihandle_t(this);
 	init(player);
+	cached_max_physical_speed = 0;
+	cached_max_physical_weight.clear();
 	set_name( "Unnamed" );
 	welt->add_convoi( self );
 	init_financial_history();
@@ -1109,9 +1122,24 @@ void convoi_t::calc_acceleration(uint32 delta_t)
 	sint32 steps_til_limit;
 	sint32 steps_til_brake;
 #endif
-	const sint32 brake_steps = calc_min_braking_distance(welt->get_settings(), get_weight_summary(), akt_speed);
 	// use get_route_infos() for the first time accessing route_infos to eventually initialize them.
 	const uint32 route_infos_count = get_route_infos().get_count();
+	// The braking scan below reads the route-info entries at the current route
+	// index and at the next stop; they are far apart in the list. Start both
+	// cache lines before calc_min_braking_distance(), which is long enough to
+	// hide the misses.
+	if(route_infos_count > 0 && next_stop_index > current_route_index)
+	{
+		if(next_stop_index <= route_infos_count)
+		{
+			CONVOY_PREFETCH_T0(route_infos.begin() + (next_stop_index - 1));
+		}
+		if(current_route_index > 0)
+		{
+			CONVOY_PREFETCH_T0(route_infos.begin() + (current_route_index - 1));
+		}
+	}
+	const sint32 brake_steps = calc_min_braking_distance(welt->get_settings(), get_weight_summary(), akt_speed);
 	if(route_infos_count > 0 && route_infos_count >= next_stop_index && next_stop_index > current_route_index)
 	{
 		sint32 i = current_route_index - 1;
@@ -9576,6 +9604,35 @@ sint16 convoi_t::get_current_friction()
 	return get_vehicle_count() > 0 ? get_friction_of_waytype(front()->get_waytype()) : 0;
 }
 
+
+sint32 convoi_t::calc_max_physical_speed(const weight_summary_t &weight)
+{
+#ifdef MULTI_THREAD
+	if (convoy_summary_compute_thread_local)
+	{
+		// Convoy worker thread: do not write the shared cache (see convoy.h).
+		return convoy_t::calc_max_physical_speed(weight);
+	}
+#endif
+	// calc_fuel_consumption() asks for this value once per powered vehicle on
+	// every tile hop, always with the convoy's own weight and friction. The
+	// cubic solve behind convoy_t::calc_max_physical_speed() is expensive, so
+	// reuse the previous result while the weight summary and the cached
+	// summaries the solve depends on are unchanged.
+	if ((is_valid & cd_max_physical_speed)
+		&& weight.weight == cached_max_physical_weight.weight
+		&& weight.weight_cos == cached_max_physical_weight.weight_cos
+		&& weight.weight_sin == cached_max_physical_weight.weight_sin)
+	{
+		return cached_max_physical_speed;
+	}
+	const sint32 result = convoy_t::calc_max_physical_speed(weight);
+	cached_max_physical_speed = result;
+	cached_max_physical_weight = weight;
+	is_valid |= cd_max_physical_speed;
+	return result;
+}
+
 void convoi_t::update_vehicle_summary(vehicle_summary_t &vehicle)
 {
 	vehicle.clear();
@@ -9600,6 +9657,17 @@ void convoi_t::update_adverse_summary(adverse_summary_t &adverse)
 		for (const_iterator i = begin(); i != end(); ++i )
 		{
 			adverse.add_vehicle(**i);
+		}
+		if (adverse.cf.is_zero())
+		{
+			// No vehicle is currently flagged as leading (for example while a
+			// loaded convoy is still being assembled, or while the front
+			// vehicle's leading flag is temporarily clear during depot
+			// movement). adverse_summary_t only takes the drag coefficient
+			// from a leading vehicle, and the cubic maximum-speed solution
+			// divides by it. Use the front vehicle's value as the only
+			// available aerodynamic front.
+			adverse.cf = front()->get_desc()->get_air_resistance();
 		}
 		adverse.fr /= count;
 	}

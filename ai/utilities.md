@@ -84,7 +84,10 @@ absent. Typedefs: catg_index_vec, halthandle_vec, linehandle_vec, convoihandle_v
 weight)`; **IGNORE_ZERO_WEIGHT is always defined (simtypes.h): zero-weight append/insert_at
 silently drops the element** — probably intentional: weight-0 entries are never eligible for
 selection [RECOLLECTION:2026-09-07]. `update`/`update_at`/`update_weights` adjust weights. `index_of`
-FATALS when absent (unlike vector_tpl). Non-copyable.
+FATALS when absent (unlike vector_tpl). Non-copyable. `at_weight()` uses a parallel coarse array
+holding the start weight of every 16th node (0.25 bytes per node), maintained by every mutation
+and read without locks; it searches that dense array and scans at most 16 nodes, selecting the
+last node whose cumulative weight is at most the target [CODE ex-15 @ 1ddc256].
 
 **binary_heap_tpl<T>** — min-heap for pointer elements: ordering uses `*a <= *b`, so T must be a
 pointer to a type defining `operator<=` (routing: route.cc, wegbauer, simhalt, pathfinding API).

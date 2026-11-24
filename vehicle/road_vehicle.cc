@@ -100,7 +100,7 @@ bool allows_queueing(const grund_t *gr)
 		return false;
 	}
 	// A way of the road waytype is always a strasse_t (weg_t::create()).
-	const strasse_t *str = static_cast<const strasse_t *>(gr->get_weg(road_wt));
+	const strasse_t *str = static_cast<const strasse_t *>(gr->get_weg_main_thread(road_wt));
 	if (str == NULL || str->is_crossing() || str->is_diagonal())
 	{
 		return false;
@@ -119,7 +119,7 @@ bool is_junction(const grund_t *gr)
 		return false;
 	}
 	// A way of the road waytype is always a strasse_t (weg_t::create()).
-	const strasse_t *str = static_cast<const strasse_t *>(gr->get_weg(road_wt));
+	const strasse_t *str = static_cast<const strasse_t *>(gr->get_weg_main_thread(road_wt));
 	return str != NULL && !str->is_crossing() && !str->is_diagonal()
 		&& ribi_t::is_threeway(str->get_ribi_unmasked());
 }
@@ -732,7 +732,7 @@ bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi e
 		return true;
 	}
 	// A way of the road waytype is always a strasse_t (weg_t::create()).
-	const strasse_t *str = static_cast<const strasse_t *>(exit->get_weg(road_wt));
+	const strasse_t *str = static_cast<const strasse_t *>(exit->get_weg_main_thread(road_wt));
 	if (str == NULL)
 	{
 		// No road: the ordinary entry check reports the missing way.
@@ -758,7 +758,7 @@ bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi e
 	const bool exit_allows_queueing = allows_queueing(exit);
 	for (uint8 pos = 0; pos < exit->get_top(); pos++)
 	{
-		vehicle_base_t *const v = obj_cast<vehicle_base_t>(exit->obj_bei(pos));
+		vehicle_base_t *const v = obj_cast<vehicle_base_t>(exit->obj_bei_main_thread(pos));
 		if (v == NULL || v == self.object)
 		{
 			continue;
@@ -1488,7 +1488,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		// against it even after the crossing loop has moved gr forward.
 		const grund_t *const target_gr = gr;
 
-		const strasse_t *str = (strasse_t *)gr->get_weg(road_wt);
+		const strasse_t *str = (strasse_t *)gr->get_weg_main_thread(road_wt);
 		if(  !str  ||  gr->get_top() > 250  ) {
 			// too many cars here or no street
 			if(  !second_check_count  &&  !str) {
@@ -1544,9 +1544,9 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		// side road -> main road from passing lane side: vehicle should enter passing lane on main road.
 		next_lane = 0;
 		if(  (str->get_ribi_unmasked() == ribi_t::all  ||  ribi_t::is_threeway(str->get_ribi_unmasked()))  &&  str->get_overtaking_mode() <= oneway_mode  ) {
-			const strasse_t* str_prev = route_index == 0 ? NULL : (strasse_t *)welt->lookup(r.at(route_index - 1u))->get_weg(road_wt);
+			const strasse_t* str_prev = route_index == 0 ? NULL : (strasse_t *)welt->lookup(r.at(route_index - 1u))->get_weg_main_thread(road_wt);
 			const grund_t* gr_next = route_index < r.get_count() - 1u ? welt->lookup(r.at(route_index + 1u)) : NULL;
-			const strasse_t* str_next = gr_next ? (strasse_t*)gr_next -> get_weg(road_wt) : NULL;
+			const strasse_t* str_next = gr_next ? (strasse_t*)gr_next -> get_weg_main_thread(road_wt) : NULL;
 			if(str_prev && str_next && str_prev->get_overtaking_mode() > oneway_mode  && str_next->get_overtaking_mode() <= oneway_mode) {
 				const koord3d pos_next2 = route_index < r.get_count() - 1u ? r.at(route_index + 1u) : pos_next;
 				if(  (!welt->get_settings().is_drive_left()  &&  ribi_t::rotate90l(get_90direction()) == calc_direction(pos_next,pos_next2))  ||  (welt->get_settings().is_drive_left()  &&  ribi_t::rotate90(get_90direction()) == calc_direction(pos_next,pos_next2))  ) {
@@ -1556,7 +1556,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 			}
 		}
 
-		const strasse_t* current_str = (strasse_t*)(welt->lookup(get_pos())->get_weg(road_wt));
+		const strasse_t* current_str = (strasse_t*)(welt->lookup(get_pos())->get_weg_main_thread(road_wt));
 		if( current_str && current_str->get_overtaking_mode()<=oneway_mode  &&  str->get_overtaking_mode()>oneway_mode  ) {
 			next_lane = -1;
 		}
@@ -1582,7 +1582,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 					return false;
 				}
 				for(  uint8 pos=1;  pos < grn->get_top();  pos++  ){
-					if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(grn->obj_bei(pos))  ){
+					if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(grn->obj_bei_main_thread(pos))  ){
 						if(  v->get_typ()==obj_t::pedestrian  ) {
 							continue;
 						}
@@ -1641,7 +1641,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				return false;
 			}
 
-			str = (strasse_t *)gr->get_weg(road_wt);
+			str = (strasse_t *)gr->get_weg_main_thread(road_wt);
 
 			if(  !str  ) {
 				// road not existent (probably destroyed)
@@ -1685,7 +1685,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 				const bool is_traffic_light = rs->get_desc()->is_traffic_light();
 				route_t const& r = *cnv->get_route();
 
-				if (is_traffic_light || gr->get_weg(get_waytype())->get_ribi_maske() & dir)
+				if (is_traffic_light || gr->get_weg_main_thread(get_waytype())->get_ribi_maske() & dir)
 				{
 					uint8 direction90 = ribi_type(get_pos(), pos_next);
 					if (rs && (!route_index_beyond_end_of_route)) {
@@ -1806,7 +1806,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 							if(  cnv->get_lane_affinity() != -1  &&  next_lane<1  &&  !cnv->is_overtaking()  &&  !other_lane_blocked()  &&  yielding_factor  &&  cnv->can_overtake( ocnv, (ocnv->is_loading() ? 0 : ocnv->get_akt_speed()), ocnv->get_length_in_steps()+ocnv->front()->get_steps())  ) {
 								return true;
 							}
-							strasse_t *str=(strasse_t *)gr->get_weg(road_wt);
+							strasse_t *str=(strasse_t *)gr->get_weg_main_thread(road_wt);
 							sint32 cnv_max_speed;
 							sint32 other_max_speed;
 							const bool electric = cnv->needs_electrification();
@@ -1941,7 +1941,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		}
 		// If this vehicle is on passing lane and the next tile prohibites overtaking, this vehicle must wait until traffic lane become safe.
 		// When condition changes, overtaking should be quitted once.
-		if(  (cnv->is_overtaking()  &&  str->get_overtaking_mode()==prohibited_mode)  ||  (cnv->is_overtaking()  &&  str->get_overtaking_mode()>oneway_mode  &&  str->get_overtaking_mode()<=prohibited_mode  &&  static_cast<strasse_t*>(welt->lookup(get_pos())->get_weg(road_wt))->get_overtaking_mode()<=oneway_mode)  ) {
+		if(  (cnv->is_overtaking()  &&  str->get_overtaking_mode()==prohibited_mode)  ||  (cnv->is_overtaking()  &&  str->get_overtaking_mode()>oneway_mode  &&  str->get_overtaking_mode()<=prohibited_mode  &&  static_cast<strasse_t*>(welt->lookup(get_pos())->get_weg_main_thread(road_wt))->get_overtaking_mode()<=oneway_mode)  ) {
 			if(  vehicle_base_t* v = other_lane_blocked(false, offset)  ) {
 				if(  v->get_waytype() == road_wt  ) {
 					restart_speed = 0;
@@ -1968,7 +1968,7 @@ bool road_vehicle_t::can_enter_tile(const grund_t *gr, sint32 &restart_speed, ui
 		// If the next tile is a intersection, lane crossing must be checked before entering.
 		// The other vehicle is ignored if it is stopping to avoid stuck.
 		const grund_t *gr = route_index_beyond_end_of_route ? NULL : welt->lookup(r.at(route_index));
-		const strasse_t *stre = gr ? (strasse_t *)gr->get_weg(road_wt) : NULL;
+		const strasse_t *stre = gr ? (strasse_t *)gr->get_weg_main_thread(road_wt) : NULL;
 		const ribi_t::ribi way_ribi = stre ? stre->get_ribi_unmasked() : ribi_t::none;
 		if(  stre  &&  stre->get_overtaking_mode() <= oneway_mode  &&  (way_ribi == ribi_t::all  ||  ribi_t::is_threeway(way_ribi))  ) {
 			if(  const vehicle_base_t* v = other_lane_blocked(true)  ) {
@@ -2056,13 +2056,13 @@ vehicle_base_t* road_vehicle_t::other_lane_blocked(const bool only_search_top, s
 				return NULL;
 			}
 			// this function cannot process vehicles on twoway and related mode road.
-			const strasse_t* str = (strasse_t *)gr->get_weg(road_wt);
+			const strasse_t* str = (strasse_t *)gr->get_weg_main_thread(road_wt);
 			if(  !str  ||  (str->get_overtaking_mode()>=twoway_mode  &&  str->get_overtaking_mode() <= prohibited_mode)  ) {
 				break;
 			}
 
 			for(  uint8 pos=1;  pos < gr->get_top();  pos++  ) {
-				if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos))  ) {
+				if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei_main_thread(pos))  ) {
 					if(  v->get_typ()==obj_t::pedestrian  ) {
 						continue;
 					}
@@ -2224,7 +2224,7 @@ void road_vehicle_t::enter_tile(grund_t* gr)
 {
 	vehicle_t::enter_tile(gr);
 	const int cargo = get_total_cargo();
-	strasse_t *str = (strasse_t*)gr->get_weg(road_wt);
+	strasse_t *str = (strasse_t*)gr->get_weg_main_thread(road_wt);
 	if(str == NULL)
 	{
 		return;
@@ -2297,7 +2297,7 @@ void road_vehicle_t::enter_tile(grund_t* gr)
 		if(  pos_prev!=koord3d::invalid  ) {
 			grund_t* prev_gr = welt->lookup(pos_prev);
 			if(  prev_gr  ){
-				strasse_t* prev_str = (strasse_t*)prev_gr->get_weg(road_wt);
+				strasse_t* prev_str = (strasse_t*)prev_gr->get_weg_main_thread(road_wt);
 				if(  (prev_str  &&  (prev_str->get_overtaking_mode()<=oneway_mode  &&  str->get_overtaking_mode()>oneway_mode  &&  str->get_overtaking_mode() <= prohibited_mode))  ||  str->get_overtaking_mode()==prohibited_mode  ){
 					cnv->set_tiles_overtaking(0);
 				}
@@ -2313,7 +2313,7 @@ void road_vehicle_t::hop(grund_t* gr_to) {
 		grund_t* gr = get_grund();
 		if(gr)
 		{
-			strasse_t* str = (strasse_t*)gr->get_weg(road_wt);
+			strasse_t* str = (strasse_t*)gr->get_weg_main_thread(road_wt);
 			if(str)
 			{
 				if(get_last_stop_pos() != get_pos() && get_pos_next() != get_pos_prev())

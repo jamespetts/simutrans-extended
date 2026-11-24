@@ -318,6 +318,24 @@ public:
 		}
 	}
 
+	/**
+	 * Same as bei(), for the main thread only. The main thread is the sole
+	 * writer of objlist_t, so it cannot observe a torn snapshot and does not
+	 * need the seqlock retry protocol. Never use this from a display or
+	 * simulation worker thread.
+	 */
+	inline obj_t *bei_main_thread(uint8 n) const
+	{
+		if(  n >= top  ) {
+			return NULL;
+		}
+		if(  optr & INLINE_TAG  ) {
+			return n == 0 ? (obj_t *)(optr & ~(uintptr_t)TAG_MASK) : NULL;
+		}
+		obj_t *const *a = (obj_t *const *)optr;
+		return n < array_capacity(a) ? a[1 + n] : NULL;
+	}
+
 	// usually used only for copying by grund_t
 	obj_t *remove_last()
 	{

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 075d540f3; ex-15 @ 9d2b75ecea (2026-11-20, `journey_times_map` layout)
+verified: master @ 075d540f3; ex-15 @ 9d2b75ecea (2026-11-20, `journey_times_map` layout); ex-15 @ 1ddc256 (2026-11-24, weighted-vector coarse index and main-thread accessors)
 ---
 # Data layout & design style
 
@@ -94,6 +94,12 @@ codebase-specific structural patterns are recorded here.
   order does not. The type backs the `average_journey_times` tables of `simline_t` and `convoi_t`; it
   is a local memory optimisation for those tables, not a data-oriented redesign of the surrounding
   code.
+- **Weighted-vector coarse weight index.** `weighted_vector_tpl<T>` (tpl/weighted_vector_tpl.h)
+  stores each element's cumulative weight beside the element pointer (16 bytes per node). A
+  parallel `uint32` array holds the start weight of every 16th node (0.25 bytes per node);
+  `at_weight()` searches that small dense array and then scans at most 16 nodes. Every mutation
+  recomputes the coarse entries from the changed index onward. The selected node is the last one
+  whose cumulative weight is at most the target [CODE ex-15 @ 1ddc256].
 - **Value summaries.** `vehicle_summary_t`, `weight_summary_t`, `freight_summary_t` and
   `nearby_halt_t` are plain data computed from the entity graph and passed/aggregated by value
   (convoy.h). The path explorer uses flat structure-of-arrays blocks (`finished_times` /
@@ -114,6 +120,11 @@ Real optimisations, but not data-oriented design; listed so the two are not conf
 - **Seqlock-protected object lists.** `objlist_t` bumps a `mutation_version` before and after each
   structural write; lockless readers retry while it is odd or changed (dataobj/objlist.h) —
   lock-freedom for concurrent tile readers against the single main-thread writer.
+- **Main-thread object-list accessors.** Because the main thread is the object list's sole writer,
+  `objlist_t::bei_main_thread` and the matching `grund_t::obj_bei_main_thread`,
+  `get_weg_nr_main_thread` and `get_weg_main_thread` read the list without the seqlock. They are
+  used only in road movement code that runs on the main thread; display and convoy-worker code
+  must keep using the seqlock-protected `objlist_t::bei()` [CODE ex-15 @ 1ddc256].
 - **Atomic flags and race-avoiding byte separation.** `obj_t::flags` is a `std::atomic<uint8>` and
   `owner_n` was split into its own byte because the main thread writes flags while workers read the
   owner (obj/simobj.h).

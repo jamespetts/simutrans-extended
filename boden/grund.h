@@ -723,6 +723,40 @@ public:
 		return NULL;
 	}
 
+	/**
+	 * Main-thread-only variants of the object/way accessors above. The main
+	 * thread is the sole writer of the object list, so these skip the seqlock
+	 * retry protocol of objlist_t::bei(). Never use them from a display or
+	 * simulation worker thread.
+	 */
+	inline obj_t *obj_bei_main_thread(uint8 n) const { return objlist.bei_main_thread(n); }
+
+	inline weg_t *get_weg_nr_main_thread(int i) const
+	{
+		return (flags&(has_way1<<i)) ? static_cast<weg_t *>(obj_bei_main_thread(i)) : NULL;
+	}
+
+	inline weg_t *get_weg_main_thread(waytype_t typ) const
+	{
+		if (weg_t* const w = get_weg_nr_main_thread(0)) {
+			const waytype_t wt = w->get_waytype();
+			if(wt == typ || (typ == any_wt && wt > 0)) {
+				return w;
+			}
+			else if (wt > typ) {
+				// ways are ordered wrt to waytype
+				return NULL;
+			}
+			// try second way (if exists)
+			if (weg_t* const w = get_weg_nr_main_thread(1)) {
+				if (w->get_waytype() == typ) {
+					return w;
+				}
+			}
+		}
+		return NULL;
+	}
+
 	bool has_two_ways() const { return flags&has_way2; }
 
 	bool hat_weg(waytype_t typ) const { return get_weg(typ)!=NULL; }

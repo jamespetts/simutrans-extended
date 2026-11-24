@@ -155,6 +155,18 @@ private:
 	weight_summary_t weight;
 	static const sint32 timings_reduction_point = 6;
 	bool re_ordered; // Whether this convoy's vehicles are currently arranged in reverse order.
+
+	/**
+	 * Last result of convoy_t::calc_max_physical_speed() and the weight
+	 * summary it was computed for. calc_fuel_consumption() asks for the same
+	 * value once per powered vehicle and per tile hop, with the convoy's own
+	 * weight and friction every time, so the cubic solve is done once for all
+	 * of them. Invalidated with the cached summaries it depends on (see
+	 * cd_max_physical_speed).
+	 */
+	mutable sint32 cached_max_physical_speed;
+	mutable weight_summary_t cached_max_physical_weight;
+
 protected:
 	virtual void update_vehicle_summary(vehicle_summary_t &vehicle) OVERRIDE;
 	virtual void update_freight_summary(freight_summary_t &freight) OVERRIDE;
@@ -166,11 +178,19 @@ public:
 	virtual float32e8_t get_force_summary(const float32e8_t &speed /* in m/s */) OVERRIDE;
 	virtual sint16 get_current_friction() OVERRIDE;
 
+	/**
+	 * Cached calculation of the convoy's maximum physical speed in km/h for
+	 * the given weight. Repeated calls with the same weight summary reuse the
+	 * previous result; the cache is cleared whenever one of the summaries the
+	 * calculation depends on is invalidated.
+	 */
+	sint32 calc_max_physical_speed(const weight_summary_t &weight) OVERRIDE;
+
 	// weight_summary becomes invalid, when vehicle_summary or envirion_summary
 	// becomes invalid.
 	inline void invalidate_weight_summary()
 	{
-		is_valid &= ~cd_weight_summary;
+		is_valid &= ~(cd_weight_summary|cd_max_physical_speed);
 	}
 
 	// weight_summary is valid if (is_valid & cd_weight_summary != 0)

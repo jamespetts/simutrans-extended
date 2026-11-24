@@ -98,6 +98,15 @@ Measured on the gargantuan fixture (method and full inventory: [performance](per
   18.9% incl / 8.3% self; `vehicle_base_t::do_drive` 10.0% incl; `convoy_t::calc_move` 6.1% incl;
   `calc_min_braking_distance` 3.0% incl; the sync-safe fixed-point `float32e8_t` operators ~7%
   self combined.
+- ex-15 fuel path (canonical 120 s capture, `Profile (server)|x64`):
+  `vehicle_t::calc_fuel_consumption` is 2.26% inclusive. It runs for every powered vehicle each
+  time the vehicle moves to the next tile and asks `convoi_t::calc_max_physical_speed` for the
+  convoy-level maximum physical speed; that method caches the result for the current
+  `weight_summary_t`. `convoi_t::calc_acceleration` is the largest convoy cost at 10.1%
+  inclusive. `vehicle_desc_t::get_air_resistance()` substitutes the waytype default for a stored
+  zero, and `convoi_t::update_adverse_summary()` uses the front vehicle's drag coefficient when
+  no vehicle is flagged leading, so `adverse.cf` is never zero for a convoy with vehicles
+  [EXECUTION-VERIFIED:2026-11-24 ex-15 @ 1ddc256].
 - Loading a large save triggers a mass reroute wave in the first steps.
 
 ## Open questions

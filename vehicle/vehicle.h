@@ -727,8 +727,6 @@ public:
 
 	void make_smoke() const;
 
-	inline bool is_at_full_power() const;
-
 	void show_info() OVERRIDE;
 
 	/**

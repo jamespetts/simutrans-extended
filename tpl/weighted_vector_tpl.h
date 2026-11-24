@@ -85,7 +85,7 @@ public:
 		friend class weighted_vector_tpl;
 	};
 
-	weighted_vector_tpl() : nodes(NULL), size(0), count(0), total_weight(0) {}
+	weighted_vector_tpl() : nodes(NULL), size(0), count(0), total_weight(0), coarse(NULL), coarse_count(0), coarse_size(0) {}
 
 	/** Construct a vector for size elements */
 	explicit weighted_vector_tpl(uint32 size)
@@ -94,15 +94,19 @@ public:
 		nodes = (size > 0 ? new nodestruct[size] : NULL);
 		count = 0;
 		total_weight = 0;
+		coarse = NULL;
+		coarse_count = 0;
+		coarse_size = 0;
 	}
 
-	~weighted_vector_tpl() { delete [] nodes; }
+	~weighted_vector_tpl() { delete [] nodes; delete [] coarse; }
 
 	/** sets the vector to empty */
 	void clear()
 	{
 		count = 0;
 		total_weight = 0;
+		coarse_count = 0;
 	}
 
 	/**
@@ -164,6 +168,7 @@ public:
 		nodes[count].weight = total_weight;
 		count++;
 		total_weight += weight;
+		rebuild_coarse_from(count - 1);
 		return true;
 	}
 
@@ -195,6 +200,7 @@ public:
 			nodes[pos].data = elem;
 			total_weight += weight;
 			count++;
+			rebuild_coarse_from(pos);
 			return true;
 		}
 		else {
@@ -277,6 +283,7 @@ public:
 		if(  pos>=count  ) {
 			return false;
 		}
+		const uint32 start = pos;
 		const uint32 elem_weight = ( pos + 1 < count ? nodes[pos + 1].weight : total_weight ) - nodes[pos].weight;
 		if(  weight>elem_weight  ) {
 			const uint32 delta_weight = weight - elem_weight;
@@ -292,6 +299,7 @@ public:
 			}
 			total_weight -= delta_weight;
 		}
+		rebuild_coarse_from(start);
 		return true;
 	}
 
@@ -307,6 +315,7 @@ public:
 			sum      += get_weight(i->data);
 		}
 		total_weight = sum;
+		rebuild_coarse_from(0);
 	}
 
 	/** removes element, if contained */
@@ -346,6 +355,7 @@ public:
 		}
 		count--;
 		total_weight -= diff_weight;
+		rebuild_coarse_from(pos);
 		return true;
 	}
 
@@ -354,6 +364,7 @@ public:
 		assert(count>0);
 		--count;
 		total_weight = nodes[count].weight;
+		coarse_count = (count + COARSE_BUCKET - 1) >> COARSE_BUCKET_SHIFT;
 		return nodes[count].data;
 	}
 
@@ -383,39 +394,30 @@ public:
 		if (target_weight > total_weight) {
 			dbg->fatal("weighted_vector_tpl<T>::at_weight()", "weight out of bounds: %i not in 0..%d", target_weight, total_weight);
 		}
-#if 0
-		// that is the main idea (but slower, the more entries are in the list)
-		uint32 pos;
-		uint32 current_weight = 0;
-		for (pos = 0;  pos < count - 1 && current_weight + nodes[pos + 1].weight < target_weight; pos++) {
-			current_weight += nodes[pos + 1].weight;
-		}
-#else
-		// ... and that the much faster binary search
-		uint32 diff = 1;
-		sint8 counter = 0;
-		// now make sure, diff is 2^n
-		while (diff <= count) {
-			diff <<= 1;
-			counter++;
-		}
-		diff >>= 1;
-
-		uint pos = diff;
-
-		// now search
-		while (counter-- > 0) {
-			diff = (diff + 1) >> 1;
-			if (pos < count && weight_at(pos) <= target_weight) {
-				if (weight_at(pos + 1) > target_weight) break;
-				pos += diff;
-			} else {
-				pos -= diff;
+		if (coarse_count > 1) {
+			// Locate the last bucket whose start weight is <= the target, then
+			// scan the (at most COARSE_BUCKET) nodes inside that bucket. This
+			// returns the same node as the binary search below: both select
+			// the last node whose cumulative weight is at most the target.
+			uint32 lo = 0;
+			uint32 hi = coarse_count - 1;
+			while (lo < hi) {
+				const uint32 mid = (lo + hi + 1) >> 1;
+				if (coarse[mid] <= target_weight) {
+					lo = mid;
+				}
+				else {
+					hi = mid - 1;
+				}
 			}
+			uint32 pos = lo << COARSE_BUCKET_SHIFT;
+			const uint32 end = (pos + COARSE_BUCKET < count) ? pos + COARSE_BUCKET : count - 1;
+			while (pos < end && nodes[pos + 1].weight <= target_weight) {
+				pos++;
+			}
+			return nodes[pos].data;
 		}
-#endif
-		//DBG_DEBUG("at_weight()", "target_weight=%i found_weight=%i at pos %i", target_weight, weight_at(pos), pos);
-		return nodes[pos].data;
+		return nodes[at_weight_binary(target_weight)].data;
 	}
 
 	/** Gets the number of elements in the vector */
@@ -436,10 +438,87 @@ public:
 	const_iterator end()   const { return const_iterator(nodes + count); }
 
 private:
+	/// Number of nodes summarised by one coarse entry.
+	static const uint32 COARSE_BUCKET_SHIFT = 4;
+	static const uint32 COARSE_BUCKET = 1u << COARSE_BUCKET_SHIFT;
+
 	nodestruct* nodes;
 	uint32 size;                  ///< Capacity
 	uint32 count;                 ///< Number of elements in vector
 	uint32 total_weight; ///< Sum of all weights
+
+	/**
+	 * Start weight of every COARSE_BUCKET-th node: coarse[k] is
+	 * nodes[k * COARSE_BUCKET].weight. at_weight() first locates the bucket
+	 * containing the target, then scans at most COARSE_BUCKET nodes, instead
+	 * of chasing log2(count) scattered nodes. The array is maintained eagerly
+	 * by every mutation, so concurrent readers only read it.
+	 */
+	uint32* coarse;
+	uint32 coarse_count;  ///< Number of valid entries in coarse
+	uint32 coarse_size;   ///< Allocated capacity of coarse
+
+	void ensure_coarse_capacity(uint32 needed)
+	{
+		if (needed <= coarse_size) {
+			return;
+		}
+		uint32 new_size = coarse_size == 0 ? 4 : coarse_size;
+		while (new_size < needed) {
+			new_size <<= 1;
+		}
+		uint32* new_coarse = new uint32[new_size];
+		for (uint32 i = 0; i < coarse_count; i++) {
+			new_coarse[i] = coarse[i];
+		}
+		delete [] coarse;
+		coarse = new_coarse;
+		coarse_size = new_size;
+	}
+
+	/// The original binary search over the cumulative weights, used for
+	/// vectors that are too small to be worth the coarse index.
+	uint32 at_weight_binary(const uint32 target_weight) const
+	{
+		uint32 diff = 1;
+		sint8 counter = 0;
+		while (diff <= count) {
+			diff <<= 1;
+			counter++;
+		}
+		diff >>= 1;
+
+		uint32 pos = diff;
+		while (counter-- > 0) {
+			diff = (diff + 1) >> 1;
+			if (pos < count && weight_at(pos) <= target_weight) {
+				if (weight_at(pos + 1) > target_weight) break;
+				pos += diff;
+			} else {
+				pos -= diff;
+			}
+		}
+		return pos;
+	}
+
+	/**
+	 * Recomputes the bucket starts from the bucket that contains @p pos.
+	 * Every mutation calls this for the first index whose weight (or whose
+	 * position) it changed, so the whole array is never rebuilt by an append.
+	 */
+	void rebuild_coarse_from(uint32 pos)
+	{
+		const uint32 needed = (count + COARSE_BUCKET - 1) >> COARSE_BUCKET_SHIFT;
+		if (needed == 0) {
+			coarse_count = 0;
+			return;
+		}
+		ensure_coarse_capacity(needed);
+		for (uint32 k = pos >> COARSE_BUCKET_SHIFT; k < needed; k++) {
+			coarse[k] = nodes[k << COARSE_BUCKET_SHIFT].weight;
+		}
+		coarse_count = needed;
+	}
 
 	weighted_vector_tpl(const weighted_vector_tpl& other);
 
@@ -451,6 +530,9 @@ private:
 		sim::swap(a.size, b.size);
 		sim::swap(a.count, b.count);
 		sim::swap(a.total_weight, b.total_weight);
+		sim::swap(a.coarse, b.coarse);
+		sim::swap(a.coarse_count, b.coarse_count);
+		sim::swap(a.coarse_size, b.coarse_size);
 	}
 };
 

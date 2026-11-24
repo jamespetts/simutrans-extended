@@ -1026,7 +1026,15 @@ public:
 	// does not consider is_available_only_as_upgrade because it is a different framework than the timeline
 	PIXVAL get_vehicle_status_color() const;
 
-	float32e8_t get_air_resistance() const { return air_resistance; }
+	float32e8_t get_air_resistance() const
+	{
+		// A zero value would make the cubic maximum-speed solution in
+		// convoy_t::calc_max_physical_speed() divide by zero. The reader uses
+		// get_air_default() when the pak does not set the key, so a stored zero
+		// is not a physically meaningful "no air resistance"; use the same
+		// waytype default here so every caller sees a usable value.
+		return air_resistance.is_zero() ? get_air_default(wtyp) * float32e8_t::centi : air_resistance;
+	}
 	float32e8_t get_rolling_resistance() const { return rolling_resistance; }
 
 	const way_constraints_of_vehicle_t& get_way_constraints() const { return way_constraints; }

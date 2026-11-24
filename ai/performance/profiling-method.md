@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 3f5046b79a plus scripts/perf/ and run-perf-suite.ps1 additions
+verified: master @ 3f5046b79a plus scripts/perf/ and run-perf-suite.ps1 additions; ex-15 @ 1ddc256 (2026-11-24, paced-server metric and forced window)
 ---
 # Profiling and hot-path measurement method
 
@@ -68,6 +68,8 @@ When untouched by the change, each of these functions performs the same amount o
 
 To compute the per-step speedup of an optimised function itself, compare `samples_base / (samples_candidate / S)` (equivalently, compare the ratio `optimised_samples / unchanged_samples` between baseline and candidate). If an optimisation makes `karte_t::sync_step()` fast enough that the server catches up to real-time pacing (`fix_ratio_frame_time`) and begins calling `dr_sleep()`, main-thread CPU samples will fall below 100% of the window duration; in that regime, compare total main-thread CPU time per unit of simulation progress instead.
 
+A metric that stays comparable across both regimes is **inclusive samples of an unchanged per-step function per 1000 process CPU samples**. For example, divide the inclusive `karte_t::step` sample count by the total process sample count and multiply by 1000; a rise means the simulation completes more steps per unit of CPU. Because both counts come from the same capture, the result is independent of how much the process slept. On the canonical 120 s capture the value is about 34 for the gargantuan fixture.
+
 ## One-shot runtime distribution census
 
 Sampled CPU profiles show where time is spent, not how often each branch, occupancy count, or early-exit condition occurs. Collect those runtime distributions in a single short run instead of guessing:
@@ -105,6 +107,10 @@ MSVC and GCC/Clang differ in `GCC_PACKED` (empty on MSVC) and `std::string` layo
 - **Server log filename.** In `-server <port>` mode, Simutrans writes `simu-server<port>.log` in the working directory rather than `simu.log`.
 - **GUI-subsystem wait in PowerShell.** On Windows, `Simutrans-Extended-Profile-server.exe` is linked as a GUI-subsystem executable, so invoking it directly with `&` in PowerShell returns immediately without waiting for exit. Use `Start-Process -PassThru` and wait on the process handle (or pass `-Wait`).
 - **Avoid concurrent heavy work during captures.** Do not run parallel builds or test suites while an ETW capture is running.
+- **Force the measurement window when the load plateau never confirms.** `run-perf-suite.ps1` declares load complete from a working-set/read-I/O plateau. The first path-explorer rebuild after loading the gargantuan fixture can keep the working set growing, so the detector waits until its timeout and the window never starts. For a deterministic window start, pass `-MinLoadSec 150 -LoadWsFloorMb 0 -WsQuietMb 1000000`; the suite then declares load at the first sample after 150 s. Use `-SettleSec 20` and `-WindowSec 60` for diagnosis, or `-WindowSec 120` for canonical captures.
+- **Retry a fixture that exits during load with `-1073740791` and `sim_new_handler() OUT OF MEMORY`.** The gargantuan fixture's peak commit exceeds the free commit on a machine that is already heavily committed; the same binary can load on a later attempt. Check `\Memory\Committed Bytes` against `\Memory\Commit Limit` before treating it as a regression.
+- **`etw-ctl.ps1` fixes its command/status directory to `ai\temp\perf`.** The elevation helper used by `-Trace` reads and writes `ai\temp\perf\etw-command.txt` and its status files, so a traced capture cannot use a scratch `-WorkDir`. Run traced captures in the main suite workdir and keep only the build under the scratch tree; untraced captures can use any workdir.
+- **`-LineFilter` produces an empty line section when passed through `powershell -File`.** A comma-separated value such as `-LineFilter following_limit,private_car_t` currently yields an empty "Top 60 Source Lines" section; the observed symptom is consistent with the whole value arriving as one filter element, which matches no function. Until the script is changed, run `ai\tools\perf\etl-lines.exe <trace.etl> <exeBaseName> <pdbPath> <filter>...` manually on the kept trace, passing each substring as a separate argument.
 - **Verify determinism and assertions after optimisation.** Rebuild a configuration with assertions enabled (`Optimised debug|x64` or `Debug|x64`) and run the network smoke test (`scripts/run-smoke-tests.ps1`), the relevant pending-runtime and reload/checklist suites, and the standard Squirrel suite (`tests/*.nut`) documented in [scripting-and-tests](../scripting-and-tests.md) before accepting any hot-path change.
 
 ## Open questions

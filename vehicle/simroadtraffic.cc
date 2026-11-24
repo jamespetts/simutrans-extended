@@ -166,7 +166,7 @@ void road_user_t::hop(grund_t *)
 	int count = 0;
 
 	// 1) find the allowed directions
-	weg_t *weg = from->get_weg(road_wt);
+	weg_t *weg = from->get_weg_main_thread(road_wt);
 	if(weg==NULL) {
 		// no gound here any more?
 		pos_next = get_pos();
@@ -187,7 +187,7 @@ void road_user_t::hop(grund_t *)
 			from->get_neighbour(to, road_wt, ribi_t::nesw[r])
 		) {
 			// check, if this is just a single tile deep
-			int next_ribi =  to->get_weg(road_wt)->get_ribi_unmasked();
+			int next_ribi =  to->get_weg_main_thread(road_wt)->get_ribi_unmasked();
 			if((ribi&next_ribi)!=0  ||  !ribi_t::is_single(next_ribi)) {
 				list[count++] = to;
 			}
@@ -1012,7 +1012,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 	}
 
 	// road still there?
-	strasse_t * str = (strasse_t*)gr->get_weg(road_wt);
+	strasse_t * str = (strasse_t*)gr->get_weg_main_thread(road_wt);
 	if(str==NULL) {
 		time_to_life = 0;
 		return false;
@@ -1110,7 +1110,7 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 			sg[1] = welt->lookup(pos_next_next);
 			for(uint8 i = 0; i < 2; i++) {
 				for(  uint8 pos=1;  sg[i] && pos < sg[i]->get_top();  pos++  ) {
-					if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(sg[i]->obj_bei(pos))  ) {
+					if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(sg[i]->obj_bei_main_thread(pos))  ) {
 						ribi_t:: ribi other_direction = 255;
 						if(  road_vehicle_t const* const at = obj_cast<road_vehicle_t>(v)  ) {
 							if(  at && !at->get_convoi()->is_overtaking()  ) {
@@ -1367,7 +1367,7 @@ grund_t* private_car_t::hop_check()
 	}
 
 	// find the allowed directions
-	const weg_t *weg = from->get_weg(road_wt);
+	const weg_t *weg = from->get_weg_main_thread(road_wt);
 	if(weg==NULL) {
 		// nothing to go? => destroy ...
 		time_to_life = 0;
@@ -1454,7 +1454,7 @@ grund_t* private_car_t::hop_check()
 
 			// Check whether the way has been deleted in the meantime.
 			const grund_t* next_gr = welt->lookup(pos_next_next);
-			const weg_t* next_way = next_gr ? next_gr->get_weg(road_wt) : NULL;
+			const weg_t* next_way = next_gr ? next_gr->get_weg_main_thread(road_wt) : NULL;
 			if (!next_way)
 			{
 				pos_next_next = koord3d::invalid;
@@ -1561,7 +1561,7 @@ grund_t* private_car_t::hop_check()
 					if (from->get_neighbour(to, road_wt, ribi_t::nesw[r]))
 					{
 						// check, if this is just a single tile deep after a crossing
-						weg_t* w = to->get_weg(road_wt);
+						weg_t* w = to->get_weg_main_thread(road_wt);
 						if (ribi_t::is_single(w->get_ribi()) && (w->get_ribi() & ribi_t::nesw[r]) == 0 && !ribi_t::is_single(ribi))
 						{
 							ribi &= ~ribi_t::nesw[r];
@@ -1597,7 +1597,7 @@ grund_t* private_car_t::hop_check()
 							{
 								// We have checked whether this is on a route above, so if we reach here, we assume that this
 								// city exit tile is not on a route.
-								weg = from->get_weg(road_wt);
+								weg = from->get_weg_main_thread(road_wt);
 								grund_t* gr_backwards;
 								if (city_exit)
 								{
@@ -1611,7 +1611,7 @@ grund_t* private_car_t::hop_check()
 
 									if (backwards_way)
 									{
-										const weg_t* last_way = gr_backwards ? gr_backwards->get_weg(road_wt) : NULL;
+										const weg_t* last_way = gr_backwards ? gr_backwards->get_weg_main_thread(road_wt) : NULL;
 										backwards_allowed_next_tile = last_way ? last_way->get_ribi() & backwards : false;
 									}
 
@@ -1632,7 +1632,7 @@ grund_t* private_car_t::hop_check()
 						}
 
 						// Check whether the tile is passable: do not drive onto an impassible tile.
-						const weg_t* next_way = to->get_weg(road_wt);
+						const weg_t* next_way = to->get_weg_main_thread(road_wt);
 						if (next_way && next_way->get_max_speed() > 0 && next_way->get_max_axle_load() > 0 && (next_way->get_owner() == NULL || next_way->get_owner()->allows_access_to(welt->get_public_player()->get_player_nr())))
 						{
 							const uint32 dist = 8192 / max(1, shortest_distance(to->get_pos().get_2d(), target));
@@ -1692,7 +1692,7 @@ void private_car_t::hop(grund_t* to)
 
 	//weg_t* const way = get_weg(); // Occasionally, the way returned here was corrupt (possibly deleted)
 
-	weg_t* const way = to->get_weg(road_wt);
+	weg_t* const way = to->get_weg_main_thread(road_wt);
 	const uint32 tiles_per_km = 1000 / welt->get_settings().get_meters_per_tile();
 	if(way && tiles_since_last_increment++ > tiles_per_km)
 	{
@@ -1914,7 +1914,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		// should never happen, since there is a vehicle in front of us ...
 		return false;
 	}
-	const strasse_t *str = (strasse_t*)(gr->get_weg(road_wt));
+	const strasse_t *str = (strasse_t*)(gr->get_weg_main_thread(road_wt));
 	if(  str==0  ) {
 		// also this is not possible, since a car loads in front of is!?!
 		return false;
@@ -1939,7 +1939,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 			if(  gr==NULL  ) {
 				return false;
 			}
-			strasse_t *str = (strasse_t*)(gr->get_weg(road_wt));
+			strasse_t *str = (strasse_t*)(gr->get_weg_main_thread(road_wt));
 			if(  str==0  ) {
 				return false;
 			}
@@ -1955,7 +1955,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 				// Check for other vehicles on the next tile
 				const uint8 top = gr->get_top();
 				for(  uint8 j=1;  j<top;  j++  ) {
-					if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(j))  ) {
+					if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei_main_thread(j))  ) {
 						// check for other traffic on the road
 						const overtaker_t *ov = v->get_overtaker();
 						if(ov) {
@@ -2079,19 +2079,19 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		pos_prev = check_pos.get_2d();
 
 		// nowhere to go => nobody can come against us ...
-		if(to==NULL  ||  (str=(strasse_t*)(to->get_weg(road_wt)))==NULL) {
+		if(to==NULL  ||  (str=(strasse_t*)(to->get_weg_main_thread(road_wt)))==NULL) {
 			return false;
 		}
 
 		// Check for other vehicles on the next tile
 		const uint8 top = gr->get_top();
 		for(  uint8 j=1;  j<top;  j++  ) {
-			if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(j))  ) {
+			if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei_main_thread(j))  ) {
 				// check for other traffic on the road
 				const overtaker_t *ov = v->get_overtaker();
 				if(ov) {
 					if(this!=ov  &&  other_overtaker!=ov) {
-						if(  static_cast<strasse_t*>(gr->get_weg(road_wt))->get_overtaking_mode() <= oneway_mode  ) {
+						if(  static_cast<strasse_t*>(gr->get_weg_main_thread(road_wt))->get_overtaking_mode() <= oneway_mode  ) {
 							//If ov goes same directory, should not return false
 							if (v && v->get_direction() != direction && v->get_overtaker()) {
 								return false;
@@ -2160,7 +2160,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		pos_prev = check_pos.get_2d();
 
 		// nowhere to go => nobody can come against us ...
-		if(to==NULL  ||  (str=(strasse_t*)(to->get_weg(road_wt)))==NULL) {
+		if(to==NULL  ||  (str=(strasse_t*)(to->get_weg_main_thread(road_wt)))==NULL) {
 			break;
 		}
 
@@ -2169,7 +2169,7 @@ bool private_car_t::can_overtake( overtaker_t *other_overtaker, sint32 other_spe
 		ribi_t::ribi their_direction = ribi_t::backward(calc_direction( pos_prev_prev, to->get_pos()));
 		const uint8 top = gr->get_top();
 		for(  uint8 j=1;  j<top;  j++ ) {
-			vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(j));
+			vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei_main_thread(j));
 			if(  v  &&  v->get_direction() == their_direction  ) {
 				// check for car
 				if(v->get_overtaker()) {
@@ -2229,7 +2229,7 @@ vehicle_base_t* private_car_t::is_there_car (grund_t *gr) const
 	}
 	assert(  gr  );
 	for(  uint8 pos=1;  pos < gr->get_top();  pos++  ) {
-		if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos))  ) {
+		if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei_main_thread(pos))  ) {
 			if(  v->get_typ()==obj_t::pedestrian  ) {
 				continue;
 			}

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 9f562f85e6 (profiling pipeline and profiling-method link; 2026-11-23); comfort routing @ ex-15 @ c1e914343 (2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index profiling and route-unreserve removal (2026-11-14); month-change profile @ ex-15 @ f74322b648 (2026-11-24); rest @ ex-15-industry-growth-test @ 7c379b4
+verified: master @ 9f562f85e6 (profiling pipeline and profiling-method link; 2026-11-23); comfort routing @ ex-15 @ c1e914343 (2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index profiling and route-unreserve removal (2026-11-14); month-change profile @ ex-15 @ f74322b648 (2026-11-24); fuel-path cache and weighted-selection index @ ex-15 @ 1ddc256 (2026-11-24); rest @ ex-15-industry-growth-test @ 7c379b4
 ---
 # Performance & profiling
 
@@ -284,6 +284,18 @@ removed at load) — repeat before acting on the deltas.
    operators ~7% self combined (`operator*` 4.9%, `operator+` 1.2%, `operator/` 0.6%).
    Immediately after loading the fixture there is a mass reroute wave (the first step emits
    ~10⁵ route-search log lines at -debug ≥ 2 in DEBUG builds) [EXECUTION-VERIFIED:2026-09-09].
+   **ex-15 fuel-path maximum-speed cache.** `vehicle_t::calc_fuel_consumption` is 2.26%
+   inclusive on the canonical 120 s capture. It runs for every powered vehicle each time the
+   vehicle moves to the next tile and asks `convoi_t::calc_max_physical_speed` for the
+   convoy-level value; that method caches the result for the current `weight_summary_t` and
+   clears it when the summaries it depends on are invalidated (`cd_max_physical_speed` in
+   `convoy.h`). The cubic solution runs `signed_power`, `float32e8_t::exp2` and
+   `float32e8_t::log2`, so the cache is significant; an equivalence check over 280,396 hits found
+   no difference. `vehicle_desc_t::get_air_resistance()` substitutes `get_air_default(wtyp)` for
+   a stored zero, and `convoi_t::update_adverse_summary()` uses the front vehicle's drag
+   coefficient when no vehicle is flagged leading, so `adverse.cf` is never zero for a convoy
+   with vehicles. `vehicle_t::calc_fuel_consumption` calculates the maximum physical speed once
+   per call [EXECUTION-VERIFIED:2026-11-24 ex-15 @ 1ddc256].
 3. **City traffic — `private_car_t::sync_step` 18.6% incl / 9.0% self (`hop_check` 7.4% incl);
    `pedestrian_t::sync_step` 1.2% self.**
 4. **Passenger generation — `stadt_t` (simcity.cc) / `karte_t`.**
@@ -343,6 +355,17 @@ removed at load) — repeat before acting on the deltas.
     `wasser_t::calc_image_internal` ~6.5%), pakset/startup ~3%. Linking the optimised `x64_Release`
     zstd cut Load wall time on `bb6-apr-2010.sve` from 42 s to 16 s (~2.6×); world-load image
     computation is then the leading in-phase cost [EXECUTION-VERIFIED:2026-09-20].
+
+### Weighted-selection index (`weighted_vector_tpl<T>::at_weight`)
+
+`weighted_vector_tpl<gebaeude_t*>::at_weight` selects the origin and destination building for
+every passenger and mail packet. Each node stores the cumulative weight beside the element
+pointer (16 bytes per node). A parallel coarse array stores the start weight of every 16th node
+(0.25 bytes per node). `at_weight` binary-searches the small dense array and then scans at most
+16 nodes; the selected node is the last one whose cumulative weight is at most the target. Every
+mutation updates only the coarse entries from the changed index onward. The function is 1.62% self on
+the canonical 120 s capture. An equivalence check over the canonical world-generation case found
+no difference [EXECUTION-VERIFIED:2026-11-24 ex-15 @ 1ddc256].
 
 ### Month-change cost (`karte_t::new_month()`)
 
@@ -431,9 +454,16 @@ used. Full assessment: [path-explorer-optimisation](path-explorer-optimisation.m
 - The ~30 startup tunnel-builder menu errors with pak128.Britain-Ex-0.9.4 on current master:
   possibly pakset/menuconf mismatch; worth investigating later
   [RECOLLECTION:2026-09-09 user: not now].
-- Mapgen: source of the Optimised-debug factory-placement config-sensitivity, and why town
-  placement stops at 42/50 on a sparse-enough 1024² map (spacing vs terrain rejection) —
-  resolve before adding placement-based test asserts.
+- Mapgen: source of the Optimised-debug factory-placement config-sensitivity. Town placement
+  returning fewer towns than requested (42 of 50 on the canonical 1024² seed-42 case) is
+  accepted as intended: the placement search gives up after a bounded effort when no suitable
+  space is found [RECOLLECTION:2026-11-24 user]. Keep placement-based test asserts bounded
+  accordingly.
 - Month change: the largest phases after the halts phase (convois, ways, cities and factories) are
   the candidates for the next reduction; and whether the 156,431-entry waiting-time map walk
   itself is worth restructuring.
+- The main-thread object-list and way accessors (`objlist_t::bei_main_thread` and the
+  `grund_t::obj_bei_main_thread`/`get_weg_main_thread` variants) remove the `objlist_t` seqlock
+  from road movement code. On MSVC x64 their measured effect is within run-to-run noise, where
+  uncontended atomic loads on a cached line cost about the same as plain loads. Whether they
+  help GCC/Clang or weakly ordered targets is unmeasured.

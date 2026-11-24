@@ -318,7 +318,7 @@ void vehicle_base_t::populate_road_way_cache(const weg_t *w) const
 void vehicle_base_t::refresh_road_way_cache() const
 {
 	const grund_t *const cur_gr = get_grund();
-	weg_t *const w = cur_gr != NULL ? cur_gr->get_weg(road_wt) : NULL;
+	weg_t *const w = cur_gr != NULL ? cur_gr->get_weg_main_thread(road_wt) : NULL;
 	weg = w;
 	populate_road_way_cache(w);
 }
@@ -330,7 +330,7 @@ void vehicle_base_t::init_tile_cache(grund_t *tile)
 	next_gr = NULL;
 	if (tile != NULL)
 	{
-		weg = tile->get_weg(get_waytype());
+		weg = tile->get_weg_main_thread(get_waytype());
 		if (get_waytype() == road_wt)
 		{
 			populate_road_way_cache(weg);
@@ -361,7 +361,7 @@ void vehicle_base_t::enter_tile(grund_t* gr)
 	this->gr = gr;
 	next_gr = NULL;
 	const waytype_t wt = get_waytype();
-	weg = gr->get_weg(wt);
+	weg = gr->get_weg_main_thread(wt);
 	if (wt == road_wt)
 	{
 		populate_road_way_cache(weg);
@@ -720,7 +720,7 @@ vehicle_base_t *vehicle_base_t::get_blocking_vehicle(const grund_t *gr, const co
 	}
 	// Search vehicle
 	for(  uint8 pos=1;  pos < gr->get_top();  pos++  ) {
-		if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei(pos))  ) {
+		if(  vehicle_base_t* const v = obj_cast<vehicle_base_t>(gr->obj_bei_main_thread(pos))  ) {
 			if(  v->get_typ()==obj_t::pedestrian  ) {
 				continue;
 			}
@@ -2318,18 +2318,6 @@ void vehicle_t::make_smoke() const
 		}
 	}
 }
-
-bool vehicle_t::is_at_full_power() const
-{
-	const sint32 max_physical_speed = kmh_to_speed(cnv->calc_max_physical_speed(weight_summary_t(cnv->get_sum_weight(), cnv->get_current_friction())));
-	const bool at_max_physical_speed = cnv->get_akt_speed() >= max_physical_speed;
-
-	const sint32 extrinsic_speed_limit = cnv->get_akt_speed_soll();
-	const bool accelerating = cnv->get_akt_speed() < extrinsic_speed_limit;
-
-	return at_max_physical_speed || accelerating;
-}
-
 
 const char *vehicle_t::get_cargo_mass() const
 {
@@ -4409,7 +4397,14 @@ uint32 vehicle_t::calc_fuel_consumption(sint32 steps) const
 		speed_adjusted_fuel_consumption = (base_fuel_consumption * calibration_speed) / current_speed_kmh;
 	}
 
-	if (is_at_full_power())
+	// The maximum physical speed is needed both for the full-power test and
+	// for the power proportion below. It used to be calculated twice with the
+	// same arguments; calculate it once and reuse it.
+	const sint32 max_physical_speed_kmh = cnv->calc_max_physical_speed(weight_summary_t(cnv->get_sum_weight(), cnv->get_current_friction()));
+	const sint32 akt_speed = cnv->get_akt_speed();
+	const bool at_full_power = akt_speed >= kmh_to_speed(max_physical_speed_kmh)
+		|| akt_speed < cnv->get_akt_speed_soll();
+	if (at_full_power)
 	{
 		const uint32 fuel_consumption = (speed_adjusted_fuel_consumption * steps) / welt->get_settings().get_steps_per_km();
 		return fuel_consumption;
@@ -4417,7 +4412,7 @@ uint32 vehicle_t::calc_fuel_consumption(sint32 steps) const
 
 	// The second part of the calculation: adjust for power output if not accenerating
 
-	const uint32 max_physical_speed_with_current_load = cnv->calc_max_physical_speed(weight_summary_t(cnv->get_sum_weight(), cnv->get_current_friction()));
+	const uint32 max_physical_speed_with_current_load = (uint32)max_physical_speed_kmh;
 	const uint32 adjusted_speed = max(current_speed_kmh, desc->get_cut_off_speed());
 
 	const uint32 promille_proportion = (adjusted_speed * 1000u) / max_physical_speed_with_current_load;
