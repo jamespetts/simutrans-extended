@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24)
+verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24)
 ---
 # ex-15 depot maintenance and vehicle availability
 
@@ -190,6 +190,14 @@ Asset Ledger or the Tax Written-Down Pool
 ([cost-of-capital](../cost-of-capital.md)). Unlike a way replacement, there is
 no vehicle classifier that splits the charge between revenue and capital.
 
+The pending-runtime `maintenance-overhaul` case sets the overhaul distance through
+`convoy_x.set_maintenance_distances_for_testing()`, then asserts that the visit
+increments the overhaul count, resets `km_since_last_overhaul`, returns availability
+to the descriptor's starting value, and reduces cash by the vehicle's `overhaul_cost`
+within a bound that allows the running costs booked on the final approach. The
+scenario-only hook and the case are recorded in
+[scripting-and-tests](../scripting-and-tests.md) [EXECUTION-VERIFIED:2026-11-24].
+
 If an overhaul or automatic upgrade is unaffordable, `vehicle_t::overhaul()`
 returns false without changing the vehicle. A scheduled conditional depot entry
 is skipped before routing when an overhaul is unaffordable and
@@ -361,8 +369,8 @@ available policies are under investigation.
 
 ## Resumption order
 
-1. Add behavioural tests for duration, queue progress, urgent diversion,
-   affordability and overhaul accounting.
+1. Add behavioural tests for duration, queue progress, urgent diversion and
+   affordability.
 2. Verify save/reload and two-process determinism of the active-service counter,
    queue and overhaul financial state.
 3. Add the outstanding user-interface work listed above.
