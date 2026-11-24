@@ -1012,8 +1012,12 @@ int simu_main(int argc, char** argv)
 			disp_height = res.h;
 		}
 		else {
-			disp_width  = min(704, res.w);
-			disp_height = min(560, res.h);
+			// Open at 65% of the reported desktop resolution in each direction: large
+			// enough to be useful, small enough to leave the title bar, taskbar and
+			// surrounding desktop visible. Never smaller than 704x560, even where that
+			// exceeds the desktop.
+			disp_width  = max( 704, (res.w * 65) / 100 );
+			disp_height = max( 560, (res.h * 65) / 100 );
 		}
 	}
 
