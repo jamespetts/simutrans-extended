@@ -397,7 +397,10 @@ bool font_t::load_from_freetype(const char *fname, int pixel_height)
 
 	// 8 bit bitmap used for converting glyphs that are not rendered in greyscale
 	FT_Bitmap bitmap_8;
-	FT_Bitmap_Init(&bitmap_8);
+	// FreeType 2.10 renamed FT_Bitmap_New to FT_Bitmap_Init. The old name
+	// remains available as an alias, so it also compiles against the older
+	// headers shipped with some Linux distributions and macOS SDKs.
+	FT_Bitmap_New(&bitmap_8);
 
 	for(  uint32 glyph_nr=0;  glyph_nr<0xFFFF;  glyph_nr++  ) {
 
