@@ -69,6 +69,18 @@ function test_maintenance_vehicle_read_model()
 	ASSERT_EQUAL(cnv.needs_maintenance_urgently(), false)
 	ASSERT_EQUAL(cnv.needs_overhaul(), false)
 
+	// Scenario-only test hook: the distance counters are readable and writable.
+	// The invalid index check also confirms the range guard.
+	ASSERT_TRUE(cnv.set_maintenance_distances_for_testing(0, 12345, 67890))
+	slot = cnv.get_vehicle_snapshot()[0]
+	ASSERT_EQUAL(slot.km_since_last_maintenance, 12345)
+	ASSERT_EQUAL(slot.km_since_last_overhaul, 67890)
+	ASSERT_EQUAL(cnv.set_maintenance_distances_for_testing(1, 1, 1), false)
+	ASSERT_TRUE(cnv.set_maintenance_distances_for_testing(0, 0, 0))
+	slot = cnv.get_vehicle_snapshot()[0]
+	ASSERT_EQUAL(slot.km_since_last_maintenance, 0)
+	ASSERT_EQUAL(slot.km_since_last_overhaul, 0)
+
 	ASSERT_TRUE(cnv.destroy(pl))
 
 	// clean up

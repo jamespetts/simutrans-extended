@@ -20,6 +20,8 @@
 #include "../../vehicle/road_vehicle.h"
 #include "../../vehicle/rail_vehicle.h"
 #include "../../display/viewport.h"
+#include "../../dataobj/environment.h"
+#include "../../network/network_socket_list.h"
 
 // for convoy tools
 #include "../../simmenu.h"
@@ -86,6 +88,37 @@ sint32 convoy_get_service_wait_ticks(convoi_t *cnv)
 		default:
 			return -1;
 	}
+}
+
+// A scenario script runs on the server only. This test hook mutates saved
+// vehicle state directly instead of travelling as a network command, so a
+// connected client would not apply it and would desynchronise. Refuse the call
+// rather than create a silent desync. A client that joins later receives the
+// server's complete saved state, so mutating the world is safe while no client
+// is connected.
+static bool script_may_change_vehicle_maintenance()
+{
+	return !env_t::networkmode
+		|| (env_t::server
+			&& socket_list_t::get_connected_clients() == 0
+			&& socket_list_t::get_playing_clients() == 0);
+}
+
+// Scenario-only test hook. Sets the distance counters that decide when routine
+// maintenance and overhauls are due. The counters are ordinary saved state;
+// normal gameplay advances them in vehicle_t::step_km(). Returns true when the
+// convoy and vehicle exist and the call is allowed.
+bool convoy_set_maintenance_distances_for_testing(convoi_t *cnv, sint32 index, uint32 km_maintenance, uint32 km_overhaul)
+{
+	if (cnv == NULL || index < 0 || (uint32)index >= cnv->get_vehicle_count() || !script_may_change_vehicle_maintenance()) {
+		return false;
+	}
+	vehicle_t *v = cnv->get_vehicle((uint16)index);
+	if (v == NULL) {
+		return false;
+	}
+	v->set_maintenance_distances_for_testing(km_maintenance, km_overhaul);
+	return true;
 }
 
 // Returns the value that
@@ -400,7 +433,7 @@ call_tool_init convoy_change_schedule(convoi_t *cnv, player_t *player, schedule_
 	return "Invalid schedule provided";
 }
 
-void export_convoy(HSQUIRRELVM vm)
+void export_convoy(HSQUIRRELVM vm, bool scenario)
 {
 	/**
 	 * Implements iterator to iterate through lists of convoys.
@@ -641,6 +674,21 @@ void export_convoy(HSQUIRRELVM vm)
 	 * overhaul or replenishing state, or -1 in any other state
 	 */
 	register_method(vm, convoy_get_service_wait_ticks, "get_service_wait_ticks", true);
+	if (scenario) {
+		/**
+		 * Scenario-only test hook. Sets the distance counters that decide when
+		 * routine maintenance and overhauls are due. These are ordinary saved
+		 * vehicle fields; normal gameplay advances them in vehicle_t::step_km().
+		 * The call is refused in a network game while a client is connected.
+		 * @param index position in the convoy, 0 = front
+		 * @param km_maintenance kilometres since the last completed routine maintenance
+		 * @param km_overhaul kilometres since the last completed overhaul
+		 * @returns true on success
+		 * @note Only available in scenario mode.
+		 * @ingroup scen_only
+		 */
+		register_method(vm, &convoy_set_maintenance_distances_for_testing, "set_maintenance_distances_for_testing", true);
+	}
 	/**
 	 * @returns the convoy's livery scheme index
 	 */

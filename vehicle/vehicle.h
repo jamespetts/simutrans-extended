@@ -958,6 +958,15 @@ public:
 	uint16 get_overhaul_count() const { return overhauls; }
 	uint32 get_km_since_last_overhaul() const { return km_since_last_overhaul; }
 	uint32 get_km_since_last_maintenance() const { return km_since_last_maintenance; }
+	// Scenario-only test hook: sets the distance counters that decide when
+	// routine maintenance and overhauls are due. Normal gameplay advances them
+	// through vehicle_t::step_km(). See the convoy_x method
+	// set_maintenance_distances_for_testing.
+	void set_maintenance_distances_for_testing(uint32 km_maintenance, uint32 km_overhaul)
+	{
+		km_since_last_maintenance = km_maintenance;
+		km_since_last_overhaul = km_overhaul;
+	}
 
 	virtual uint8 get_availability() const;
 

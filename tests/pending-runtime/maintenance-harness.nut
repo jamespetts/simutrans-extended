@@ -16,6 +16,14 @@
 // (maintenance-dwell-rail) uses the powered non-electric locomotive whose
 // descriptor reports starting availability below 100, followed by a
 // low-availability carriage; its wait is nonzero, so it observes the dwell.
+// The overhaul case (maintenance-overhaul) uses the rail fixture's locomotive and
+// calls convoy_x.set_maintenance_distances_for_testing() to set the leading
+// vehicle's distance since the last overhaul above the descriptor's overhaul
+// interval. The depot entry's maintain_or_overhaul flag then makes
+// depot_t::convoi_arrived() place the vehicle in the overhaul group. The case
+// asserts the overhaul count, the odometer reset, the availability reset and the
+// cash booking when the overhaul state is entered; it does not wait for the
+// overhaul duration to expire.
 //
 // A depot schedule entry carries the depot visit flags in its minimum_loading
 // field: convoi_t::ziel_erreicht() passes schedule->get_current_entry().minimum_loading
@@ -40,13 +48,16 @@
 //      distance are unchanged, its overhaul count is still zero, and the convoy
 //      drives off the depot tile towards the stop again.
 //
-// The overhaul branch is not exercised. Every vehicle in this fixture has been
-// built during the run, so km_since_last_overhaul is zero and no pakset
-// threshold for max_distance_between_overhauls can be reached on a 16x16 map.
-// The script API has no setter for the distance counters, and the fixture does
-// not add one. The case asserts the negative instead: the visit is MAINTENANCE,
-// not OVERHAUL, and the overhaul count and the overhaul distance never change.
-// The overhaul cash booking therefore has no scripted case yet.
+// A vehicle built during the run has covered no distance, so the maintenance
+// cases that do not use the test hook assert the negative for overhauls: the
+// visit is MAINTENANCE and the overhaul count and distance never change. The
+// overhaul case sets the counters through the scenario-only
+// convoy_x.set_maintenance_distances_for_testing() test hook, which changes the
+// same fields that normal gameplay advances in vehicle_t::step_km(). Setting
+// km_since_last_overhaul above the descriptor's max_distance_between_overhauls
+// makes vehicle_t::is_overhaul_needed() true, and the depot entry's
+// maintain_or_overhaul flag then classifies the vehicle for overhaul in
+// depot_t::convoi_arrived().
 //
 // The maintenance wait that vehicle_t::maintain() computes is
 // active_service_time * (100 - availability) / 100. When the wait is zero the
@@ -69,6 +80,7 @@ local case_name = ::case_kind
 // available powered non-electric locomotive with starting availability below
 // 100 and a low-availability carriage behind it.
 local RAIL_CASE = ("maintenance_rail_case" in getroottable()) && ::maintenance_rail_case
+local OVERHAUL_CASE = ("maintenance_overhaul_case" in getroottable()) && ::maintenance_overhaul_case
 local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
@@ -86,6 +98,10 @@ local DEPOT_ENTRY_ID = 12
 // schedule_entry_t::maintain_or_overhaul. A depot schedule entry carries the
 // visit flags in minimum_loading (the schedule_entry_x.load field).
 local DEPOT_FLAG_MAINTAIN_OR_OVERHAUL = 4
+
+// The overhaul case sets this distance since the last overhaul. Ten million
+// kilometres exceeds every pakset's max_distance_between_overhauls.
+local OVERHAUL_DISTANCE = 10000000
 
 // Observation-step limits. They are diagnostic bounds for a case that stalls;
 // the runner's overall per-case timeout is the real bound. The rail case's wait
@@ -113,7 +129,11 @@ local fixture = {
 	service_state = -1,
 	first_wait = 0,
 	last_wait = 0,
-	captured_after = false
+	captured_after = false,
+	cash_before = 0.0,
+	month_before = 0,
+	overhaul_count_before = 0,
+	overhaul_cost_before = 0
 }
 
 
@@ -310,6 +330,21 @@ function setup()
 	if (!check(back.entries[1].load == DEPOT_FLAG_MAINTAIN_OR_OVERHAUL, "the depot entry reports load " + back.entries[1].load + ", expected the maintain_or_overhaul visit flag " + DEPOT_FLAG_MAINTAIN_OR_OVERHAUL)) { return false }
 	if (!check(back.entries[1].reverse == 1, "the depot entry reports reverse " + back.entries[1].reverse + ", expected 1 so that the route search stops at the depot instead of treating it as a waypoint")) { return false }
 
+	if (OVERHAUL_CASE)
+	{
+		local slots = cnv.get_vehicle_snapshot()
+		if (!check(slots.len() > 0, "the convoy has no vehicle to set up")) { return false }
+		fixture.overhaul_count_before = slots[0].overhaul_count
+		fixture.overhaul_cost_before = slots[0].overhaul_cost
+		if (!check(cnv.set_maintenance_distances_for_testing(0, 0, OVERHAUL_DISTANCE), "the scenario-only test hook did not set the overhaul distance")) { return false }
+		local after = cnv.get_vehicle_snapshot()[0]
+		if (!check(after.km_since_last_overhaul == OVERHAUL_DISTANCE, "the overhaul distance reads " + after.km_since_last_overhaul + " after the test hook set " + OVERHAUL_DISTANCE)) { return false }
+		if (!check(after.km_since_last_maintenance == 0, "the maintenance distance reads " + after.km_since_last_maintenance + " after the test hook set 0")) { return false }
+		if (!check(after.overhaul_needed, "the vehicle does not report an overhaul as due after the test hook set " + OVERHAUL_DISTANCE + " km since the last overhaul")) { return false }
+		if (!check(after.overhaul_cost > 0, "the vehicle reports an overhaul cost of " + after.overhaul_cost + ", so the cash booking cannot be asserted")) { return false }
+		if (!check_tool(pl.book_cash(fixture.overhaul_cost_before + 100000), "add cash for the overhaul")) { return false }
+	}
+
 	if (!check_tool(depot.start_convoy(pl, cnv), "start the convoy")) { return false }
 	return true
 }
@@ -328,6 +363,13 @@ function capture_before(cnv, slot)
 	fixture.before_km_overhaul = slot.km_since_last_overhaul
 	fixture.before_availability = slot.availability
 	print("RUNTIME CASE " + case_name + ": convoy reached the stop with " + slot.km_since_last_maintenance + " km since the last maintenance, " + slot.km_since_last_overhaul + " km since the last overhaul, availability " + slot.availability)
+	if (OVERHAUL_CASE)
+	{
+		if (!check(slot.km_since_last_overhaul >= OVERHAUL_DISTANCE, "the convoy reached the stop with " + slot.km_since_last_overhaul + " km since the last overhaul, less than the " + OVERHAUL_DISTANCE + " km the test hook set")) { return false }
+		fixture.overhaul_count_before = slot.overhaul_count
+		fixture.overhaul_cost_before = slot.overhaul_cost
+		return check(slot.overhaul_cost > 0, "the vehicle reports an overhaul cost of " + slot.overhaul_cost + ", so the cash booking cannot be asserted")
+	}
 	return check(slot.km_since_last_maintenance > 0, "the convoy reached the stop with no booked distance since the last maintenance, so a later reset to zero would prove nothing")
 }
 
@@ -335,7 +377,8 @@ function capture_before(cnv, slot)
 function enter_service(cnv, state)
 {
 	if (!check(fixture.saw_stop, "the convoy entered a depot service state before it reached the stop, so it did not run the lap the case expects")) { return false }
-	if (!check(state == convoy_state_maintenance, "the depot visit put the convoy in state " + state + "; a vehicle built during this run is not due for an overhaul, so the visit must be routine maintenance (" + convoy_state_maintenance + ")")) { return false }
+	local expected_state = OVERHAUL_CASE ? convoy_state_overhaul : convoy_state_maintenance
+	if (!check(state == expected_state, "the depot visit put the convoy in state " + state + "; " + case_name + " expects state " + expected_state)) { return false }
 
 	fixture.service_state = state
 	fixture.service_steps = 1
@@ -347,6 +390,32 @@ function enter_service(cnv, state)
 	if (!check(slots.len() == fixture.vehicle_count, "the convoy snapshot has " + slots.len() + " slots, expected the convoy's " + fixture.vehicle_count + " vehicles")) { return false }
 	fixture.before_km_overhaul = slots[0].km_since_last_overhaul
 	fixture.before_availability = slots[0].availability
+
+	if (OVERHAUL_CASE)
+	{
+		if (!check(slots[0].overhaul_count == fixture.overhaul_count_before + 1, "the overhaul count is " + slots[0].overhaul_count + ", expected " + (fixture.overhaul_count_before + 1))) { return false }
+		if (!check(slots[0].km_since_last_overhaul == 0, "the vehicle reports " + slots[0].km_since_last_overhaul + " km since the last overhaul, expected vehicle_t::overhaul() to reset it")) { return false }
+		if (!check(slots[0].availability == slots[0].desc.get_starting_availability(), "the overhaul left availability at " + slots[0].availability + "%, expected the descriptor's starting availability " + slots[0].desc.get_starting_availability() + "%")) { return false }
+		if (!check(slots[0].overhaul_needed == false, "the leading vehicle still reports that an overhaul is needed after the overhaul")) { return false }
+		if (!check(cnv.needs_overhaul() == false, "the convoy still reports that an overhaul is needed after the overhaul")) { return false }
+		if (!check(fixture.first_wait > 0, "the convoy entered overhaul with a service wait of " + fixture.first_wait + " ticks; the overhaul duration that convoi_t::sync_step counts down was cleared before the case could observe it")) { return false }
+		local charged = (fixture.cash_before - player_x(0).get_current_cash()) * 100.0
+		// The approach to the depot also books per-kilometre running costs, so
+		// the cash delta is the overhaul cost plus those charges. A 5% (or ten
+		// credit) bound still rejects a monthly-scaled or repeated booking.
+		local tolerance = 1000
+		if (fixture.overhaul_cost_before / 20 > tolerance)
+		{
+			tolerance = fixture.overhaul_cost_before / 20
+		}
+		if (!check(charged >= fixture.overhaul_cost_before - 0.5, "the overhaul changed cash by only " + charged + " hundredths, less than the vehicle's overhaul cost " + fixture.overhaul_cost_before)) { return false }
+		if (world.get_time().raw == fixture.month_before)
+		{
+			if (!check(charged <= fixture.overhaul_cost_before + tolerance, "the overhaul changed cash by " + charged + " hundredths, more than the vehicle's overhaul cost " + fixture.overhaul_cost_before + " plus " + tolerance + " hundredths of other charges; the overhaul may have been monthly-scaled or charged more than once")) { return false }
+		}
+		print("RUNTIME CASE " + case_name + ": convoy entered overhaul with a service wait of " + fixture.first_wait + " ticks; cash fell by " + charged + " hundredths against an overhaul cost of " + fixture.overhaul_cost_before + " (tolerance " + tolerance + ")")
+		return true
+	}
 
 	if (!check(fixture.before_availability < 100, "the maintained vehicle reports availability " + fixture.before_availability + "; vehicle_t::maintain() computes a wait of active_service_time * (100 - availability) / 100, so a vehicle at 100% availability cannot produce the multi-step visit this case asserts")) { return false }
 	if (!check(fixture.first_wait > 0, "the convoy entered maintenance with a service wait of " + fixture.first_wait + " ticks; the wait that convoi_t::sync_step counts down was cleared before the case could observe it")) { return false }
@@ -392,7 +461,7 @@ function observe_departure(cnv)
 	{
 		for (local i = 0; i < slots.len(); i++)
 		{
-			if (!check(slots[i].km_since_last_maintenance == 0, "vehicle " + i + " reports " + slots[i].km_since_last_maintenance + " km since the last maintenance, expected the counter to be reset by vehicle_t::maintain()")) { return }
+			if (!check(slots[i].km_since_last_maintenance == 0, "vehicle " + i + " reports " + slots[i].km_since_last_maintenance + " km since the last maintenance, expected the depot service to reset the counter")) { return }
 			if (!check(slots[i].overhaul_count == 0, "vehicle " + i + " reports " + slots[i].overhaul_count + " overhauls, expected none: an overhaul was not due and the visit was routine maintenance")) { return }
 		}
 		if (!check(slot.maintenance_needed == false, "the leading vehicle still reports that routine maintenance is needed after the visit")) { return }
@@ -426,8 +495,27 @@ function observe()
 		return
 	}
 
+	if (fixture.stage != "service")
+	{
+		local current_state = cnv.get_state()
+		if (current_state != convoy_state_maintenance && current_state != convoy_state_overhaul)
+		{
+			fixture.cash_before = player_x(0).get_current_cash()
+			fixture.month_before = world.get_time().raw
+		}
+	}
+
 	if (fixture.stage == "service")
 	{
+		if (OVERHAUL_CASE)
+		{
+			// The overhaul case asserts the booking and the state resets when
+			// the state is entered. It does not wait for the overhaul duration
+			// to expire; the maintenance dwell cases cover the service-wait
+			// countdown.
+			pass()
+			return
+		}
 		observe_service(cnv)
 		return
 	}
@@ -451,7 +539,7 @@ function observe()
 	// vehicle_t::maintain() computes a zero wait, which happens when the vehicle
 	// reports 100% availability (the pakset default when no availability decay
 	// is configured). The odometer reset at the depot tile identifies the visit.
-	if (fixture.saw_stop && slots[0].km_since_last_maintenance == 0
+	if (!OVERHAUL_CASE && fixture.saw_stop && slots[0].km_since_last_maintenance == 0
 		&& slots[0].pos.x == DEPOT_POS.x && slots[0].pos.y == DEPOT_POS.y && slots[0].pos.z == DEPOT_POS.z)
 	{
 		print("RUNTIME CASE " + case_name + ": the maintenance visit completed in one step at availability " + slots[0].availability + ", so no MAINTENANCE state was observable")

@@ -21,7 +21,7 @@ void register_export_function(HSQUIRRELVM vm, bool scenario)
 
 	export_city(vm);
 	export_control(vm);
-	export_convoy(vm);
+	export_convoy(vm, scenario);
 	export_factory(vm);
 	export_goods_desc(vm);
 	export_gui(vm, scenario);
