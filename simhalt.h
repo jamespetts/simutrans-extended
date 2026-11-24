@@ -519,6 +519,9 @@ public:
 		uint16 y;
 	};
 
+	// Service frequencies keyed by (category, destination halt).
+	typedef koordhashtable_tpl<service_frequency_specifier, uint32, N_BAGS_SMALL> service_frequency_map;
+
 	bool is_transfer(const uint8 catg, const uint8 g_class, uint8 max_classes) const { return non_identical_schedules[(catg * max_classes) + g_class] > 1u; }
 //	bool is_transfer(const uint8 catg) const { return all_links[catg].is_transfer; }
 
@@ -676,7 +679,40 @@ private:
 	// Store the service frequencies to all other halts so that this does not need to be
 	// recalculated frequently. These are used as proxies for waiting times when no
 	// recent (or any) waiting time data are available.
-	koordhashtable_tpl<service_frequency_specifier, uint32, N_BAGS_SMALL> service_frequencies;
+	service_frequency_map service_frequencies;
+
+	// The service frequencies that calc_service_frequency() would return for every
+	// destination that a line registered at this halt serves, for every category
+	// that the line carries. build_service_frequency_batch() fills this table in one
+	// pass over registered_lines at the start of the waiting-times update in
+	// new_month(), and new_month() deletes the table at the end of that update, so
+	// the table occupies memory only during the update. NULL means that no batch is
+	// active. While a batch is active, get_service_frequency() reads
+	// service_frequencies first and this table only for a pair that is absent from
+	// service_frequencies.
+	service_frequency_map *batch_service_frequencies;
+
+	// Folds the interval between the services that one line provides at this halt
+	// into an accumulated service frequency. calc_service_frequency() and
+	// build_service_frequency_batch() both apply this rule, so their results cannot
+	// diverge.
+	static uint32 combine_service_frequency(uint32 service_frequency, uint32 timing);
+
+	// Walks one line's schedule once, adds the round-trip timing that
+	// calc_service_frequency() uses to timing, appends every distinct halt in the
+	// schedule to schedule_halts, and returns the number of times that the line
+	// calls at this halt.
+	uint32 calc_line_timing(const linehandle_t &line, uint32 &timing, vector_tpl<halthandle_t> &schedule_halts) const;
+
+	// Applies the adjustments that calc_service_frequency() makes to a line's
+	// round-trip timing (division by the convoy count and by the number of calls at
+	// this halt, the minimum imposed by the schedule spacing setting, and the
+	// minimum of 1) and returns the resulting interval between the services of that
+	// line at this halt.
+	uint32 calc_line_interval(const linehandle_t &line, uint32 timing, uint32 number_of_calls_at_this_stop) const;
+
+	// Fills batch_service_frequencies for this halt.
+	void build_service_frequency_batch();
 
 	static const sint64 waiting_multiplication_factor = 3ll;
 	static const sint64 waiting_tolerance_ratio = 50ll;
