@@ -1270,9 +1270,12 @@ bool private_car_t::can_enter_tile(grund_t *gr)
 	const ribi_t::ribi ribi = str->get_ribi() & (~ribi_t::backward(direction90));
 	const bool dead_end = ribi == 0;
 
-	if (str->get_overtaking_mode() == oneway_mode && dead_end)
+	if (str->get_overtaking_mode() == oneway_mode && dead_end && get_pos() != pos_next_next)
 	{
-		// Do not allow entry to one way dead ends.
+		// Do not allow entry to one way dead ends, except when the car is
+		// turning around there (pos_next_next == the current tile). The U-turn
+		// is then the only way out of the dead end, so refusing entry would
+		// leave the car waiting on the junction for ever.
 		return false;
 	}
 

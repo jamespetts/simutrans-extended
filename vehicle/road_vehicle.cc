@@ -739,11 +739,23 @@ bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi e
 		return true;
 	}
 	// How much of the exit tile the vehicle's rear needs in order to be clear of
-	// the junction when it stops behind the queue. A vehicle longer than one
+	// the junction when it stops behind the queue. The movement rule keeps a
+	// reaction-time gap that grows with the follower's speed (following_limit()),
+	// so the entry check must use the same gap at the highest speed this vehicle
+	// can reach. Using only the standstill gap would admit a vehicle that the
+	// movement rule then holds inside the junction. A vehicle longer than one
 	// tile cannot clear a one-tile junction, so cap the requirement at one
 	// tile's length; such a vehicle must be allowed to pass through.
-	const uint32 standstill_gap = following_gap(0, false);
-	const sint32 required = (sint32)min(self.length + standstill_gap, (uint32)VEHICLE_STEPS_PER_TILE);
+	const private_car_t *const pc = obj_cast<private_car_t>(self.object);
+	const sint32 max_speed = self.convoi != NULL
+		? const_cast<convoi_t *>(self.convoi)->get_min_top_speed()
+		: (pc != NULL && pc->get_desc() != NULL ? pc->get_desc()->get_topspeed() : self.speed);
+	const uint32 stopping_gap = following_gap(max(max_speed, self.speed), true);
+	const sint32 required = (sint32)min(self.length + stopping_gap, (uint32)VEHICLE_STEPS_PER_TILE);
+	// A tile that does not allow queueing (a bend or a diagonal road) holds only
+	// one vehicle: a follower cannot stop behind an occupant there, so any
+	// same-path vehicle must block entry regardless of its position.
+	const bool exit_allows_queueing = allows_queueing(exit);
 	for (uint8 pos = 0; pos < exit->get_top(); pos++)
 	{
 		vehicle_base_t *const v = obj_cast<vehicle_base_t>(exit->obj_bei(pos));
@@ -776,7 +788,7 @@ bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi e
 			// count even though the way itself is not flagged diagonal.
 			const sint32 other_scale = step_scale(v->get_steps_next());
 			const sint32 front = (sint32)v->get_steps() * other_scale / 512;
-			if (front - (sint32)other.length < required)
+			if (!exit_allows_queueing || front - (sint32)other.length < required)
 			{
 				return false;
 			}
