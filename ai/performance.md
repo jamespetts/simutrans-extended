@@ -17,7 +17,10 @@ disassembly drill-down, object-size verification, or A/B performance comparison:
 two-tier capture workflow (30 s source-line and Relative Virtual Address (RVA) diagnosis vs 120 s
 canonical verification), `etl-lines` and `dumpbin` cache-miss attribution, CPU-bound throughput
 comparison via unchanged-subsystem scaling, one-shot runtime distribution censuses, `pdb-sizes`,
-and A/B build hygiene.
+and A/B build hygiene. Measured optimisation attempts that were rejected, with the reason and the
+premise a retry would need, are recorded in
+[failed-optimisations](performance/failed-optimisations.md); read it before starting a change in
+the same area.
 
 ## Why this doc
 
