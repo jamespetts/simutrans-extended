@@ -1123,7 +1123,10 @@ extended_maintenance_interval_months = 18
 # can be in the layover state.
 min_layover_overhead_seconds = 120
 
-# The length of time in seconds that it takes a consist to be shunted into a new consist
+# The length of time in seconds that it takes to reconstitute a consist when the
+# new formation needs one coupling or uncoupling between two vehicles. Half of
+# the value is the fixed overhead of the shunt and half is the cost of one
+# coupling or uncoupling, so two operations take one and a half times the value.
 shunting_time_seconds = 60
 
 ############################## Private car settings ##############################

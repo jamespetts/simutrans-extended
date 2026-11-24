@@ -1712,8 +1712,10 @@ public:
 	// into one newly created laid-over convoy instead of being appended to an existing
 	// laid-over convoy, and that new convoy's handle is stored there. If turn_ticks is not
 	// null, it receives the extra shunting time needed to turn the vehicles whose chosen
-	// orientation differs from their current one.
-	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr, uint32 *turn_ticks = nullptr, const cargo_service_context_t *cargo_service = nullptr);
+	// orientation differs from their current one. If coupling_operations is not null, it
+	// receives the number of couplings and uncouplings that the commit performs; the caller
+	// converts that count into the shunting delay.
+	consist_order_process_result process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr, uint32 *turn_ticks = nullptr, uint32 *coupling_operations = nullptr, const cargo_service_context_t *cargo_service = nullptr);
 
 	// True when any vehicle supplies power: a powerless consist cannot run.
 	bool has_power() const;
@@ -1798,7 +1800,10 @@ public:
 		// the convoy has no vehicles.
 		bool get_recombination_contact_point(koord3d &pos, sint16 &steps) const;
 
-		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same);
+		// Replace this convoy's vehicles with the given final consist. Returns the
+		// extra shunting time needed to turn vehicles. If coupling_operations is
+		// not null, it receives the number of couplings and uncouplings performed.
+		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same, uint32 *coupling_operations = nullptr);
 
 		// A division's vehicle-to-portion plan, derived from the current forward
 		// consist and the two end-state orders. Valid only when both orders can
@@ -1837,8 +1842,9 @@ public:
 
 		// Carry out the current entry's consist order, exchanging with the given
 		// coupling target (unbound: assemble from the stop's pool). Sets SHUNTING
-		// when the consist changes.
-		consist_order_process_result process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr);
+		// when the consist changes. If coupling_operations is not null, it
+		// receives the number of couplings and uncouplings the commit performed.
+		consist_order_process_result process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate = nullptr, uint32 *coupling_operations = nullptr);
 
 		// The departure data for the last call at the given stop in this
 		// convoy's schedule, walking backwards from the current stop. Returns
@@ -1914,8 +1920,10 @@ public:
 
 		// Form the split-off portion: apply the target entry's consist order to
 		// the newly created laid-over convoy, then give that convoy the target
-		// schedule at the target entry and return it to normal loading.
-		void form_divided_portion(convoihandle_t portion, halthandle_t halt, const schedule_entry_t &source_entry, const uncouple_target_t &target);
+		// schedule at the target entry and return it to normal loading. The
+		// portion waits for the source commit's couplings, given by
+		// source_coupling_operations, as well as its own.
+		void form_divided_portion(convoihandle_t portion, halthandle_t halt, const schedule_entry_t &source_entry, const uncouple_target_t &target, uint32 source_coupling_operations);
 
 		// How a pair entry's counterpart stands at a stop.
 		enum paired_exchange_state_t

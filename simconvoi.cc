@@ -10576,11 +10576,29 @@ void convoi_t::report_broken_couple_target(halthandle_t halt)
 }
 
 
-convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate)
+// The shunting delay for a number of coupling operations. Half of the
+// configured shunting_time_seconds is the fixed time of the shunt and half is
+// the time of one coupling operation: one operation takes the configured time,
+// two take one and a half times it, three take twice, and so on. A change that
+// performs no coupling, such as a change of orientation only, takes the fixed
+// half.
+static sint64 shunt_delay_ticks(uint32 coupling_operations)
+{
+	const sint64 configured_ticks = seconds_to_ticks(world()->get_settings().get_shunting_time_seconds(), world()->get_settings().get_meters_per_tile());
+	return (configured_ticks * (sint64)(coupling_operations + 1)) / 2;
+}
+
+
+convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_order(halthandle_t halt, convoihandle_t joining_convoy, convoihandle_t *split_candidate, uint32 *coupling_operations)
 {
 	const consist_order_t &order = schedule->get_consist_order(schedule->get_current_entry().unique_entry_id);
 	uint32 turn_ticks = 0;
-	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy, split_candidate, &turn_ticks);
+	uint32 operations = 0;
+	const consist_order_process_result result = process_consist_order(order, halt, nullptr, joining_convoy, split_candidate, &turn_ticks, &operations);
+	if (coupling_operations)
+	{
+		*coupling_operations = operations;
+	}
 	if (result == succeed)
 	{
 		recombination_failure_reported_entry = 0;
@@ -10591,8 +10609,7 @@ convoi_t::consist_order_process_result convoi_t::process_current_entry_consist_o
 			exit_layover();
 		}
 		state = SHUNTING;
-		const uint32 shunting_time_seconds = welt->get_settings().get_shunting_time_seconds();
-		wait_lock = (sint32)seconds_to_ticks(shunting_time_seconds, world()->get_settings().get_meters_per_tile()) + (sint32)turn_ticks;
+		wait_lock = (sint32)shunt_delay_ticks(operations) + (sint32)turn_ticks;
 	}
 	else if (result == fail && recombination_failure_reported_entry != schedule->get_current_entry().unique_entry_id)
 	{
@@ -11307,7 +11324,7 @@ struct paired_exchange_solver_t
 };
 
 
-convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate, uint32 *turn_ticks, const cargo_service_context_t *cargo_service)
+convoi_t::consist_order_process_result convoi_t::process_consist_order(const consist_order_t &order, halthandle_t halt, depot_t* dep, convoihandle_t joining_convoy, convoihandle_t *split_candidate, uint32 *turn_ticks, uint32 *coupling_operations, const cargo_service_context_t *cargo_service)
 
 {
 	// Overall scheme: assemble a vector of vehicles based on the priority of slots and whether it is driveable,
@@ -11316,6 +11333,10 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 	if (turn_ticks)
 	{
 		*turn_ticks = 0;
+	}
+	if (coupling_operations)
+	{
+		*coupling_operations = 0;
 	}
 
 	cargo_service_context_t default_cargo_service;
@@ -11401,7 +11422,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			recipient_is_convoy = order.get_available_to_is_convoy();
 		}
 
-		const uint32 recombined_turn_ticks = commit_recombined_consist(final_consist, final_reversed, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy, recipient_is_any, recipient_is_same);
+		const uint32 recombined_turn_ticks = commit_recombined_consist(final_consist, final_reversed, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy, recipient_is_any, recipient_is_same, coupling_operations);
 		if (turn_ticks)
 		{
 			*turn_ticks = recombined_turn_ticks;
@@ -11774,11 +11795,131 @@ static void unload_newly_loose_cargo(convoi_t *cnv, halthandle_t halt)
 }
 
 
-uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same)
+// A coupling between two adjacent vehicles of a consist. `front` is the
+// vehicle nearer the front of the train in the convoy's current direction.
+struct coupling_pair_t
+{
+	const vehicle_t *front;
+	const vehicle_t *rear;
+};
+
+
+static bool coupling_pairs_contain(const vector_tpl<coupling_pair_t> &pairs, const vehicle_t *front, const vehicle_t *rear)
+{
+	for (uint32 i = 0; i < pairs.get_count(); i++)
+	{
+		const coupling_pair_t &pair = pairs.get_element(i);
+		if (pair.front == front && pair.rear == rear)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
+// Record the couplings between adjacent vehicles of a consist.
+static void append_coupling_pairs(const convoi_t *cnv, vector_tpl<coupling_pair_t> &pairs)
+{
+	if (!cnv)
+	{
+		return;
+	}
+	for (uint32 i = 0; i + 1 < cnv->get_vehicle_count(); i++)
+	{
+		coupling_pair_t pair;
+		pair.front = cnv->get_vehicle(i);
+		pair.rear = cnv->get_vehicle(i + 1);
+		pairs.append(pair);
+	}
+}
+
+
+// Count the coupling and uncoupling operations needed to turn the consists the
+// given final vehicles belong to at the time of the call into those final
+// consists. One operation is one coupling or uncoupling between two vehicles. A
+// coupling inside a block of vehicles that leave or join together is not an
+// operation: the block stays coupled. The count covers every consist the
+// operation touches, so two consists that exchange vehicles share one total.
+// Each final consist must be in the physical order of the convoy that receives
+// it.
+static uint32 count_shunt_coupling_operations(const vector_tpl<vehicle_t*> *const *finals, uint8 final_count)
+{
+	vector_tpl<const convoi_t*> source_convoys;
+	vector_tpl<const vehicle_t*> final_vehicles;
+	for (uint8 f = 0; f < final_count; f++)
+	{
+		for (uint32 i = 0; i < finals[f]->get_count(); i++)
+		{
+			const vehicle_t *const v = finals[f]->get_element(i);
+			final_vehicles.append(v);
+			const convoi_t *const cnv = v->get_convoi();
+			if (cnv && !source_convoys.is_contained(cnv))
+			{
+				source_convoys.append(cnv);
+			}
+		}
+	}
+
+	vector_tpl<coupling_pair_t> old_pairs;
+	for (uint32 i = 0; i < source_convoys.get_count(); i++)
+	{
+		append_coupling_pairs(source_convoys.get_element(i), old_pairs);
+	}
+
+	vector_tpl<coupling_pair_t> new_pairs;
+	for (uint8 f = 0; f < final_count; f++)
+	{
+		for (uint32 i = 0; i + 1 < finals[f]->get_count(); i++)
+		{
+			coupling_pair_t pair;
+			pair.front = finals[f]->get_element(i);
+			pair.rear = finals[f]->get_element(i + 1);
+			new_pairs.append(pair);
+		}
+	}
+
+	uint32 operations = 0;
+	// A coupling in a final consist that was not a coupling in a source
+	// consist is made.
+	for (uint32 i = 0; i < new_pairs.get_count(); i++)
+	{
+		const coupling_pair_t &pair = new_pairs.get_element(i);
+		if (!coupling_pairs_contain(old_pairs, pair.front, pair.rear))
+		{
+			operations++;
+		}
+	}
+	// A source coupling that is not a coupling in a final consist is broken
+	// when at least one of its vehicles is in a final consist. A pair entirely
+	// inside a block that leaves together is not broken.
+	for (uint32 i = 0; i < old_pairs.get_count(); i++)
+	{
+		const coupling_pair_t &pair = old_pairs.get_element(i);
+		if (!coupling_pairs_contain(new_pairs, pair.front, pair.rear)
+			&& (final_vehicles.is_contained(pair.front) || final_vehicles.is_contained(pair.rear)))
+		{
+			operations++;
+		}
+	}
+	return operations;
+}
+
+
+uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same, uint32 *coupling_operations)
 {
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
 	// The vehicles may include vehicles already present in the consist, but will always include
 	// at least one change from the current arrangement.
+
+	// Count the couplings before this function moves any vehicle, while every
+	// vehicle still belongs to its source consist.
+	const vector_tpl<vehicle_t*> *const final_consists[1] = { &vehicles };
+	const uint32 coupling_operations_count = count_shunt_coupling_operations(final_consists, 1);
+	if (coupling_operations)
+	{
+		*coupling_operations = coupling_operations_count;
+	}
 
 	// A vehicle that becomes loose stock keeps its load unless the entry explicitly
 	// asks for the payload to be discharged.
@@ -12129,7 +12270,7 @@ bool convoi_t::resolve_uncouple_target(const schedule_entry_t &entry, halthandle
 }
 
 
-void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, const schedule_entry_t &source_entry, const uncouple_target_t &target)
+void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, const schedule_entry_t &source_entry, const uncouple_target_t &target, uint32 source_coupling_operations)
 {
 	const uint16 target_unique_id = target.schedule->get_unique_id_from_entry(target.entry_index);
 
@@ -12144,7 +12285,8 @@ void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, c
 	target_context.owner = portion->get_owner();
 	target_context.halt = halt;
 	uint32 turn_ticks = 0;
-	const consist_order_process_result result = portion->process_consist_order(target.schedule->get_consist_order(target_unique_id), halt, nullptr, convoihandle_t(), nullptr, &turn_ticks, &target_context);
+	uint32 portion_coupling_operations = 0;
+	const consist_order_process_result result = portion->process_consist_order(target.schedule->get_consist_order(target_unique_id), halt, nullptr, convoihandle_t(), nullptr, &turn_ticks, &portion_coupling_operations, &target_context);
 
 	// A promoted portion must be able to take every packet it carries. If the
 	// target schedule does not serve a packet's next transfer or destination,
@@ -12251,11 +12393,20 @@ void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, c
 	welt->sync.remove(portion.get_rep());
 	welt->sync.add(portion.get_rep());
 
-	// Both portions wait out the same shunting delay. The split-off portion
-	// then takes the normal loading path at the target entry, which applies the
-	// entry's minimum loading and spacing before departure.
+	// The two portions are one shunt. Both wait for the whole operation: the
+	// couplings the source performed, the cut that formed the portion and the
+	// portion's own re-formation. Each adds the time needed to turn its own
+	// vehicles. The portion then takes the normal loading path at the target
+	// entry, which applies the entry's minimum loading and spacing before
+	// departure.
+	const uint32 total_coupling_operations = source_coupling_operations + portion_coupling_operations;
 	portion->state = LOADING;
-	portion->wait_lock = (sint32)seconds_to_ticks(welt->get_settings().get_shunting_time_seconds(), welt->get_settings().get_meters_per_tile()) + (sint32)turn_ticks;
+	portion->wait_lock = (sint32)shunt_delay_ticks(total_coupling_operations) + (sint32)turn_ticks;
+	if (state == SHUNTING)
+	{
+		// The source was charged for its own couplings only.
+		wait_lock += (sint32)(shunt_delay_ticks(total_coupling_operations) - shunt_delay_ticks(source_coupling_operations));
+	}
 }
 
 void convoi_t::redistribute_passengers_after_division(halthandle_t halt, convoihandle_t portion, bool mail_uses_passenger_system, const vector_tpl<vehicle_t*> &original_consist)
@@ -13450,6 +13601,22 @@ bool convoi_t::solve_paired_exchange(convoi_t *const convoys[2], const consist_o
 
 void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const vector_tpl<bool> final_reversed[2], const bool changed[2], halthandle_t halt)
 {
+	// Count the couplings before any vehicle is detached, while every vehicle
+	// still belongs to its source consist. The two sides exchange vehicles as
+	// one shunt, so both changed consists wait for the whole count. An unchanged
+	// side is excluded: its final consist may be in the forward order rather
+	// than the convoy's physical order, and it is not part of the operation.
+	const vector_tpl<vehicle_t*> *changed_finals[2];
+	uint8 changed_final_count = 0;
+	for (uint8 side = 0; side < 2; side++)
+	{
+		if (changed[side])
+		{
+			changed_finals[changed_final_count++] = &finals[side];
+		}
+	}
+	const uint32 coupling_operations = count_shunt_coupling_operations(changed_finals, changed_final_count);
+
 	// The recipient of each side's leftover vehicles follows that side's own
 	// end-state order: "same" means the releasing convoy's line if it has one,
 	// else the releasing convoy itself; "any" leaves no named recipient.
@@ -13785,7 +13952,7 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 	// convoy's loading pass runs in hat_gehalten immediately after the commit.
 	// Recording the stop in both convoys prevents the exchange from executing
 	// again on this visit.
-	const sint32 shunting_ticks = (sint32)seconds_to_ticks(welt->get_settings().get_shunting_time_seconds(), welt->get_settings().get_meters_per_tile());
+	const sint32 shunting_ticks = (sint32)shunt_delay_ticks(coupling_operations);
 	for (uint8 side = 0; side < 2; side++)
 	{
 		convoi_t *const cnv = convoys[side];
@@ -13957,7 +14124,8 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 			mail_uses_passenger_system);
 	}
 	convoihandle_t split_candidate;
-	const consist_order_process_result result = process_current_entry_consist_order(halt, convoihandle_t(), divide ? &split_candidate : nullptr);
+	uint32 source_coupling_operations = 0;
+	const consist_order_process_result result = process_current_entry_consist_order(halt, convoihandle_t(), divide ? &split_candidate : nullptr, divide ? &source_coupling_operations : nullptr);
 	if (divide)
 	{
 		recombination_plan.checked = false;
@@ -13965,7 +14133,7 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 	}
 	if (divide && split_candidate.is_bound() && (result == succeed || result == no_change_needed))
 	{
-		form_divided_portion(split_candidate, halt, current_entry, uncouple_target);
+		form_divided_portion(split_candidate, halt, current_entry, uncouple_target, source_coupling_operations);
 	}
 	if (divide)
 	{

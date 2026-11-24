@@ -960,7 +960,11 @@ public:
 	// The minimum number of seconds between a vehicle entering layover and leaving it.
 	uint32 min_layover_overhead_seconds = 120;
 
-	// The number of seconds that it takes to reconstitute a consist.
+	// The number of seconds that it takes to reconstitute a consist when the
+	// new formation needs one coupling or uncoupling between two vehicles.
+	// Half of the value is the fixed time of the shunt and half is the time of
+	// one coupling or uncoupling, so two operations take one and a half times
+	// the value.
 	uint32 shunting_time_seconds = 60;
 
 	/**
