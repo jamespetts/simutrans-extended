@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 1c8d9cadf; waiting-time estimates @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12)
+verified: ex-15 @ 1c8d9cadf; waiting-time estimates @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12); service-frequency computation @ ex-15 @ f74322b648 (2026-11-24)
 ---
 # Routing, halts & scheduling
 
@@ -69,6 +69,45 @@ verified: ex-15 @ 1c8d9cadf; waiting-time estimates @ ex-15 @ f809a1e55 plus wor
   gives up, to estimate how long it would have needed to wait for transport.
   `haltestelle_t::new_month` ages these retained lists and can clear them or add
   fallback estimates to stale entries.
+- The service frequency for a (goods category, destination halt) pair is the interval
+  between successive services, in tenths of a minute, that the lines registered at
+  this halt provide to that destination [CODE ex-15 @ f74322b648].
+  `haltestelle_t::calc_service_frequency()` folds one interval per registered line that
+  carries the category and whose schedule contains the destination, through
+  `combine_service_frequency()`: the first line's interval becomes the value, and each
+  later line shortens it by merging the two intervals (two equal intervals halve).
+  `calc_line_timing()` supplies a line's round-trip time (the sum of the line's per-leg
+  average journey times over its schedule; a leg without a recorded average uses the
+  straight-line distance at the line's recorded average speed, or at half the first
+  convoy's minimum top speed when no average speed is recorded) and the number of calls
+  at this halt. `calc_line_interval()` divides the round-trip time by `count_convoys()`
+  and by the number of calls at this halt, raises the result to the minimum interval
+  implied by the schedule spacing when the spacing setting is greater than zero, and
+  floors it at 1. The value is per category only: classes of the same category share it.
+- `get_service_frequency()` is the entry point used by callers that do not compute the
+  value themselves: it returns the `service_frequencies` cache value when present and
+  otherwise calls `calc_service_frequency()` [CODE ex-15 @ f74322b648].
+  The cache is filled by `get_fallback_waiting_time()`, which caches every value that it
+  computes because `ALWAYS_CACHE_SERVICE_INTERVAL` is defined in simhalt.h; `add_line()` and
+  `add_convoy()` call `clear_service_intervals()` to remove the entries for the
+  destinations in the new schedule, `remove_line()` and `remove_convoy()` call
+  `update_service_intervals()` to recompute and cache them, and `haltestelle_t::rdwr`
+  clears the whole table on load.
+- The same values are also computed in bulk during the month change: for every halt,
+  `karte_t::new_month()` calls `haltestelle_t::new_month()`, which calls
+  `build_service_frequency_batch()` before the loop over the waiting-time lists. That
+  function makes one pass over this halt's `registered_lines` and fills
+  `batch_service_frequencies`: for each line, one call to `calc_line_timing()` and one to
+  `calc_line_interval()`, then one `combine_service_frequency()` fold per (category, halt)
+  pair in that line's schedule [CODE ex-15 @ f74322b648]. The per-line
+  interval does not depend on the destination, so the pass computes it once per line. While
+  the table exists, `get_service_frequency()` returns the cache value when present, otherwise
+  the table value, otherwise 0, which is the value that `calc_service_frequency()` also
+  returns for a pair that no registered line carries and serves. `haltestelle_t::new_month()`
+  deletes the table after the loop, so the table exists only for the duration of the update
+  and the pointer is NULL at all other times. During the update the lookup therefore never
+  reaches the "Unknown frequency" `dbg->message` or a schedule walk; at all other times the
+  lookup falls through to the message and `calc_service_frequency()`.
 - `get_base_average_waiting_time()` returns the retained-sample mean when
   samples exist. Otherwise, `get_fallback_waiting_time()` supplies half the
   calculated service frequency, subject to the airport minimum and the
@@ -118,6 +157,11 @@ Measured on the gargantuan fixture (method and full inventory: [performance](per
   connexion-rebuild candidate list; the matrices remain O(H²). Engine, measurements and options →
   [path-explorer-optimisation](path-explorer-optimisation.md).
 - Halt cargo handling: `karte_t::check_transferring_cargoes` 2.6% self.
+- Month change: on the month-change fixture (`month-change-test.sve`, defined in
+  [performance](performance.md)), `haltestelle_t::new_month()` takes 41-42 ms of the 172-178 ms
+  `karte_t::new_month()`, and its waiting-times ageing loop 36 ms of that
+  [EXECUTION-VERIFIED:2026-11-24 ex-15 @ f74322b648]. Full phase breakdown:
+  [performance](performance.md).
 
 ## Open questions
 

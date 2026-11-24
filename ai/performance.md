@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: master @ 9f562f85e6 (profiling pipeline and profiling-method link; 2026-11-23); comfort routing @ ex-15 @ c1e914343 (2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index profiling and route-unreserve removal (2026-11-14); rest @ ex-15-industry-growth-test @ 7c379b4
+verified: master @ 9f562f85e6 (profiling pipeline and profiling-method link; 2026-11-23); comfort routing @ ex-15 @ c1e914343 (2026-11-09); path-explorer sections @ 6447a1d2e (2026-11-07); reservation-index profiling and route-unreserve removal (2026-11-14); month-change profile @ ex-15 @ f74322b648 (2026-11-24); rest @ ex-15-industry-growth-test @ 7c379b4
 ---
 # Performance & profiling
 
@@ -45,8 +45,9 @@ and the pacing-side measurement plan in [frame-pacing-smoothness](frame-pacing-s
   `simutrans\pak128.Britain-Ex`** [RECOLLECTION:2026-09-09]. An ex-15 pakset fatals in the object
   readers on master and vice versa (scripts/run-smoke-tests.ps1 header).
 - **Month-boundary fixture:** `month-boundary.sve` (167 MB, same user save directory as above),
-  positioned just before a month change — the fixture to use for testing end-of-month routines
-  (`karte_t::new_month`, the industry-density infill, and any other monthly code). Pass it with
+  positioned just before a month change — the fixture whose month boundary runs the
+  industry-density infill (`factory_builder_t::increase_industry_density` from
+  `karte_t::new_month`). Pass it with
   `-Save` (and `-Pakset` explicitly: the suite's branch→pakset default only recognises the
   `ex-15`/`master` branch names, so any other branch must pass `-Pakset` itself).
   Measured [EXECUTION-VERIFIED:2026-09-23 on ex-15-industry-growth-test @ 7c379b4, Profile
@@ -56,6 +57,11 @@ and the pacing-side measurement plan in [frame-pacing-smoothness](frame-pacing-s
   `build_link`/`build_factory`; the `get_global_*`/`adjust_*` measurement layer is a small
   minority) — a single main-thread stall per deficit month while actual converges on target,
   not a recurring steady-state cost.
+- **Month-change fixture:** `month-change-test.sve` (189 MB, in the same user save directory
+  as above), saved immediately before a month boundary, on a map with 3,403 halts
+  [EXECUTION-VERIFIED:2026-11-24 ex-15 @ f74322b648]. Use it for the cost of `karte_t::new_month()`
+  as a whole: pass it with `-Save` and profile the first month boundary after load. Cost profile:
+  the "Month-change cost" subsection under Hotspots.
 - Loading the fixture with the master pakset produces no missing-object warnings (the pakset fully
   covers the 2023 save); ~30 one-time startup menu errors (tunnel-builder lookups) are expected
   noise, not yet investigated [RECOLLECTION:2026-09-09 user: do not investigate now].
@@ -338,6 +344,32 @@ removed at load) — repeat before acting on the deltas.
     zstd cut Load wall time on `bb6-apr-2010.sve` from 42 s to 16 s (~2.6×); world-load image
     computation is then the leading in-phase cost [EXECUTION-VERIFIED:2026-09-20].
 
+### Month-change cost (`karte_t::new_month()`)
+
+Measured 2026-11-24 on `month-change-test.sve`: `Profile (server)|x64`, threads 4, canonical
+Capture (`scripts/run-perf-suite.ps1 -Mode Capture -Save month-change-test.sve`), first month
+boundary after load [EXECUTION-VERIFIED:2026-11-24 ex-15 @ f74322b648]. The phase list of
+`karte_t::new_month()` is in [simulation-core](simulation-core.md); the waiting-times update in
+the halts phase is in [routing-and-scheduling](routing-and-scheduling.md).
+
+The whole month change costs 172-178 ms, all of it a single main-thread stall. Phase times (ms),
+in order; each label names the code region that it encloses: history 0, ways 33-37, maxspeeds 1,
+minimap 0, players 12-13, convois 35-36, factories 13-14, factory-close 0, industry-infill 0,
+attractions 11, cities 26-28, electricity 0, halts 41-42, depots 0, scenario 0, new-year 0,
+builders 0, substations 0, recalc-speed 1, toolbars 0, pax-weights 0, road-times 0, pedestrians 0,
+path-explorer 0.
+
+Inside the halts phase, over the 3,403 halts, the waiting-times ageing loop takes 36 ms;
+`check_nearby_halts()` and the financial-history roll take single-digit milliseconds. The ageing
+loop iterates 156,431 entries of `haltestelle_t::waiting_times`, of which 129,762 are stale (month
+counter at least 1, meaning that no sample has been stored since the previous month change). For
+each stale entry it asks `get_service_frequency()` for the entry's (goods category, destination
+halt) pair; during the update those values come from a per-halt batch table
+(`build_service_frequency_batch()`) that computes every pair in one pass over the registered
+lines. Each registered line's contribution to the service frequency (its round-trip timing, calls
+at this halt, and the interval derived from them) does not depend on the destination, so the batch
+pass computes it once per line [EXECUTION-VERIFIED:2026-11-24 ex-15 @ f74322b648].
+
 Cross-cutting rules that protect these paths: Simutrans `tpl/`/`utils/` containers instead of std
 (profiled faster for these workloads) [project-notes](project-notes.md); plain integers over floats
 in sync-critical code (also faster) [project-notes](project-notes.md); multi-threaded simulation
@@ -402,3 +434,6 @@ used. Full assessment: [path-explorer-optimisation](path-explorer-optimisation.m
 - Mapgen: source of the Optimised-debug factory-placement config-sensitivity, and why town
   placement stops at 42/50 on a sparse-enough 1024² map (spacing vs terrain rejection) —
   resolve before adding placement-based test asserts.
+- Month change: the largest phases after the halts phase (convois, ways, cities and factories) are
+  the candidates for the next reduction; and whether the 156,431-entry waiting-time map walk
+  itself is worth restructuring.
