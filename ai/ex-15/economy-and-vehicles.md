@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0d41455e7; maintenance article and status ex-15 @ 2777c3800a plus working-tree changes (2026-11-24)
+verified: ex-15 @ 0d41455e7; maintenance article and status ex-15 @ 2777c3800a plus working-tree changes (2026-11-24); revenue classification and cargo policy @ 872055d188 (2026-11-24); early decision @ working tree (2026-11-24)
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -54,7 +54,8 @@ maintenance queues, maintenance duration, overhauls or overhaul finance on ex-15
 - `vehicle_t::overhaul()`: resets km counters and the active-service counter, increments overhaul
   count, calculates the escalating cost before the increment (sigmoid over overhauls_before_max_cost
   between the inflation-adjusted initial and max costs), charges the negated cost through
-  `player_t::book_vehicle_maintenance_one_off()` (no monthly scaling), applies auto-upgrade
+  `player_t::book_vehicle_maintenance_one_off()` (no monthly scaling; revenue expenditure, not
+  capital expenditure, per [cost-of-capital](../cost-of-capital.md)), applies auto-upgrade
   (`get_auto_upgrade` → set_desc; upgrade price used instead; preserves maintenance history), then
   `update_livery()` to the latest available livery in the current scheme — own vehicles only: a
   vehicle owned by another player in a mixed-owner consist keeps its livery
@@ -70,11 +71,10 @@ maintenance queues, maintenance duration, overhauls or overhaul finance on ex-15
 - GUI: convoy detail maintenance tab — per-vehicle rows (last overhaul date/count, km/takeoffs
   since, three-segment overhaul bar, cost + delta %, do_not_overhaul and do_not_auto_upgrade
   toggles, auto-upgrade target).
-- Gaps: a separate overhaul financial category remains outstanding; the payment uses
-  `ATV_VEHICLE_MAINTENANCE`. Livery fallback to an available scheme, the cargo policy at a
-  maintenance visit, the per-line depot limit and the open calibration question about independently
-  timed vehicles are detailed in [depot-maintenance](depot-maintenance.md). Overhaul/replacement
-  integration is future work.
+- Gaps: livery fallback to an available scheme, the open question whether to track a
+  specific conditional depot when a schedule has more than one, the per-line depot limit
+  and the open calibration question about independently timed vehicles are detailed in
+  [depot-maintenance](depot-maintenance.md). Overhaul/replacement integration is future work.
 
 ## Depot visits & availability — PARTIAL
 

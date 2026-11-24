@@ -1,11 +1,12 @@
 ---
 status: draft
-verified: ex-15 @ 0126363d04 (2026-11-20, finance basis selector and borrowing-window notes)
+verified: ex-15 @ 0126363d04 (2026-11-20, finance basis selector and borrowing-window notes); revenue classification @ 872055d188 (2026-11-24)
 ---
 # Cost of capital
 
 **Covers:** the capital-accounting and borrowing model: `player/finance.{h,cc}`,
-`player/loan.{h,cc}`, the finance parts of `player/simplay.cc`, `dataobj/settings.{h,cc}`,
+`player/loan.{h,cc}`, the finance parts of `player/simplay.cc`, `vehicle/vehicle.cc`
+(overhaul booking and sale value), `dataobj/settings.{h,cc}`,
 `simutrans/config/simuconf.tab`, `gui/loan_frame.{h,cc}`, `gui/money_frame.{h,cc}`,
 `simtool.cc` (`tool_change_player_t`) and `script/api/api_player.cc`. The way-maintenance
 booking paths are in [way-maintenance-accounting](way-maintenance-accounting.md); the way
@@ -70,6 +71,30 @@ values the company's infrastructure so that borrowing can be secured against it.
 Simucents (1/100 Simucredit); rates are in basis points (100 basis points = one percentage
 point); all arithmetic is integer.
 
+## Revenue and capital expenditure
+
+Expenditure is classified by its effect on the asset, not by whether it is paid once or
+recurringly:
+
+- **Revenue expenditure** restores an asset's existing capability. It is an operating cost,
+  recorded in the period in which it is incurred, and it reduces `ATV_OPERATING_PROFIT`.
+- **Capital expenditure** creates an asset or improves an asset beyond its existing
+  capability. It is recorded in the Asset Ledger or the Tax Written-Down Pool rather than as
+  an operating cost.
+
+A vehicle purchase is capital expenditure. The project classifies every later charge for work
+on a vehicle — routine maintenance, an overhaul and an automatic upgrade applied at an
+overhaul — as revenue expenditure [RECOLLECTION:2026-11-24 user statement].
+`vehicle_t::overhaul()` books the whole charge, whether the ordinary overhaul price or the
+upgrade price, through `player_t::book_vehicle_maintenance_one_off()` to
+`ATV_VEHICLE_MAINTENANCE`. The charge therefore reduces `ATV_OPERATING_PROFIT` and does not
+enter the Asset Ledger or the Tax Written-Down Pool. There is no vehicle equivalent of the
+classifier that splits a way replacement cost (see Way renewal classification below): no part
+of the charge for a vehicle overhaul or automatic upgrade is capitalised.
+
+The same rule classifies a way replacement: the Revenue Renewal part is an operating cost and
+the Capital Improvement part is capital expenditure. See Way renewal classification below.
+
 ## The asset ledger
 
 `finance_t::asset_value` has one entry per `transport_type` (`TT_MAX` entries). It holds the
@@ -113,7 +138,8 @@ zero. Buildings and other fixed assets are not reconstructed.
 
 `finance_t::tax_pool` mirrors the Asset Ledger per transport type. It receives the same
 additions and removals for infrastructure, and it also receives vehicle purchases at their
-price and vehicle sales at their proceeds.
+price and vehicle sales at their proceeds. Vehicle overhauls and automatic upgrades do not
+enter the pool (see Revenue and capital expenditure above).
 
 `finance_t::book_tax_allowance_monthly` reduces each pool by
 `tax_pool[i] * tax_allowance_percent[i] / 1200` and accumulates the total as a positive amount

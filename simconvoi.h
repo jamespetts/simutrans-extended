@@ -709,6 +709,25 @@ private:
 	// status is not set incorrectly.
 	bool last_stop_was_depot:1;
 
+	// Early decision for the next conditional depot visit. These bits
+	// share the allocation unit of the two bitfields above, so they add
+	// no size to convoi_t.
+	//
+	// conditional_depot_present: the schedule has at least one
+	// conditional depot entry.
+	// conditional_depot_decided: the decision for the next conditional
+	// depot has been made at the first halt after the previous depot.
+	// conditional_depot_visit: that decision is to visit.
+	//
+	// The decision covers only the next conditional depot. A schedule may
+	// contain more than one; the later ones keep the late decision in
+	// convoi_t::advance_schedule(). Tracking a specific depot would need a
+	// schedule-index byte. Whether that is worth the memory is an open
+	// question (see ai/ex-15/depot-maintenance.md).
+	bool conditional_depot_present:1;
+	bool conditional_depot_decided:1;
+	bool conditional_depot_visit:1;
+
 	// The maximum speed allowed by the current signalling system
 	sint32 max_signal_speed;
 
@@ -1251,7 +1270,7 @@ public:
 	void laden();
 
 	// Unloads the payload from a single vehicle in this consist
-	uint16 unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_lay_over, bool recombination_pass = false, bool destinations_only = false);
+	uint16 unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_lay_over, bool recombination_pass = false, bool destinations_only = false, bool force_discharge = false);
 
 	// Book fuel consumption of individual vehicles
 	void book_fuel_consumption();
@@ -1649,6 +1668,19 @@ public:
 
 	bool is_maintenance_needed() const;
 	bool is_maintenance_urgently_needed() const;
+	bool get_conditional_depot_visit() const { return conditional_depot_present && conditional_depot_decided && conditional_depot_visit; }
+
+	// Evaluates the next conditional depot visit at a halt, once per cycle.
+	void update_conditional_depot_state();
+
+	// Recomputes whether the schedule has a conditional depot and clears
+	// the early decision. Called when the schedule changes and after a
+	// depot visit.
+	void reset_conditional_depot_state();
+
+	// True when the next non-halt schedule entry is a depot, so the
+	// current halt is the last chance to empty the convoy before the visit.
+	bool is_last_halt_before_depot() const;
 
 	// Returns true if any vehicle in this consist requires an overhaul.
 	bool is_overhaul_needed() const;
@@ -1889,7 +1921,7 @@ public:
 		// repair onward routes first and discharge only a packet that arrives here
 		// or has no continuation. Newly loose stock has no carrier yet, so only
 		// cargo whose final destination is this stop is discharged.
-		uint16 unload_cargo_for_stop(halthandle_t halt, bool newly_loose = false);
+		uint16 unload_cargo_for_stop(halthandle_t halt, bool newly_loose = false, bool force_discharge = false);
 
 		// A couple order whose target does not resolve has a broken target: log
 		// the error and leave the order unexecuted. It is never assembled from

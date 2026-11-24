@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2777c3800a plus working-tree changes (2026-11-24)
+verified: ex-15 @ 2777c3800a plus working-tree changes (2026-11-24); revenue classification, cargo policy and 2016 depot-visit intent @ 872055d188 (2026-11-24); early decision and last-halt discharge @ working tree (2026-11-24)
 ---
 # ex-15 depot maintenance and vehicle availability
 
@@ -77,6 +77,13 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
 - A maintenance or overhaul visit keeps the convoy attached to its line and
   resumes at the current schedule position. Only a `store` visit detaches the
   convoy from its line.
+- A maintenance or overhaul visit discards the load. `depot_t::convoi_arrived()`
+  calls `vehicle_t::discard_cargo()` for every vehicle. This is correct: the
+  vehicle must be empty for maintenance, and an urgently overdue convoy cannot
+  continue in service with its load
+  [RECOLLECTION:2026-11-24 user statement]. The general depot rule is that a
+  vehicle entering a depot leaves its ordinary route and its cargo is lost
+  [FORUM:https://forum.simutrans.com/index.php/topic,13206.0.html].
 - When one vehicle needs routine maintenance, all vehicles in the convoy are
   maintained on that visit. Vehicles due for overhaul are placed in the overhaul
   group unless `do_not_overhaul` is set; the remainder are maintained normally.
@@ -138,15 +145,21 @@ zero.
   `vehicle_desc_t::get_max_overhaul_cost()` apply the `vehicle_maintenance`
   price index. `vehicle_t::overhaul()` calculates the price before incrementing
   `overhauls`, so the first overhaul uses `initial_overhaul_cost` and each
-  later overhaul uses the next point on the escalation curve. An
-  overhaul-specific financial category remains outstanding; the payment is
-  currently recorded in `ATV_VEHICLE_MAINTENANCE`.
-- An overhaul is a one-off cost
+  later overhaul uses the next point on the escalation curve. The payment is
+  recorded in `ATV_VEHICLE_MAINTENANCE`; see Maintenance accounting.
+- An overhaul is revenue expenditure ([cost-of-capital](../cost-of-capital.md))
+  and is a one-off cost
   [FORUM:https://forum.simutrans.com/index.php/topic,16980.msg161553.html]. It
-  must not be treated as a recurring monthly fixed cost.
+  must not be treated as a recurring monthly fixed cost or as capital
+  expenditure.
 - When `auto_upgrade_index` resolves and `do_not_auto_upgrade` is false, the
   overhaul applies the upgrade and charges the upgrade price instead of the
-  ordinary overhaul price. Maintenance history is retained.
+  ordinary overhaul price. The upgrade charge is also revenue expenditure.
+  Maintenance history is retained.
+- An automatic upgrade is not accounted for as a replacement transaction: the
+  old vehicle is not sold and the upgrade price is not split between revenue and
+  capital. The whole charge is revenue expenditure. A replacement model is not
+  planned for 15.x [RECOLLECTION:2026-11-24 user statement].
 - An overhaul updates an owned vehicle to the latest available livery in the
   current livery scheme. A vehicle owned by another player in a mixed-owner
   convoy keeps its livery.
@@ -162,7 +175,11 @@ zero.
 monthly costs and mothballing charges are passed as negative amounts.
 `player_t::book_vehicle_maintenance_one_off()` records a one-off payment without
 applying `calc_adjusted_monthly_figure()`. `vehicle_t::overhaul()` passes the
-negated overhaul or upgrade price to that method.
+negated overhaul or upgrade price to that method. An overhaul is revenue
+expenditure: the payment reduces `ATV_OPERATING_PROFIT` and does not enter the
+Asset Ledger or the Tax Written-Down Pool
+([cost-of-capital](../cost-of-capital.md)). Unlike a way replacement, there is
+no vehicle classifier that splits the charge between revenue and capital.
 
 If an overhaul or automatic upgrade is unaffordable, `vehicle_t::overhaul()`
 returns false without changing the vehicle. A scheduled conditional depot entry
@@ -225,22 +242,63 @@ graphical user interface. Confirm the any-vehicle rule before exposing the mode,
 or select a different rule. Overhaul and replacement execution is otherwise
 future work; only the `on_maintenance` trigger condition is corrected now.
 
-### Cargo at a maintenance visit
+### Advance decision for scheduled maintenance visits
 
-`depot_t::convoi_arrived()` calls `vehicle_t::discard_cargo()` for every vehicle,
-including a vehicle that arrives for routine maintenance or an overhaul. There is
-no code that guarantees the convoy is empty before it enters the depot:
-`convoi_t::get_depot_when_empty()` applies only to replacement and manual visits,
-and `schedule_entry_t::set_down_only` and `schedule_entry_t::discharge_payload`
-are explicit schedule flags that the player must set. A scheduled maintenance
-visit can therefore arrive loaded and delete its load.
+The 2016 design records a requirement, not a complete algorithm. Its stated purpose
+is to avoid convoys dumping cargo on a depot visit
+[FORUM:https://forum.simutrans.com/index.php/topic,15473.0.html]:
 
-The 2016 design intended that the decision to visit a depot be made when the
-convoy skips a depot entry, so that the convoy can be empty when it arrives
-[FORUM:https://forum.simutrans.com/index.php/topic,15473.0.html]. No mechanism
-implements that advance decision. The choices are to keep the load through the
-maintenance visit, to defer the visit until the convoy is empty, or to unload the
-load at the stop before the depot. The choice is not settled.
+- the decision to visit a depot, and the reservation of a maintenance spot at that
+  depot, is made each time the convoy skips the depot on its schedule, rather than
+  when it arrives;
+- each depot automatically services one convoy per line at a time;
+- each depot has a maximum number of convoys that it can service at once;
+- all depot visits use the same rules, including a manual Go To Depot and a future
+  Upgrade order;
+- Jamespetts noted that consideration would also need to be given to a mechanism
+  that stops goods, passengers and mail bound for a stop beyond the depot from
+  loading onto the convoy.
+
+The thread does not define the exact decision point or the reservation mechanism; its
+author deferred a separate discussion of depot visit behaviour.
+
+The early decision is implemented:
+
+- The decision is stored in three spare bits of the byte that holds
+  `is_choosing` and `last_stop_was_depot` in `convoi_t`:
+  `conditional_depot_present`, `conditional_depot_decided` and
+  `conditional_depot_visit`. The bits add no size to `convoi_t`.
+- `convoi_t::reset_conditional_depot_state()` runs when the schedule is set,
+  when a line schedule update is applied, and when the convoy enters a depot. It
+  records whether the schedule has a conditional depot and clears the decision.
+- `convoi_t::update_conditional_depot_state()` runs at every halt before loading.
+  The first halt after the reset evaluates, once, the same predicate as the late
+  decision: `convoi_t::is_maintenance_needed()` and either
+  `convoi_t::is_maintenance_urgently_needed()` or
+  `convoi_t::can_afford_overhaul_visit()`. The result is binding for the next
+  conditional depot. Urgent maintenance overrides a skip in
+  `convoi_t::advance_schedule()` and `convoi_t::turn_at_skipped_depot()`.
+- `haltestelle_t::fetch_goods()` walks the schedule from the current stop. If the
+  decision is to visit, the walk stops at the first `conditional_skip` depot entry
+  and refuses the packet. Cargo whose next transfer or destination is before the
+  depot still loads. The filter applies only when the loading schedule is the
+  convoy's own schedule; a split-off portion loaded against a target schedule is
+  not covered.
+- `convoi_t::is_last_halt_before_depot()` identifies the last halt before a depot.
+  While the decision is to visit, `convoi_t::unload_individual_vehicle_at()` is
+  called with `force_discharge`, so the convoy is emptied at that halt and arrives
+  at the depot empty. This is the safety net for cargo loaded before the decision
+  and for a later conditional depot that the state does not track.
+- The state is saved as one byte under Extended save revision 22. Older saves start
+  undecided and evaluate at the next halt.
+
+The decision covers only the next conditional depot. A schedule may contain more
+than one; later entries keep the late decision in
+`convoi_t::advance_schedule()`. Tracking a specific depot would need a
+schedule-index byte; whether that is worth the memory is an open question.
+
+The reservation requirements (one convoy per line per depot, and the depot's
+maximum number of convoys) are not implemented; see Per-line depot limit below.
 
 ### Resale value and the second-hand market
 
@@ -252,9 +310,10 @@ price fallback, so a wear-adjusted formula is not required now.
 ### Per-line depot limit
 
 The 2016 design proposed one convoy per line per depot and a visit decision
-before arrival. Neither exists, so every convoy of a line can become due
-together and leave service together. The available policies are under
-investigation.
+before arrival, as described under Advance decision for scheduled maintenance
+visits above. The visit decision is implemented; the per-line limit is not, so
+every convoy of a line can become due together and leave service together. The
+available policies are under investigation.
 
 ## Outstanding user-interface work (future session)
 
@@ -282,6 +341,12 @@ investigation.
   explicit; this is an implementation verification, not an open mechanic.
 - Can the maintenance countdown and queue survive save/reload exactly? The queue
   and convoy state are serialised and validated, but no behavioural test exists.
+- Should the early conditional-depot decision track a specific depot with a
+  schedule-index byte? The current state covers only the next conditional depot.
+  A second conditional depot therefore keeps the late decision and relies on the
+  last-halt discharge if it is visited. A mirrored schedule that reverses at a
+  stop also keeps the decision taken in the incoming direction; whether that needs
+  a reset on the direction change is not yet verified.
 - The scheduled-depot edge cases in the Open questions section of
   [schedule-and-consists](schedule-and-consists.md) remain separate defects.
 
@@ -293,7 +358,8 @@ investigation.
    queue and overhaul financial state.
 3. Apply the livery-scheme fallback in `vehicle_t::update_livery()`.
 4. Add the outstanding user-interface work listed above.
-5. Decide the cargo-at-maintenance policy and the per-line depot limit.
+5. Decide whether to add a schedule-index byte to track a specific conditional
+   depot; decide the per-line depot limit.
 6. Decide simplified maintenance, overhaul grouping and the replacement trigger
    before exposing those controls.
 7. Re-run the checks with vehicles that have moved between consists, so each

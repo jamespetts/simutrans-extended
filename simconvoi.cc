@@ -249,6 +249,10 @@ void convoi_t::init(player_t *player)
 	livery_scheme_index = 0;
 
 	needs_full_route_flush = false;
+
+	conditional_depot_present = false;
+	conditional_depot_decided = false;
+	conditional_depot_visit = false;
 }
 
 convoi_t::convoi_t(loadsave_t* file) :
@@ -748,6 +752,13 @@ DBG_MESSAGE("convoi_t::finish_rd()","next_stop_index=%d", next_stop_index );
 		recombination_approach_partner = convoihandle_t();
 		recombination_approach_is_mover = false;
 		recombination_contact_steps = -1;
+	}
+
+	if (!conditional_depot_present)
+	{
+		// Old saves and schedules loaded without a conditional depot state
+		// start undecided; the first halt will evaluate the next visit.
+		reset_conditional_depot_state();
 	}
 
 	loading_limit = schedule->get_current_entry().minimum_loading;
@@ -2830,38 +2841,53 @@ void convoi_t::advance_schedule()
 		const grund_t* gr = welt->lookup(schedule->get_current_entry().pos);
 		if (gr && gr->get_depot())
 		{
-			if (!is_maintenance_needed())
+#ifdef MULTI_THREAD
+			// drive_to() can call advance_schedule() on a convoy worker
+			// thread. The affordability test reads finance state and must
+			// only run in the committed, main-thread decision. A worker-side
+			// visit that reaches this branch is handled at depot arrival by
+			// performing only the work that is affordable.
+			const bool worker_thread = convoy_summary_compute_thread_local;
+#else
+			const bool worker_thread = false;
+#endif
+			// The early decision was taken at the first halt after the
+			// previous depot visit. Urgent maintenance always takes the
+			// visit, even if the early decision was to skip.
+			bool will_visit = conditional_depot_decided
+				? conditional_depot_visit
+				: is_maintenance_needed();
+			if (is_maintenance_urgently_needed())
+			{
+				will_visit = true;
+			}
+			if (!will_visit)
 			{
 				// If no maintenance is required and this is a conditionally skipped depot, skip the depot call
 				advance_schedule_internal();
 				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
+				if (!worker_thread)
+				{
+					reset_conditional_depot_state();
+				}
+			}
+			else if (!worker_thread && !is_maintenance_urgently_needed() && !can_afford_overhaul_visit())
+			{
+				// Do not take a convoy out of service for an overhaul that
+				// its owner cannot pay for. An urgently overdue convoy still
+				// goes to the depot, where it is held. Advance_schedule() can
+				// run on a worker thread, so defer the message to step().
+				defer_message(defer_unaffordable_overhaul_skip, schedule->get_current_entry().pos);
+				advance_schedule_internal();
+				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
+				if (!worker_thread)
+				{
+					reset_conditional_depot_state();
+				}
 			}
 			else
 			{
-#ifdef MULTI_THREAD
-				// drive_to() can call advance_schedule() on a convoy worker
-				// thread. The affordability test reads finance state and must
-				// only run in the committed, main-thread decision. A worker-side
-				// visit that reaches this branch is handled at depot arrival by
-				// performing only the work that is affordable.
-				const bool worker_thread = convoy_summary_compute_thread_local;
-#else
-				const bool worker_thread = false;
-#endif
-				if (!worker_thread && !is_maintenance_urgently_needed() && !can_afford_overhaul_visit())
-				{
-					// Do not take a convoy out of service for an overhaul that
-					// its owner cannot pay for. An urgently overdue convoy still
-					// goes to the depot, where it is held. Advance_schedule() can
-					// run on a worker thread, so defer the message to step().
-					defer_message(defer_unaffordable_overhaul_skip, schedule->get_current_entry().pos);
-					advance_schedule_internal();
-					skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
-				}
-				else
-				{
-					skip = false;
-				}
+				skip = false;
 			}
 		}
 		else
@@ -2893,6 +2919,7 @@ void convoi_t::turn_at_skipped_depot()
 	const uint8 current = schedule->get_current_stop();
 	uint8 index = current;
 	bool rev = reverse_schedule;
+	bool used_early_decision = false;
 	for (uint8 i = 0; i < count; i++)
 	{
 		schedule->increment_index(&index, &rev);
@@ -2909,8 +2936,21 @@ void convoi_t::turn_at_skipped_depot()
 			return;
 		}
 		const grund_t* gr = welt->lookup(entry.pos);
-		if (!gr || !gr->get_depot()
-			|| (is_maintenance_needed() && (is_maintenance_urgently_needed() || can_afford_overhaul_visit())))
+		bool will_visit;
+		if (!used_early_decision && conditional_depot_decided)
+		{
+			will_visit = conditional_depot_visit;
+		}
+		else
+		{
+			will_visit = is_maintenance_needed();
+		}
+		used_early_decision = true;
+		if (is_maintenance_urgently_needed())
+		{
+			will_visit = true;
+		}
+		if (!gr || !gr->get_depot() || will_visit)
 		{
 			return;
 		}
@@ -3291,6 +3331,10 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 	last_signal_pos = koord3d::invalid;
 
 	dep->convoi_arrived(self, flags);
+
+	// The conditional depot target has been reached. The next halt will
+	// evaluate the next conditional depot for its next visit.
+	reset_conditional_depot_state();
 
 	close_windows();
 
@@ -3925,6 +3969,7 @@ bool convoi_t::set_schedule(schedule_t * sch)
 	// to avoid jumping trains
 	alte_direction = front()->get_direction();
 	wait_lock = 0;
+	reset_conditional_depot_state();
 	return true;
 }
 
@@ -5903,6 +5948,26 @@ void convoi_t::rdwr(loadsave_t *file)
 		file->rdwr_bool(recombination_approach_is_mover);
 	}
 
+	if (file->is_version_ex_atleast(15, 22))
+	{
+		uint8 conditional_depot = (conditional_depot_present ? 1 : 0)
+			| (conditional_depot_decided ? 2 : 0)
+			| (conditional_depot_visit ? 4 : 0);
+		file->rdwr_byte(conditional_depot);
+		if (file->is_loading())
+		{
+			conditional_depot_present = (conditional_depot & 1) != 0;
+			conditional_depot_decided = (conditional_depot & 2) != 0;
+			conditional_depot_visit = (conditional_depot & 4) != 0;
+		}
+	}
+	else if (file->is_loading())
+	{
+		conditional_depot_present = false;
+		conditional_depot_decided = false;
+		conditional_depot_visit = false;
+	}
+
 	// This must come *after* all the loading/saving.
 	if(  file->is_loading()  ) {
 		recalc_catg_index();
@@ -6843,12 +6908,12 @@ bool convoi_t::build_recombination_plan(const schedule_entry_t &division, const 
 }
 
 
-uint16 convoi_t::unload_cargo_for_stop(halthandle_t halt, bool newly_loose)
+uint16 convoi_t::unload_cargo_for_stop(halthandle_t halt, bool newly_loose, bool force_discharge)
 {
 	uint16 changed_loading_level = 0;
 	for (uint8 i = 0; i < vehicle_count; i++)
 	{
-		changed_loading_level += unload_individual_vehicle_at(i, halt, false, !newly_loose, newly_loose);
+		changed_loading_level += unload_individual_vehicle_at(i, halt, false, !newly_loose, newly_loose, force_discharge);
 	}
 	return changed_loading_level;
 }
@@ -7177,6 +7242,9 @@ sint64 convoi_t::calc_revenue(const ware_t& ware, const vehicle_t *v, array_tpl<
 void convoi_t::hat_gehalten(halthandle_t halt)
 {
 	call_on = false;
+	// Evaluate the next conditional depot visit once per cycle, before the
+	// stop decides whether to load cargo for a stop beyond that depot.
+	update_conditional_depot_state();
 	// Decide before loading, so that passengers for the onward journey are picked up at this stop.
 	turn_at_skipped_depot();
 
@@ -7292,6 +7360,12 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		&& !arrival_entry.is_flag_set(schedule_entry_t::pick_up_only)
 		&& !arrival_entry.is_flag_set(schedule_entry_t::discharge_payload);
 
+	// Empty the convoy at the last stop before a depot that it will visit.
+	// This is the safety net for cargo loaded before the early decision was
+	// made, or for a later conditional depot that the two-bit state does not
+	// track.
+	const bool force_discharge = get_conditional_depot_visit() && is_last_halt_before_depot();
+
 	if (!schedule->get_current_entry().is_flag_set(schedule_entry_t::pick_up_only))
 	{
 		for (int i = 0; i < vehicles_loading; i++)
@@ -7312,7 +7386,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 			// We should avoid the unloading code when this happens (for speed).
 			if (old_last_stop_pos != front()->get_pos() && !defer_recombination_unload)
 			{
-				changed_loading_level += unload_individual_vehicle_at(i, halt, will_layover);
+				changed_loading_level += unload_individual_vehicle_at(i, halt, will_layover, false, false, force_discharge);
 			}
 		}
 	}
@@ -7333,7 +7407,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 		// The recombination determined which vehicles stay in a scheduled
 		// consist and which wait for collection. Only now is it safe to deliver
 		// cargo for this stop and apply the fallback for unservable cargo.
-		changed_loading_level += unload_cargo_for_stop(halt);
+		changed_loading_level += unload_cargo_for_stop(halt, false, force_discharge);
 	}
 
 	if(no_load || state == LAYOVER || schedule->get_current_entry().is_flag_set(schedule_entry_t::set_down_only))
@@ -7459,7 +7533,7 @@ void convoi_t::hat_gehalten(halthandle_t halt)
 	}
 }
 
-uint16 convoi_t::unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_layover, bool recombination_pass, bool destinations_only)
+uint16 convoi_t::unload_individual_vehicle_at(uint8 index, halthandle_t halt, bool will_layover, bool recombination_pass, bool destinations_only, bool force_discharge)
 {
 	sint64 accumulated_revenue = 0;
 	vehicle_t* v = vehicle[index];
@@ -7470,7 +7544,7 @@ uint16 convoi_t::unload_individual_vehicle_at(uint8 index, halthandle_t halt, bo
 	array_tpl<sint64> apportioned_revenues(MAX_PLAYER_COUNT, 0);
 
 	sint64 revenue_from_unloading = 0;
-	uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover || schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload), recombination_pass, destinations_only);
+	uint16 amount_unloaded = v->unload_cargo(halt, revenue_from_unloading, apportioned_revenues, will_layover || force_discharge || schedule->get_current_entry().is_flag_set(schedule_entry_t::discharge_payload), recombination_pass, destinations_only);
 
 	// Convert from units of 1/4096 of a simcent to units of ONE simcent.  Should be FAST (powers of two).
 	sint64 revenue_cents_from_unloading = (revenue_from_unloading + 2048ll) / 4096ll;
@@ -8032,6 +8106,7 @@ end_check:
 				wait_lock = 0;
 			}
 		}
+		reset_conditional_depot_state();
 	}
 }
 
@@ -10073,6 +10148,68 @@ bool convoi_t::can_afford_overhaul_visit() const
 		}
 	}
 	return true;
+}
+
+void convoi_t::update_conditional_depot_state()
+{
+	if (!conditional_depot_present || conditional_depot_decided || !schedule)
+	{
+		return;
+	}
+	conditional_depot_decided = true;
+	conditional_depot_visit = is_maintenance_needed()
+		&& (is_maintenance_urgently_needed() || can_afford_overhaul_visit());
+}
+
+void convoi_t::reset_conditional_depot_state()
+{
+	conditional_depot_present = false;
+	conditional_depot_decided = false;
+	conditional_depot_visit = false;
+	if (!schedule || schedule->empty())
+	{
+		return;
+	}
+	for (uint8 i = 0; i < schedule->get_count(); i++)
+	{
+		const schedule_entry_t &entry = schedule->entries[i];
+		if (!entry.is_flag_set(schedule_entry_t::conditional_skip))
+		{
+			continue;
+		}
+		const grund_t *gr = welt->lookup(entry.pos);
+		if (gr && gr->get_depot())
+		{
+			conditional_depot_present = true;
+			return;
+		}
+	}
+}
+
+bool convoi_t::is_last_halt_before_depot() const
+{
+	if (!schedule || schedule->empty())
+	{
+		return false;
+	}
+	uint8 index = schedule->get_current_stop();
+	bool reverse = reverse_schedule;
+	const uint8 count = schedule->get_count();
+	for (uint8 i = 0; i < count; i++)
+	{
+		schedule->increment_index(&index, &reverse);
+		const schedule_entry_t &entry = schedule->entries[index];
+		const grund_t *gr = welt->lookup(entry.pos);
+		if (gr && gr->get_depot())
+		{
+			return true;
+		}
+		if (haltestelle_t::get_halt(entry.pos, get_owner()).is_bound())
+		{
+			return false;
+		}
+	}
+	return false;
 }
 
 void convoi_t::report_unaffordable_overhaul_held(const koord &pos) const

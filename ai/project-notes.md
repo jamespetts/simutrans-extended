@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ ad1815c (rest); ex-15 @ 957d5ced8 plus working-tree Squirrel restoration (scripting note)
+verified: ex-15 @ ad1815c (rest); ex-15 @ 957d5ced8 plus working-tree Squirrel restoration (scripting note); revenue classification @ 872055d188 (2026-11-24)
 ---
 # Project general notes
 
@@ -25,6 +25,10 @@ rule 3; extended by user statements. Each note ≤3 lines, with tags/anchors.
 - (ex-15 only) No booking of cost or revenue may use base-level .dat prices, or any function of them, that
   bypasses inflation adjustment (`karte_t::get_inflation_adjusted_price`, config/prices.tab; the API does not
   exist on master). [RECOLLECTION:2026-09-07; mechanism CODE ex-15 @ 91d9b252e] Status/audit: [ex-15 economy registry](ex-15/economy-and-vehicles.md).
+
+- (ex-15 only) Vehicle purchases are capital expenditure; all later vehicle work (maintenance,
+  overhauls, automatic upgrades) is revenue expenditure, never capitalised. Rule:
+  [ex-15 economy registry](ex-15/economy-and-vehicles.md). [RECOLLECTION:2026-11-24 user statement]
 
 - Use simrand() for a random number with a seed that can be synchronised among server/clients in a network game (i.e. for
   all RNG that needs to be deterministic among clients/server in a network game to stay in sync). Use sim_async_rand()

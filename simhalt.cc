@@ -2843,6 +2843,20 @@ bool haltestelle_t::fetch_goods(slist_tpl<ware_t> &load, const goods_desc_t *goo
 			int count = 0;
 			while(index != cargo_entry || (cnv->get_state() == convoi_t::REVERSING && count == 0))
 			{
+				// If the convoy will visit the next conditional depot, cargo
+				// for a stop beyond that depot must not be loaded. The first
+				// conditional depot in the walk is the target.
+				if (cnv->get_conditional_depot_visit()
+					&& cargo_schedule == cnv->get_schedule()
+					&& cargo_schedule->entries[index].is_flag_set(schedule_entry_t::conditional_skip))
+				{
+					const grund_t *const depot_gr = welt->lookup(cargo_schedule->entries[index].pos);
+					if (depot_gr && depot_gr->get_depot())
+					{
+						break;
+					}
+				}
+
 				halthandle_t& schedule_halt = cached_halts[index];
 				if(schedule_halt.is_null())
 				{
