@@ -43,6 +43,26 @@
 #include "vehicle/water_vehicle.h"
 
 
+// Split a convoy's vehicles into those that can be overhauled, those that are
+// only maintained, and the due overhauls that the owner cannot currently afford.
+static void classify_vehicle_for_maintenance(vehicle_t *v, vector_tpl<vehicle_t*> &overhaul, vector_tpl<vehicle_t*> &maintain, vector_tpl<vehicle_t*> *unaffordable)
+{
+	if (v->is_overhaul_needed() && !v->get_do_not_overhaul())
+	{
+		if (v->can_afford_overhaul())
+		{
+			overhaul.append(v);
+			return;
+		}
+		if (unaffordable)
+		{
+			unaffordable->append(v);
+		}
+	}
+	maintain.append(v);
+}
+
+
 slist_tpl<depot_t *> depot_t::all_depots;
 
 
@@ -245,12 +265,15 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 
 	vector_tpl<vehicle_t*> vehicles_to_overhaul;
 	vector_tpl<vehicle_t*> vehicles_to_maintain;
+	vector_tpl<vehicle_t*> unaffordable_overhauls;
 
 	// Clean up the vehicles -- get rid of freight, etc.  Do even when loading, just in case.
 	for(unsigned i=0; i<acnv->get_vehicle_count(); i++)
 	{
 		vehicle_t *v = acnv->get_vehicle(i);
-		// Hajo: reset vehicle data
+		// Hajo: reset vehicle data. A depot arrival is assumed to be empty, but
+		// automatic maintenance visits do not yet enforce that; see
+		// ai/ex-15/depot-maintenance.md.
 		v->discard_cargo();
 		if (flags & schedule_entry_t::store)
 		{
@@ -261,50 +284,58 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 
 		if(flags & schedule_entry_t::maintain_or_overhaul)
 		{
-			if(v->is_overhaul_needed() && !v->get_do_not_overhaul())
-			{
-				vehicles_to_overhaul.append(v);
-			}
-			else
-			{
-				vehicles_to_maintain.append(v);
-			}
+			classify_vehicle_for_maintenance(v, vehicles_to_overhaul, vehicles_to_maintain, &unaffordable_overhauls);
 		}
 	}
 
+	const bool hold_for_unaffordable_overhaul = acnv->is_maintenance_urgently_needed() && !unaffordable_overhauls.empty();
+	if (hold_for_unaffordable_overhaul)
+	{
+		// An urgently overdue convoy must enter the depot, but it must not be
+		// overhauled on credit. Leave it in the depot until its owner can pay.
+		// Move past the scheduled depot entry so that a manual restart leaves
+		// the depot instead of routing back into it.
+		acnv->advance_past_current_depot_entry();
+		acnv->set_state(convoi_t::INITIAL);
+		acnv->report_unaffordable_overhaul_held(get_pos().get_2d());
+		vehicles_to_overhaul.clear();
+		vehicles_to_maintain.clear();
+	}
+
 	const replace_data_t* rpl = acnv->get_replace();
-	if (rpl && ((!rpl->get_use_home_depot() || acnv->get_home_depot() == get_pos())))
+	if (!hold_for_unaffordable_overhaul && rpl && ((!rpl->get_use_home_depot() || acnv->get_home_depot() == get_pos())))
 	{
 		// If the home depot is required and this is not it, do not replace.
 
-		if (flags & schedule_entry_t::maintain_or_overhaul &&
-			(rpl->get_replace_at() == replace_data_t::on_maintenance && !vehicles_to_maintain.empty()) ||
-			(rpl->get_replace_at() == replace_data_t::on_overhaul && !vehicles_to_overhaul.empty()))
+		// An on_maintenance replacement is triggered by any maintenance visit,
+		// including a visit made only for overhauls. An on_overhaul replacement
+		// requires at least one vehicle actually due for an overhaul.
+		if (unaffordable_overhauls.empty() && (flags & schedule_entry_t::maintain_or_overhaul) &&
+			(rpl->get_replace_at() == replace_data_t::on_maintenance ||
+			 (rpl->get_replace_at() == replace_data_t::on_overhaul && !vehicles_to_overhaul.empty())))
 		{
 			acnv->replace_now();
 			vehicles_to_overhaul.clear();
 			vehicles_to_maintain.clear();
+			unaffordable_overhauls.clear();
 
 			// We must repeat this as replacing will probably have invalidated the vectors
 			for (unsigned i = 0; i < acnv->get_vehicle_count(); i++)
 			{
-				vehicle_t* v = acnv->get_vehicle(i);
-
-				if (v->is_overhaul_needed() && !v->get_do_not_overhaul())
-				{
-					vehicles_to_overhaul.append(v);
-				}
-				else
-				{
-					vehicles_to_maintain.append(v);
-				}
+				classify_vehicle_for_maintenance(acnv->get_vehicle(i), vehicles_to_overhaul, vehicles_to_maintain, &unaffordable_overhauls);
 			}
 		}
 	}
 
-	for (auto veh : vehicles_to_overhaul)
+	for (uint32 i = vehicles_to_overhaul.get_count(); i-- != 0;)
 	{
-		veh->overhaul();
+		if (!vehicles_to_overhaul[i]->overhaul())
+		{
+			// The owner could no longer afford the overhaul. Leave the
+			// vehicle due and move it to the routine-maintenance group.
+			vehicles_to_maintain.append(vehicles_to_overhaul[i]);
+			vehicles_to_overhaul.remove_at(i);
+		}
 	}
 
 	for (auto veh : vehicles_to_maintain)
@@ -323,13 +354,11 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		register_for_maintenance(acnv);
 	}
 
-	if(!vehicles_to_overhaul.empty() || !vehicles_to_maintain.empty())
-	{
-		// Maintained convoys are stepped via depot_t::sync_step: take them out of the world
-		// sync list so the maintenance countdown runs once per tick. convoi_t::start re-adds
-		// on departure (remove() clears all occurrences, so this also heals stale duplicates).
-		welt->sync.remove(acnv.get_rep());
-	}
+	// Maintained convoys are stepped via depot_t::sync_step. convoi_t::sync_step
+	// returns SYNC_REMOVE while the convoy is in MAINTENANCE or OVERHAUL, which
+	// removes it from the world sync list after the current pass without
+	// removing an object from the list being iterated. convoi_t::start re-adds
+	// the convoy on departure.
 
 	// this part stores the convoi in the depot
 	convois.append(acnv);

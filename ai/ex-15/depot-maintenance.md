@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6a9e8d963
+verified: ex-15 @ 2777c3800a plus working-tree changes (2026-11-24)
 ---
 # ex-15 depot maintenance and vehicle availability
 
@@ -15,27 +15,33 @@ depot arrival and departure), `simdepot.*`, `descriptor/vehicle_desc.h`,
 Read this when working on routine depot maintenance, availability, maintenance
 queues, overhaul timing or overhaul finance. Vehicle wear curves, staff costs,
 fuel costs and prices are described in the parent registry. Range stops and
-replenishment (refuelling or otherwise restoring a vehicle's range) are
-separate work: see [range-stops-replenishment](range-stops-replenishment.md).
+replenishment (refuelling or otherwise restoring a vehicle's range) are part of
+the same maintenance feature programme but have their own implementation work:
+see [range-stops-replenishment](range-stops-replenishment.md).
 Replacement scheduling is also separate: see the vehicle-replacer section in
 [economy-and-vehicles](economy-and-vehicles.md).
 
 ## Terms
 
+- **Affordability** means that `finance_t::can_afford()` returns true for the
+  price of the work. It respects the soft credit limit returned by
+  `finance_t::get_soft_credit_limit()` and the `insolvent_purchases_allowed` and
+  freeplay settings.
 - **Availability** is the percentage of its working life for which a vehicle is
   available for transport service rather than being maintained.
 - **Convoy** is the Simutrans name for a consist: the coupled vehicles represented
   by `convoi_t`.
 - **Livery** is a vehicle's configured paint scheme.
-- **Routine maintenance** is the periodic depot work whose duration is derived
-  from availability.
+- **Routine maintenance** is the periodic depot work derived from availability.
 - **Overhaul** is the less frequent major work that resets the `km_since_last_overhaul` or
   takeoff (flight cycle) counters, resets availability to its starting value and can apply an automatic upgrade.
 - **Urgent maintenance** is the overdue threshold that diverts a convoy to a
   depot instead of waiting for its next scheduled depot entry.
 - **Active-service time** is the time that a vehicle spends available to operate
-  rather than in storage, maintenance, overhaul or layover. Its precise
-  accounting boundary is an open design question below.
+  rather than in storage, maintenance, overhaul or layover. The simulation
+  counts driving, loading, waiting for a load or a signal, shunting and
+  replenishment as active service; it excludes depot storage, layover,
+  maintenance and overhaul. `convoi_t::sync_step()` implements this boundary.
 
 ## Settled design
 
@@ -94,8 +100,8 @@ The design record contains two worked examples:
 - 90% availability after 10 hours in service requires 1 hour in the depot;
 - 75% availability after 1 hour in service requires 15 minutes in the depot.
 
-The formula consistent with both examples is
-`maintenance_time = active_service_time * (100 - availability) / 100` `[UNVERIFIED]`.
+The implemented formula, consistent with both examples, is
+`maintenance_time = active_service_time * (100 - availability) / 100` `[CODE]`.
 
 Both examples produce no maintenance time at 100% availability and the full service-time coefficient at 0%. The exact ratio
 `active_service_time * (100 - availability) / availability` would produce different answers and is a design change,
@@ -103,19 +109,21 @@ not an implementation of the examples `[UNVERIFIED]`. The examples are recorded 
 [FORUM:https://forum.simutrans.com/index.php/topic,16980.msg161553.html] and the depot-visits section of
 [project-roadmap](../project-roadmap.md).
 
-The current implementation does not implement this duration:
+`vehicle_t::maintain()` implements this duration with the per-vehicle
+`active_service_time` counter. `convoi_t::sync_step()` adds the sync-step
+interval to every vehicle in the convoy while the convoy is in an active state:
+driving, loading, waiting for a load or a signal, shunting, replenishing and
+schedule waiting. The counter is excluded while the convoy is in `INITIAL`,
+`EDIT_SCHEDULE`, `LAYOVER`, `MAINTENANCE` or `OVERHAUL`. `vehicle_t::maintain()`
+and `vehicle_t::overhaul()` reset the counter. The counter is serialised in
+`vehicle_t::rdwr()` under Extended save revision 21
+([savegame-versioning](../savegame-versioning.md)); older saves start at zero.
 
-- `vehicle_t::maintain()` calculates
-  `(welt->get_ticks() - last_maintenance_time) * 100 / get_availability()`.
-  This uses elapsed wall-clock time rather than active-service time and does not
-  match either worked example.
-- After `depot_t::convoi_arrived()` sets the wait through `maintain()` or
-  `overhaul()`, `convoi_t::enter_depot()` clears `wait_lock`. Its caller
-  `convoi_t::drive_to()` clears it again after `enter_depot()` returns.
-
-The separate defects are recorded in [known-bugs](../known-bugs.md). They must
-be corrected together: preserving the current calculated wait would preserve the
-wrong duration.
+`convoi_t::enter_depot()` and `convoi_t::ziel_erreicht()` preserve the wait for a
+maintenance or overhaul visit. Other depot visits clear it. `vehicle_t::maintain()`
+clamps availability to 100 and has no division by availability, so a zero
+availability value produces a full service-time wait rather than a division by
+zero.
 
 ### Overhauls and upgrades
 
@@ -125,14 +133,17 @@ wrong duration.
   through those counters, increments the overhaul count and records the overhaul
   month.
 - `initial_overhaul_cost`, `max_overhaul_cost` and
-  `overhauls_before_max_cost` define the escalating overhaul price. An
-  overhaul-specific financial category is intended for 15.x
-  [RECOLLECTION:2026-09-07]; the current booking uses the ordinary
-  vehicle-maintenance category.
-- An overhaul is a one-off capital cost
+  `overhauls_before_max_cost` define the escalating overhaul price.
+  `vehicle_desc_t::get_initial_overhaul_cost()` and
+  `vehicle_desc_t::get_max_overhaul_cost()` apply the `vehicle_maintenance`
+  price index. `vehicle_t::overhaul()` calculates the price before incrementing
+  `overhauls`, so the first overhaul uses `initial_overhaul_cost` and each
+  later overhaul uses the next point on the escalation curve. An
+  overhaul-specific financial category remains outstanding; the payment is
+  currently recorded in `ATV_VEHICLE_MAINTENANCE`.
+- An overhaul is a one-off cost
   [FORUM:https://forum.simutrans.com/index.php/topic,16980.msg161553.html]. It
-  must not be treated as a recurring monthly fixed cost and must use the normal
-  inflation-adjustment rule for vehicle maintenance prices.
+  must not be treated as a recurring monthly fixed cost.
 - When `auto_upgrade_index` resolves and `do_not_auto_upgrade` is false, the
   overhaul applies the upgrade and charges the upgrade price instead of the
   ordinary overhaul price. Maintenance history is retained.
@@ -148,54 +159,27 @@ wrong duration.
 
 `player_t::book_vehicle_maintenance()` records a signed amount in
 `ATV_VEHICLE_MAINTENANCE` and adjusts the account balance by that amount. Fixed
-monthly costs and mothballing charges are passed as negative amounts. An
-overhaul payment is therefore required to be a negative amount.
+monthly costs and mothballing charges are passed as negative amounts.
+`player_t::book_vehicle_maintenance_one_off()` records a one-off payment without
+applying `calc_adjusted_monthly_figure()`. `vehicle_t::overhaul()` passes the
+negated overhaul or upgrade price to that method.
 
-The current overhaul path passes a positive price. It also applies
-`calc_adjusted_monthly_figure()` through
-`finance_t::book_vehicle_maintenance_with_bits()` and uses descriptor values that
-are not inflation-adjusted. This credits money instead of charging it, scales a
-one-off payment as though it were monthly, and bypasses the project's inflation
-rule. The defect and its three consequences are recorded in
-[known-bugs](../known-bugs.md).
+If an overhaul or automatic upgrade is unaffordable, `vehicle_t::overhaul()`
+returns false without changing the vehicle. A scheduled conditional depot entry
+is skipped before routing when an overhaul is unaffordable and
+`convoi_t::is_maintenance_urgently_needed()` is false
+(`convoi_t::advance_schedule()`). A convoy for which that test is true still
+enters the depot, performs no maintenance work and is set to `INITIAL`, so it
+remains in the depot until the player can pay.
+
+Fixed costs continue during layover; `convoi_t::new_month()` charges them and
+`convoi_t::sync_step()` discounts only salaries while the convoy is in
+`LAYOVER`.
 
 ## Outstanding design decisions
 
 These change game behaviour and are not settled by the code or the recorded
 design. Recommendations are not decisions and are marked `[UNVERIFIED]`.
-
-### Measurement of active-service time
-
-The relation between service time and maintenance duration is settled by the
-worked examples. The unresolved question is how to measure service time. The
-roadmap permits either direct measurement or an estimate from distance and
-average speed; it does not select one.
-
-A direct per-vehicle accumulator is the proposed default `[UNVERIFIED]`. It
-must preserve each vehicle's history when vehicles move between consists. The likely
-boundary is that active-service time includes driving, loading, traffic waiting,
-schedule waiting, shunting and ordinary replenishment, and excludes depot
-storage, layover, maintenance and overhaul `[UNVERIFIED]`.
-
-Direct measurement requires persistent per-vehicle state. A savegame/network
-proposal and version decision are therefore required before implementation, per
-[savegame-versioning](../savegame-versioning.md) and
-[sync-and-determinism](../sync-and-determinism.md). Estimating from distance and
-average speed avoids that state but is less faithful after speed changes and
-after vehicles move between consists; no reason to prefer it has been recorded.
-
-### Affordability of an automatic overhaul
-
-No recorded rule says what happens when an automatic overhaul or automatic
-upgrade price is unaffordable. The choices are to charge the account regardless,
-defer the operation with a warning, or stop the convoy at the depot until the
-player acts.
-
-The proposed default is to defer the selected operation, charge nothing, issue a
-rate-limited warning and retain the existing overdue penalties `[UNVERIFIED]`.
-Work on other vehicles should continue rather than blocking the depot queue. An
-unaffordable auto-upgrade should defer rather than silently substitute an
-ordinary overhaul, unless the user decides otherwise.
 
 ### Grouping overhauls of vehicles that are nearly due
 
@@ -238,62 +222,79 @@ any vehicle due, all vehicles due, or a nominated vehicle such as the locomotive
 The implementation currently replaces the whole convoy when any vehicle is in
 the overhaul group. That is a usable default, but the mode is not exposed in the
 graphical user interface. Confirm the any-vehicle rule before exposing the mode,
-or select a different rule.
+or select a different rule. Overhaul and replacement execution is otherwise
+future work; only the `on_maintenance` trigger condition is corrected now.
 
-## Implementation work requiring no new mechanic
+### Cargo at a maintenance visit
 
-- Correct and test maintenance duration, including retention of the wait through
-  depot entry and departure.
-- Correct overhaul sign, one-off accounting, inflation adjustment and financial
-  category.
-- Apply the existing deterministic livery-scheme fallback in
-  `vehicle_t::update_livery()`.
-- Add maintenance queue controls in the depot window, calling the existing
-  priority methods.
-- Add `MAINTENANCE`, `OVERHAUL` and `REPLENISHING` status text to the convoy
-  information window. Replenishment has its own runtime work; only the display is
-  listed here.
-- Add graphical controls for the already implemented mothball/unmothball
-  mechanic.
-- Decide whether to expose the existing maintenance and overhaul replacement
-  timings after the convoy-trigger decision above.
-- Add behavioural maintenance tests. The active Squirrel scripted test suite currently checks
-  maintenance-related schedule fields and convoy-state constants, but does not
-  exercise maintenance duration, availability, queue progress, urgent diversion
-  or overhaul accounting.
+`depot_t::convoi_arrived()` calls `vehicle_t::discard_cargo()` for every vehicle,
+including a vehicle that arrives for routine maintenance or an overhaul. There is
+no code that guarantees the convoy is empty before it enters the depot:
+`convoi_t::get_depot_when_empty()` applies only to replacement and manual visits,
+and `schedule_entry_t::set_down_only` and `schedule_entry_t::discharge_payload`
+are explicit schedule flags that the player must set. A scheduled maintenance
+visit can therefore arrive loaded and delete its load.
+
+The 2016 design intended that the decision to visit a depot be made when the
+convoy skips a depot entry, so that the convoy can be empty when it arrives
+[FORUM:https://forum.simutrans.com/index.php/topic,15473.0.html]. No mechanism
+implements that advance decision. The choices are to keep the load through the
+maintenance visit, to defer the visit until the convoy is empty, or to unload the
+load at the stop before the depot. The choice is not settled.
+
+### Resale value and the second-hand market
+
+`vehicle_t::calc_sale_value()` depreciates by age and by whether the vehicle has
+been driven; it does not consider wear or overhaul history. The preferred
+direction is an in-game second-hand market with player-set prices and a scrap
+price fallback, so a wear-adjusted formula is not required now.
+
+### Per-line depot limit
+
+The 2016 design proposed one convoy per line per depot and a visit decision
+before arrival. Neither exists, so every convoy of a line can become due
+together and leave service together. The available policies are under
+investigation.
+
+## Outstanding user-interface work (future session)
+
+- **Maintenance queue controls.** Add depot-window controls that call
+  `depot_t::prioritise_for_maintenance()` and
+  `depot_t::depriortise_for_maintenance()`. The serialised queue order affects
+  wait times, so the controls must commit through a depot tool command.
+- **Mothball controls.** Add controls for `vehicle_t::mothball()` and
+  `vehicle_t::un_mothball()` for vehicles stored in a depot, committed through a
+  depot tool command.
+- **Replacement timing controls.** Expose `on_maintenance` and `on_overhaul`
+  from `replace_data_t::replacement_time` in `gui/replace_frame.cc`. Leave
+  `on_replenish` hidden until the range-stop runtime exists.
+- **Fleet overhaul view.** A list of vehicles due for overhaul, optionally in a
+  future fleet-management window, would help players manage large fleets.
 
 ## Open questions
 
-- Does the active-service boundary include time spent waiting for a load or a
-  signal, or only time with a booked driver? The salary accumulator in
-  `convoi_t::sync_step()` treats driving, loading and waiting as active and
-  discounts layover, maintenance and overhaul. Reusing that boundary is the
-  proposal, not a recorded decision.
-- How should a zero availability value be handled? The current duration formula
-  would divide by zero; the intended duration formula would make every service
-  interval a maintenance interval. Descriptor validation and failure behaviour
-  need a separate decision only if zero is permitted.
+- How should availability values above 100 be validated? `vehicle_t::maintain()`
+  clamps availability to 100, but the descriptor reader does not reject a
+  larger value.
 - Do the depot trigger states named
   `conditional_depart_before_wait` and `conditional_depart_after_wait` implement
   the recorded before-wait and after-wait meanings? The design meanings are
   explicit; this is an implementation verification, not an open mechanic.
 - Can the maintenance countdown and queue survive save/reload exactly? The queue
   and convoy state are serialised and validated, but no behavioural test exists.
-- The scheduled-depot edge cases recorded in the Open questions section of
-  [schedule-and-consists](schedule-and-consists.md) remain separate defects in
-  the schedule layer.
+- The scheduled-depot edge cases in the Open questions section of
+  [schedule-and-consists](schedule-and-consists.md) remain separate defects.
 
 ## Resumption order
 
-1. Decide active-service measurement, overhaul affordability and simplified
-   maintenance. Grouping and replacement triggering can follow before their
-   respective user interfaces are added.
-2. Add a behavioural maintenance fixture and reproduce the duration and
-   accounting defects.
-3. Repair duration, accounting, inflation and livery fallback with regression
-   tests.
-4. Add queue controls and convoy status text.
-5. Add the service-time state if direct measurement is selected; present the
-   savegame/network change before implementation.
-6. Verify save/reload and two-process determinism.
-7. Re-run the checks with vehicles that have moved between consists, so each vehicle keeps its own maintenance and service history.
+1. Add behavioural tests for duration, queue progress, urgent diversion,
+   affordability and overhaul accounting.
+2. Verify save/reload and two-process determinism of the active-service counter,
+   queue and overhaul financial state.
+3. Apply the livery-scheme fallback in `vehicle_t::update_livery()`.
+4. Add the outstanding user-interface work listed above.
+5. Decide the cargo-at-maintenance policy and the per-line depot limit.
+6. Decide simplified maintenance, overhaul grouping and the replacement trigger
+   before exposing those controls.
+7. Re-run the checks with vehicles that have moved between consists, so each
+   vehicle keeps its own maintenance and active-service history.

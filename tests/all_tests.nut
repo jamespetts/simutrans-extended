@@ -17,6 +17,7 @@ include("tests/test_good")
 include("tests/test_halt")
 include("tests/test_headquarters")
 include("tests/test_label")
+include("tests/test_maintenance")
 include("tests/test_player")
 include("tests/test_powerline")
 include("tests/test_reservation")
@@ -172,6 +173,7 @@ all_tests <- [
 	test_convoy_state_enum_values,
 	test_halt_laid_over_list,
 	test_convoy_vehicle_snapshot,
+	test_maintenance_vehicle_read_model,
 	test_schedule_order_edit_delete_convoy,
 // 	test_way_road_make_public,
 // 	test_way_runway_build_rw_flat,

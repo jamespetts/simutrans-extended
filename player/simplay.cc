@@ -226,6 +226,11 @@ void player_t::book_vehicle_maintenance(const sint64 amount, const waytype_t wt)
 	// Consider putting messages in here
 }
 
+void player_t::book_vehicle_maintenance_one_off(const sint64 amount, const waytype_t wt)
+{
+	finance->book_vehicle_maintenance_one_off(amount, wt);
+}
+
 
 void player_t::book_toll_paid(const sint64 amount, const waytype_t wt)
 {
@@ -1579,6 +1584,19 @@ void player_t::take_over(player_t* target_player)
 	for (size_t i = welt->convoys().get_count(); i-- != 0;)
 	{
 		convoihandle_t const cnv = welt->convoys()[i];
+
+		// A convoy can contain vehicles owned by several players. Transfer
+		// only the vehicles that the taken-over player owned, leaving foreign
+		// vehicles in a mixed-owner consist with their owners.
+		for (uint8 j = 0; j < cnv->get_vehicle_count(); j++)
+		{
+			vehicle_t* const vehicle = cnv->get_vehicle(j);
+			if (vehicle->get_owner() == target_player)
+			{
+				vehicle->set_owner(this);
+			}
+		}
+
 		if (cnv->get_owner() != target_player)
 		{
 			continue;
@@ -1590,6 +1608,20 @@ void player_t::take_over(player_t* target_player)
 		if (line.is_bound())
 		{
 			lines_to_transfer.append_unique(line);
+		}
+	}
+
+	// A vehicle owned by the taken-over player can be stored in a depot owned
+	// by another player. Transfer those vehicles too, so no vehicle retains a
+	// pointer to the removed player.
+	for (depot_t* const depot : depot_t::get_depot_list())
+	{
+		for (vehicle_t* const vehicle : depot->get_vehicle_list())
+		{
+			if (vehicle->get_owner() == target_player)
+			{
+				vehicle->set_owner(this);
+			}
 		}
 	}
 

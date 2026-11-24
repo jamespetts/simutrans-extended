@@ -1001,7 +1001,7 @@ uint16 vehicle_t::unload_cargo(halthandle_t halt, sint64 & revenue_from_unloadin
 							// Halt overcrowded - discard passengers, and collect no revenue.
 							// Experimetal 7.2 - also calculate a refund.
 
-							if (tmp.get_origin().is_bound() && get_owner()->get_finance()->get_account_balance() > 0)
+							if (tmp.get_origin().is_bound() && get_owner() && get_owner()->get_finance()->get_account_balance() > 0)
 							{
 								// Cannot refund unless we know the origin.
 								// Also, ought not refund unless the player is solvent.
@@ -1576,6 +1576,7 @@ vehicle_t::vehicle_t(koord3d pos, const vehicle_desc_t* desc, player_t* player) 
 	, km_since_last_replenish(0u)
 	, last_maintenance_month(welt->get_current_month())
 	, last_overhaul_month(0u)
+	, active_service_time(0u)
 	, ticks_at_last_departure(0ll)
 	, loose_recipient_id(0)
 	, loose_recipient_flags(0)
@@ -1630,6 +1631,7 @@ vehicle_t::vehicle_t() :
 	, loose_recipient_flags(0)
 	, hop_count(0)
 	, last_stop_pos(koord3d::invalid)
+	, active_service_time(0u)
 {
 	current_livery = "default";
 
@@ -3418,6 +3420,18 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 		bool moth = is_mothballed;
 		file->rdwr_bool(moth);
 		is_mothballed = moth;
+
+		if (file->is_version_ex_atleast(15, 21))
+		{
+			file->rdwr_long(active_service_time);
+		}
+		else
+		{
+			// Saves written before revision 21 have no active-service
+			// accumulator. Start the first maintenance interval after loading
+			// from zero rather than inferring it from wall-clock time.
+			active_service_time = 0u;
+		}
 	}
 	else
 	{
@@ -3425,6 +3439,7 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 		km_since_last_overhaul = 0u;
 		km_since_last_maintenance = 0u;
 		km_since_last_replenish = 0u;
+		active_service_time = 0u;
 		last_maintenance_time = welt->get_ticks();
 		last_maintenance_month = welt->get_current_month();
 		last_overhaul_month = welt->get_current_month();
@@ -4194,23 +4209,51 @@ void vehicle_t::maintain()
 	// Do not call replenish() recursively as this will trigger the wait
 	km_since_last_replenish = 0;
 
-	const sint64 time_since_last_maintenance = welt->get_ticks() - last_maintenance_time;
-	const sint64 maintenance_time = (time_since_last_maintenance * 100ll) / (sint64)get_availability();
-	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)maintenance_time));
+	// The recorded availability examples require the time spent in active
+	// service, not elapsed wall-clock time. The accumulator excludes depot
+	// storage, layover, maintenance and overhaul.
+	const uint32 availability = min(get_availability(), (uint8)100);
+	const sint64 maintenance_time = ((sint64)active_service_time * (sint64)(100 - availability)) / 100ll;
+	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)min(maintenance_time, (sint64)SINT32_MAX_VALUE)));
 	cnv->set_state(convoi_t::MAINTENANCE);
 
 	last_maintenance_time = welt->get_ticks();
+	active_service_time = 0u;
 	km_since_last_maintenance = 0;
 	last_maintenance_month = welt->get_current_month();
 }
 
-void vehicle_t::overhaul()
+bool vehicle_t::overhaul()
 {
+	player_t* owner = get_owner();
+	if (!owner && cnv)
+	{
+		// A vehicle must have an owner. If a takeover or an old save has left
+		// the vehicle without one, fall back to the convoy owner rather than
+		// dereferencing a null player when booking the overhaul.
+		owner = cnv->get_owner();
+		if (owner)
+		{
+			set_owner(owner);
+		}
+	}
+
+	const vehicle_desc_t* upgrade = get_auto_upgrade();
+	const sint64 overhaul_cost = upgrade ? (sint64)upgrade->get_upgrade_price() : get_overhaul_cost();
+
+	if (!owner || !owner->get_finance()->can_afford(overhaul_cost))
+	{
+		// Leave the vehicle due for overhaul. The caller decides whether to
+		// hold the convoy in the depot (urgent maintenance) or continue.
+		return false;
+	}
+
 	// Do not call maintain() recursively as this will trigger the wait
 	km_since_last_replenish = 0;
 	km_since_last_maintenance = 0;
 	last_maintenance_month = welt->get_current_month();
 	last_maintenance_time = welt->get_ticks();
+	active_service_time = 0u;
 
 	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));
 	// Players should probably need to split convoys before overhauls if they wish to overhaul only some vehicles (e.g., the locomotive). TODO: Consider UI implications for this.
@@ -4219,13 +4262,11 @@ void vehicle_t::overhaul()
 	km_since_last_overhaul = 0;
 	overhauls++;
 	last_overhaul_month = welt->get_current_month();
+	overhaul_time = welt->get_current_month();
 
 	// TODO: Find a way of integrating the replacement system with this. Perhaps replace overrides overhauls?
-	const vehicle_desc_t* upgrade = get_auto_upgrade();
+	owner->book_vehicle_maintenance_one_off(-overhaul_cost);
 
-	sint64 overhaul_cost = upgrade ? upgrade->get_upgrade_price() : get_overhaul_cost(); // TODO: Find the right place to check affordability
-
-	get_owner()->book_vehicle_maintenance(overhaul_cost); // TODO: Consider making overhauls their own financial category. Consider how to treat auto upgrades here.
 	if (upgrade)
 	{
 		if (cnv->front() == this)
@@ -4240,6 +4281,7 @@ void vehicle_t::overhaul()
 	}
 
 	update_livery();
+	return true;
 }
 
 const vehicle_desc_t* vehicle_t::get_auto_upgrade() const
@@ -4262,6 +4304,30 @@ sint64 vehicle_t::get_overhaul_cost() const
 	const uint64 overhaul_sigmoid = sigmoid(overhauls, desc->get_overhauls_before_max_cost());
 	const sint64 overhaul_cost = (((max_overhaul_cost - base_overhaul_cost) * (sint64)overhaul_sigmoid) / SIGMOID_SCALE) + base_overhaul_cost;
 	return overhaul_cost;
+}
+
+sint64 vehicle_t::get_overhaul_or_upgrade_cost() const
+{
+	const vehicle_desc_t* upgrade = get_auto_upgrade();
+	return upgrade ? (sint64)upgrade->get_upgrade_price() : get_overhaul_cost();
+}
+
+bool vehicle_t::can_afford_overhaul() const
+{
+	player_t* owner = get_owner();
+	return owner && owner->get_finance()->can_afford(get_overhaul_or_upgrade_cost());
+}
+
+void vehicle_t::add_active_service_time(uint32 ticks)
+{
+	if (ticks >= UINT32_MAX_VALUE - active_service_time)
+	{
+		active_service_time = UINT32_MAX_VALUE;
+	}
+	else
+	{
+		active_service_time += ticks;
+	}
 }
 
 void vehicle_t::update_livery()
@@ -4488,11 +4554,17 @@ void vehicle_t::mothball()
 		return;
 	}
 
+	player_t* owner = get_owner();
+	if (!owner)
+	{
+		return;
+	}
+
 	is_mothballed = true;
 
 	// Monthly fixed costs are no longer charged for a mothballed vehicle (depot_t::new_month skips it),
 	// but charge the player one month's maintenance for doing so.
-	get_owner()->book_vehicle_maintenance(-(sint64)get_fixed_cost(welt), get_waytype());
+	owner->book_vehicle_maintenance(-(sint64)get_fixed_cost(welt), get_waytype());
 }
 
 void vehicle_t::un_mothball()
@@ -4505,7 +4577,10 @@ void vehicle_t::un_mothball()
 
 	is_mothballed = false;
 
-	get_owner()->book_vehicle_maintenance(-(sint64)get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
+	if (player_t* owner = get_owner())
+	{
+		owner->book_vehicle_maintenance(-(sint64)get_fixed_cost(welt), get_waytype()); // Charge the player for unmothballing the same as for mothballing
+	}
 }
 
 bool vehicle_t::desc_matches_rule(const vehicle_desc_t *desc, uint8 catg_index, const vehicle_description_element &vde)

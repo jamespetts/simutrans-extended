@@ -300,6 +300,16 @@ uint32 get_power(const vehicle_desc_t *desc)
 	return desc->get_power() * desc->get_gear();
 }
 
+uint8 vehicle_starting_availability(const vehicle_desc_t *desc)
+{
+	return desc->get_starting_availability();
+}
+
+uint8 vehicle_minimum_availability(const vehicle_desc_t *desc)
+{
+	return desc->get_minimum_availability();
+}
+
 bool vehicle_needs_electrification(const vehicle_desc_t *desc)
 {
 	return desc->get_power()  &&  (desc->get_engine_type()==vehicle_desc_t::electric);
@@ -509,6 +519,14 @@ void export_goods_desc(HSQUIRRELVM vm)
 	 * @returns the total power of the vehicle (takes power and gear from pak-files into account)
 	 */
 	register_method(vm, &get_power, "get_power", true);
+	/**
+	 * @returns starting availability in percent
+	 */
+	register_method(vm, &vehicle_starting_availability, "get_starting_availability", true);
+	/**
+	 * @returns minimum availability in percent
+	 */
+	register_method(vm, &vehicle_minimum_availability, "get_minimum_availability", true);
 	/**
 	 * @returns true if this vehicle needs electrification (and is powered)
 	 */

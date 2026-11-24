@@ -837,8 +837,8 @@ public:
 	 * their fuel.tab cost directly.
 	 */
 	sint64 get_fuel_cost_per_unit() const;
-	uint32 get_initial_overhaul_cost() const { return initial_overhaul_cost; }
-	uint32 get_max_overhaul_cost() const { return max_overhaul_cost; }
+	uint32 get_initial_overhaul_cost() const;
+	uint32 get_max_overhaul_cost() const;
 	uint16 get_overhauls_before_max_cost() const { return overhauls_before_max_cost; }
 	uint32 get_max_distance_between_overhauls() const { return max_distance_between_overhauls; }
 	uint32 get_maintenance_interval_km() const { return maintenance_interval_km; }

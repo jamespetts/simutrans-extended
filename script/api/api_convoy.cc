@@ -68,6 +68,26 @@ sint32 convoy_get_kmh(convoi_t const* cnv)
 	return cnv ? speed_to_kmh(cnv->get_akt_speed()) : -1;
 }
 
+// Remaining wait in simulation ticks for a convoy that a depot is servicing
+// (routine maintenance, overhaul or replenishment), or -1 in any other state.
+// The value is convoi_t::wait_lock, which convoi_t::sync_step() reduces by the
+// step's tick length; those three states act when it has reached zero, so it
+// reaches zero when the service ends.
+sint32 convoy_get_service_wait_ticks(convoi_t *cnv)
+{
+	if (cnv == NULL) {
+		return -1;
+	}
+	switch (cnv->get_state()) {
+		case convoi_t::MAINTENANCE:
+		case convoi_t::OVERHAUL:
+		case convoi_t::REPLENISHING:
+			return cnv->get_wait_lock();
+		default:
+			return -1;
+	}
+}
+
 // Returns the value that
 // convoi_t::get_average_journey_times_this_convoy_only() holds for the pair
 // (from, to), in tenths of minutes, or -1 if the table holds no such pair.
@@ -331,6 +351,24 @@ SQInteger convoy_get_vehicle_snapshot(HSQUIRRELVM vm)
 		// True when a road convoy is travelling in the passing lane (overtaking).
 		// Any other vehicle type reports false.
 		set_slot(vm, "overtaking", v->get_waytype() == road_wt && cnv->is_overtaking());
+		// Maintenance and overhaul read model. The distances are in km since the
+		// respective work last completed, availability is the percentage that
+		// vehicle_t::get_availability() reports, and overhaul_cost is the amount
+		// that vehicle_t::overhaul() would book at the vehicle's current overhaul
+		// count, including an automatic upgrade where vehicle_t::get_auto_upgrade()
+		// selects one. The two _needed flags are the per-vehicle tests that
+		// depot_t::convoi_arrived() uses to split a convoy's vehicles into the
+		// maintenance and overhaul groups.
+		set_slot(vm, "km_since_last_maintenance", (SQInteger)v->get_km_since_last_maintenance());
+		set_slot(vm, "km_since_last_overhaul", (SQInteger)v->get_km_since_last_overhaul());
+		set_slot(vm, "availability", (SQInteger)v->get_availability());
+		set_slot(vm, "overhaul_count", (SQInteger)v->get_overhaul_count());
+		set_slot(vm, "overhaul_cost", (SQInteger)v->get_overhaul_or_upgrade_cost());
+		set_slot(vm, "do_not_overhaul", v->get_do_not_overhaul());
+		set_slot(vm, "do_not_auto_upgrade", v->get_do_not_auto_upgrade());
+		set_slot(vm, "mothballed", v->get_is_mothballed());
+		set_slot(vm, "maintenance_needed", v->is_maintenance_needed());
+		set_slot(vm, "overhaul_needed", v->is_overhaul_needed());
 		sq_arrayappend(vm, -2);
 	}
 	return 1;
@@ -585,6 +623,24 @@ void export_convoy(HSQUIRRELVM vm)
 	 * @returns array of vehicle_slot_x snapshots in running order
 	 */
 	register_function(vm, convoy_get_vehicle_snapshot, "get_vehicle_snapshot", 1, param<convoi_t*>::typemask());
+	/**
+	 * @returns true if any vehicle in this consist needs routine maintenance
+	 */
+	register_method(vm, &convoi_t::is_maintenance_needed, "needs_maintenance");
+	/**
+	 * @returns true if any vehicle in this consist is overdue for routine
+	 * maintenance, which sends the convoy to a depot urgently
+	 */
+	register_method(vm, &convoi_t::is_maintenance_urgently_needed, "needs_maintenance_urgently");
+	/**
+	 * @returns true if any vehicle in this consist needs an overhaul
+	 */
+	register_method(vm, &convoi_t::is_overhaul_needed, "needs_overhaul");
+	/**
+	 * @returns remaining service wait in ticks for a convoy in the maintenance,
+	 * overhaul or replenishing state, or -1 in any other state
+	 */
+	register_method(vm, convoy_get_service_wait_ticks, "get_service_wait_ticks", true);
 	/**
 	 * @returns the convoy's livery scheme index
 	 */

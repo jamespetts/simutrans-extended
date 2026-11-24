@@ -26,6 +26,16 @@ uint32 vehicle_desc_t::get_upgrade_price() const
 	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), upgrade_price, vehicle_maintenance);
 }
 
+uint32 vehicle_desc_t::get_initial_overhaul_cost() const
+{
+	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), initial_overhaul_cost, vehicle_maintenance) : initial_overhaul_cost;
+}
+
+uint32 vehicle_desc_t::get_max_overhaul_cost() const
+{
+	return world() ? world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), max_overhaul_cost, vehicle_maintenance) : max_overhaul_cost;
+}
+
 uint32 vehicle_desc_t::get_fixed_cost() const
 {
 	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), fixed_cost, vehicle_maintenance);

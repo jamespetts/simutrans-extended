@@ -1398,10 +1398,25 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 		static_cast<road_vehicle_t *>(front())->update_lateral_blend();
 	}
 
+	// Accumulate time in active service for the maintenance-duration
+	// calculation. Depot storage (INITIAL), schedule editing, layover,
+	// maintenance and overhaul are not active service.
+	if (state != INITIAL && state != EDIT_SCHEDULE && state != LAYOVER
+		&& state != MAINTENANCE && state != OVERHAUL)
+	{
+		for (uint8 i = 0; i < vehicle_count; i++)
+		{
+			vehicle[i]->add_active_service_time(delta_t);
+		}
+	}
+
 	// still have to wait before next action?
 	wait_lock -= delta_t;
 	if(wait_lock > 0) {
-		return SYNC_OK;
+		// A convoy under depot maintenance is stepped through depot_t::sync_step.
+		// Return SYNC_REMOVE so that the world sync list drops it after this pass
+		// instead of keeping a second stepping path.
+		return (state == MAINTENANCE || state == OVERHAUL) ? SYNC_REMOVE : SYNC_OK;
 	}
 	wait_lock = 0;
 
@@ -1570,7 +1585,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 	// They should (almost) never mismatch if [0] and [1] don't either, so there is no need to multiply/divide by ID.
 	welt->add_to_debug_sums(2, speed_to_kmh(akt_speed));
 	welt->add_to_debug_sums(3, speed_to_kmh(akt_speed_soll));
-	return SYNC_OK;
+	return (state == MAINTENANCE || state == OVERHAUL) ? SYNC_REMOVE : SYNC_OK;
 }
 
 bool convoi_t::prepare_for_routing()
@@ -2209,6 +2224,12 @@ void convoi_t::step()
 			buf.printf( translator::translate("Vehicle %s cannot choose because stop too short!"), get_name());
 			welt->get_message()->add_message( (const char *)buf, pos.get_2d(), front()->get_waytype() == road_wt ? message_t::traffic_jams : message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), front()->get_base_image() );
 		}
+		else if (kind == defer_unaffordable_overhaul_skip)
+		{
+			cbuffer_t buf;
+			buf.printf(translator::translate("Convoy %s cannot afford the overhaul; the depot visit is skipped."), get_name());
+			welt->get_message()->add_message(buf, pos.get_2d(), message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
+		}
 		else
 		{
 			get_owner()->report_vehicle_problem(self, pos);
@@ -2787,6 +2808,14 @@ void convoi_t::exit_layover()
 	}
 }
 
+void convoi_t::advance_past_current_depot_entry()
+{
+	if (schedule && schedule->get_current_entry().pos == get_pos())
+	{
+		advance_schedule();
+	}
+}
+
 void convoi_t::advance_schedule()
 {
 	advance_schedule_internal();
@@ -2809,7 +2838,30 @@ void convoi_t::advance_schedule()
 			}
 			else
 			{
-				skip = false;
+#ifdef MULTI_THREAD
+				// drive_to() can call advance_schedule() on a convoy worker
+				// thread. The affordability test reads finance state and must
+				// only run in the committed, main-thread decision. A worker-side
+				// visit that reaches this branch is handled at depot arrival by
+				// performing only the work that is affordable.
+				const bool worker_thread = convoy_summary_compute_thread_local;
+#else
+				const bool worker_thread = false;
+#endif
+				if (!worker_thread && !is_maintenance_urgently_needed() && !can_afford_overhaul_visit())
+				{
+					// Do not take a convoy out of service for an overhaul that
+					// its owner cannot pay for. An urgently overdue convoy still
+					// goes to the depot, where it is held. Advance_schedule() can
+					// run on a worker thread, so defer the message to step().
+					defer_message(defer_unaffordable_overhaul_skip, schedule->get_current_entry().pos);
+					advance_schedule_internal();
+					skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
+				}
+				else
+				{
+					skip = false;
+				}
 			}
 		}
 		else
@@ -2857,7 +2909,8 @@ void convoi_t::turn_at_skipped_depot()
 			return;
 		}
 		const grund_t* gr = welt->lookup(entry.pos);
-		if (!gr || !gr->get_depot() || is_maintenance_needed())
+		if (!gr || !gr->get_depot()
+			|| (is_maintenance_needed() && (is_maintenance_urgently_needed() || can_afford_overhaul_visit())))
 		{
 			return;
 		}
@@ -3259,7 +3312,13 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 		}
 	}
 	steps_driven = -1;
-	wait_lock = 0;
+	if (!(flags & schedule_entry_t::maintain_or_overhaul))
+	{
+		// Maintenance and overhaul visits keep the wait calculated by
+		// vehicle_t::maintain() or vehicle_t::overhaul(). Other depot
+		// entries start with no wait.
+		wait_lock = 0;
+	}
 }
 
 
@@ -3454,7 +3513,12 @@ void convoi_t::ziel_erreicht()
 			state = ROUTING_1;
 		}
 	}
-	wait_lock = 0;
+	if (state != MAINTENANCE && state != OVERHAUL)
+	{
+		// Preserve the dwell calculated by vehicle_t::maintain() or
+		// vehicle_t::overhaul() when this arrival is a maintenance visit.
+		wait_lock = 0;
+	}
 }
 
 
@@ -9996,6 +10060,30 @@ bool convoi_t::is_overhaul_needed() const
 		}
 	}
 	return false;
+}
+
+bool convoi_t::can_afford_overhaul_visit() const
+{
+	for (const_iterator i = begin(); i != end(); ++i)
+	{
+		const vehicle_t &v = **i;
+		if (v.is_overhaul_needed() && !v.get_do_not_overhaul() && !v.can_afford_overhaul())
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void convoi_t::report_unaffordable_overhaul_held(const koord &pos) const
+{
+	if (!get_owner())
+	{
+		return;
+	}
+	cbuffer_t buf;
+	buf.printf(translator::translate("Convoy %s cannot afford the overhaul and is held in the depot."), get_name());
+	welt->get_message()->add_message(buf, pos, message_t::warnings, PLAYER_FLAG | get_owner()->get_player_nr(), IMG_EMPTY);
 }
 
 void convoi_t::check_departure(halthandle_t halt)

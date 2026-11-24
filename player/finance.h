@@ -574,6 +574,18 @@ public:
 	}
 
 	/**
+	 * Accounts a one-off vehicle maintenance payment, such as an overhaul.
+	 * The amount is not adjusted for bits_per_month because the payment is
+	 * not a monthly recurring cost.
+	 */
+	inline void book_vehicle_maintenance_one_off(const sint64 amount, const waytype_t wt) {
+		const transport_type tt = translate_waytype_to_tt(wt);
+		veh_year[tt][0][ATV_VEHICLE_MAINTENANCE] += amount;
+		veh_month[tt][0][ATV_VEHICLE_MAINTENANCE] += amount;
+		account_balance += amount;
+	}
+
+	/**
 	 * Calculates the finance history for player.
 	 * This method has to be called before reading any variables besides account_balance!
 	 */

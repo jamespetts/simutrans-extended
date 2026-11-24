@@ -224,6 +224,7 @@ public:
 	 * @author neroden
 	 */
 	void book_vehicle_maintenance(const sint64 amount, const waytype_t wt=ignore_wt);
+	void book_vehicle_maintenance_one_off(const sint64 amount, const waytype_t wt=ignore_wt);
 
 	/**
 	 * Adds way renewals to accounting statistics.

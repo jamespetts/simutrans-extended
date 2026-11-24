@@ -511,6 +511,9 @@ protected:
 	uint32 last_maintenance_month;
 	uint32 last_overhaul_month;
 	sint64 last_maintenance_time;
+	// Ticks spent in active service since the last routine maintenance or
+	// overhaul. Depot storage, layover, maintenance and overhaul do not count.
+	uint32 active_service_time;
 
 	uint32 fuel_used_this_trip = 0;
 
@@ -954,13 +957,20 @@ public:
 	virtual bool is_overhaul_needed() const;
 	uint16 get_overhaul_count() const { return overhauls; }
 	uint32 get_km_since_last_overhaul() const { return km_since_last_overhaul; }
+	uint32 get_km_since_last_maintenance() const { return km_since_last_maintenance; }
 
 	virtual uint8 get_availability() const;
 
 	void replenish();
 	void maintain();
-	virtual void overhaul();
+	// Returns false without changing the vehicle when the owner cannot afford
+	// the overhaul or automatic upgrade.
+	virtual bool overhaul();
 	sint64 get_overhaul_cost() const;
+	sint64 get_overhaul_or_upgrade_cost() const;
+	bool can_afford_overhaul() const;
+	void add_active_service_time(uint32 ticks);
+	uint32 get_active_service_time() const { return active_service_time; }
 
 	void set_do_not_overhaul(bool value) { do_not_overhaul = value; }
 	void set_do_not_auto_upgrade(bool value) { do_not_auto_upgrade = value; }

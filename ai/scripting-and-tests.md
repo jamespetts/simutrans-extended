@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23)
+verified: ex-15 @ 2777c3800a plus working-tree maintenance-test API (2026-11-24); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23)
 ---
 # Scripting & tests
 
@@ -37,12 +37,28 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
 - The scenario host executes read-only queries and tool calls. A suspended tool call is resumed
   with its result by `nwc_tool_t::do_command` as described below.
 - The active Squirrel suite completes under `Debug|x64` with `pak128.Britain-Ex`, including the
-  schedule, consist-order, convoy-observation and signalling API tests.
-  [EXECUTION-VERIFIED:2026-11-14, 81 of 81 tests, run with `-nomidi`].
+  schedule, consist-order, convoy-observation, maintenance-read-model and signalling API tests.
+  [EXECUTION-VERIFIED:2026-11-14, 81 of 81 tests; 2026-11-24, 82 of 82 tests, run with `-nomidi`].
 - The API was ported from Standard. Extended schedule entries and complete consist orders are
   script-accessible, but other Extended fields remain incomplete, including parts of the
   line/convoy/replacement read model. Use the exported declarations in `script/api/` as the
   authority for what each object exposes.
+- The convoy maintenance read model is script-accessible:
+  `convoy_x.get_vehicle_snapshot()` includes `km_since_last_maintenance`,
+  `km_since_last_overhaul`, `availability`, `overhaul_count`, `overhaul_cost` (the
+  amount an overhaul or automatic upgrade would book), `do_not_overhaul`,
+  `do_not_auto_upgrade`, `mothballed`, `maintenance_needed` and `overhaul_needed`;
+  `convoy_x.get_service_wait_ticks()` returns the remaining
+  maintenance, overhaul or replenishment wait and -1 in other states.
+  `vehicle_desc_x.get_starting_availability()` and
+  `vehicle_desc_x.get_minimum_availability()` expose the descriptor availability bounds.
+  The pending-runtime `maintenance-dwell` case uses these fields. It sets the `reverse`
+  field of its depot schedule entry to 1; without that value the case's convoy passed the
+  depot tile and looped between the stop and the depot instead of entering it. The
+  road vehicles available at the fixture's date all report 100% starting and minimum
+  availability, so a routine maintenance visit there has a zero wait; the case detects the
+  visit from the reset of `km_since_last_maintenance` at the depot tile and reserves its
+  dwell assertions for a vehicle that reports lower availability.
 - The AI host mode is designed but unused; expect latent assumptions (global `welt`, null
   scenario, GUI calls, `get_my_player` returning null) until it is exercised.
 

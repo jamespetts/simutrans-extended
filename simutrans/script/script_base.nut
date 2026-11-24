@@ -715,6 +715,27 @@ class vehicle_slot_x {
 	pulled_over = false
 	/// true when a road convoy is travelling in the passing lane (overtaking)
 	overtaking = false
+	/// km travelled since the last routine maintenance completed
+	km_since_last_maintenance = 0
+	/// km travelled since the last overhaul completed
+	km_since_last_overhaul = 0
+	/// percentage availability for transport service
+	availability = 100
+	/// number of overhauls completed
+	overhaul_count = 0
+	/// amount an overhaul would book at the current overhaul count, including an
+	/// automatic upgrade where one applies
+	overhaul_cost = 0
+	/// true when overhauls are deferred for this vehicle
+	do_not_overhaul = false
+	/// true when an overhaul must not apply the automatic upgrade
+	do_not_auto_upgrade = false
+	/// true when the vehicle is mothballed
+	mothballed = false
+	/// true when this vehicle needs routine maintenance
+	maintenance_needed = false
+	/// true when this vehicle needs an overhaul
+	overhaul_needed = false
 }
 
 class dir {

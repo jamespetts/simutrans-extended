@@ -99,7 +99,15 @@ protected:
 
 	bool is_overhaul_needed() const OVERRIDE;
 
-	void overhaul() { number_of_takeoffs = 0; vehicle_t::overhaul(); }
+	bool overhaul() OVERRIDE
+	{
+		if (!vehicle_t::overhaul())
+		{
+			return false;
+		}
+		number_of_takeoffs = 0;
+		return true;
+	}
 
 	uint8 get_availability() const OVERRIDE;
 

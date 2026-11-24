@@ -27,7 +27,9 @@ verified: main loop and stepping @ ex-15 @ f74322b648 (2026-11-24)
 `do_sync_step` is true, and sync-steps the moving-object lists in this order: `sync_eyecandy`,
 `sync_way_eyecandy`, then `sync` (the `karte_t::sync_list_t` that holds the moving vehicles). That
 last walk is the largest single steady-state cost on the gargantuan fixture
-(→ [performance](performance.md)).
+(→ [performance](performance.md)). A convoy entering depot maintenance hands its stepping to
+`depot_t::sync_step()`; `convoi_t::sync_step()` returns `SYNC_REMOVE` while the convoy is in
+`MAINTENANCE` or `OVERHAUL`, so the world sync list drops it after the current pass.
 
 ### The month boundary
 

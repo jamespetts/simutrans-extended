@@ -101,7 +101,8 @@ vocabulary is defined in the [glossary](../glossary.md).
   `building_desc_t::replenish_enable()` exist. No halt method queries the flag.
 - `vehicle_t::replenish()` sets the convoy state to `REPLENISHING`, resets
   `km_since_last_replenish`, and sets `wait_lock` to the descriptor's
-  replenishment time. It has no callers.
+  replenishment time. It has no callers. The convoy information window displays
+  a `REPLENISHING` status and the remaining wait.
 - Calling `vehicle_t::replenish()` separately for several vehicles would overwrite
   `wait_lock` each time. The runtime needs one convoy dwell value derived from the
   applicable vehicles, analogous to the longest-vehicle rule for maintenance.

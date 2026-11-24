@@ -124,7 +124,8 @@ public:
 	enum deferred_message_kind {
 		defer_none = 0,
 		defer_no_route,        // posted via player_t::report_vehicle_problem
-		defer_halt_too_short   // "Vehicle %s cannot choose because stop too short!"
+		defer_halt_too_short,  // "Vehicle %s cannot choose because stop too short!"
+		defer_unaffordable_overhaul_skip // "Convoy %s cannot afford the overhaul; the depot visit is skipped."
 	};
 
 	/**
@@ -1652,7 +1653,16 @@ public:
 	// Returns true if any vehicle in this consist requires an overhaul.
 	bool is_overhaul_needed() const;
 
+	// True when every vehicle that is due for an overhaul can pay for it.
+	bool can_afford_overhaul_visit() const;
+	void report_unaffordable_overhaul_held(const koord &pos) const;
+
 	void check_departure(halthandle_t halt = halthandle_t());
+
+	// Advance past the current schedule entry when the convoy is standing on
+	// that entry's depot tile. Used when a convoy is held in a depot without
+	// completing the maintenance visit.
+	void advance_past_current_depot_entry();
 
 	sint64 get_arrival_time() const { return arrival_time; }
 

@@ -594,6 +594,36 @@ void convoi_info_t::update_labels()
 			route_bar.set_state(3);
 			break;
 
+		case convoi_t::MAINTENANCE:
+		{
+			char maintenance_time[64];
+			cnv->snprintf_remaining_wait_lock(maintenance_time, sizeof(maintenance_time));
+			speed_label.buf().printf(translator::translate("Under maintenance. %s left"), maintenance_time);
+			speed_label.set_color(COL_INACTIVE);
+			route_bar.set_state(1);
+			break;
+		}
+
+		case convoi_t::OVERHAUL:
+		{
+			char overhaul_time[64];
+			cnv->snprintf_remaining_wait_lock(overhaul_time, sizeof(overhaul_time));
+			speed_label.buf().printf(translator::translate("Under overhaul. %s left"), overhaul_time);
+			speed_label.set_color(COL_INACTIVE);
+			route_bar.set_state(1);
+			break;
+		}
+
+		case convoi_t::REPLENISHING:
+		{
+			char replenishing_time[64];
+			cnv->snprintf_remaining_wait_lock(replenishing_time, sizeof(replenishing_time));
+			speed_label.buf().printf(translator::translate("Replenishing. %s left"), replenishing_time);
+			speed_label.set_color(COL_INACTIVE);
+			route_bar.set_state(1);
+			break;
+		}
+
 		case convoi_t::LAYOVER:
 			speed_label.buf().append(translator::translate("layover"));
 			speed_label.set_color(COL_INACTIVE);
