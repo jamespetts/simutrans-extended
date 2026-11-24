@@ -134,7 +134,7 @@ extend_edit_gui_t::extend_edit_gui_t(const char *name, player_t* player_) :
 	bt_timeline_custom.add_listener(this);
 	cont_timeline.add_component(&bt_timeline_custom, 4);
 
-	bool year_month_order = (env_t::show_month == env_t::DATE_FMT_JAPANESE || env_t::show_month == env_t::DATE_FMT_JAPANESE_NO_SEASON || env_t::show_month == env_t::DATE_FMT_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE);
+	bool year_month_order = (env_t::show_month == env_t::DATE_FMT_JAPANESE || env_t::show_month == env_t::DATE_FMT_JAPANESE_NO_SEASON || env_t::show_month == env_t::DATE_FMT_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_JAPANESE_INTERNAL_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE || env_t::show_month == env_t::DATE_FMT_64_SECOND_MINUTE_PRETTY);
 
 	if (!year_month_order) {
 		cont_timeline.new_component<gui_label_t>("Month");
