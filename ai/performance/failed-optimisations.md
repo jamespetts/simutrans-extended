@@ -126,10 +126,53 @@ the whole-simulation metric did not move.
 entries rather than within one scan, or a layout change that makes the candidate fields contiguous.
 Measure the whole-function and whole-simulation metrics, not only the line attribution.
 
-## Open questions
+## Memory census of the path-explorer graph structures (padding/pack of `full_edge_t` and small arrays)
 
-- Would a compact per-tile record of the fields `road_space::following_limit` reads (direction,
-  steps, length, speed, lane state) repay its update traffic? The scan is candidate-read-bound, so
-  this is the remaining structural direction; it is unmeasured.
+**Attempted change.** Add a `#ifdef PROFILE` block at the end of `compartment_t::build_search_graph()`
+(path_explorer.cc) that prints `MEM-CENSUS`: compartment category and class, `working_halts`
+(H), `edges` (E), `states` (S), and `graph_bytes` — the sum of the bytes of the arrays the
+census counts (`working_times`, `working_next_transfers`, `out_edges`, `out_offset`, `state_offset`,
+`state_halt`, `state_key`, `state_arriving_continues`, `state_arriving_edge_begin`,
+`state_arriving_edge_end`, `state_arriving_table_offset`, `state_arriving_table_mask` and an
+approximation of the arrival-target tables via max(offset+mask+1)). Run via
+`scripts/run-perf-suite.ps1 -Mode Capture -Save ai\temp\perf\save\month-change-test.sve` on the
+`Profile (server)|x64` exe. The instrumentation was marked with a `TEST` comment and reverted
+after the read.
+
+**Measurement.** Census on the first full build of every compartment, ex-15 @ 6998ff0 on
+month-change-test.sve (month boundary). Leading compartments (others smaller):
+
+| compartment | H | E | S | graph_bytes |
+|---|---|---|---|---|
+| catg=0 class=0 | 2,467 | 57,605 | 8,272 | 38,861,888 |
+| catg=0 class=1 | 2,468 | 57,755 | 8,302 | 38,898,380 |
+| catg=0 class=2 | 2,469 | 57,771 | 8,312 | 38,928,952 |
+| catg=0 class=3 | 2,469 | 57,773 | 8,314 | 38,929,104 |
+| catg=0 class=4 | 2,469 | 57,773 | 8,314 | 38,929,104 |
+| catg=1 class=0 | 1,582 | 22,088 | 3,819 | 16,046,759 |
+| catg=1 class=1 | 1,582 | 22,140 | 3,858 | 16,050,108 |
+| catg=10 class=0 | 383 | 3,034 | 940 | 1,028,820 |
+| catg=7 class=0 | 497 | 3,070 | 1,229 | 1,640,303 |
+| catg=6 class=0 | 125 | 1,004 | 339 | 1,446,573 |
+
+For catg=0 class=0: matrices ≈ H²×6 = 2,467²×6 ≈ 36.5 MB (`working_times` ≈ 24.3 MB,
+`working_next_transfers` ≈ 12.2 MB); edges and state arrays are the rest ≈ 2.3 MB
+(`full_edges` = E×20 ≈ 1.15 MB, state arrays = S×~40 ≈ 0.33 MB, fixed maps ≈ 0.4 MB).
+
+**Why it cannot pay.** ~94% of the retained graph is the H² matrices; the edge/state packing
+saves roughly 0.5–1 MB per compartment out of ~38.9 MB (~1–2%). The more interesting pack
+(`state_key`, S×4) is ~0.01% of the graph. Functionally the matrices are the behaviour surface
+(`run_origin` writes `working_times`/`working_next_transfers`, `get_path_between`
+(path_explorer.cc:3584) reads `finished_times` and `finished_next_transfers`), so reducing them
+is not a no-op; the goal here was already a no-op pack. On Gargantuan-scale maps the same
+proportions apply because the matrices are O(H²).
+
+**What would change the verdict.** Anything that shrinks the matrices behaviour-neutrally —
+for example a sparse layout storing only reachable cells (the Dijkstra writes only a subset),
+or a merged distance array instead of the per-state arrival tables. Changes that narrow the
+time types are out by explicit design (journey times must cover very long voyages such as
+sailing ships, for future portal versions); a retry would need a changed premise.
+
+## Open questions
 - Would a fixed-sync-step CPU benchmark resolve sub-1% effects on this fixture better than the
   canonical wall-clock captures? The inlining result is the motivating case.
