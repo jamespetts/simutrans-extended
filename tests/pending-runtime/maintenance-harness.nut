@@ -4,12 +4,18 @@
 //
 // Runtime fixture for the depot maintenance and overhaul read model.
 //
-// The fixture builds a short single-track road line with a depot at (1, 2) and
-// one stop at (11, 2), puts a single road vehicle in the depot and gives the
-// convoy the schedule
+// The fixture builds a short single-track line with a depot at (1, 2) and one
+// stop at (11, 2), puts a convoy in the depot and gives it the schedule
 //
 //   entry 11: the stop at (11, 2)
 //   entry 12: the depot at (1, 2), with load = 4 and reverse = 1
+//
+// The road case (maintenance-dwell) uses one powered road vehicle. Every road
+// vehicle descriptor available at that case's date reports 100% starting and
+// minimum availability, so its maintenance wait is zero. The rail case
+// (maintenance-dwell-rail) uses the powered non-electric locomotive whose
+// descriptor reports starting availability below 100, followed by a
+// low-availability carriage; its wait is nonzero, so it observes the dwell.
 //
 // A depot schedule entry carries the depot visit flags in its minimum_loading
 // field: convoi_t::ziel_erreicht() passes schedule->get_current_entry().minimum_loading
@@ -43,14 +49,11 @@
 // The overhaul cash booking therefore has no scripted case yet.
 //
 // The maintenance wait that vehicle_t::maintain() computes is
-// active_service_time * (100 - availability) / 100. Every road vehicle
-// descriptor available at this fixture's date reports 100% starting and minimum
-// availability, so the wait is zero. In that case the visit completes between
-// two observation steps and no MAINTENANCE state is observable; the fixture
-// detects the visit by the odometer reset at the depot tile and skips the dwell
-// assertions. A pakset that reports availability below 100 for the selected
-// vehicle exercises the dwell assertions instead. Availability is read from the
-// vehicle snapshot.
+// active_service_time * (100 - availability) / 100. When the wait is zero the
+// visit completes between two observation steps and no MAINTENANCE state is
+// observable; the fixture detects the visit by the odometer reset at the depot
+// tile and skips the dwell assertions. When the wait is positive the dwell
+// assertions run. Availability is read from the vehicle snapshot.
 //
 
 map.file = "empty-16x16.sve"
@@ -60,6 +63,13 @@ scenario.author = "Simutrans-Extended automated tests"
 scenario.version = "0.1"
 
 local case_name = ::case_kind
+
+// The case selector can set maintenance_rail_case before including this file.
+// The road case uses one powered road vehicle; the rail case uses the one
+// available powered non-electric locomotive with starting availability below
+// 100 and a low-availability carriage behind it.
+local RAIL_CASE = ("maintenance_rail_case" in getroottable()) && ::maintenance_rail_case
+local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
 // suppressed at low debug levels, so print a heartbeat that does not depend on
@@ -78,10 +88,10 @@ local DEPOT_ENTRY_ID = 12
 local DEPOT_FLAG_MAINTAIN_OR_OVERHAUL = 4
 
 // Observation-step limits. They are diagnostic bounds for a case that stalls;
-// the runner's overall per-case timeout is the real bound. The maintenance wait
-// is derived from the elapsed time since the vehicle was built (about one game
-// minute for this fixture), so it lasts about one thousand observations at the
-// fast-forward step rate.
+// the runner's overall per-case timeout is the real bound. The rail case's wait
+// is derived from the active-service time on the two legs and the locomotive's
+// availability, which is below 100, so it lasts for many observation steps at
+// the fast-forward step rate.
 local TRAVEL_STEP_LIMIT = 20000
 local SERVICE_STEP_LIMIT = 20000
 local DEPARTURE_STEP_LIMIT = 4000
@@ -92,6 +102,7 @@ local fixture = {
 	completed = false,
 	depot = null,
 	convoy_id = 0,
+	vehicle_count = 0,
 	travel_steps = 0,
 	service_steps = 0,
 	departure_steps = 0,
@@ -194,17 +205,45 @@ function find_new_convoy(before)
 }
 
 
-// A powered non-electric road vehicle with no fixed successor, so that
-// depot.append_vehicle() adds exactly the one vehicle this case authors.
+// Returns the descriptors to append, in running order. The road case uses one
+// powered non-electric road vehicle. The rail case uses the powered
+// non-electric locomotive whose descriptor reports starting availability below
+// 100, followed by an unpowered carriage that can be the last vehicle. The
+// locomotive cannot be last, so a single-vehicle rail convoy is invalid.
 function select_vehicle()
 {
+	if (RAIL_CASE)
+	{
+		local loco = null
+		local carriage = null
+		foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+		{
+			if (desc.get_power() == 0) { continue }
+			if (desc.needs_electrification()) { continue }
+			if (desc.get_starting_availability() >= 100) { continue }
+			if (!desc.can_be_first()) { continue }
+			loco = desc
+			break
+		}
+		foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+		{
+			if (desc.get_power() != 0) { continue }
+			if (desc.get_starting_availability() >= 100) { continue }
+			if (!desc.can_be_last()) { continue }
+			carriage = desc
+			break
+		}
+		if (loco == null || carriage == null) { return null }
+		return [loco, carriage]
+	}
+
 	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_road))
 	{
 		if (desc.get_power() == 0) { continue }
 		if (desc.needs_electrification()) { continue }
 		if (desc.get_successors().len() > 0) { continue }
 		if (!desc.can_be_first() || !desc.can_be_last()) { continue }
-		return desc
+		return [desc]
 	}
 	return null
 }
@@ -221,37 +260,45 @@ function make_entry(pos, unique_entry_id)
 function setup()
 {
 	local pl = player_x(0)
-	local way = way_desc_x.get_available_ways(wt_road, st_flat)[0]
-	if (!check(way != null, "no road way available")) { return false }
+	local way = way_desc_x.get_available_ways(WAYTYPE, st_flat)[0]
+	if (!check(way != null, "no way available for waytype " + WAYTYPE)) { return false }
 
 	if (!check_tool(command_x.build_way(pl, DEPOT_POS, WAY_END_POS, way, false), "build the line")) { return false }
-	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot")) { return false }
+	local depot_desc = depot_desc_for(WAYTYPE)
+	if (!check(depot_desc != null, "no depot available for waytype " + WAYTYPE)) { return false }
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc), "build the depot")) { return false }
 	local depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
 	if (!check(depot.is_valid(), "the depot at " + DEPOT_POS + " is not valid after building it")) { return false }
 	fixture.depot = depot
 
-	local station = building_desc_x.get_available_stations(building_desc_x.station, wt_road, good_desc_x.passenger)[0]
-	if (!check(station != null, "no road station available")) { return false }
+	local station = building_desc_x.get_available_stations(building_desc_x.station, WAYTYPE, good_desc_x.passenger)[0]
+	if (!check(station != null, "no station available for waytype " + WAYTYPE)) { return false }
 	if (!check_tool(command_x(tool_build_station).work(pl, STOP_POS, station.get_name()), "build the stop")) { return false }
 
-	local desc = select_vehicle()
-	if (!check(desc != null, "no powered non-electric road vehicle is available")) { return false }
+	local descs = select_vehicle()
+	if (!check(descs != null && descs.len() > 0, "no suitable vehicle is available for waytype " + WAYTYPE)) { return false }
 
 	local before = convoy_ids()
-	if (!check_tool(depot.append_vehicle(pl, convoy_x(0), desc), "put the vehicle in the depot")) { return false }
+	if (!check_tool(depot.append_vehicle(pl, convoy_x(0), descs[0]), "put the leading vehicle in the depot")) { return false }
 	local cnv = find_new_convoy(before)
-	if (!check(cnv != null, "the convoy was not found after adding its vehicle")) { return false }
+	if (!check(cnv != null, "the convoy was not found after adding its leading vehicle")) { return false }
 	fixture.convoy_id = cnv.id
+
+	for (local i = 1; i < descs.len(); i++)
+	{
+		if (!check_tool(depot.append_vehicle(pl, cnv, descs[i]), "append vehicle " + i + " to the convoy")) { return false }
+	}
+	fixture.vehicle_count = cnv.get_vehicles().len()
+	if (!check(fixture.vehicle_count >= descs.len(), "the convoy has " + fixture.vehicle_count + " vehicles after appending " + descs.len())) { return false }
 
 	local stop_entry = make_entry(STOP_POS, STOP_ENTRY_ID)
 	local depot_entry = make_entry(DEPOT_POS, DEPOT_ENTRY_ID)
 	// The depot entry requests routine maintenance on arrival. It is also the
-	// line's terminus, so the convoy reverses there, as a depot entry created in
-	// the depot window does (convoi_t sets reverse for depot entries).
+	// line's terminus, so the convoy reverses there.
 	depot_entry.load = DEPOT_FLAG_MAINTAIN_OR_OVERHAUL
 	depot_entry.reverse = 1
 
-	local schedule = schedule_x(wt_road, [stop_entry, depot_entry])
+	local schedule = schedule_x(WAYTYPE, [stop_entry, depot_entry])
 	if (!check_tool(cnv.change_schedule(pl, schedule), "commit the convoy schedule")) { return false }
 
 	// Read the depot entry's visit flags back: the case depends on the value
@@ -297,7 +344,7 @@ function enter_service(cnv, state)
 	fixture.stage = "service"
 
 	local slots = cnv.get_vehicle_snapshot()
-	if (!check(slots.len() == 1, "the convoy snapshot has " + slots.len() + " slots, expected the one maintained vehicle")) { return false }
+	if (!check(slots.len() == fixture.vehicle_count, "the convoy snapshot has " + slots.len() + " slots, expected the convoy's " + fixture.vehicle_count + " vehicles")) { return false }
 	fixture.before_km_overhaul = slots[0].km_since_last_overhaul
 	fixture.before_availability = slots[0].availability
 
@@ -335,7 +382,7 @@ function observe_service(cnv)
 function observe_departure(cnv)
 {
 	local slots = cnv.get_vehicle_snapshot()
-	if (!check(slots.len() == 1, "the convoy snapshot has " + slots.len() + " slots, expected the one maintained vehicle")) { return }
+	if (!check(slots.len() == fixture.vehicle_count, "the convoy snapshot has " + slots.len() + " slots, expected the convoy's " + fixture.vehicle_count + " vehicles")) { return }
 	local slot = slots[0]
 
 	// Capture the post-visit read model once, on the first observation after the
@@ -343,14 +390,17 @@ function observe_departure(cnv)
 	// drives away, so they are not re-asserted on later observations.
 	if (!fixture.captured_after)
 	{
-		if (!check(slot.km_since_last_maintenance == 0, "the maintained vehicle reports " + slot.km_since_last_maintenance + " km since the last maintenance, expected the counter to be reset by vehicle_t::maintain()")) { return }
-		if (!check(slot.maintenance_needed == false, "the maintained vehicle still reports that routine maintenance is needed after the visit")) { return }
+		for (local i = 0; i < slots.len(); i++)
+		{
+			if (!check(slots[i].km_since_last_maintenance == 0, "vehicle " + i + " reports " + slots[i].km_since_last_maintenance + " km since the last maintenance, expected the counter to be reset by vehicle_t::maintain()")) { return }
+			if (!check(slots[i].overhaul_count == 0, "vehicle " + i + " reports " + slots[i].overhaul_count + " overhauls, expected none: an overhaul was not due and the visit was routine maintenance")) { return }
+		}
+		if (!check(slot.maintenance_needed == false, "the leading vehicle still reports that routine maintenance is needed after the visit")) { return }
 		if (!check(cnv.needs_maintenance() == false, "the maintained convoy still reports that routine maintenance is needed after the visit")) { return }
-		if (!check(slot.overhaul_count == 0, "the maintained vehicle reports " + slot.overhaul_count + " overhauls, expected none: an overhaul was not due and the visit was routine maintenance")) { return }
 		if (!check(slot.availability == fixture.before_availability, "routine maintenance changed the availability from " + fixture.before_availability + " to " + slot.availability + "; availability depends on the distance since the last overhaul, which maintenance does not change")) { return }
 		if (!check(slot.km_since_last_overhaul >= fixture.before_km_overhaul, "the distance since the last overhaul fell from " + fixture.before_km_overhaul + " to " + slot.km_since_last_overhaul + " km during a routine maintenance visit")) { return }
 		fixture.captured_after = true
-		print("RUNTIME CASE " + case_name + ": after maintenance the vehicle reports 0 km since the last maintenance, availability " + slot.availability + ", overhaul count " + slot.overhaul_count)
+		print("RUNTIME CASE " + case_name + ": after maintenance " + slots.len() + " vehicles report 0 km since the last maintenance; the leading vehicle reports availability " + slot.availability + " and overhaul count " + slot.overhaul_count)
 	}
 
 	if (slot.pos.x > DEPOT_POS.x && cnv.get_current_entry_id() == STOP_ENTRY_ID)
@@ -395,7 +445,7 @@ function observe()
 	}
 
 	local slots = cnv.get_vehicle_snapshot()
-	if (!check(slots.len() == 1, "the convoy snapshot has " + slots.len() + " slots, expected one")) { return }
+	if (!check(slots.len() == fixture.vehicle_count, "the convoy snapshot has " + slots.len() + " slots, expected the convoy's " + fixture.vehicle_count + " vehicles")) { return }
 
 	// A visit can complete without an observable MAINTENANCE state when
 	// vehicle_t::maintain() computes a zero wait, which happens when the vehicle

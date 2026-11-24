@@ -58,7 +58,13 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   road vehicles available at the fixture's date all report 100% starting and minimum
   availability, so a routine maintenance visit there has a zero wait; the case detects the
   visit from the reset of `km_since_last_maintenance` at the depot tile and reserves its
-  dwell assertions for a vehicle that reports lower availability.
+  dwell assertions for a vehicle that reports lower availability. The
+  `maintenance-dwell-rail` case uses the powered non-electric locomotive whose descriptor
+  reports 65% starting and 40% minimum availability, followed by a low-availability
+  carriage; the convoy also contains the tender that `vehicle_builder_t::build()` adds for
+  that locomotive. Its visit produced a 23,555-tick wait, which fell to 55 ticks over 236
+  observation steps before the convoy left, and all three vehicles reported zero km since
+  the last maintenance [EXECUTION-VERIFIED:2026-11-24].
 - The AI host mode is designed but unused; expect latent assumptions (global `welt`, null
   scenario, GUI calls, `get_my_player` returning null) until it is exercised.
 
