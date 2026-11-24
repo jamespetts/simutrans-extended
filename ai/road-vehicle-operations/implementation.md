@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ a201bf056d plus working-tree junction queueing changes
+verified: ex-15 @ 82b143fc38 plus working-tree junction clearance changes
 ---
 # Road vehicle operations: implementation
 
@@ -96,22 +96,39 @@ are not implemented.
 `private_car_t::apply_following_rule` when the target tile is a junction. It scans the tile the
 vehicle will enter after the junction and measures the distance from its entry edge to the
 nearest vehicle ahead in the same lateral position which entered that tile from the junction.
-The distance must be at least the entering vehicle's length plus the one-metre standstill gap,
-so the entering vehicle can stop behind the queue with its whole body clear of the junction.
-The requirement is capped at one tile's length: a vehicle longer than one tile cannot clear a
-one-tile junction and is allowed to pass through.
+The distance must be at least the entering vehicle's length plus `road_space::following_gap`
+evaluated at the vehicle's maximum speed with the leader treated as moving. The maximum speed
+is `convoi_t::get_min_top_speed()` for a convoy and `citycar_desc_t::get_topspeed()` for a
+private car; the larger of that value and the current speed is used. This uses the same
+reaction-time gap rule as `road_space::following_limit` while the vehicle moves, so a vehicle
+admitted to the junction cannot be held inside it by a leader that was already ahead at entry.
+For a vehicle longer than one tile, the requirement is capped at one tile's length: such a
+vehicle cannot clear a one-tile junction, so an uncapped requirement could never be satisfied.
 
-The scan skips a vehicle beside the lane at a stop stand, and skips oncoming traffic whose entry
-direction is the reverse of the entering vehicle's exit direction. A vehicle on the exit tile
-which entered from another arm is treated as blocking, because its path may conflict with the
-entering vehicle. A vehicle which entered from the junction is converted from its tile's step
-scale to straight steps with `road_space::step_scale` before its rear is compared with the
-required distance; this handles a vehicle turning on a cardinal junction tile.
+The check evaluates `road_space::allows_queueing(exit)` before scanning the tile. If it is
+false, the exit tile is a bend, a diagonal road tile or a level crossing, and it does not admit
+a queue in one lateral position, so any vehicle on the exit tile in the same lateral position
+blocks entry regardless of its position. Otherwise the scan skips a vehicle beside the lane at a stop stand and skips
+oncoming traffic whose entry direction is the reverse of the entering vehicle's exit direction.
+A vehicle on the exit tile which entered from another arm is treated as blocking, because its
+path may conflict with the entering vehicle. A vehicle which entered from the junction is
+converted from its tile's step scale to straight steps with `road_space::step_scale` before its
+rear is compared with the required distance; this handles a vehicle turning on a cardinal
+junction tile.
 
 The check is made at junction entry, not every step. If the exit tile fills after a vehicle has
 entered the junction, the ordinary following rule still prevents an overlap; the exit-clearance
 rule prevents the common gridlock case where a vehicle deliberately stops in the junction and
 blocks the crossing traffic that the vehicle ahead needs in order to leave.
+
+### One-way dead ends
+
+`private_car_t::can_enter_tile` refuses entry to a one-way dead end when
+`strasse_t::get_overtaking_mode()` is `oneway_mode` and the target tile has no road arm other
+than the one back to the car's current tile. The refusal does not apply when `get_pos()` equals
+`pos_next_next`, which marks a U-turn back towards the current tile. The U-turn is the only way
+out of the dead end, so refusing entry would leave the car waiting at the entrance to the dead
+end indefinitely.
 
 ### Following speed and overtake priority
 
@@ -393,10 +410,11 @@ scripts\run-pending-runtime-reload-tests.ps1 -CaseName save-reload-stand
   -Exe simutrans\Simutrans-Extended-Debug.exe
 ```
 
-The thirteen road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
-(about 56 s with six jobs). The standard Squirrel suite passes (81 of 81). The network smoke
-test passes with 1049 per-step private-car route hashes identical between two runs. The
-`division`,
+The thirteen road cases pass with the Profile x64 build and `-nomidi -nosound -fast_forward`
+(about 21 s with four jobs). The cases do not directly create a one-way dead end or a bend as
+a junction exit, so the one-way dead-end exception and the non-queueing exit rule have no
+dedicated scripted case. The standard Squirrel suite passes (81 of 81). The network smoke test
+passes with 1049 per-step private-car route hashes identical between two runs. The `division`,
 `pair`, `choose` and `ownership` pending-runtime groups pass (37 cases). `save-reload-stand`
 passes on the server after the join and in the fresh offline load.
 
@@ -437,14 +455,17 @@ change.
   exit-clearance scan and the `road_space::can_follow` calls in
   `vehicle_base_t::get_blocking_vehicle` also run at tile entries rather than every step, and
   have not been measured separately.
-- The junction exit-clearance rule looks only at the tile immediately after the junction. Two
+- The junction exit-clearance rule checks only the tile immediately after the junction. Two
   adjacent junctions can still gridlock if the exit tile of the first is the second junction
-  and that second junction fills after the first vehicle enters. The rule prevents the common
-  single-junction case; a multi-junction reservation would need more state and is not
-  implemented.
+  and that second junction's own exit is blocked. The rule is exact only when the junction's
+  exit tile is not itself a junction; the adjacent-junction lookahead is an open question in
+  [road-vehicle-operations](../road-vehicle-operations.md#open-questions).
 - A vehicle which is already inside a junction can still be blocked by the exit tile filling
-  after it entered. It remains subject to the ordinary following rule and cannot overlap the
-  queue, but it may block cross traffic until the exit queue moves.
+  after it entered, for example by a vehicle entering the exit tile from another arm. It
+  remains subject to the ordinary following rule and cannot overlap the queue, but it may
+  block cross traffic until the exit queue moves. The entry check requires room for the
+  vehicle's length plus the following gap, so a leader that was already ahead at entry does not
+  hold it inside the junction.
 
 ## Not implemented
 

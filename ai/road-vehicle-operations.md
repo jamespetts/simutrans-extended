@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ a201bf056d plus working-tree junction queueing changes
+verified: ex-15 @ 82b143fc38 plus working-tree junction clearance changes
 ---
 # Road vehicle operations
 
@@ -15,7 +15,7 @@ road-space and stop-stand code does, its measured object sizes, its tests or its
 gaps.
 
 The first two work packages below (road space and queueing, and stop stands with terminal
-capacity) are implemented on ex-15. Queueing now covers straight road tiles and road junctions
+capacity) are implemented on ex-15. Queueing covers straight road tiles and road junctions
 (a road tile with three or four arms), with an exit-clearance rule for junction entry. The
 motorway lane package and pulled-over waiting remain planned. The player-visible intent is also
 described in [project-roadmap](project-roadmap.md#road-stop-improvements); [ex-15](ex-15.md)
@@ -154,10 +154,10 @@ three cases:
 - moving traffic: the standstill gap plus a reaction-time headway, calculated from the
   follower's speed.
 
-The standstill gap and reaction time are real quantities, not arbitrary tuning values. The
-exact values should be chosen from road-design or driver-behaviour references and recorded
-in the code. `VEHICLE_STEPS_PER_TILE` and `YARDS_PER_VEHICLE_STEP_SHIFT` provide the unit
-conversions.
+The standstill gap is one metre and the reaction time is 1.5 seconds. Both are real quantities,
+not arbitrary tuning values; `vehicle/road_vehicle.cc` records their road-design sources in the
+comments on `STANDSTILL_GAP_MM` and `REACTION_TIME_MS`. `VEHICLE_STEPS_PER_TILE` and
+`YARDS_PER_VEHICLE_STEP_SHIFT` provide the unit conversions.
 
 Apply this rule on straight road tiles and on road junctions (T junctions and crossroads).
 Bends, diagonal road tiles and level crossings keep the one-vehicle rule. A junction tile uses
@@ -170,33 +170,54 @@ as on the same path as any vehicle entering by the same edge.
 
 A junction tile cannot safely admit a queue without a further rule: a vehicle which stops
 inside the junction can block the crossing traffic. A vehicle entering a junction therefore
-also requires room on the tile it will enter after the junction. The room is the distance from
-the exit tile's entry edge to the nearest vehicle ahead in the same lateral position that
-entered the exit tile from the junction. That distance must be at least the entering vehicle's
-length plus the standstill gap, so the vehicle can stop behind the queue with its whole body
-clear of the junction. A vehicle longer than one tile is capped at one tile's length, because
-such a vehicle cannot clear a one-tile junction and must be allowed to pass through.
+also requires room on the tile it will enter after the junction.
+`road_space::junction_exit_clear` measures the distance from the exit tile's entry edge to the
+nearest vehicle ahead in the same lateral position that entered the exit tile from the
+junction. That distance must be at least the entering vehicle's length plus the
+`road_space::following_gap` value at the vehicle's maximum speed with the leader treated as
+moving. The maximum speed is `convoi_t::get_min_top_speed()` for a convoy and
+`citycar_desc_t::get_topspeed()` for a private car; the larger of that value and the vehicle's
+current speed is used. This uses the same reaction-time gap rule as `road_space::following_limit`
+while the vehicle moves, so a vehicle admitted to the junction cannot be held inside it by a
+leader that was already ahead at entry. For a vehicle longer than one tile, the requirement is
+capped at one tile's length: such a vehicle cannot clear a one-tile junction, so an uncapped
+requirement could never be satisfied.
 
-A vehicle on the exit tile that entered from another arm is treated as blocking, because its
-path may conflict with the entering vehicle. Oncoming traffic in the other carriageway and
-vehicles beside the lane at a stop stand are ignored. This is the road equivalent of the rule
-that a driver must not enter a box junction unless the exit is clear. It prevents the gridlock
-case where a vehicle enters a junction, stops behind a queue, and blocks the cross traffic
-which the vehicle ahead needs in order to leave.
+If `road_space::allows_queueing(exit)` is false, the exit tile is a bend, a diagonal road tile
+or a level crossing, and it does not admit a queue in one lateral position. In that case any
+vehicle on the exit tile in the same lateral position blocks entry, regardless of its position,
+because the entering vehicle cannot stop behind it. A vehicle on the exit tile that entered
+from another arm is also treated as blocking, because its path may conflict with the entering
+vehicle. Oncoming traffic in the other carriageway and vehicles beside the lane at a stop stand
+are ignored. This is the road equivalent of the rule that a driver must not enter a box junction
+unless the exit is clear. It prevents the gridlock case where a vehicle enters a junction,
+stops behind a queue, and blocks the cross traffic which the vehicle ahead needs in order to
+leave.
 
-The entry check belongs in the road-specific `can_enter_tile` functions. The movement cap
-belongs in `road_vehicle_t::do_drive` and a new `private_car_t::do_drive` override. The cap
-must be re-evaluated after each tile hop, so the road-specific `do_drive` should process at
-most one tile boundary per iteration and then recompute the leader. This avoids changing
-`vehicle_base_t::do_drive`, which is shared with rail, air and water vehicles.
+The entry check is `road_space::junction_exit_clear`, called from
+`road_vehicle_t::apply_following_rule` and `private_car_t::apply_following_rule` during the
+road-specific `can_enter_tile`. The movement cap belongs in `road_vehicle_t::do_drive` and
+`private_car_t::do_drive`. The cap is re-evaluated after each tile hop, so the road-specific
+`do_drive` processes at most one tile boundary per iteration and then recomputes the leader.
+This avoids changing `vehicle_base_t::do_drive`, which is shared with rail, air and water
+vehicles.
 
-The implemented rule also caps the follower's speed, not only its position: convoys cap the
+The following rule also caps the follower's speed, not only its position: convoys cap the
 desired speed in `convoi_t::calc_acceleration`, and private cars cap `current_speed` in
 `private_car_t::sync_step`. A vehicle that can overtake tries to do so before the cap is
 applied. A stopped private car calls `private_car_t::try_resume_behind_leader` on every sync
 step, so it starts as soon as the gap to the vehicle ahead opens, without waiting for the
 1024-tick `private_car_t::sync_step` retry gate. See
 [implementation](road-vehicle-operations/implementation.md#following-speed-and-overtake-priority).
+
+### One-way dead ends
+
+`private_car_t::can_enter_tile` refuses entry to a one-way dead end when
+`strasse_t::get_overtaking_mode()` is `oneway_mode` and the target tile has no road arm other
+than the one back to the car's current tile. The refusal does not apply when `get_pos()` equals
+`pos_next_next`, which marks a U-turn back towards the current tile. The U-turn is the only way
+out of the dead end, so refusing entry would leave the car waiting at the entrance to the dead
+end indefinitely.
 
 ### Stop stands and pull-over
 
@@ -316,14 +337,16 @@ Performance:
 - `get_empty_lane` builds the four-bit mask in one pass. It is called during target selection
   and on arrival, not every step. Four stands can reduce queue length and congestion.
 - Junction queueing adds no per-step scan beyond the existing following scan: `allows_queueing`
-  now also accepts a junction tile, and `following_limit` runs the same object-list scan there.
+  also accepts a junction tile, and `following_limit` runs the same object-list scan there.
   `vehicle_base_t::get_blocking_vehicle` calls `road_space::can_follow` for each vehicle on a
   queueing target tile, so a same-path vehicle that is far enough ahead is skipped and a
   conflicting vehicle is still returned; this happens at a tile entry, not every step.
   `road_space::junction_exit_clear` adds one scan of the exit tile when a vehicle enters a
-  junction. The entry check builds the road-user state only when there is a blocker or the
-  target tile is a junction, so an ordinary clear tile entry does not pay for it. The rule
-  adds no persistent field to any vehicle or tile.
+  junction, one `road_space::following_gap` calculation at the larger of the entering vehicle's
+  maximum and current speeds, and one `road_space::allows_queueing` check of the exit tile. The
+  entry check builds the road-user state only when there is a blocker or the target tile is a
+  junction, so an ordinary clear tile entry does not pay for it. The rule adds no persistent
+  field to any vehicle or tile.
 - The private car occupancy rule changes the number of cars directly. The child document
   gives the expected cars per packet for a uniform packet size of 1 to 7.
 
@@ -337,6 +360,19 @@ The implemented cases and results are in
 
 ## Open questions
 
+- **Adjacent junction lookahead.** `road_space::junction_exit_clear` checks only the tile
+  immediately after the junction. When that tile is itself a junction, a vehicle can enter the
+  first junction and then be refused entry to the second because the second junction's own exit
+  is blocked; it then blocks the first junction. A convoy can be checked through the second
+  junction because `convoi_t::get_route()` contains the full route. A private car knows only
+  `vehicle_base_t::pos_next` and `private_car_t::pos_next_next`, and obtaining the following
+  tile requires `weg_t::get_next_on_private_car_route_to`, whose `startdir` parameter is chosen
+  by `simrand(4)` in `private_car_t::hop_check`. Every peer runs the same simulation, so an
+  additional lookup at a fixed point in the entry check does not desynchronise peers. The
+  lookahead matches the car's actual route only if the car commits to and reuses the direction.
+  A private car without a stored route to its destination (the fallback direction choice in
+  `private_car_t::hop_check`) has no route data to query, and the lookup would add a cost at
+  every junction entry. The design is not chosen.
 - Is this work to be brought into ex-15 now, given that [ex-15](ex-15.md) records
   non-blocking road vehicles as deferred to after 15.x?
 - Should pulled-over waiting be added for a vehicle that finds no free stand, instead of the
