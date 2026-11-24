@@ -2188,7 +2188,7 @@ void gui_convoy_maintenance_info_t::update_list()
 		}
 
 		vector_tpl<livery_scheme_t*>* schemes = world()->get_settings().get_livery_schemes();
-		livery_scheme_t* convoy_scheme = schemes->get_count() ? schemes->get_element(cnv->get_livery_scheme_index()) : NULL;
+		livery_scheme_t* convoy_scheme = world()->get_settings().get_livery_scheme(cnv->get_livery_scheme_index());
 		const uint16 month_now = world()->get_timeline_year_month();
 
 		add_table(2,0)->set_alignment(ALIGN_TOP);

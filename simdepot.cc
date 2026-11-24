@@ -605,8 +605,8 @@ convoihandle_t depot_t::copy_convoi(convoihandle_t old_cnv, bool local_execution
 					if (info->get_livery_count() > 1) {
 						// check livery
 						vector_tpl<livery_scheme_t*>* schemes = world()->get_settings().get_livery_schemes();
-						if (schemes->get_count()) {
-							livery_scheme_t* convoy_scheme = schemes->get_element(convoy_livery_index);
+						livery_scheme_t* convoy_scheme = world()->get_settings().get_livery_scheme(convoy_livery_index);
+						if (convoy_scheme) {
 							if (convoy_scheme->is_contained(old_cnv->get_vehicle(i)->get_current_livery())) {
 								// Copy the livery of the old vehicle as it is
 								// If it is old it will be replaced with new one
