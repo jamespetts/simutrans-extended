@@ -1201,7 +1201,10 @@ public:
 	sint16 get_spacing_shift_divisor() const { return spacing_shift_divisor; }
 	void set_spacing_shift_divisor(sint16 s) { spacing_shift_divisor = s; }
 
-	class livery_scheme_t* get_livery_scheme(uint16 index) { return !livery_schemes.empty() ? livery_schemes.get_element(index) : NULL; }
+	// A saved or tool-supplied index may exceed the current scheme count, so
+	// use the first scheme rather than failing, as vehicle_builder_t::build()
+	// does when it constructs a vehicle.
+	class livery_scheme_t* get_livery_scheme(uint16 index) { return !livery_schemes.empty() ? livery_schemes.get_element(index < livery_schemes.get_count() ? index : 0) : NULL; }
 	vector_tpl<class livery_scheme_t*>* get_livery_schemes() { return &livery_schemes; }
 
 	bool get_allow_routing_on_foot() const { return allow_routing_on_foot; }
