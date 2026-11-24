@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, implementation, loose-stock rule and runtime cases); performance @ b14c12b (2026-11-22); code anchors ex-15 @ b53e370911 (design)
+verified: ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, implementation, loose-stock rule and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24, division delay); performance @ b14c12b (2026-11-22); code anchors ex-15 @ b53e370911 (design)
 ---
 # ex-15: re-combination - passenger and wagon-load goods systems
 
@@ -180,9 +180,10 @@ At the division, after the final portions are known:
 - if no serving portion can take it, the wagon waits in the through pool; it is not carried past
   its next transfer.
 
-The solver may create any valid end state, including a non-contiguous arrangement. The current
-flat `settings_t::shunting_time_seconds` is used; duration pricing for complex shunts is
-deferred.
+The solver may create any valid end state, including a non-contiguous arrangement. The division
+waits out the shunting delay for every coupling operation that the source commit and the portion
+commit perform ([consist-recombination](../../consist-recombination.md#shunting-delay)), so a
+non-contiguous result costs more because it breaks and makes more couplings.
 
 A multi-destination wagon whose goods require different portions is force-discharged at the
 first division where they diverge. The discharge uses the ordinary vehicle unload path
@@ -372,8 +373,10 @@ scripted cases:
   through a plain uncouple and a paired exchange; the one-sided path itself is unscripted.
 - Pick-up goods authoring: the solver-level cargo compatibility is implemented; a dedicated
   authoring UI or preset can be added later.
-- Shunting duration pricing: the current flat `settings_t::shunting_time_seconds` is used; any
-  valid end state is allowed. Pricing complex shunts by duration is deferred.
+- Shunting duration pricing: the delay counts every coupling operation that the commit performs
+  ([consist-recombination](../../consist-recombination.md#shunting-delay)); any valid end state
+  is allowed. The length of a cut and the distance that staff walk between the vehicles are not
+  priced.
 - The cost of committing a division or paired exchange is measured only for 2-4 vehicle
   consists (3-7 microseconds). A long loaded consist costs more, because
   `convoi_t::match_consist_order` and `paired_exchange_solver_t` test every candidate vehicle's

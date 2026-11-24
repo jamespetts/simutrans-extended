@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger/freight H cargo cases, schedule-edit cases, passenger capacity, mail/TPO cases, nested split and three loaded pair reload cases); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger/freight H cargo cases, schedule-edit cases, passenger capacity, mail/TPO cases, nested split and three loaded pair reload cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24, delay arithmetic against the runner limits); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -571,6 +571,11 @@ remain unscripted.
   bidirectional vehicle during the shunt and charges the existing unit or turntable reversal time;
   `facing` covers the orientation choice and the flag application, but no case asserts the added
   delay. A facility-gated model has no scripted case because the facility model does not exist.
+- No case asserts the shunting delay's arithmetic. A paired exchange that swaps one vehicle each
+  way performs four coupling operations and therefore waits two and a half times the configured
+  `shunting_time_seconds`. The reload departure limit covers that arithmetically; the
+  fast-forward `DEPARTURE_STEP_LIMIT` has no measured margin for it. A case would need to observe
+  a convoy across a measured number of ticks for an operation with a known coupling count.
 - No CI job runs either pending-runtime fixture. The fixture map is an Extended 14 save loaded and
   re-saved by ex-15; whether that is an adequate substitute for an ex-15-native save remains open.
 - The flash collection logs `vehicle_base_t::leave_tile()` with `'typ 67' ... could not be removed

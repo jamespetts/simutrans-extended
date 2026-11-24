@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ a203862c1 (SIMD section; 2026-11-07); rest @ 29bc1a6e8; CI macOS master @ 8892eb426c and ex-15 @ cc26774dd5; Squirrel harness ex-15 @ 957d5ced8 plus working-tree changes
+verified: ex-15 @ a203862c1 (SIMD section; 2026-11-07); rest @ 29bc1a6e8; CI macOS master @ 8892eb426c and ex-15 @ cc26774dd5; Squirrel harness ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 6998ff08e1 plus working tree (2026-11-24, Debug|x64 analysis memory note, FreeType include order, GNU make FreeType probe and presets)
 ---
 # Build & toolchain
 
@@ -33,13 +33,22 @@ Four build paths coexist:
   `Optimised debug`, `Profile`, `Release|x64`, graphical/non-graphical server x64) are `v143`
   (VS2022; updated from v142 on master, merged into ex-15 2026-09-05). VS2022 is the MSVC version
   to use; VS2019 is deprecated in this project [RECOLLECTION:2026-09-05 user statement].
-  `WindowsTargetPlatformVersion` is `10.0` (latest installed SDK). `Debug|x64` has `EnableASAN` and
-  produces static-analysis warnings (C6xxx/C26xxx series) — builds are slow and warning-heavy.
+  `WindowsTargetPlatformVersion` is `10.0` (latest installed SDK). `Debug|x64` has `EnableASAN`
+  and runs code analysis; builds are slow and warning-heavy (C6xxx/C26xxx series). Analysis is
+  memory-heavy: with the default one-compiler-process-per-logical-processor parallelisation, a
+  full build can exhaust the compiler heap (`fatal error C1060`) when other applications are using
+  a large part of the machine's memory. Free memory or reduce the compiler process count for such
+  a build.
 - Third-party dependencies are resolved via per-configuration global `IncludePath`/`LibraryPath`
   pointing at sibling source-built trees one level above the repo: `..\OpenTTD\win32\library` and
   `..\OpenTTD\win64\library` (zlibstat, libpng, pthreadVCE2, ICU), `..\bzip\include|lib|lib\x64`
   (libbz2), `..\zstd-1.4.4` (libzstd_static), `..\freetype-2.10.1` (freetype), `..\miniupnpc`
   (miniupnpc). All present on the maintainer's machine.
+  `..\OpenTTD\shared\include` also carries FreeType 2.4.11 headers. Every configuration that
+  compiles with FreeType must place `..\freetype-2.10.1\include` before that tree, or
+  `#include <ft2build.h>` resolves the old headers. `display/font.cc` calls `FT_Bitmap_New`,
+  which FreeType 2.10 renamed to `FT_Bitmap_Init` and kept as an alias, so the source compiles
+  against both header generations.
 - **Always build an x64 configuration** (user statement 2026-11-01) — and note that x64 alone is
   not sufficient: any configuration whose `IncludePath` omits the zstd, miniupnpc and freetype
   trees (carrying only `..\OpenTTD\shared\include;..\bzip\include`) fails on `zstd.h`/
@@ -135,10 +144,15 @@ after the master→ex-15 merge):
   mingw64, mac, cygwin, haiku, …), `DEBUG` 1–3, `MSG_LEVEL`, `OPTIMISE`, `PROFILE`, `LTO`,
   `TUNE_NATIVE`, `USE_UPNP`, `USE_FREETYPE`, `USE_ZSTD`, `USE_FLUIDSYNTH_MIDI`,
   `MULTI_THREAD`, `WITH_REVISION`; Windows `PROG` = `Simutrans-Extended.exe`.
+- FreeType: `FREETYPE_CONFIG` defaults to `pkg-config freetype2` where pkg-config knows the module
+  and to `freetype-config` otherwise. `freetype-config` was removed in FreeType 2.9.1. The
+  `configs/config.sim-linux-{debug-sdl2,sdl3}` and `configs/config.sim-mac-{sdl2,sdl3}` presets set
+  `USE_FREETYPE=1` for the bundled Liberation Sans font; when FreeType is not compiled in, the
+  font loader falls back to `prop.fnt`.
 - `test` target: runs the built binary with `-set_workdir $(pwd)/simutrans -objects pak -scenario
   automated-tests -debug 2 -lang en -fps 100` (note: differs from the CMake `test` target).
 - Configuration sources: copy `config.template` → `config.default`; presets in `configs/`
-  (sim-linux-{debug-sdl2,sdl2mixer,posix}, sim-mac-sdl2, sim-mingw-{gdi,sdl2,posix},
+  (sim-linux-{debug-sdl2,sdl3,sdl2mixer,posix}, sim-mac-{sdl2,sdl3}, sim-mingw-{gdi,sdl2,posix},
   makeobj-{linux,mac,mingw}, nettool-{linux,mac,mingw}); or generate via autoconf:
   `autoconf && ./configure` fills `config.default` from `config.default.in` + `configure.ac`
   (detects libs/OS/backend; `--enable-server` for headless). CI's test workflows use this route.
@@ -173,7 +187,7 @@ The `REVISION` define must match between server and clients for network play
 
 - `ci.yml` (push/PR): first job runs `cleanup_code.sh` (perl include-guard normalisation + trailing
   whitespace removal) and **auto-commits the result**; then build matrix:
-  - `linux-build.yml` (reusable; ubuntu-22.04; CMake + clang; apt zlib1g-dev/libbz2-dev/libzstd-dev
+  - `linux-build.yml` (reusable; ubuntu-22.04; CMake + clang; apt zlib1g-dev/libbz2-dev/libzstd-dev/libfreetype-dev
     + extras): SDL2 client, headless, makeobj, nettool. Quirks: its `name:` field says "msvc-build"
     (copy-paste), and it installs clang++-10 but configures with CC/CXX=clang-14.
   - macOS game jobs (SDL2 and SDL3): brew (cmake freetype libpng pkg-config fluidsynth, plus
@@ -191,7 +205,8 @@ The `REVISION` define must match between server and clients for network play
     so the game jobs first build a static `libzstd` (pinned, checksum-verified tarball) into the
     mingw sysroot.
   - `msvc-build.yml` (reusable; windows-2022): setup-msbuild + CMake 3.23 + vcpkg (pinned commit,
-    triplet `x64-windows-static-md`; zlib bzip2 libpng zstd [+ sdl2]); generator "Visual Studio 17 2022",
+    triplet `x64-windows-static-md`; zlib bzip2 libpng zstd freetype [+ sdl2 or sdl3]); generator
+    "Visual Studio 17 2022",
     `-A x64`; builds `cmake --build . --target <target>-extended`. Note: CI's MSVC route is
     CMake+vcpkg, **not** the handwritten .sln.
   - `.github/init_env.py` computes artifact names/paths for uploads.

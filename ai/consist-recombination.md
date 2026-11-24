@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24)
 ---
 # Consist recombination
 
@@ -32,6 +32,8 @@ contact tile.
   assembly from the stop's laid-over pool. The two common patterns are a division (one convoy into
   two portions) and a paired exchange (two convoys exchanging vehicles); they are not the whole
   subject.
+- **Coupling operation.** One coupling or uncoupling between two adjacent vehicles. The shunting
+  delay counts coupling operations; see [Shunting delay](#shunting-delay).
 - **Consist order (end-state order).** The ordered vehicle slots a schedule entry requires, stored in
   `schedule_t::orders` keyed by the entry's `unique_entry_id`. Each slot has prioritised
   alternatives: a specific `vehicle_desc_t` or a rule over vehicle attributes.
@@ -148,8 +150,9 @@ one (`commit_recombined_consist` with the split candidate). `convoi_t::form_divi
 the target entry's order to that convoy; only a complete, powered result is promoted. A promoted
 portion joins the target line or receives a copy of a lineless target convoy's schedule, starts at the
 target entry in the direction given by `uncouple_target_sch_is_reversed`, and enters `LOADING` under
-the `shunting_time_seconds` delay. A plain, unresolved, unsatisfiable or unpowered division leaves
-the displaced vehicles as loose stock. The source's retained portion takes the existing commit state:
+the whole division's shunting delay ([Shunting delay](#shunting-delay)). A plain, unresolved,
+unsatisfiable or unpowered division leaves the displaced vehicles as loose stock. The source's
+retained portion takes the existing commit state:
 `SHUNTING` when the consist changed, otherwise it stays in `LOADING`.
 
 ### Paired exchange
@@ -217,7 +220,8 @@ unreserves the receiving convoy's reservations and calls `convoi_t::reserve_own_
 `convoi_t::commit_paired_exchange` handles both sides of a pair atomically: vehicles that leave both
 final consists keep through cargo when they are laid out as loose stock; direct transfers keep their load; a
 laid-over donor emptied by the exchange is deregistered and destroyed. A changed convoy waits out
-`shunting_time_seconds`; an unchanged consist is not detached or repopulated. A changed counterpart
+the whole exchange's shunting delay ([Shunting delay](#shunting-delay)); an unchanged consist is not
+detached or repopulated. A changed counterpart
 waits in `LOADING` under the same lock so that its new consist loads after the delay. When the
 receiver reached the target's contact tile under a committed approach, the commit lays the final
 consists out on the tiles the pre-exchange vehicles occupied, front convoy first and loose stock
@@ -230,6 +234,25 @@ A vehicle detached for layout has no convoy until it is attached to its final or
 the commit clears every detached vehicle's leading and last flags before moving it and sets those
 flags on the re-formed consists. An emptied laid-over donor on any path is deregistered and
 destroyed at the commit rather than at the monthly sweep.
+
+### Shunting delay
+
+`convoi_t::commit_recombined_consist` and `convoi_t::commit_paired_exchange` count the coupling
+operations that they perform before moving any vehicle. A coupling between two adjacent vehicles
+in a final consist (a consist that one of those functions produces) that was not a coupling in
+any source consist (a consist as it stands before the function changes it) is made. A coupling in
+a source consist that is not a coupling in any final consist is broken when at least one of its
+two vehicles remains in a final consist. A coupling wholly inside a block of vehicles that leave
+or arrive together is neither made nor broken: the block stays coupled.
+
+The delay is half the configured `settings_t::shunting_time_seconds` for the shunt itself and
+half for each coupling operation (`shunt_delay_ticks` in simconvoi.cc). One operation therefore
+takes the configured time, two take one and a half times it, three take twice, and so on. A
+change that only turns vehicles and performs no coupling takes the fixed half. Every changed
+operating consist waits the whole operation: both sides of a paired exchange and both portions of
+a division. A split-off portion also waits for the coupling operations of its own commit. Each
+bidirectional vehicle whose orientation changes adds `settings_t::get_unit_reverse_time()` when it
+is powered or `settings_t::get_turntable_reverse_time()` when it is hauled.
 
 ## States, once-only execution and saved state
 
@@ -309,8 +332,11 @@ runtime chooses a joining vehicle's facing for a bidirectional vehicle: a candid
 current orientation first, then the other way round. An order is not limited by the orientation in
 which another consist presents that vehicle. Whether the runtime should turn a vehicle only where
 the stop has a reversal facility remains open; the runtime turns it during the shunt and charges
-the existing unit or turntable reversal time. The shared-contact reservation handoff's
-release-suppression half is scripted by `contact-reservation`. The transfer half has no
+the existing unit or turntable reversal time. The shunting delay counts coupling operations, not
+the length of a cut or the distance that staff walk between the vehicles: a single rear wagon cut
+costs the same as an MU split. Whether to price either quantity remains open. The shared-contact
+reservation handoff's release-suppression half is scripted by `contact-reservation`. The transfer
+half has no
 scripted case: it covers a target that starts departing after the choose signal adopts the approach
 but before the mover's first recombination pass. The mechanism and the window are in
 [reservation-handoff](consist-recombination/reservation-handoff.md#the-transfer-window); whether the

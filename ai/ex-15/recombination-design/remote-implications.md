@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf447619a; loose-stock treatment recorded 2026-11-14; grouping cost measured at b14c12b (2026-11-22)
+verified: ex-15 @ bf447619a; loose-stock treatment recorded 2026-11-14; grouping cost measured at b14c12b (2026-11-22); dwell granularity against ex-15 @ 6998ff08e1 plus working tree (2026-11-24)
 ---
 # ex-15: re-combination — remote implications review
 
@@ -38,12 +38,17 @@ recorded per item in *Conflicts between the two reviews* and inline in
   (wagons 2 and 4 to A, 3 to B). A real divide is one cut; extracting a middle wagon is a shunt
   taking much longer. Either load-time grouping must respect the portions' block positions (knowable
   from the two orders plus orientation at the divide, including reversals), or the dwell must scale
-  with the number of cuts.
-- **R3 [H] — dwell granularity.** One `shunting_time_seconds` cannot distinguish an MU uncouple
-  (1–2 min) from detaching a locomotive, running round and attaching another (10–20 min); the
-  balance point that loco-hauled operation has realistic turnaround penalties versus MUs is lost.
-  The reversing code already classifies MU / run-round / turntable; the dwell model should reuse
-  that classification per operation type. Also affects how through journeys are recorded.
+  with the number of cuts. The shunting delay scales with the number of coupling operations, so an
+  interleaved set costs more than a single contiguous cut
+  ([consist-recombination](../../consist-recombination.md#shunting-delay)).
+- **R3 [H] — dwell granularity.** The shunting delay is half `shunting_time_seconds` for the shunt
+  plus half for each coupling operation, counted from the difference between the source and final
+  consists ([consist-recombination](../../consist-recombination.md#shunting-delay)). An MU join or
+  split is one operation; a locomotive change is two; extracting or inserting a block in the middle
+  of a train is three or more. A single wagon cut at the rear therefore costs the same as an MU
+  split, because both are one coupling operation; whether to price the length of a cut or the
+  distance that staff walk between the vehicles remains open. Also affects how through journeys are
+  recorded.
 - **R4 [M] — fare booking model at coupling events.** The `calc_revenue` lookup failure occurs at
   joins as well as splits. Alternative to "fix the lookup": book the leg at the coupling event
   (mileage apportionment — Railway Clearing House model), which sidesteps it and is the realistic

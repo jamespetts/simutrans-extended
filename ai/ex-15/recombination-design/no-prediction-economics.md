@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ b53e370911 (code anchors; economic assessment is analysis)
+verified: ex-15 @ b53e370911 (code anchors; economic assessment is analysis); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24, shunt cost anchor)
 ---
 # ex-15: re-combination - economics of the no-prediction design
 
@@ -75,8 +75,11 @@ fare per tonne-kilometre. [UNVERIFIED]
 - `convoi_t::calc_revenue` uses the packet's distance and, where available, the per-vehicle
   record in `vehicle_t::through_departures`. It does not multiply freight revenue by a
   journey-time or speed factor. [CODE ex-15 @ b53e370911]
-- `settings_t::shunting_time_seconds` is a single dwell setting. `convoi_t` discounts staff time
-  while laid over by advancing `convoi_t::last_salary_point_ticks`. [CODE ex-15 @ b53e370911]
+- `settings_t::shunting_time_seconds` is the configured time of one shunt: half is fixed and half
+  is charged per coupling operation
+  ([consist-recombination](../../consist-recombination.md#shunting-delay)). `convoi_t` discounts
+  staff time while laid over by advancing `convoi_t::last_salary_point_ticks`.
+  [CODE ex-15 @ 6998ff08e1 plus working tree]
 - Vehicles pay fixed monthly costs through `vehicle_t::get_fixed_cost`. A wagon used as storage
   continues to pay that cost. [CODE ex-15 @ b53e370911]
 - Stop storage capacity is `haltestelle_t::get_capacity`. Cargo outside the stop does not count
@@ -93,7 +96,7 @@ large enough to matter; it is analysis, not a measured result. [UNVERIFIED]
 
 | Mechanism | Cost avoided | Economic quantity | When material | Mitigation with real grounding |
 |---|---|---|---|---|
-| Sorting at the split | Extra shunting beyond a single cut; yard; staff; vehicle occupancy | Shunting time, staff salary, vehicle opportunity cost, yard capital and maintenance | Non-contiguous or interleaved portions, or repeated splits. A division into two contiguous portions has almost no extra sorting. | Any valid end state is allowed; complex shunts are not yet priced by duration (deferred). The extra cut is a real cost to price later. |
+| Sorting at the split | Extra shunting beyond a single cut; yard; staff; vehicle occupancy | Shunting time, staff salary, vehicle opportunity cost, yard capital and maintenance | Non-contiguous or interleaved portions, or repeated splits. A division into two contiguous portions has almost no extra sorting. | Any valid end state is allowed; the shunting delay charges every coupling operation the commit performs, so an extra cut adds time. |
 | Transshipment at a stop | Goods facility, handling time, stop capacity | Building capital and maintenance, staff time, stop capacity | Busy junctions where a goods shed or warehouse would otherwise be required | Require a goods-enabled stop and use the ordinary unload and load path. The ordinary stop handling path is the cost. |
 | Storage in a loose wagon | Warehouse or siding capacity, staff, track occupancy | Building capital and maintenance, wagon fixed cost, layover staff discount | Where cheap wagons are used as storage; otherwise the wagon fixed cost is the natural limit | Keep the wagon fixed cost; do not give loaded wagons the full layover staff discount. |
 | Capacity and overbooking | Extra wagons and capacity | Vehicle capital and running cost, demand revenue | Elastic demand with excess set down at the junction | Enforce portion capacity at loading; excess waits at the origin. The ordinary loading path is the cost. |
@@ -107,9 +110,10 @@ large enough to matter; it is analysis, not a measured result. [UNVERIFIED]
 The mechanisms differ in how often they occur and how large their economic effect is. The
 ranking below is by economic effect, not frequency. [UNVERIFIED]
 
-1. **Per-operation shunting and staff costs are small.** A shunt of the default
+1. **Per-operation shunting and staff costs are small.** A one-operation shunt at the default
    `settings_t::shunting_time_seconds` (60 seconds) is a small fraction of a month's staff cost
-   and a vehicle's fixed cost. Avoiding it directly is not a major source of money. The base
+   and a vehicle's fixed cost; a re-marshal of several coupling operations takes a multiple of it.
+   Avoiding it directly is not a major source of money. The base
    freight fare is distance-based, so the direct fare effect of dwell is absent. [UNVERIFIED;
    code anchors above]
 2. **Facility and storage costs are fixed and can be significant.** Avoiding a goods shed,
