@@ -62,6 +62,46 @@ static void classify_vehicle_for_maintenance(vehicle_t *v, vector_tpl<vehicle_t*
 	maintain.append(v);
 }
 
+// Copy the source convoy's schedule and advance the copy one entry past the
+// depot, using convoi_t::advance_schedule_internal()'s direction rule: a
+// mirrored schedule reverses at either end. Returns null when the schedule has
+// no other entry to resume at.
+static schedule_t *copy_schedule_past_depot(convoihandle_t source, const koord3d &depot_pos, bool &reverse)
+{
+	if (!source->get_schedule() || source->get_schedule()->empty())
+	{
+		return NULL;
+	}
+	schedule_t *sch = source->get_schedule()->copy();
+	reverse = source->get_reverse_schedule();
+	if (!sch->empty() && sch->get_current_entry().pos == depot_pos)
+	{
+		if (sch->is_mirrored() && sch->get_current_stop() == sch->get_count() - 1)
+		{
+			reverse = true;
+		}
+		else if (sch->is_mirrored() && sch->get_current_stop() == 0)
+		{
+			reverse = false;
+		}
+		if (reverse)
+		{
+			sch->advance_reverse();
+		}
+		else
+		{
+			sch->advance();
+		}
+		if (sch->get_current_entry().pos == depot_pos)
+		{
+			delete sch;
+			return NULL;
+		}
+	}
+	return sch;
+}
+
+
 slist_tpl<depot_t *> depot_t::all_depots;
 
 
@@ -1804,6 +1844,23 @@ void depot_t::try_assemble_depot_orders()
 		vehicle_t *lead = forward[0];
 		if (lead->has_depot_job() && !lead->is_depot_job_complete())
 		{
+			// The Lead Vehicle is still in works. The order may be satisfied by
+			// the pool alone, in which case a New Convoy departs and the
+			// Original Convoy stays with its Lead Vehicle.
+			vector_tpl<vehicle_t*> available;
+			for (auto v : vehicles)
+			{
+				if (!v->has_depot_job() || v->is_depot_job_complete())
+				{
+					available.append(v);
+				}
+			}
+			if (try_form_new_convoy(cnv, order, available))
+			{
+				hold_original_convoy(cnv);
+				awaiting_assembly.remove(cnv);
+				assembly_reported.remove(cnv);
+			}
 			continue;
 		}
 		if (!awaiting_assembly.is_contained(cnv))
@@ -1816,6 +1873,146 @@ void depot_t::try_assemble_depot_orders()
 			assembly_reported.remove(cnv);
 		}
 	}
+}
+
+void depot_t::hold_original_convoy(convoihandle_t source)
+{
+	if (!source.is_bound())
+	{
+		return;
+	}
+	source->advance_past_current_depot_entry();
+	source->set_state(convoi_t::INITIAL);
+	under_maintenance.remove(source);
+	clear_convoy_maintenance_jobs(source);
+	awaiting_assembly.remove(source);
+}
+
+bool depot_t::try_form_new_convoy(convoihandle_t source, const consist_order_t &order, const vector_tpl<vehicle_t*> &available)
+{
+	vector_tpl<vehicle_t*> empty_shadow;
+	vector_tpl<vehicle_t*> final_consist;
+	vector_tpl<bool> final_reversed;
+	if (source->match_consist_order(order, available, empty_shadow, final_consist, final_reversed) == convoi_t::fail
+		|| final_consist.empty())
+	{
+		return false;
+	}
+
+	convoihandle_t new_cnv = add_convoi(false);
+	if (!new_cnv.is_bound())
+	{
+		return false;
+	}
+	new_cnv->set_owner(source->get_owner());
+	new_cnv->set_livery_scheme_index(source->get_livery_scheme_index());
+
+	vector_tpl<vehicle_t*> added;
+	for (uint32 i = 0; i < final_consist.get_count(); i++)
+	{
+		vehicle_t *v = final_consist[i];
+		if (!v || v->get_convoi() != NULL)
+		{
+			for (auto a : added)
+			{
+				new_cnv->remove_vehicle(a);
+				vehicles.append(a);
+				a->clear_depot_job();
+			}
+			access_convoy_list().remove(new_cnv);
+			new_cnv->self_destruct();
+			return false;
+		}
+		v->set_pos(get_pos());
+		v->set_reversed(final_reversed[i]);
+		vehicles.remove(v);
+		if (!new_cnv->add_vehicle(v, (uint8)i))
+		{
+			vehicles.append(v);
+			for (auto a : added)
+			{
+				new_cnv->remove_vehicle(a);
+				vehicles.append(a);
+				a->clear_depot_job();
+			}
+			access_convoy_list().remove(new_cnv);
+			new_cnv->self_destruct();
+			return false;
+		}
+		added.append(v);
+	}
+
+	for (uint8 i = 0; i < new_cnv->get_vehicle_count(); i++)
+	{
+		new_cnv->get_vehicle(i)->set_leading(i == 0);
+		new_cnv->get_vehicle(i)->set_last(i + 1 == new_cnv->get_vehicle_count());
+	}
+
+	if (new_cnv->is_unpowered() || !new_cnv->check_validity())
+	{
+		for (auto a : added)
+		{
+			new_cnv->remove_vehicle(a);
+			vehicles.append(a);
+			a->set_pos(get_pos());
+			a->clear_depot_job();
+		}
+		access_convoy_list().remove(new_cnv);
+		new_cnv->self_destruct();
+		return false;
+	}
+
+	bool reverse = false;
+	schedule_t *sch = copy_schedule_past_depot(source, get_pos(), reverse);
+	if (!sch)
+	{
+		for (auto a : added)
+		{
+			new_cnv->remove_vehicle(a);
+			vehicles.append(a);
+			a->set_pos(get_pos());
+			a->clear_depot_job();
+		}
+		access_convoy_list().remove(new_cnv);
+		new_cnv->self_destruct();
+		return false;
+	}
+	new_cnv->set_schedule(sch);
+	new_cnv->set_line(source->get_line());
+	new_cnv->set_reverse_schedule(reverse);
+	new_cnv->set_name(new_cnv->front()->get_desc()->get_name());
+
+	vehicle_t *front = new_cnv->front();
+	front->release_target_reservations();
+	if (!front->calc_route(get_pos(), new_cnv->get_schedule()->get_current_entry().pos,
+		new_cnv->get_min_top_speed(), new_cnv->has_tall_vehicles(), new_cnv->access_route())
+		|| !world()->lookup(new_cnv->access_route()->front()))
+	{
+		for (auto a : added)
+		{
+			new_cnv->remove_vehicle(a);
+			vehicles.append(a);
+			a->set_pos(get_pos());
+			a->clear_depot_job();
+		}
+		access_convoy_list().remove(new_cnv);
+		new_cnv->self_destruct();
+		return false;
+	}
+
+	const koord3d home_depot = source->get_home_depot();
+	access_convoy_list().remove(new_cnv);
+	new_cnv->start(this);
+	new_cnv->get_owner()->book_convoi_number(1, front->get_desc()->get_waytype());
+	if (home_depot != koord3d::invalid)
+	{
+		new_cnv->set_home_depot(home_depot);
+	}
+	for (auto a : added)
+	{
+		a->clear_depot_job();
+	}
+	return true;
 }
 
 bool depot_t::try_assemble_convoy(convoihandle_t cnv)
@@ -1862,6 +2059,14 @@ bool depot_t::try_assemble_convoy(convoihandle_t cnv)
 		cnv->match_consist_order(order, available, shadow, final_consist, final_reversed);
 	if (result == convoi_t::fail || final_consist.empty() || final_consist[0] != lead)
 	{
+		// The Lead Vehicle does not fill the first slot. Try the New Convoy
+		// arrangement: the order is met from the pool alone and the Original
+		// Convoy stays in the depot with its Lead Vehicle.
+		if (try_form_new_convoy(cnv, order, available))
+		{
+			hold_original_convoy(cnv);
+			return true;
+		}
 		if (!assembly_reported.is_contained(cnv))
 		{
 			assembly_reported.append(cnv);

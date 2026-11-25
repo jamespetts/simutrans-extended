@@ -281,6 +281,11 @@ public:
 	// is released and whose current depot entry has a non-blank order.
 	void try_assemble_depot_orders();
 	bool try_assemble_convoy(convoihandle_t cnv);
+	// Form a New Convoy from the Depot Vehicle Pool alone. Used when the order
+	// excludes the Original Convoy's Lead Vehicle. On success the Original
+	// Convoy is held in the depot with its Lead Vehicle.
+	bool try_form_new_convoy(convoihandle_t source, const consist_order_t &order, const vector_tpl<vehicle_t*> &available);
+	void hold_original_convoy(convoihandle_t source);
 
 	// Re-project the waiting jobs and start any that can start. Call after a
 	// duration changes.
