@@ -88,6 +88,19 @@ prices_frame_t::prices_frame_t() :
 
 	build_series();
 
+	if (series.get_count() == 0)
+	{
+		// The pakset defines no prices, fuel costs or staff wages, so no entry in
+		// sections is present. Adding the "Tables" and "Graphs" tabs here would
+		// leave their sub-tab panels without pages; gui_tab_panel_t::infowin_event
+		// and gui_tab_panel_t::draw dereference the active page.
+		new_component<gui_label_t>("This pakset defines no prices, fuel costs or staff wages, so there is no history to show.");
+		set_resizemode(diagonal_resize);
+		reset_min_windowsize();
+		set_windowsize(get_min_windowsize());
+		return;
+	}
+
 	for (uint8 k = 0; k < MAX_KINDS; k++) {
 		section_t& s = sections[k];
 		if (!s.present) {
