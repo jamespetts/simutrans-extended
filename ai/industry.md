@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d1c49a519; ex-15 @ bf157b7a7 plus working-tree goods_needed fallback for just-in-time 2/3/4 (2026-11-17)
+verified: ex-15 @ 743973b30 plus working-tree industry availability gate (2026-11-25)
 ---
 # Industry (factories, chains, generation)
 
@@ -45,12 +45,12 @@ Sub-descriptors: `factory_supplier_desc_t` — `get_input_type()` (goods), `get_
 
 The core Extended mechanism controlling how much industry exists. Two `uint32` world fields (simworld.h): `industry_density_proportion` and `actual_industry_density`.
 
-- Unit: every factory contributes `100 / distribution_weight` (integer division) to `actual_industry_density` — a type twice as likely to be picked counts half as much. Increments/decrements: `factory_builder_t::build_factory` (+), `fabrik_t::~fabrik_t` (−), the upgrade path in `fabrik_t::new_month` (− old type, + new type), and recomputation/legacy paths in `karte_t::init`, `karte_t::rdwr_gamestate` and `fabrik_t::rdwr` (old saves).
+- Unit: every consumer-only factory (a factory type with no products) contributes `100 / distribution_weight` (integer division) to `actual_industry_density`; a factory type with products contributes nothing. Increments/decrements: `factory_builder_t::build_factory` and `fabrik_t::~fabrik_t` apply the unit when `factory_desc_t::is_consumer_only()` is true, the upgrade path in `fabrik_t::new_month` applies the decrement or increment to the type that is consumer-only, and `karte_t::recalc_actual_density` plus the legacy reconstruction paths in `karte_t::load` and `karte_t::init` recompute the same consumer-only basis. The master-branch basis that counts every non-power factory is compared in [industry-generation-rework](industry-generation-rework.md).
 - Target: `karte_t::get_target_industry_density()` = `finance_history_month[0][WORLD_CITIZENS] * industry_density_proportion / 1000000` — the proportion is calibrated as density units per million citizens, so target industry scales with total population.
 - Baseline: `karte_t::new_month` sets the proportion once, the first month it is still 0 with nonzero world citizens, from `actual_industry_density * 1000000 / citizens` — i.e. the mapgen result defines the game's target. The simuconf key `industry_density_proportion_override` (`settings_t::get_industry_density_proportion_override`) replaces it every month when > 0.
 - Accessors/mutators: `karte_t::get_actual_industry_density`, `karte_t::increase_actual_industry_density`, `karte_t::decrease_actual_industry_density`.
 - Power stations are excluded from density recomputation — `karte_t::init` (mapgen) and the legacy reconstruction in `karte_t::rdwr_gamestate` both skip `is_electricity_producer()` types, with the code comment "a different system is used for them": power stations are instead governed by the electricity balance (`settings_t::get_electric_promille` vs the ratio of electricity production to total demand, checked in `karte_t::new_month` and `factory_builder_t::increase_industry_density`), and they are also exempt from the `do_not_add_beyond_target_density` cap in `increase_industry_density`. Note the unconditional build/destroy increments do NOT have this exemption — see Open questions.
-- Ongoing growth: `karte_t::new_month` loops (max 8 iterations) while `actual < target`, each iteration drawing `simrand(100)` against `max(deficit percentage, 8)` and calling `factory_builder_t::increase_industry_density(true, true)` — the deficit-proportional chance means a shortfall is on average remedied within about a year. Separately, `stadt_t::check_bau_factory` (called from `stadt_t::step_grow_city`) fires when population crosses a multiple of `settings_t::get_industry_increase_every` that is an exact power of two (`bev / inc == 1<<i`), gated on `actual < target`, with `force_consumer = 2`.
+- Ongoing growth: `karte_t::new_month` loops (max 4 iterations) while `actual < target`, each iteration drawing `simrand(100)` against `max(deficit percentage, 8)` and, when the draw succeeds, trying `factory_builder_t::increase_industry_density(true, true, false, CONSUMER_ONLY)`, falling back to `NEUTRAL`, then running a `FILL_MISSING_ONLY` sweep — the deficit-proportional chance means a shortfall is on average remedied within about a year. Separately, `stadt_t::check_bau_factory` (called from `stadt_t::step_grow_city`) fires when population crosses a multiple of `settings_t::get_industry_increase_every` that is an exact power of two (`bev / inc == 1<<i`), gated on `actual < target`, and uses the same `CONSUMER_ONLY` → `NEUTRAL` → `FILL_MISSING_ONLY` sequence.
 - Savegame sensitivity: both fields are persisted (`karte_t::save`, `karte_t::rdwr_gamestate`, with version-dependent conversion/reconstruction paths). They are synced world state; changes here are savegame- AND network-sensitive → [savegame-versioning](savegame-versioning.md), [sync-and-determinism](sync-and-determinism.md) (AGENTS.md rule 5).
 
 ## Chain building & inter-factory linking
@@ -90,18 +90,66 @@ On a closure trigger, the upgrade path runs first: candidate upgrades (`factory_
 
 ## Generation entry points
 
-All runtime and mapgen industry generation funnels through `factory_builder_t::increase_industry_density(tell_me, do_not_add_beyond_target_density, power_stations_only, force_consumer)`: it first completes unfinished chains for unlinked consumers, else builds either a power station (electricity shortfall vs `get_electric_promille`, and not `force_consumer`) or a new consumer chain (`get_random_consumer` + `build_link` with `number_of_chains = -1`, i.e. the full supplier tree). `force_consumer`: 0 neutral (75% chance to prefer a new consumer), 1 disallow forcing, 2 always force a consumer. Callers:
+All runtime and mapgen industry generation funnels through
+`factory_builder_t::increase_industry_density(tell_me, do_not_add_beyond_target_density,
+power_stations_only, force_consumer)`, where `force_consumer` is a `density_options` value:
+`NEUTRAL`, `NO_FORCE`, `CONSUMER_ONLY`, `FILL_MISSING_ONLY` or `FILL_UNDERSUPPLIED`
+(`bauer/fabrikbauer.h`). The function first scans the world for factories with undersupplied
+inputs and, in `FILL_MISSING_ONLY` and `FILL_UNDERSUPPLIED`, attempts to complete those chains
+with `build_chain_link`. When no chain is completed and the mode is not a fill mode, it builds
+either a power station (electricity shortfall against `get_electric_promille`, and not forced to
+build a consumer) or a new consumer selected by `factory_builder_t::get_random_consumer`. A new
+consumer is built with `build_link(..., number_of_chains = 0, ...)`, so its supplier tree is
+added by later `FILL_MISSING_ONLY` passes rather than in the same call. `NEUTRAL` gives a 75%
+chance to prefer a new consumer.
 
-- `karte_t::init` (mapgen): after `factory_builder_t::new_world()`, loops `increase_industry_density(false, false, false, 1)` while `fab_list.get_count() < settings.get_factory_count()`, breaking after more than 3 consecutive build failures (map nearly full); the final count is written back via `settings_t::set_factory_count`. Mapgen runs under `MAP_CREATE_RANDOM` outside networked play → [sync-and-determinism](sync-and-determinism.md).
-- `karte_t::new_month` (called from `karte_t::step` at month rollover): the density top-up loop above, plus a `power_stations_only` call guarded by `factory_builder_t::power_stations_available()`.
-- `stadt_t::check_bau_factory` (from `stadt_t::step_grow_city`): population-doubling trigger, `force_consumer = 2`.
-- `tool_increase_industry_t::init` (simtool.cc): player tool, uncapped (`do_not_add_beyond_target_density = false`).
+Callers:
+
+- `karte_t::init` (mapgen): loops while `karte_t::count_consumers() < settings.get_factory_count()`,
+  beginning each iteration with `increase_industry_density(false, false, false, NO_FORCE)`, then
+  running a `FILL_MISSING_ONLY` sweep and a `CONSUMER_ONLY` loop, and finishing with a
+  `FILL_UNDERSUPPLIED` sweep. It breaks after repeated build failures when the map is full. The
+  final count is written back through `settings_t::set_factory_count`. Mapgen runs under
+  `MAP_CREATE_RANDOM` outside networked play → [sync-and-determinism](sync-and-determinism.md).
+- `karte_t::new_month` (called from `karte_t::step` at month rollover): up to four density-driven
+  iterations, each trying `CONSUMER_ONLY`, then `NEUTRAL`, then a `FILL_MISSING_ONLY` sweep; a
+  separate `power_stations_only` call guarded by `factory_builder_t::power_stations_available()`
+  handles an electricity shortfall.
+- `stadt_t::check_bau_factory` (from `stadt_t::step_grow_city`): the same
+  `CONSUMER_ONLY` → `NEUTRAL` → `FILL_MISSING_ONLY` sequence on the population-doubling trigger.
+- `tool_increase_industry_t::init` (simtool.cc): player tool, uncapped
+  (`do_not_add_beyond_target_density = false`).
+
+The availability gate. `factory_builder_t::get_random_consumer` and the new-supplier search in
+`factory_builder_t::build_chain_link` call `is_factory_type_buildable`, which tests a factory
+type's input goods against `available_goods`.
+`update_available_goods` (`bauer/fabrikbauer.cc`) computes `available_goods` by applying one rule
+until no further good enters the set: a factory type that produces goods is buildable when it is
+available at the current timeline, has a non-zero `distribution_weight` and every input good is
+in `available_goods`; a good enters `available_goods` when a buildable factory type produces it.
+A factory type with no inputs is therefore buildable. In the current implementation every
+production chain ends at such a factory type; imports will add another kind of starting point.
+A factory type with products needs every input, because `fabrik_t::step` limits
+production by the smallest input stock. An end consumer (a factory type with no products) needs
+at least one input, because `fabrik_t::step` consumes each input independently and
+`fabrik_t::disconnect_supplier` closes an end consumer only when every input is missing. The gate
+prevents a factory type from being selected when none of its inputs can be produced at the
+current timeline; for a factory type with products, any missing input is enough to reject it.
+Imports, planned for 16.x, supply goods from outside the map and are the second source for
+`available_goods`: the import system either adds the goods that can be imported before the
+fixed-point loop runs or represents the import source as a buildable factory type. A factory
+that consumes an imported good is therefore buildable without an on-map producer. An import
+source outside the factory graph also needs a link path in
+`factory_builder_t::build_chain_link`; representing the source as a factory type uses the
+existing producer search. The import system must also invalidate the cached set when the set of
+importable goods changes.
 
 ## Invariants & sync/save sensitivity
 
 - Persisted industry state: `fabrik_t::rdwr`, `ware_production_t::rdwr`, `fabrik_t::arrival_statistics_t::rdwr` (per factory); `industry_density_proportion` and `actual_industry_density` in `karte_t::save`/`karte_t::rdwr_gamestate` (with version-dependent reconstruction). Never enumerate stored data in docs — the rdwr methods are authoritative → [savegame-versioning](savegame-versioning.md).
 - Randomness: all industry generation/stepping randomness uses the SYNCED `simrand` stream; there are no `sim_async_rand` calls in simfab.cc or fabrikbauer.cc. Mapgen draws happen under `MAP_CREATE_RANDOM` before/outside networked play; `karte_t::new_month` runs inside `karte_t::step` (checkpoint rands[9] follows it) and factory stepping (`fabrik_t::step` over the fab_list) is bracketed by checkpoint rands[20] — checkpoint map and rules: [sync-and-determinism](sync-and-determinism.md).
 - Threading: the path explorer must be parked before `new_month`'s factory in-transit recalculation → [threading](threading.md).
+- The `available_goods` cache is process-local derived state: it is rebuilt from the factory descriptors and the timeline and never saved. Generation decisions and RNG draw counts depend on it, so every peer must run the same build; the cache itself requires no savegame version change.
 - Any change to density accounting, link lists or generation order is savegame- and desync-sensitive (AGENTS.md rule 5).
 
 ## Performance

@@ -282,6 +282,149 @@ static bool compare_fabrik_desc(const factory_desc_t* a, const factory_desc_t* b
 }
 
 
+/// Timeline (year * 12 + month) for which available_goods was computed.
+static uint16 available_goods_timeline = 0;
+
+/// True when available_goods holds the result for available_goods_timeline.
+static bool available_goods_valid = false;
+
+/**
+ * Goods that can be obtained at the current timeline, indexed by goods_desc_t::get_index().
+ * Domestic factory chains fill this set; imports will add the goods that can be supplied
+ * from outside the map when that feature is implemented.
+ */
+static bool available_goods[256];
+
+/**
+ * Recomputes available_goods for @p timeline when necessary.
+ *
+ * A good is available when a factory type that can be built at @p timeline produces it
+ * from available goods. A factory type is buildable when it is available at @p timeline,
+ * has a non-zero distribution_weight and every good it consumes is available. A factory
+ * type with no inputs is therefore buildable, and every domestic chain must end at such
+ * a factory.
+ *
+ * Imports are planned as a second source of available goods. An import is a good supplied
+ * from outside the map by a port or another import source. When imports are implemented,
+ * the import system must either add the goods that can be imported to available_goods before
+ * the loop below runs, or represent the import source as a buildable factory type that
+ * produces those goods. An imported good then acts as a starting point: factory types that
+ * consume it are buildable without a domestic producer of that good. An import source outside
+ * the factory graph also needs a link path in build_chain_link; representing the source as a
+ * factory type uses the existing producer search. The import system must also set
+ * available_goods_valid to false whenever the set of importable goods changes.
+ *
+ * The loop repeats until no further good becomes available, which leaves the smallest set
+ * that satisfies the rule above. It terminates when a group of factory types forms a goods
+ * cycle with no producer outside the cycle, and the result is independent of the order in
+ * which factory_builder_t::get_factory_table() is iterated.
+ */
+static void update_available_goods(uint16 timeline)
+{
+	if (available_goods_valid && available_goods_timeline == timeline) {
+		return;
+	}
+	available_goods_timeline = timeline;
+	for (uint i = 0; i < 256; i++) {
+		available_goods[i] = false;
+	}
+
+	// 16.x imports: add the goods that ports can import to available_goods here, or
+	// represent a port as a buildable factory type that produces them. Either way the
+	// imported good becomes a root of the closure below.
+
+	bool changed;
+	do {
+		changed = false;
+		for (auto const& t : factory_builder_t::get_factory_table()) {
+			factory_desc_t const* const desc = t.value;
+			if (desc->get_distribution_weight() == 0 || !desc->get_building()->is_available(timeline)) {
+				continue;
+			}
+			bool buildable = true;
+			for (uint16 i = 0; i < desc->get_supplier_count(); i++) {
+				if (!available_goods[desc->get_supplier(i)->get_input_type()->get_index()]) {
+					buildable = false;
+					break;
+				}
+			}
+			if (!buildable) {
+				continue;
+			}
+			for (uint16 i = 0; i < desc->get_product_count(); i++) {
+				const uint8 index = desc->get_product(i)->get_output_type()->get_index();
+				if (!available_goods[index]) {
+					available_goods[index] = true;
+					changed = true;
+				}
+			}
+		}
+	} while (changed);
+
+	available_goods_valid = true;
+}
+
+/**
+ * @returns true when @p ware can be obtained at @p timeline, either from a complete
+ * domestic production chain or, once imports exist, from an import source.
+ */
+static bool is_good_available(const goods_desc_t *ware, uint16 timeline)
+{
+	update_available_goods(timeline);
+	return available_goods[ware->get_index()];
+}
+
+/**
+ * @returns true when a factory of this type can be built with its input goods available
+ * at @p timeline.
+ *
+ * A factory that produces goods needs every input, because fabrik_t::step limits its
+ * production by the smallest input stock. An end consumer (a factory type with no
+ * products) can operate while any one input is supplied: fabrik_t::step consumes each
+ * input independently, and fabrik_t::disconnect_supplier closes an end consumer only
+ * when every input is missing.
+ */
+static bool is_factory_type_buildable(const factory_desc_t *desc, uint16 timeline)
+{
+	if (desc->get_distribution_weight() == 0 || !desc->get_building()->is_available(timeline)) {
+		return false;
+	}
+	if (desc->get_supplier_count() == 0) {
+		return true;
+	}
+	if (desc->is_consumer_only()) {
+		for (uint16 i = 0; i < desc->get_supplier_count(); i++) {
+			if (is_good_available(desc->get_supplier(i)->get_input_type(), timeline)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	for (uint16 i = 0; i < desc->get_supplier_count(); i++) {
+		if (!is_good_available(desc->get_supplier(i)->get_input_type(), timeline)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Removes producer types that cannot be built with their input goods available at
+ * @p timeline.
+ */
+static void remove_unbuildable_producers(weighted_vector_tpl<const factory_desc_t *> &producer, uint16 timeline)
+{
+	for (uint32 i = 0; i < producer.get_count(); ) {
+		if (is_factory_type_buildable(producer[i], timeline)) {
+			i++;
+		}
+		else {
+			producer.remove_at(i);
+		}
+	}
+}
+
+
 // returns a random consumer
 const factory_desc_t *factory_builder_t::get_random_consumer(bool electric, climate_bits cl, uint16 allowed_regions, uint16 timeline, const goods_desc_t* input, bool force_consumer_only)
 {
@@ -297,6 +440,7 @@ const factory_desc_t *factory_builder_t::get_random_consumer(bool electric, clim
 			current->get_building()->is_allowed_region_bits(allowed_regions) &&
 			(electric ^ !current->is_electricity_producer())  &&
 			current->get_building()->is_available(timeline)  &&
+			is_factory_type_buildable(current, timeline)  &&
 			(input == NULL || current->get_accepts_these_goods(input))
 			)
 		{
@@ -349,6 +493,7 @@ const factory_desc_t *factory_builder_t::get_desc(const char *factory_name)
 
 void factory_builder_t::register_desc(factory_desc_t *desc)
 {
+	available_goods_valid = false;
 	uint16 p=desc->get_productivity();
 	if(p&0x8000) {
 		koord k=desc->get_building()->get_size();
@@ -995,6 +1140,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		// Check whether any types of factory that can be built at this time in this factory's region can supply this input good.
 		weighted_vector_tpl<const factory_desc_t*>producer;
 		find_producer(producer, ware, welt->get_timeline_year_month());
+		remove_unbuildable_producers(producer, welt->get_timeline_year_month());
 		bool local_supplier_unavailable = true;
 		for(const factory_desc_t* producer_type : producer) {
 			if (producer_type->get_building()->is_allowed_region(origin_region))
@@ -1129,21 +1275,20 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 		 */
 		weighted_vector_tpl<const factory_desc_t *>producer;
 		find_producer( producer, ware, welt->get_timeline_year_month() );
+		remove_unbuildable_producers( producer, welt->get_timeline_year_month() );
 		if(  producer.empty()  ) {
-			// can happen with timeline
+			// No factory type can produce this input with its own input goods available.
+			// A factory that produces goods cannot run without the input, so stop. An end
+			// consumer can run on its other inputs, so leave it partly supplied.
+			dbg->error( "factory_builder_t::build_link()", "no producer for %s!", ware->get_name() );
 			if(!info->is_consumer_only()) {
-				dbg->error( "factory_builder_t::build_link()", "no producer for %s!", ware->get_name() );
 				return 0;
-			}
-			else {
-				// only consumer: Will do with partly covered chains
-				dbg->error( "factory_builder_t::build_link()", "no producer for %s!", ware->get_name() );
 			}
 		}
 
 		bool ignore_climates = false;	// ignore climates after some retrys
 		int retry=25;	// and not more than 25 (happens mostly in towns)
-		while((supplier_count > suppliers_found || supplier_count == 0) && consumption > 0 && retry > 0  ) {
+		while(!producer.empty() && (supplier_count > suppliers_found || supplier_count == 0) && consumption > 0 && retry > 0  ) {
 
 			const factory_desc_t *producer_d = pick_any_weighted( producer );
 
@@ -1164,6 +1309,7 @@ int factory_builder_t::build_chain_link(const fabrik_t* origin_fab, const factor
 						break;
 					}
 					find_producer( producer, ware, welt->get_timeline_year_month() );
+					remove_unbuildable_producers( producer, welt->get_timeline_year_month() );
 					ignore_climates = true;
 				}
 				continue;
