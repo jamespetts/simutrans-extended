@@ -623,6 +623,7 @@ settings_t::settings_t() :
 	auto_connect_industries_and_attractions_by_road = 4;
 
 	simplified_maintenance = false;
+	overhaul_grouping_percentage = 90;
 
 	path_explorer_time_midpoint = 64;
 	save_path_explorer_data = true;
@@ -2111,6 +2112,15 @@ void settings_t::rdwr(loadsave_t *file)
 			// traffic-level-constrained car fill.
 			citycar_fill_mode = 0;
 		}
+
+		if (file->is_version_ex_atleast(15, 23))
+		{
+			file->rdwr_byte(overhaul_grouping_percentage);
+			if (overhaul_grouping_percentage > 100)
+			{
+				overhaul_grouping_percentage = 100;
+			}
+		}
 	}
 
 	if (fuel_unit_cost_divider == 0)
@@ -3226,6 +3236,12 @@ void settings_t::parse_simuconf( tabfile_t& simuconf, sint16& disp_width, sint16
 	max_route_tiles_to_process_in_a_step_paused_background = contents.get_int("max_route_tiles_to_process_in_a_step_paused_background", max_route_tiles_to_process_in_a_step_paused_background);
 
 	simplified_maintenance = contents.get_int("simplified_maintenance", simplified_maintenance);
+
+	overhaul_grouping_percentage = contents.get_int("overhaul_grouping_percentage", overhaul_grouping_percentage);
+	if (overhaul_grouping_percentage > 100)
+	{
+		overhaul_grouping_percentage = 100;
+	}
 
 	min_layover_overhead_seconds = contents.get_int("min_layover_overhead_seconds", min_layover_overhead_seconds);
 	shunting_time_seconds = contents.get_int("shunting_time_seconds", shunting_time_seconds);

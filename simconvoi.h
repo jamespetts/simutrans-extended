@@ -1238,7 +1238,9 @@ public:
 	void set_working_method(working_method_t value);
 
 	// Instigates a replacement according to the attached replace data.
-	bool replace_now();
+	// If upgrade_wait is not null, it receives the longest overhaul duration
+	// of any vehicle that was upgraded in place rather than bought.
+	bool replace_now(sint32 *upgrade_wait = nullptr);
 
 private:
 	journey_times_map average_journey_times;

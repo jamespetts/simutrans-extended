@@ -1422,8 +1422,28 @@ bool air_vehicle_t::is_overhaul_needed() const
 	return vehicle_t::is_overhaul_needed();
 }
 
+bool air_vehicle_t::is_overhaul_nearly_due(uint8 percentage) const
+{
+	if (percentage == 0)
+	{
+		return false;
+	}
+	if (desc->get_max_takeoffs() > 0)
+	{
+		return (uint64)number_of_takeoffs * 100 >= (uint64)desc->get_max_takeoffs() * percentage;
+	}
+	return vehicle_t::is_overhaul_nearly_due(percentage);
+}
+
 uint8 air_vehicle_t::get_availability() const
 {
+	if (welt->get_settings().get_simplified_maintenance())
+	{
+		// Simplified maintenance has no overhaul visits to reset the flight
+		// cycle wear, so report the descriptor's starting availability.
+		return desc->get_starting_availability();
+	}
+
 	if (desc->get_max_takeoffs() > 0)
 	{
 		const uint8 base_availability = desc->get_starting_availability();

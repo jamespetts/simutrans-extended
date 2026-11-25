@@ -4195,6 +4195,15 @@ bool vehicle_t::is_overhaul_needed() const
 	return km_since_last_overhaul > desc->get_max_distance_between_overhauls();
 }
 
+bool vehicle_t::is_overhaul_nearly_due(uint8 percentage) const
+{
+	if (percentage == 0 || desc->get_max_distance_between_overhauls() == 0)
+	{
+		return false;
+	}
+	return (uint64)km_since_last_overhaul * 100 >= (uint64)desc->get_max_distance_between_overhauls() * percentage;
+}
+
 void vehicle_t::replenish()
 {
 	cnv->set_state(convoi_t::REPLENISHING);
@@ -4379,6 +4388,13 @@ void vehicle_t::update_livery()
 
 uint8 vehicle_t::get_availability() const
 {
+	if (welt->get_settings().get_simplified_maintenance())
+	{
+		// Simplified maintenance does not simulate depot visits, so it must
+		// not apply the wear that those visits would reset.
+		return desc->get_starting_availability();
+	}
+
 	const uint8 base_availability = desc->get_starting_availability();
 	if (km_since_last_overhaul <= desc->get_availability_decay_start_km())
 	{
@@ -4411,6 +4427,13 @@ sint32 vehicle_t::get_running_cost(const karte_t* welt) const
 {
 	const sint32 base_cost = (sint32)desc->get_running_cost(welt); // This includes obsolescence increase
 
+	if (welt->get_settings().get_simplified_maintenance())
+	{
+		// Simplified maintenance has no overhaul visits to reset the wear
+		// increase, so charge only the base running cost.
+		return base_cost;
+	}
+
 	if (km_since_last_overhaul <= desc->get_availability_decay_start_km() || desc->get_max_distance_between_overhauls() == 0)
 	{
 		return base_cost;
@@ -4440,6 +4463,10 @@ sint32 vehicle_t::get_running_cost(const karte_t* welt) const
 
 bool vehicle_t::is_wear_affecting_vehicle() const
 {
+	if (welt->get_settings().get_simplified_maintenance())
+	{
+		return false;
+	}
 	return km_since_last_overhaul > desc->get_availability_decay_start_km();
 }
 

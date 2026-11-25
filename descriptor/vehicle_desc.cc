@@ -43,7 +43,21 @@ uint32 vehicle_desc_t::get_fixed_cost() const
 
 sint64 vehicle_desc_t::get_value() const
 {
-	return world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_value(), vehicle_purchase);
+	const sint64 base_value = world()->get_inflation_adjusted_price(world()->get_timeline_year_month(), obj_desc_transport_related_t::get_value(), vehicle_purchase);
+
+	if (!world()->get_settings().get_simplified_maintenance())
+	{
+		return base_value;
+	}
+
+	// Simplified maintenance does not simulate the extra vehicles that would
+	// be needed to cover the time a vehicle spends being maintained. Charge
+	// the capital cost that would buy that cover instead: 100 / availability
+	// vehicles for every one vehicle bought. The forum example of 25% for 75%
+	// availability is arithmetically inconsistent with this formula; the
+	// formula stated in the design record is used here.
+	const uint32 availability = starting_availability == 0 ? 100u : starting_availability;
+	return (base_value * 100 + (sint64)availability - 1) / (sint64)availability;
 }
 
 sint64 vehicle_desc_t::get_base_price() const

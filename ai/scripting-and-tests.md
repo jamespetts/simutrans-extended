@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23)
+verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); working-tree maintenance cash rounding tolerance and split/cross-convoy cases (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23)
 ---
 # Scripting & tests
 
@@ -76,9 +76,14 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   overhaul above the descriptor's overhaul interval, so the depot visit books an overhaul.
   It asserts the incremented overhaul count, the zero odometer, the reset to the
   descriptor's starting availability and a cash fall of the vehicle's `overhaul_cost`
-  within a bound that allows the per-kilometre running costs booked on the final approach.
-  The case reports its result when the overhaul state is entered and does not wait for the
-  overhaul duration [EXECUTION-VERIFIED:2026-11-24].
+  within a bound that allows the per-kilometre running costs booked on the final approach
+  and the one-currency-unit rounding of the script cash interface. The case reports its
+  result when the overhaul state is entered and does not wait for the
+  overhaul duration [EXECUTION-VERIFIED:2026-11-24]. The `maintenance-split`,
+  `maintenance-split-invalid`, `maintenance-split-unreachable` and
+  `maintenance-cross-convoy` cases cover the automatic release of maintenance-only
+  vehicles from mixed maintenance/overhaul visits, including the undo paths and
+  the two-train combination [EXECUTION-VERIFIED:2026-11-25].
 - The AI host mode is designed but unused; expect latent assumptions (global `welt`, null
   scenario, GUI calls, `get_my_player` returning null) until it is exercised.
 

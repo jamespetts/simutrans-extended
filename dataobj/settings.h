@@ -947,6 +947,12 @@ public:
 	uint32 auto_connect_industries_and_attractions_by_road;
 
 	bool simplified_maintenance;
+
+	// The percentage of its overhaul interval at which a vehicle is included
+	// in an overhaul visit caused by another vehicle in the same consist.
+	// 0 disables grouping; 100 includes only vehicles at the overhaul interval.
+	uint8 overhaul_grouping_percentage = 90;
+
 	uint32 path_explorer_time_midpoint;
 	bool save_path_explorer_data;
 
@@ -1555,6 +1561,9 @@ public:
 	uint32 get_auto_connect_industries_and_attractions_by_road() const { return auto_connect_industries_and_attractions_by_road; }
 
 	bool get_simplified_maintenance() const { return simplified_maintenance; }
+
+	uint8 get_overhaul_grouping_percentage() const { return overhaul_grouping_percentage; }
+	void set_overhaul_grouping_percentage(uint8 value) { overhaul_grouping_percentage = value > 100 ? 100 : value; }
 
 	uint32 get_min_layover_overhead_seconds() const { return min_layover_overhead_seconds; }
 	void set_min_layover_overhead_seconds(uint32 value) { min_layover_overhead_seconds = value; }

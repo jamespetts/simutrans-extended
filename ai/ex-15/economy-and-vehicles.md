@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: ex-15 @ 0d41455e7; maintenance article and status, revenue classification and cargo policy @ 8ad14f9615 (2026-11-24); livery fallback @ 6656e7dce0 (2026-11-24)
+verified: ex-15 @ 0d41455e7; maintenance article and status, revenue classification and cargo policy @ 8ad14f9615 (2026-11-24); livery fallback @ 6656e7dce0 (2026-11-24); working tree 2026-11-24 (per-line maintenance settings and simplified-maintenance compensation)
 ---
 # ex-15 feature status: economy, vehicles & replacer
 
@@ -94,7 +94,15 @@ maintenance queues, maintenance duration, overhauls or overhaul finance on ex-15
   max_vehicles_under_maintenance (default 4, building_tile_desc_t).
 - Triggers: maintenance_interval_km per vehicle, else months-based settings
   (maintenance_interval_months default 12, extended_maintenance_interval_months default 18);
-  simplified_maintenance setting disables the whole system.
+  simplified_maintenance disables the convoy-level requirements, bypasses the wear-driven
+  availability and running-cost changes and applies the `100 / starting_availability` capital-cost
+  compensation in `vehicle_desc_t::get_value()`. The exact rules are in
+  [depot-maintenance](depot-maintenance.md).
+- Per-line limits: `simline_t::max_convoys_at_depot` (default 1) and
+  `simline_t::overhaul_grouping_percentage` (default 90) are saved per line under Extended save
+  revision 23. The first decides whether a convoy may take a depot maintenance place; the second
+  decides which nearly due vehicles join an overhaul visit. Details are in
+  [depot-maintenance](depot-maintenance.md).
 - Skippable scheduled depot entry: `conditional_skip` on a depot entry skips it unless
   `is_maintenance_needed()`. `convoi_t::enter_depot` adds `maintain_or_overhaul` to the visit flags
   for such entries (no stored per-entry flag), so `depot_t::convoi_arrived` overhauls

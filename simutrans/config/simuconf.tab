@@ -1107,6 +1107,14 @@ disable_make_way_public = 0
 # Default: 0 (except for loading games saved in versions older than 15)
 simplified_maintenance = 0
 
+# When one vehicle in a consist is due for an overhaul, other vehicles in the
+# same consist that have covered at least this percentage of their own overhaul
+# interval are overhauled in the same visit. This avoids repeated depot visits
+# to overhaul one vehicle at a time. The value can be set per line; this is the
+# default for new lines and for lineless convoys. 0 disables grouping.
+# Default: 90
+overhaul_grouping_percentage = 90
+
 # This setting alters the revenue for electricity transmission.
 # The figure is a percentage of the default revenue. Default: 100.
 power_revenue_factor_percentage = 100

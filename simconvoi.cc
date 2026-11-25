@@ -332,7 +332,12 @@ DBG_MESSAGE("convoi_t::~convoi_t()", "destroying %d, %p", self.get_id(), this);
 		welt->get_viewport()->set_follow_convoi( convoihandle_t() );
 	}
 
-	welt->sync.remove( this );
+	if (welt->sync.contains(this))
+	{
+		// A convoy created during a sync step may be destroyed before it has
+		// been added to the sync list; removing a non-member is a no-op.
+		welt->sync.remove(this);
+	}
 	welt->rem_convoi( self );
 
 	if (!welt->is_destroying())
@@ -1974,7 +1979,7 @@ void convoi_t::threaded_step()
 #endif
 }
 
-bool convoi_t::replace_now()
+bool convoi_t::replace_now(sint32 *upgrade_wait)
 {
 	bool autostart = false;
 
@@ -2048,6 +2053,13 @@ bool convoi_t::replace_now()
 						{
 							if (replacing_vehicle == vehicle[j]->get_desc()->get_upgrades(c))
 							{
+								if (upgrade_wait)
+								{
+									// An upgrade in place is an overhaul-equivalent
+									// transaction, not a purchase of new stock.
+									const sint32 wait = (sint32)((welt->ticks_per_world_month * vehicle[j]->get_desc()->get_overhaul_month_tenths()) / 10u);
+									*upgrade_wait = max(*upgrade_wait, wait);
+								}
 								veh = vehicle_builder_t::build(get_pos(), get_owner(), NULL, replacing_vehicle, true);
 								upgrade_vehicle(j, veh);
 								remove_vehicle_at(j);
@@ -2885,6 +2897,16 @@ void convoi_t::advance_schedule()
 					reset_conditional_depot_state();
 				}
 			}
+			else if (!worker_thread && line.is_bound() && !line->has_depot_maintenance_slot(schedule->get_current_entry().pos, this))
+			{
+				// Another convoy of this line already has the depot's
+				// maintenance place. Stay in service and reconsider on the
+				// next pass. Urgent maintenance never reaches this branch:
+				// the test above forces the visit before this point.
+				advance_schedule_internal();
+				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
+				reset_conditional_depot_state();
+			}
 			else
 			{
 				skip = false;
@@ -2950,7 +2972,11 @@ void convoi_t::turn_at_skipped_depot()
 		{
 			will_visit = true;
 		}
-		if (!gr || !gr->get_depot() || will_visit)
+		if (!gr || !gr->get_depot())
+		{
+			return;
+		}
+		if (will_visit && (!line.is_bound() || line->has_depot_maintenance_slot(entry.pos, this)))
 		{
 			return;
 		}
@@ -3395,10 +3421,19 @@ void convoi_t::start(depot_t* dep)
 			gr->obj_add(front());
 		}
 
-		// put into sync list (remove first: pre-maintenance depot entries were never
-		// removed on arrival and add() does not deduplicate, so re-add without this
-		// leaves stale duplicate entries behind)
-		welt->sync.remove(this);
+		// Put into the sync list. Remove first when the convoy is already listed:
+		// pre-maintenance depot entries were never removed on arrival and add()
+		// does not deduplicate, so re-adding without this would leave stale
+		// duplicate entries behind. A newly created convoy (for example one split
+		// off in a depot) is not in the list yet, and remove() asserts if it is
+		// called during a sync step for an object other than the one being
+		// deleted, so test membership first. add() is safe during the sync step:
+		// sync_list_t::sync_step() reads the growing list count, and a convoy in
+		// ROUTING_1 does not move in sync_step().
+		if (welt->sync.contains(this))
+		{
+			welt->sync.remove(this);
+		}
 		welt->sync.add(this);
 
 		alte_direction = ribi_t::none;
@@ -12614,8 +12649,13 @@ void convoi_t::form_divided_portion(convoihandle_t portion, halthandle_t halt, c
 	// Promotion makes this an operating convoy, so it must take part in the
 	// synced-object step. Its constructor only registers it with the world's
 	// convoy list. As in convoi_t::start, remove first because the list does
-	// not deduplicate.
-	welt->sync.remove(portion.get_rep());
+	// not deduplicate, but only when the portion is actually listed: remove()
+	// asserts during a sync step for a listed object that is not the one being
+	// deleted, and a newly created portion is not listed yet.
+	if (welt->sync.contains(portion.get_rep()))
+	{
+		welt->sync.remove(portion.get_rep());
+	}
 	welt->sync.add(portion.get_rep());
 
 	// The two portions are one shunt. Both wait for the whole operation: the

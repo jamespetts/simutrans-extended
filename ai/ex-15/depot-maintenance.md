@@ -1,11 +1,12 @@
 ---
 status: draft
-verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24)
+verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24); working tree 2026-11-24 (per-line depot limit, consist overhaul grouping, simplified-maintenance wear bypass and purchase-price compensation, replacement delay); working tree 2026-11-25 (automatic release of maintained vehicles, cross-convoy combination, sync-list fix)
 ---
 # ex-15 depot maintenance and vehicle availability
 
 **Covers:** `vehicle/vehicle.*`, `vehicle/air_vehicle.*`, `simconvoi.cc` (maintenance,
-depot arrival and departure), `simdepot.*`, `descriptor/vehicle_desc.h`,
+depot arrival and departure), `simdepot.*`, `simline.*` (per-line maintenance settings),
+`descriptor/vehicle_desc.h`,
 `descriptor/reader/vehicle_reader.cc`, `descriptor/writer/vehicle_writer.cc`,
 `dataobj/settings.*` (maintenance intervals), `gui/convoi_detail_t.*`,
 `gui/convoi_info_t.*`, `gui/depot_frame.*`, `player/finance.h` and
@@ -34,6 +35,14 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
 - **Livery** is a vehicle's configured paint scheme.
 - **Livery scheme** is a named set of liveries with introduction and retirement
   dates, represented by `livery_scheme_t`.
+- **Depot maintenance place** is the right of one convoy of a line to use a depot's
+  maintenance capacity at a time. `simline_t::max_convoys_at_depot` sets how many of a
+  line's convoys may hold a place at each depot.
+- **Overhaul group** is the set of vehicles that `depot_t::convoi_arrived()` classifies for
+  `vehicle_t::overhaul()` on one depot visit.
+- **Overhaul grouping percentage** is the fraction of its own overhaul interval that a
+  vehicle must have covered to join an overhaul visit caused by another vehicle in the same
+  convoy. It is stored per line and as a global setting.
 - **Routine maintenance** is the periodic depot work derived from availability.
 - **Overhaul** is the less frequent major work that resets the `km_since_last_overhaul` or
   takeoff (flight cycle) counters, resets availability to its starting value and can apply an automatic upgrade.
@@ -89,6 +98,9 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
 - When one vehicle needs routine maintenance, all vehicles in the convoy are
   maintained on that visit. Vehicles due for overhaul are placed in the overhaul
   group unless `do_not_overhaul` is set; the remainder are maintained normally.
+  A vehicle that is not yet due but has covered at least the line's overhaul
+  grouping percentage of its own interval joins the overhaul group; see
+  Overhauls and upgrades.
 - The convoy's maintenance duration is the longest individual vehicle duration,
   not the sum. A convoy larger than the depot capacity receives a proportional
   time multiplier.
@@ -98,6 +110,19 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
   `depot_t::prioritise_for_maintenance()` moves a convoy to the front and
   `depot_t::depriortise_for_maintenance()` moves it to the back. Those methods
   define the queue policy; only controls that call them are missing.
+- A line stores `simline_t::max_convoys_at_depot`, the maximum number of its
+  convoys that may hold a depot maintenance place at the same depot at the same time.
+  `convoi_t::advance_schedule()` checks `simline_t::has_depot_maintenance_slot()`
+  before committing to a conditional depot entry, and
+  `convoi_t::turn_at_skipped_depot()` uses the same test. A convoy counts
+  against the limit while its current schedule entry is that depot tile (it is
+  approaching the depot) or while its position is that depot tile (it is
+  maintained, overhauled or held for an unaffordable overhaul). This count is
+  conservative: a convoy that has already decided to skip the entry still
+  counts until its schedule moves past it. A convoy that finds no place
+  skips the entry and remains in service. Urgent maintenance bypasses the limit.
+  The value defaults to 1 and is saved per line under Extended save revision 23.
+  The control to change it is deferred.
 - Maintenance cannot be interrupted once started. `convoi_t::start()` accepts
   only the stored or routing states, so a convoy under maintenance cannot be
   started through the ordinary depot controls.
@@ -137,7 +162,19 @@ zero.
 ### Overhauls and upgrades
 
 - Each vehicle becomes due for overhaul independently from its own distance or
-  takeoff count. There is no convoy-wide or line-wide overhaul-due rule.
+  takeoff count. There is no convoy-wide or line-wide rule that makes a vehicle
+  due; the grouping rule below only decides which vehicles join a visit.
+- When a convoy enters a depot with `maintain_or_overhaul` and at least one
+  vehicle is due, `depot_t::convoi_arrived()` also places every other vehicle in
+  the overhaul group when it has covered at least the line's
+  `overhaul_grouping_percentage` of its own overhaul interval (or takeoff count
+  for aircraft), unless `do_not_overhaul` is set or its owner cannot afford the
+  overhaul. The test is `vehicle_t::is_overhaul_nearly_due()`, overridden by
+  `air_vehicle_t::is_overhaul_nearly_due()`. The percentage defaults to 90, is
+  read from `settings_t::overhaul_grouping_percentage` and simuconf for new
+  lines and lineless convoys, and is saved per line under Extended save revision
+  23. 0 disables grouping. Grouping applies only within one convoy, not across a
+  line or the player's fleet.
 - An overhaul resets the overhaul and maintenance counters, resets availability
   through those counters, increments the overhaul count and records the overhaul
   month.
@@ -154,10 +191,21 @@ zero.
   [FORUM:https://forum.simutrans.com/index.php/topic,16980.msg161553.html]. It
   must not be treated as a recurring monthly fixed cost or as capital
   expenditure.
+- On an overhaul visit, a replacement configured with
+  `replace_data_t::on_overhaul` runs before the overhaul loop when the overhaul
+  group is non-empty. `convoi_t::replace_now()` replaces the whole convoy,
+  because `replace_data_t` describes one complete replacement consist; the
+  overhaul group is the trigger, not the set of vehicles replaced. The visit
+  waits for the longer of `settings_t::shunting_time_seconds` and the longest
+  overhaul duration of any vehicle that `convoi_t::replace_now()` upgraded in
+  place, because an in-place upgrade is overhaul-equivalent work. `on_maintenance`
+  remains a trigger for any maintenance visit. The `on_overhaul` mode is not
+  exposed in `gui/replace_frame.cc`.
 - When `auto_upgrade_index` resolves and `do_not_auto_upgrade` is false, the
   overhaul applies the upgrade and charges the upgrade price instead of the
   ordinary overhaul price. The upgrade charge is also revenue expenditure.
-  Maintenance history is retained.
+  Maintenance history is retained. The upgrade keeps the overhaul duration,
+  because it runs inside `vehicle_t::overhaul()`.
 - An automatic upgrade is not accounted for as a replacement transaction: the
   old vehicle is not sold and the upgrade price is not split between revenue and
   capital. The whole charge is revenue expenditure. A replacement model is not
@@ -210,56 +258,104 @@ Fixed costs continue during layover; `convoi_t::new_month()` charges them and
 `convoi_t::sync_step()` discounts only salaries while the convoy is in
 `LAYOVER`.
 
-## Outstanding design decisions
+### Simplified maintenance
 
-These change game behaviour and are not settled by the code or the recorded
-design. Recommendations are not decisions and are marked `[UNVERIFIED]`.
+The project decision for 15.x is to keep `simplified_maintenance` as a switch and
+to make it internally consistent. When the setting is true:
 
-### Grouping overhauls of vehicles that are nearly due
+- `convoi_t::is_maintenance_needed()`,
+  `convoi_t::is_maintenance_urgently_needed()` and
+  `convoi_t::is_overhaul_needed()` return false.
+- `convoi_t::create_schedule()` and the depot line-creation path do not append
+  the automatic conditional depot entry.
+- `vehicle_t::get_availability()` and `air_vehicle_t::get_availability()` return
+  the descriptor's starting availability; `vehicle_t::get_running_cost()`
+  returns the descriptor's base running cost; and
+  `vehicle_t::is_wear_affecting_vehicle()` returns false. `vehicle_t::step_km()`
+  still advances the distance counters, so the getters would resume the
+  accumulated wear if the setting were later turned off.
+- `vehicle_desc_t::get_value()` multiplies the inflation-adjusted price by
+  `100 / starting_availability`, rounded up. This is the cost-balancing
+  compensation: a vehicle that is available for only part of its working life
+  costs as much as the number of vehicles needed to cover that life. The
+  multiplier applies to purchase, sale and asset value because all three read
+  `get_value()`. It does not apply to `vehicle_desc_t::get_upgrade_price()`.
+- The forum text says that a 75%-available vehicle costs 25% more, but its
+  stated `1 / availability` formula produces 33.3% more. The stated formula is
+  implemented; the example is arithmetically inconsistent. The original
+  material is
+  [FORUM:https://forum.simutrans.com/index.php/topic,16980.msg161553.html].
+- Pre-15 saves load with `simplified_maintenance` forced true. Their existing
+  vehicles are valued by the multiplier whenever `vehicle_desc_t::get_value()`
+  is called, so their sale and asset values change. This is the legacy-save
+  policy.
 
-Overhauls are independently timed per vehicle. The design record contains a
-proposal to overhaul vehicles together when their overhaul dates are near, but no
-definition of "near", no selected scope and no decision that this mechanic is
-wanted. A fixed percentage would be arbitrary unless grounded in a real workshop
-scheduling interval or a descriptor value.
+The mode is therefore cheaper to operate but more expensive to buy. It is not
+precisely economically comparable to full maintenance, and play-testing is
+needed to confirm that the formula balances.
 
-The proposed default is to retain independent timing for 15.x and assess the
-observed problem after maintenance works correctly `[UNVERIFIED]`. Grouping is a
-separate mechanic.
+### Releasing maintained vehicles from overhauling convoys
 
-### Economic meaning of simplified maintenance
+The grouping rule above applies within one convoy at arrival. This rule applies
+across two convoys of the same line. In the recorded case, train A's locomotive
+and train B's carriages are due for overhaul, while A's carriages and B's
+locomotive need only routine maintenance. The maintenance-only vehicles finish
+earlier. The rule forms a serviceable train from those vehicles and starts it
+while the overhaul sets remain in the depot. This does not shorten the overhaul;
+it releases the maintenance-only vehicles instead of leaving them idle.
 
-`simplified_maintenance` currently disables routine maintenance, urgent
-diversion and overhaul requirements. The original design proposed two
-economically comparable modes and represented availability in the purchase price
-of simplified-mode vehicles. That proposal does not specify an internally
-consistent formula: its `1 / availability` wording would add one third to a
-75%-available vehicle, while its example says one quarter. It also does not say
-whether the adjustment applies to resale value or how pre-15 saves, which load
-with simplified maintenance enabled, should be handled.
+`depot_t::convoi_arrived()` calls `release_maintained_vehicles()` after the
+replacement block and after `vehicle_t::maintain()`/`vehicle_t::overhaul()` have
+been applied, and before `register_for_maintenance()`. The rule is:
 
-A decision is required between retaining the current setting as a switch that
-disables the mechanic without modelling its economic effect, or completing the
-availability-adjusted purchase-price model with a new exact formula and a
-legacy-save policy. No change should be made under the old description because it is not precise
-enough to implement safely. The original material is
-[FORUM:https://forum.simutrans.com/index.php/topic,16980.msg161553.html].
+- The arriving convoy must have a non-empty overhaul set and a non-empty
+  maintenance-only set. It must be line-bound, have a non-empty schedule, must
+  not have been replaced on this visit and must not be held for an unaffordable
+  overhaul.
+- If another convoy of the same line has maintenance or overhaul work due and is
+  routed to the same depot, the arriving maintenance-only vehicles are held for
+  it. The held vehicles are placed in a new line-bound convoy in state
+  `INITIAL` in the depot, with a copy of the schedule advanced one entry past
+  the depot. This is the **held convoy**. It is an ordinary stored convoy and is
+  saved by the existing format.
+- When the second convoy arrives, its maintenance-only vehicles are added to the
+  held convoy. The rule tries the new vehicles at the front, then appended, and
+  starts the first arrangement that is powered, coupling-valid, has a front cab
+  and can find a route to the next schedule entry. The start uses
+  `convoi_t::start()`, not `depot_t::start_convoi()`, so it has no window or
+  depot-frame effects.
+- A trailer moves only when its coupled leader moves. The test is
+  `vehicle_desc_t::get_trailer()` on the leading vehicle, so a steam tender, an
+  articulated bus section and a tram section stay with their powered unit.
+- The two original convoys keep their overhaul sets, line, `wait_lock`,
+  schedule position and depot registration. They advance past the depot entry
+  when their overhauls finish. The combined convoy starts at the first arrival's
+  next stop; the original convoys are one schedule entry out of phase.
+- The overhaul set is not validated. If the leftover vehicles cannot form a
+  train after the overhaul, the player must re-form them. This is deliberate for
+  the recorded locomotive/carriages case: validating the overhaul set would
+  refuse the split.
+- The per-line limit is unchanged. The recorded case needs
+  `simline_t::max_convoys_at_depot` to be at least 2 when the depot entry is
+  conditional, because the second convoy otherwise skips the depot. The
+  runtime case uses a plain depot entry, so it works with the default of 1.
 
-### Convoy trigger for replacement on overhaul
+The rule is covered by `maintenance-split`, `maintenance-split-invalid`,
+`maintenance-split-unreachable` and `maintenance-cross-convoy` in
+`tests/pending-runtime/maintenance-cases/`. The invalid and unreachable cases
+cover the undo path. The cross-convoy case covers the two-train combination.
 
-`replace_data_t::replacement_time` defines replacement on replenishment,
-maintenance, overhaul, immediate, manual and automatic. The unresolved part is
-what "on overhaul" means when a convoy has several independently timed vehicles:
-any vehicle due, all vehicles due, or a nominated vehicle such as the locomotive
-[FORUM:https://forum.simutrans.com/index.php/topic,16980.0.html].
+The composition of consists from non-identical rolling stock, the treatment of
+the leftover overhaul sets, and combinations of more than two convoys are not
+settled. They are recorded as open decisions below.
 
-The implementation currently replaces the whole convoy when any vehicle is in
-the overhaul group. That is a usable default, but the mode is not exposed in the
-graphical user interface. Confirm the any-vehicle rule before exposing the mode,
-or select a different rule. Overhaul and replacement execution is otherwise
-future work; only the `on_maintenance` trigger condition is corrected now.
+## Decisions, deferrals and open questions
 
-### Advance decision for scheduled maintenance visits
+This section records the decisions taken for 15.x, the work intentionally
+deferred, and the remaining open questions. Recommendations are not decisions
+and are marked `[UNVERIFIED]`.
+
+### Early decision for scheduled maintenance visits (implemented; schedule-index deferred)
 
 The 2016 design records a requirement, not a complete algorithm. Its stated purpose
 is to avoid convoys dumping cargo on a depot visit
@@ -312,28 +408,44 @@ The early decision is implemented:
 The decision covers only the next conditional depot. A schedule may contain more
 than one; later entries keep the late decision in
 `convoi_t::advance_schedule()`. Tracking a specific depot would need a
-schedule-index byte; whether that is worth the memory is an open question.
+schedule-index byte. The project maintainer has deferred that byte until player
+feedback from a completed 15.x shows that schedules with more than one
+conditional depot need it. This is an intentional deferral, not an open design
+question; the last-halt set-down remains the protection.
 
-The reservation requirements (one convoy per line per depot, and the depot's
-maximum number of convoys) are not implemented; see Per-line depot limit below.
+The per-line limit that decides whether a convoy may take a depot maintenance
+place is recorded in the Depot visits section above.
 
-### Resale value and the second-hand market
+### Composition of consists from non-identical rolling stock (open)
+
+The automatic release and combination rules assume that the maintenance-only
+vehicles from two convoys can be fitted together and that a trailer stays with
+its leader. They do not define:
+
+- how a consist may be composed from different but compatible vehicle types;
+- whether the game should check the leftover overhaul set, or automatically
+  re-form it after the overhaul;
+- how more than two convoys, or several possible partners, should be paired.
+
+These are open design questions. They may require a fuller vehicle-management
+system. The current rule handles the two-convoy case and leaves the leftover
+overhaul sets to the player.
+
+### Resale value and the second-hand market (open)
 
 `vehicle_t::calc_sale_value()` depreciates by age and by whether the vehicle has
 been driven; it does not consider wear or overhaul history. The preferred
 direction is an in-game second-hand market with player-set prices and a scrap
 price fallback, so a wear-adjusted formula is not required now.
 
-### Per-line depot limit
-
-The 2016 design proposed one convoy per line per depot and a visit decision
-before arrival, as described under Advance decision for scheduled maintenance
-visits above. The visit decision is implemented; the per-line limit is not, so
-every convoy of a line can become due together and leave service together. The
-available policies are under investigation.
-
 ## Outstanding user-interface work (future session)
 
+- **Per-line depot maintenance limit control.** The value is stored and
+  enforced, but no control exists. Add a line-management control that commits
+  through `TOOL_CHANGE_LINE`; the tool case is not yet present.
+- **Per-line overhaul grouping percentage control.** The value is stored and
+  defaults from simuconf, but no control exists. Add one that commits through
+  `TOOL_CHANGE_LINE`.
 - **Maintenance queue controls.** Add depot-window controls that call
   `depot_t::prioritise_for_maintenance()` and
   `depot_t::depriortise_for_maintenance()`. The serialised queue order affects
@@ -358,25 +470,32 @@ available policies are under investigation.
   explicit; this is an implementation verification, not an open mechanic.
 - Can the maintenance countdown and queue survive save/reload exactly? The queue
   and convoy state are serialised and validated, but no behavioural test exists.
-- Should the early conditional-depot decision track a specific depot with a
-  schedule-index byte? The current state covers only the next conditional depot.
-  A second conditional depot therefore keeps the late decision and relies on the
-  last-halt discharge if it is visited. A mirrored schedule that reverses at a
-  stop also keeps the decision taken in the incoming direction; whether that needs
-  a reset on the direction change is not yet verified.
+- Does the `100 / starting_availability` purchase-price compensation balance?
+  The recorded formula and the recorded 75% example disagree; the formula is
+  implemented, but no play-test has compared simplified and realistic modes.
+- Does the per-line depot limit behave correctly when a convoy is held in
+  `INITIAL` for an unaffordable overhaul? The convoy counts against the limit
+  and urgent maintenance bypasses it, but no runtime case tests the interaction.
+- Does the 90% grouping rule produce the intended number of overhauls in a mixed
+  consist? The rule is implemented, but no runtime case sets two vehicles at
+  different distances.
+- A mirrored schedule that reverses at a stop keeps the early decision taken in
+  the incoming direction; whether that needs a reset on the direction change is
+  not yet verified.
 - The scheduled-depot edge cases in the Open questions section of
   [schedule-and-consists](schedule-and-consists.md) remain separate defects.
 
 ## Resumption order
 
-1. Add behavioural tests for duration, queue progress, urgent diversion and
+1. Add behavioural tests for the per-line depot limit, the 90% grouping rule,
+   the replacement delay, duration, queue progress, urgent diversion and
    affordability.
-2. Verify save/reload and two-process determinism of the active-service counter,
-   queue and overhaul financial state.
-3. Add the outstanding user-interface work listed above.
-4. Decide whether to add a schedule-index byte to track a specific conditional
-   depot; decide the per-line depot limit.
-5. Decide simplified maintenance, overhaul grouping and the replacement trigger
-   before exposing those controls.
-6. Re-run the checks with vehicles that have moved between consists, so each
+2. Verify save/reload and two-process determinism of the new line and settings
+   fields, the active-service counter, the queue and the overhaul financial
+   state.
+3. Add the outstanding user-interface work listed above, including the deferred
+   per-line controls.
+4. Re-run the checks with vehicles that have moved between consists, so each
    vehicle keeps its own maintenance and active-service history.
+5. Reconsider a cross-convoy overhaul exchange and a schedule-index byte only
+   after player feedback from a completed 15.x.

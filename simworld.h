@@ -2468,6 +2468,11 @@ public:
 			sync_list_t() : currently_deleting(NULL), sync_step_running(false) {}
 			void add(sync_steppable *obj);
 			void remove(sync_steppable *obj);
+			// True if the object is currently in the list. Used to avoid calling
+			// remove() for an object that was never added: remove() asserts when
+			// called during a sync step for an object other than the one being
+			// deleted.
+			bool contains(const sync_steppable *obj) const;
 		private:
 			void sync_step(uint32 delta_t);
 			/// clears list, does not delete the objects

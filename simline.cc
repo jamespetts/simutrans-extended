@@ -76,6 +76,8 @@ simline_t::simline_t(player_t* player, linetype type) :
 	state_color(SYSCOL_TEXT),
 	start_reversed(false),
 	livery_scheme_index(0),
+	max_convoys_at_depot(1),
+	overhaul_grouping_percentage(welt->get_settings().get_overhaul_grouping_percentage()),
 	state(line_normal_state)
 {
 	char printname[128];
@@ -108,6 +110,8 @@ simline_t::simline_t(player_t* player, linetype type, loadsave_t *file) :
 	state_color(SYSCOL_TEXT),
 	start_reversed(false),
 	livery_scheme_index(0),
+	max_convoys_at_depot(1),
+	overhaul_grouping_percentage(welt->get_settings().get_overhaul_grouping_percentage()),
 	state(line_normal_state)
 {
 	for (uint32 j = 0; j< MAX_LINE_COST; ++j) {
@@ -695,6 +699,17 @@ void simline_t::rdwr(loadsave_t *file)
 		file->rdwr_str(linecode_r, lengthof(linecode_r));
 	}
 
+	if (file->is_version_ex_atleast(15, 23)) {
+		file->rdwr_byte(max_convoys_at_depot);
+		file->rdwr_byte(overhaul_grouping_percentage);
+		if (max_convoys_at_depot == 0) {
+			max_convoys_at_depot = 1;
+		}
+		if (overhaul_grouping_percentage > 100) {
+			overhaul_grouping_percentage = 100;
+		}
+	}
+
 	// discard old incompatible datum
 	if( file->is_loading() ) {
 		if( file->is_version_ex_less(14,57) ) {
@@ -756,6 +771,42 @@ int simline_t::get_replacing_convoys_count() const {
 		}
 	}
 	return count;
+}
+
+
+bool simline_t::has_depot_maintenance_slot(const koord3d &pos, const convoi_t *except) const
+{
+	uint8 count = 0;
+	for (auto const &cnv : line_managed_convoys)
+	{
+		if (!cnv.is_bound() || cnv.get_rep() == except)
+		{
+			continue;
+		}
+		// A convoy that is already at the depot tiles occupies a place while
+		// it is being maintained, overhauled, or held for an unaffordable
+		// overhaul. A convoy whose current schedule entry is the depot is
+		// approaching it and counts against the limit in advance.
+		if (cnv->get_pos() == pos)
+		{
+			// A line-bound INITIAL convoy whose maintenance and overhaul work
+			// is complete is a maintained group held for combination with
+			// another convoy. It is not occupying a maintenance place. A
+			// convoy held for an unaffordable overhaul is also INITIAL but
+			// still reports the overdue work, so it continues to count.
+			if (cnv->get_state() != convoi_t::INITIAL || cnv->is_maintenance_needed() || cnv->is_overhaul_needed())
+			{
+				++count;
+			}
+			continue;
+		}
+		const schedule_t *sch = cnv->get_schedule();
+		if (sch && !sch->empty() && sch->get_current_entry().pos == pos)
+		{
+			++count;
+		}
+	}
+	return count < max_convoys_at_depot;
 }
 
 void simline_t::unregister_stops()

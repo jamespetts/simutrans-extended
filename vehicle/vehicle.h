@@ -955,6 +955,12 @@ public:
 	bool is_maintenance_urgently_needed() const;
 	// Aircraft need different logic to other vehicles, hence virtual.
 	virtual bool is_overhaul_needed() const;
+
+	// True once the vehicle has covered at least percentage per cent of its
+	// overhaul interval. Used to include nearly due vehicles in an overhaul
+	// visit caused by another vehicle in the same consist.
+	virtual bool is_overhaul_nearly_due(uint8 percentage) const;
+
 	uint16 get_overhaul_count() const { return overhauls; }
 	uint32 get_km_since_last_overhaul() const { return km_since_last_overhaul; }
 	uint32 get_km_since_last_maintenance() const { return km_since_last_maintenance; }

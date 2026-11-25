@@ -151,6 +151,15 @@ private:
 
 	uint16 livery_scheme_index;
 
+	// The maximum number of this line's convoys that may be using one depot
+	// for maintenance at the same time. Saved per line. The UI to change it is
+	// deferred; see ai/ex-15/depot-maintenance.md.
+	uint8 max_convoys_at_depot = 1;
+
+	// The percentage of its overhaul interval at which a vehicle is included
+	// in an overhaul visit caused by another vehicle in the same consist.
+	uint8 overhaul_grouping_percentage = 90;
+
 	uint8 line_lettercode_style=no_letter_code;
 	uint8 line_color_index=255;
 
@@ -352,6 +361,16 @@ public:
 	void set_livery_scheme_index (uint16 index) { livery_scheme_index = index; }
 	uint16 get_livery_scheme_index() const { return livery_scheme_index; }
 	void propogate_livery_scheme();
+
+	uint8 get_max_convoys_at_depot() const { return max_convoys_at_depot; }
+	void set_max_convoys_at_depot(uint8 value) { max_convoys_at_depot = value ? value : 1; }
+
+	uint8 get_overhaul_grouping_percentage() const { return overhaul_grouping_percentage; }
+	void set_overhaul_grouping_percentage(uint8 value) { overhaul_grouping_percentage = value > 100 ? 100 : value; }
+
+	// True while this line has a free maintenance place at the depot at pos.
+	// The convoy except is ignored, so that a convoy can ask about itself.
+	bool has_depot_maintenance_slot(const koord3d &pos, const convoi_t *except) const;
 
 	void set_line_color(uint8 color_idx = 255, uint8 style = no_letter_code);
 	uint8 get_line_lettercode_style() const { return line_lettercode_style; }

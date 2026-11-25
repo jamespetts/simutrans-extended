@@ -4550,10 +4550,23 @@ void karte_t::sync_list_t::add(sync_steppable *obj)
 	list.append(obj);
 }
 
+bool karte_t::sync_list_t::contains(const sync_steppable *obj) const
+{
+	return list.is_contained(const_cast<sync_steppable *>(obj));
+}
+
+
 void karte_t::sync_list_t::remove(sync_steppable *obj)
 {
 	if(sync_step_running) {
 		if (obj == currently_deleting) {
+			return;
+		}
+		if (!list.is_contained(obj)) {
+			// Removing a non-member is a no-op. A newly created object (for
+			// example a convoy split off in a depot) can be destroyed during a
+			// sync step before it was ever added to the list; that does not
+			// invalidate the iteration.
 			return;
 		}
 		assert(false);

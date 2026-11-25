@@ -98,6 +98,7 @@ protected:
 	void unreserve_runway() OVERRIDE;
 
 	bool is_overhaul_needed() const OVERRIDE;
+	bool is_overhaul_nearly_due(uint8 percentage) const OVERRIDE;
 
 	bool overhaul() OVERRIDE
 	{

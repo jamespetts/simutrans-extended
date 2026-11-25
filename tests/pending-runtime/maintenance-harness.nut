@@ -81,6 +81,23 @@ local case_name = ::case_kind
 // 100 and a low-availability carriage behind it.
 local RAIL_CASE = ("maintenance_rail_case" in getroottable()) && ::maintenance_rail_case
 local OVERHAUL_CASE = ("maintenance_overhaul_case" in getroottable()) && ::maintenance_overhaul_case
+// The split case makes the last vehicle due for overhaul and the rest of the
+// consist due only for routine maintenance, then checks that the maintained
+// vehicles leave the depot in a new convoy while the overhauled vehicle stays.
+local SPLIT_CASE = ("maintenance_split_case" in getroottable()) && ::maintenance_split_case
+// The invalid case makes the locomotive due for overhaul and leaves only the
+// tender and carriage in the maintained group, which is unpowered. The split
+// must be refused and the original convoy must be restored.
+local SPLIT_INVALID_CASE = ("maintenance_split_invalid_case" in getroottable()) && ::maintenance_split_invalid_case
+// The unreachable case gives the convoy a valid maintained group but a next
+// entry after the depot that cannot be reached, so the split fails its route
+// check after the schedule and line have been installed and must undo.
+local SPLIT_UNREACHABLE_CASE = ("maintenance_split_unreachable_case" in getroottable()) && ::maintenance_split_unreachable_case
+// The cross-convoy case puts two mixed convoys of the same line in one depot.
+// Train A's locomotive and tender are due for overhaul and its carriage is only
+// maintained; train B's carriage is due for overhaul and its locomotive and
+// tender are only maintained. The maintained groups combine into one convoy.
+local CROSS_CONVOY_CASE = ("maintenance_cross_convoy_case" in getroottable()) && ::maintenance_cross_convoy_case
 local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
@@ -94,6 +111,8 @@ local WAY_END_POS = coord3d(12, 2, 0)
 
 local STOP_ENTRY_ID = 11
 local DEPOT_ENTRY_ID = 12
+local UNREACHABLE_POS = coord3d(2, 10, 0)
+local UNREACHABLE_ENTRY_ID = 13
 
 // schedule_entry_t::maintain_or_overhaul. A depot schedule entry carries the
 // visit flags in minimum_loading (the schedule_entry_x.load field).
@@ -133,7 +152,20 @@ local fixture = {
 	cash_before = 0.0,
 	month_before = 0,
 	overhaul_count_before = 0,
-	overhaul_cost_before = 0
+	overhaul_cost_before = 0,
+	line_id = 0,
+	known_ids = [],
+	split_convoy_id = 0,
+	split_steps = 0,
+	split_carriage_index = 0,
+	split_overhaul_before = 0,
+	split_maintenance_before = 0,
+	overhaul_vehicle_index = 0,
+	convoy_id_b = 0,
+	vehicle_count_b = 0,
+	cross_steps = 0,
+	cross_checked = false,
+	cross_b_started = false
 }
 
 
@@ -263,6 +295,7 @@ function select_vehicle()
 		if (desc.needs_electrification()) { continue }
 		if (desc.get_successors().len() > 0) { continue }
 		if (!desc.can_be_first() || !desc.can_be_last()) { continue }
+		if (CROSS_CONVOY_CASE) { return [desc, desc] }
 		return [desc]
 	}
 	return null
@@ -274,6 +307,32 @@ function make_entry(pos, unique_entry_id)
 	local entry = schedule_entry_x(pos, 0, 0)
 	entry.unique_entry_id = unique_entry_id
 	return entry
+}
+
+
+// Creates a line with the given schedule and returns it, or null. The split
+// case needs a line because depot_t::convoi_arrived() does not split a lineless
+// convoy.
+function create_line_with_schedule(pl, schedule)
+{
+	local before = []
+	foreach (line in pl.get_line_list())
+	{
+		before.append(line.id)
+	}
+	if (!check_tool(pl.create_line(WAYTYPE), "create the maintenance line")) { return null }
+	local created = null
+	foreach (line in pl.get_line_list())
+	{
+		if (before.find(line.id) == null)
+		{
+			created = line
+			break
+		}
+	}
+	if (!check(created != null, "the new maintenance line was not found")) { return null }
+	if (!check_tool(created.change_schedule(pl, schedule), "commit the maintenance line schedule")) { return null }
+	return created
 }
 
 
@@ -295,6 +354,13 @@ function setup()
 	if (!check(station != null, "no station available for waytype " + WAYTYPE)) { return false }
 	if (!check_tool(command_x(tool_build_station).work(pl, STOP_POS, station.get_name()), "build the stop")) { return false }
 
+	if (SPLIT_UNREACHABLE_CASE)
+	{
+		// An isolated halt that no route from the depot can reach.
+		if (!check_tool(command_x.build_way(pl, coord3d(1, 10, 0), coord3d(3, 10, 0), way, false), "build the isolated way")) { return false }
+		if (!check_tool(command_x(tool_build_station).work(pl, UNREACHABLE_POS, station.get_name()), "build the unreachable stop")) { return false }
+	}
+
 	local descs = select_vehicle()
 	if (!check(descs != null && descs.len() > 0, "no suitable vehicle is available for waytype " + WAYTYPE)) { return false }
 
@@ -311,6 +377,25 @@ function setup()
 	fixture.vehicle_count = cnv.get_vehicles().len()
 	if (!check(fixture.vehicle_count >= descs.len(), "the convoy has " + fixture.vehicle_count + " vehicles after appending " + descs.len())) { return false }
 
+	// The cross-convoy case needs a second convoy of the same line in the same
+	// depot. The depot tool creates a new convoy when it is given an unbound
+	// handle, as the first convoy above.
+	local cnv_b = null
+	if (CROSS_CONVOY_CASE)
+	{
+		local before_b = convoy_ids()
+		if (!check_tool(depot.append_vehicle(pl, convoy_x(0), descs[0]), "put the second convoy's leading vehicle in the depot")) { return false }
+		cnv_b = find_new_convoy(before_b)
+		if (!check(cnv_b != null, "the second convoy was not found after adding its leading vehicle")) { return false }
+		fixture.convoy_id_b = cnv_b.id
+		for (local i = 1; i < descs.len(); i++)
+		{
+			if (!check_tool(depot.append_vehicle(pl, cnv_b, descs[i]), "append vehicle " + i + " to the second convoy")) { return false }
+		}
+		fixture.vehicle_count_b = cnv_b.get_vehicles().len()
+		if (!check(fixture.vehicle_count_b >= descs.len(), "the second convoy has " + fixture.vehicle_count_b + " vehicles after appending " + descs.len())) { return false }
+	}
+
 	local stop_entry = make_entry(STOP_POS, STOP_ENTRY_ID)
 	local depot_entry = make_entry(DEPOT_POS, DEPOT_ENTRY_ID)
 	// The depot entry requests routine maintenance on arrival. It is also the
@@ -318,17 +403,69 @@ function setup()
 	depot_entry.load = DEPOT_FLAG_MAINTAIN_OR_OVERHAUL
 	depot_entry.reverse = 1
 
-	local schedule = schedule_x(WAYTYPE, [stop_entry, depot_entry])
+	local entries = [stop_entry, depot_entry]
+	if (SPLIT_UNREACHABLE_CASE)
+	{
+		entries.append(make_entry(UNREACHABLE_POS, UNREACHABLE_ENTRY_ID))
+	}
+	local schedule = schedule_x(WAYTYPE, entries)
 	if (!check_tool(cnv.change_schedule(pl, schedule), "commit the convoy schedule")) { return false }
 
 	// Read the depot entry's visit flags back: the case depends on the value
 	// surviving the schedule commit.
 	local back = cnv.get_schedule()
-	if (!check(back != null && back.entries.len() == 2, "the committed schedule does not have two entries")) { return false }
+	local expected_entries = SPLIT_UNREACHABLE_CASE ? 3 : 2
+	if (!check(back != null && back.entries.len() == expected_entries, "the committed schedule has " + (back == null ? 0 : back.entries.len()) + " entries, expected " + expected_entries)) { return false }
 	if (!check(back.entries[0].unique_entry_id == STOP_ENTRY_ID, "schedule entry 0 is not the stop entry " + STOP_ENTRY_ID)) { return false }
 	if (!check(back.entries[1].unique_entry_id == DEPOT_ENTRY_ID, "schedule entry 1 is not the depot entry " + DEPOT_ENTRY_ID)) { return false }
 	if (!check(back.entries[1].load == DEPOT_FLAG_MAINTAIN_OR_OVERHAUL, "the depot entry reports load " + back.entries[1].load + ", expected the maintain_or_overhaul visit flag " + DEPOT_FLAG_MAINTAIN_OR_OVERHAUL)) { return false }
 	if (!check(back.entries[1].reverse == 1, "the depot entry reports reverse " + back.entries[1].reverse + ", expected 1 so that the route search stops at the depot instead of treating it as a waypoint")) { return false }
+	if (SPLIT_UNREACHABLE_CASE)
+	{
+		if (!check(back.entries[2].unique_entry_id == UNREACHABLE_ENTRY_ID, "schedule entry 2 is not the unreachable entry " + UNREACHABLE_ENTRY_ID)) { return false }
+	}
+
+	if (CROSS_CONVOY_CASE)
+	{
+		// Both convoys use the line schedule, so both arrive at the depot with
+		// the depot entry current.
+		local line = create_line_with_schedule(pl, schedule)
+		if (line == null) { return false }
+		fixture.line_id = line.id
+		if (!check_tool(cnv.set_line(pl, line), "assign the first convoy to the maintenance line")) { return false }
+		if (!check_tool(cnv_b.set_line(pl, line), "assign the second convoy to the maintenance line")) { return false }
+
+		local a_slots = cnv.get_vehicle_snapshot()
+		local b_slots = cnv_b.get_vehicle_snapshot()
+		if (!check(a_slots.len() == 3 && b_slots.len() == 3, "the cross-convoy case needs three vehicles in each convoy (locomotive, tender and carriage), but they have " + a_slots.len() + " and " + b_slots.len())) { return false }
+
+		// Train A: locomotive due for overhaul, tender and carriage only maintained.
+		if (!check(cnv.set_maintenance_distances_for_testing(0, 0, OVERHAUL_DISTANCE), "set train A's locomotive overhaul distance")) { return false }
+		if (!check(cnv.set_maintenance_distances_for_testing(2, OVERHAUL_DISTANCE, 0), "set train A's carriage maintenance distance")) { return false }
+		// Train B: carriage due for overhaul, locomotive and tender only maintained.
+		if (!check(cnv_b.set_maintenance_distances_for_testing(0, OVERHAUL_DISTANCE, 0), "set train B's locomotive maintenance distance")) { return false }
+		if (!check(cnv_b.set_maintenance_distances_for_testing(2, 0, OVERHAUL_DISTANCE), "set train B's carriage overhaul distance")) { return false }
+
+		local a_after = cnv.get_vehicle_snapshot()
+		local b_after = cnv_b.get_vehicle_snapshot()
+		if (!check(a_after[0].overhaul_needed, "train A's locomotive does not report an overhaul as due")) { return false }
+		if (!check(!a_after[2].overhaul_needed, "train A's carriage reports an overhaul as due; it must only be maintained")) { return false }
+		if (!check(b_after[2].overhaul_needed, "train B's carriage does not report an overhaul as due")) { return false }
+		if (!check(!b_after[0].overhaul_needed, "train B's locomotive reports an overhaul as due; it must only be maintained")) { return false }
+
+		local overhaul_cost = a_after[0].overhaul_cost + b_after[2].overhaul_cost
+		if (!check_tool(pl.book_cash(overhaul_cost + 200000), "add cash for both overhauls")) { return false }
+
+		fixture.known_ids = convoy_ids()
+		if (!check(fixture.known_ids.find(cnv.id) != null && fixture.known_ids.find(cnv_b.id) != null, "the two convoys are not both in the convoy list before starting")) { return false }
+
+		// Start only the first convoy. The second stays in the depot until the
+		// first is in overhaul, so the two trains cannot meet head-on on the
+		// single-track fixture line.
+		if (!check_tool(depot.start_convoy(pl, cnv), "start the first convoy")) { return false }
+		fixture.cross_b_started = false
+		return true
+	}
 
 	if (OVERHAUL_CASE)
 	{
@@ -343,6 +480,56 @@ function setup()
 		if (!check(after.overhaul_needed, "the vehicle does not report an overhaul as due after the test hook set " + OVERHAUL_DISTANCE + " km since the last overhaul")) { return false }
 		if (!check(after.overhaul_cost > 0, "the vehicle reports an overhaul cost of " + after.overhaul_cost + ", so the cash booking cannot be asserted")) { return false }
 		if (!check_tool(pl.book_cash(fixture.overhaul_cost_before + 100000), "add cash for the overhaul")) { return false }
+	}
+
+	if (SPLIT_CASE || SPLIT_UNREACHABLE_CASE)
+	{
+		// The maintained group must be a valid powered consist on its own, so
+		// the last vehicle is the one due for overhaul: with the rail fixture's
+		// locomotive and its tender maintained, the split-off convoy can run.
+		local slots = cnv.get_vehicle_snapshot()
+		if (!check(slots.len() >= 3, "the split case needs a locomotive, its tender and a carriage, but the convoy has " + slots.len() + " vehicles")) { return false }
+		fixture.split_carriage_index = slots.len() - 1
+		fixture.overhaul_vehicle_index = fixture.split_carriage_index
+		fixture.split_overhaul_before = slots[fixture.split_carriage_index].overhaul_count
+		fixture.split_maintenance_before = slots[0].km_since_last_maintenance
+		if (!check(cnv.set_maintenance_distances_for_testing(fixture.split_carriage_index, 0, OVERHAUL_DISTANCE), "the scenario-only test hook did not set the overhaul distance on the last vehicle")) { return false }
+		if (!check(cnv.set_maintenance_distances_for_testing(0, OVERHAUL_DISTANCE, 0), "the scenario-only test hook did not set the maintenance distance on the leading vehicle")) { return false }
+		local after = cnv.get_vehicle_snapshot()
+		if (!check(after[fixture.split_carriage_index].overhaul_needed, "the last vehicle does not report an overhaul as due after the test hook set " + OVERHAUL_DISTANCE + " km since the last overhaul")) { return false }
+		if (!check(!after[0].overhaul_needed, "the leading vehicle reports an overhaul as due; the split needs it only maintained")) { return false }
+		if (!check(after[fixture.split_carriage_index].overhaul_cost > 0, "the last vehicle reports an overhaul cost of " + after[fixture.split_carriage_index].overhaul_cost + ", so the overhaul cannot be paid for")) { return false }
+		if (!check_tool(pl.book_cash(after[fixture.split_carriage_index].overhaul_cost + 100000), "add cash for the overhaul")) { return false }
+
+		local line = create_line_with_schedule(pl, schedule)
+		if (line == null) { return false }
+		fixture.line_id = line.id
+		if (!check_tool(cnv.set_line(pl, line), "assign the convoy to the maintenance line")) { return false }
+		fixture.known_ids = convoy_ids()
+		if (!check(fixture.known_ids.find(cnv.id) != null, "the original convoy is not in the convoy list after the line assignment")) { return false }
+	}
+
+	if (SPLIT_INVALID_CASE)
+	{
+		// The locomotive is the overhaul group; the tender and carriage are the
+		// maintained group, which is unpowered. The split must be refused and
+		// the original consist restored.
+		local slots = cnv.get_vehicle_snapshot()
+		if (!check(slots.len() >= 3, "the invalid split case needs a locomotive, its tender and a carriage, but the convoy has " + slots.len() + " vehicles")) { return false }
+		fixture.overhaul_vehicle_index = 0
+		fixture.split_overhaul_before = slots[0].overhaul_count
+		if (!check(cnv.set_maintenance_distances_for_testing(0, 0, OVERHAUL_DISTANCE), "the scenario-only test hook did not set the overhaul distance on the locomotive")) { return false }
+		if (!check(cnv.set_maintenance_distances_for_testing(slots.len() - 1, OVERHAUL_DISTANCE, 0), "the scenario-only test hook did not set the maintenance distance on the carriage")) { return false }
+		local after = cnv.get_vehicle_snapshot()
+		if (!check(after[0].overhaul_needed, "the locomotive does not report an overhaul as due")) { return false }
+		if (!check(after[0].overhaul_cost > 0, "the locomotive reports no overhaul cost")) { return false }
+		if (!check_tool(pl.book_cash(after[0].overhaul_cost + 100000), "add cash for the overhaul")) { return false }
+
+		local line = create_line_with_schedule(pl, schedule)
+		if (line == null) { return false }
+		fixture.line_id = line.id
+		if (!check_tool(cnv.set_line(pl, line), "assign the convoy to the maintenance line")) { return false }
+		fixture.known_ids = convoy_ids()
 	}
 
 	if (!check_tool(depot.start_convoy(pl, cnv), "start the convoy")) { return false }
@@ -374,8 +561,85 @@ function capture_before(cnv, slot)
 }
 
 
+// The split case: the original convoy keeps only the vehicle due for overhaul,
+// and the maintained vehicles have left in a new convoy that is already bound
+// to the same line and positioned at the stop entry after the depot.
+function enter_split_service(cnv, state)
+{
+	if (!check(fixture.saw_stop, "the convoy entered a depot service state before it reached the stop, so it did not run the lap the case expects")) { return false }
+	if (!check(state == convoy_state_overhaul, "the depot visit put the convoy in state " + state + "; " + case_name + " expects state " + convoy_state_overhaul)) { return false }
+
+	fixture.service_state = state
+	fixture.stage = "split"
+	fixture.split_steps = 0
+
+	local slots = cnv.get_vehicle_snapshot()
+	if (!check(slots.len() == 1, "the original convoy has " + slots.len() + " vehicles after the split; the maintained vehicles should have left")) { return false }
+	if (!check(slots[0].overhaul_count == fixture.split_overhaul_before + 1, "the overhauled vehicle reports " + slots[0].overhaul_count + " overhauls, expected " + (fixture.split_overhaul_before + 1))) { return false }
+	if (!check(slots[0].km_since_last_overhaul == 0, "the overhauled vehicle reports " + slots[0].km_since_last_overhaul + " km since the last overhaul, expected vehicle_t::overhaul() to reset it")) { return false }
+
+	local new_cnv = null
+	foreach (other in world.get_convoy_list())
+	{
+		if (other.is_valid() && fixture.known_ids.find(other.id) == null)
+		{
+			new_cnv = other
+			break
+		}
+	}
+	if (!check(new_cnv != null, "no new convoy was created by the split")) { return false }
+	fixture.split_convoy_id = new_cnv.id
+
+	local new_slots = new_cnv.get_vehicle_snapshot()
+	if (!check(new_slots.len() == fixture.vehicle_count - 1, "the split-off convoy has " + new_slots.len() + " vehicles, expected the " + (fixture.vehicle_count - 1) + " maintained vehicles")) { return false }
+	if (!check(new_cnv.get_state() != convoy_state_initial, "the split-off convoy is still in INITIAL after the split")) { return false }
+	if (!check(new_cnv.get_current_entry_id() == STOP_ENTRY_ID, "the split-off convoy is at schedule entry " + new_cnv.get_current_entry_id() + ", expected the stop entry " + STOP_ENTRY_ID + " after the depot entry")) { return false }
+	local line = new_cnv.get_line()
+	if (!check(line != null && line.id == fixture.line_id, "the split-off convoy is not bound to the original convoy's line")) { return false }
+	if (!check(new_slots[0].maintenance_needed == false, "the leading vehicle of the split-off convoy still reports that maintenance is needed")) { return false }
+
+	print("RUNTIME CASE " + case_name + ": the split left " + slots.len() + " overhauled vehicle and started convoy " + new_cnv.id + " with " + new_slots.len() + " maintained vehicles")
+	return true
+}
+
+
+// The undo cases (an unpowered maintained group, or an unreachable next entry
+// after the depot): split_maintained_from_overhaul() must restore the original
+// consist and leave no new convoy behind.
+function enter_split_undo_service(cnv, state)
+{
+	if (!check(state == convoy_state_overhaul, "the depot visit put the convoy in state " + state + "; " + case_name + " expects state " + convoy_state_overhaul)) { return false }
+
+	local slots = cnv.get_vehicle_snapshot()
+	if (!check(slots.len() == fixture.vehicle_count, "the original convoy has " + slots.len() + " vehicles after the refused split, expected the original " + fixture.vehicle_count)) { return false }
+	if (!check(slots[fixture.overhaul_vehicle_index].overhaul_count == fixture.split_overhaul_before + 1, "the overhauled vehicle reports " + slots[fixture.overhaul_vehicle_index].overhaul_count + " overhauls, expected " + (fixture.split_overhaul_before + 1))) { return false }
+	if (!check(slots[fixture.overhaul_vehicle_index].km_since_last_overhaul == 0, "the overhauled vehicle reports " + slots[fixture.overhaul_vehicle_index].km_since_last_overhaul + " km since the last overhaul, expected vehicle_t::overhaul() to reset it")) { return false }
+
+	foreach (other in world.get_convoy_list())
+	{
+		if (other.is_valid() && fixture.known_ids.find(other.id) == null)
+		{
+			return fail("the refused split left a new convoy " + other.id + " in the world")
+		}
+	}
+
+	fixture.stage = "split-undo"
+	print("RUNTIME CASE " + case_name + ": the split was refused and the original convoy kept " + slots.len() + " vehicles")
+	pass()
+	return true
+}
+
+
 function enter_service(cnv, state)
 {
+	if (SPLIT_INVALID_CASE || SPLIT_UNREACHABLE_CASE)
+	{
+		return enter_split_undo_service(cnv, state)
+	}
+	if (SPLIT_CASE)
+	{
+		return enter_split_service(cnv, state)
+	}
 	if (!check(fixture.saw_stop, "the convoy entered a depot service state before it reached the stop, so it did not run the lap the case expects")) { return false }
 	local expected_state = OVERHAUL_CASE ? convoy_state_overhaul : convoy_state_maintenance
 	if (!check(state == expected_state, "the depot visit put the convoy in state " + state + "; " + case_name + " expects state " + expected_state)) { return false }
@@ -408,7 +672,9 @@ function enter_service(cnv, state)
 		{
 			tolerance = fixture.overhaul_cost_before / 20
 		}
-		if (!check(charged >= fixture.overhaul_cost_before - 0.5, "the overhaul changed cash by only " + charged + " hundredths, less than the vehicle's overhaul cost " + fixture.overhaul_cost_before)) { return false }
+		// The cash interface reports whole currency units, so a correctly
+		// booked overhaul can appear up to one unit below its exact cost.
+		if (!check(charged >= fixture.overhaul_cost_before - 100.0, "the overhaul changed cash by only " + charged + " hundredths, less than the vehicle's overhaul cost " + fixture.overhaul_cost_before + " by more than the one-unit rounding tolerance")) { return false }
 		if (world.get_time().raw == fixture.month_before)
 		{
 			if (!check(charged <= fixture.overhaul_cost_before + tolerance, "the overhaul changed cash by " + charged + " hundredths, more than the vehicle's overhaul cost " + fixture.overhaul_cost_before + " plus " + tolerance + " hundredths of other charges; the overhaul may have been monthly-scaled or charged more than once")) { return false }
@@ -486,12 +752,133 @@ function observe_departure(cnv)
 }
 
 
+// The split case: the original convoy must stay in the depot under overhaul
+// while the split-off convoy runs towards the stop.
+function observe_split()
+{
+	local cnv = convoy_x(fixture.convoy_id)
+	if (!cnv.is_valid())
+	{
+		fail("the original convoy " + fixture.convoy_id + " disappeared")
+		return
+	}
+	if (!check(cnv.get_state() == convoy_state_overhaul, "the original convoy left the overhaul state (state " + cnv.get_state() + ") before the split-off convoy departed")) { return }
+
+	local new_cnv = convoy_x(fixture.split_convoy_id)
+	if (!new_cnv.is_valid())
+	{
+		fail("the split-off convoy " + fixture.split_convoy_id + " disappeared")
+		return
+	}
+	local slots = new_cnv.get_vehicle_snapshot()
+	if (slots.len() == 0)
+	{
+		fail("the split-off convoy has no vehicles")
+		return
+	}
+
+	if (slots[0].pos.x > DEPOT_POS.x && new_cnv.get_current_entry_id() == STOP_ENTRY_ID)
+	{
+		print("RUNTIME CASE " + case_name + ": the split-off convoy left the depot towards the stop while the original convoy stayed in overhaul")
+		pass()
+		return
+	}
+
+	++fixture.split_steps
+	if (fixture.split_steps > DEPARTURE_STEP_LIMIT)
+	{
+		fail("the split-off convoy did not leave the depot towards the stop entry within " + DEPARTURE_STEP_LIMIT + " observation steps (state " + new_cnv.get_state() + ", entry " + new_cnv.get_current_entry_id() + ", position " + slots[0].pos + ")")
+	}
+}
+
+
+// The cross-convoy case: wait until both original convoys are in OVERHAUL and
+// one combined convoy exists, then check that the combined convoy leaves while
+// both originals stay behind.
+function observe_cross_convoy()
+{
+	local a = convoy_x(fixture.convoy_id)
+	local b = convoy_x(fixture.convoy_id_b)
+	if (!a.is_valid() || !b.is_valid())
+	{
+		fail("one of the original convoys disappeared")
+		return
+	}
+	if (!fixture.cross_b_started && a.get_state() == convoy_state_overhaul && b.get_state() == convoy_state_initial)
+	{
+		if (!check_tool(fixture.depot.start_convoy(player_x(0), convoy_x(fixture.convoy_id_b)), "start the second convoy after the first entered overhaul")) { return }
+		fixture.cross_b_started = true
+		print("RUNTIME CASE " + case_name + ": the first convoy is in overhaul; started the second convoy from the depot")
+		return
+	}
+	if (a.get_state() != convoy_state_overhaul || b.get_state() != convoy_state_overhaul)
+	{
+		++fixture.cross_steps
+		if (fixture.cross_steps > TRAVEL_STEP_LIMIT)
+		{
+			fail("the two convoys did not both enter overhaul within " + TRAVEL_STEP_LIMIT + " observation steps (states " + a.get_state() + " and " + b.get_state() + ")")
+		}
+		return
+	}
+
+	local combined = null
+	foreach (other in world.get_convoy_list())
+	{
+		if (other.is_valid() && fixture.known_ids.find(other.id) == null)
+		{
+			combined = other
+			break
+		}
+	}
+	if (combined == null)
+	{
+		fail("both convoys are in overhaul but no combined maintained convoy exists")
+		return
+	}
+
+	local slots = combined.get_vehicle_snapshot()
+	if (!fixture.cross_checked)
+	{
+		if (!check(slots.len() == 3, "the combined convoy has " + slots.len() + " vehicles, expected the maintained locomotive, tender and carriage")) { return }
+
+		if (!check(combined.get_state() != convoy_state_initial, "the combined convoy is still in INITIAL")) { return }
+		if (!check(combined.get_current_entry_id() == STOP_ENTRY_ID, "the combined convoy is at entry " + combined.get_current_entry_id() + ", expected the stop entry " + STOP_ENTRY_ID)) { return }
+		local line = combined.get_line()
+		if (!check(line != null && line.id == fixture.line_id, "the combined convoy is not on the original line")) { return }
+		if (!check(combined.get_vehicles()[0].get_power() > 0, "the combined convoy's leading vehicle is not powered")) { return }
+		local a_count = a.get_vehicle_snapshot().len()
+		local b_count = b.get_vehicle_snapshot().len()
+		if (!check(a_count > 0 && b_count > 0, "the split left an original convoy with no vehicles (" + a_count + " and " + b_count + ")")) { return }
+		if (!check(a_count + b_count + slots.len() == fixture.vehicle_count + fixture.vehicle_count_b, "the vehicle counts do not add up: " + a_count + " + " + b_count + " + " + slots.len() + " != " + (fixture.vehicle_count + fixture.vehicle_count_b))) { return }
+		fixture.cross_checked = true
+		print("RUNTIME CASE " + case_name + ": the combined convoy " + combined.id + " has " + slots.len() + " maintained vehicles; convoy " + a.id + " keeps " + a_count + " and convoy " + b.id + " keeps " + b_count + " overhauled vehicles")
+	}
+
+	if (slots.len() > 0 && slots[0].pos.x > DEPOT_POS.x)
+	{
+		print("RUNTIME CASE " + case_name + ": the combined convoy left the depot while both originals stayed in overhaul")
+		pass()
+		return
+	}
+	++fixture.cross_steps
+	if (fixture.cross_steps > DEPARTURE_STEP_LIMIT)
+	{
+		fail("the combined convoy did not leave the depot towards the stop within " + DEPARTURE_STEP_LIMIT + " observation steps")
+	}
+}
+
+
 function observe()
 {
 	local cnv = convoy_x(fixture.convoy_id)
 	if (!cnv.is_valid())
 	{
 		fail("the convoy " + fixture.convoy_id + " disappeared")
+		return
+	}
+	if (CROSS_CONVOY_CASE)
+	{
+		observe_cross_convoy()
 		return
 	}
 
@@ -505,6 +892,11 @@ function observe()
 		}
 	}
 
+	if (fixture.stage == "split")
+	{
+		observe_split()
+		return
+	}
 	if (fixture.stage == "service")
 	{
 		if (OVERHAUL_CASE)
