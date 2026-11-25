@@ -3521,6 +3521,18 @@ DBG_MESSAGE("vehicle_t::rdwr_from_convoi()","bought at %i/%i.",(purchase_time%12
 		file->rdwr_longlong(collection_loose_since);
 		file->rdwr_longlong(collection_time);
 	}
+
+	if (file->is_version_ex_atleast(15, 24))
+	{
+		file->rdwr_longlong(depot_release_time);
+		file->rdwr_byte(depot_job_state);
+		file->rdwr_long(depot_queue_index);
+		file->rdwr_longlong(depot_job_duration);
+	}
+	else if (file->is_loading())
+	{
+		clear_depot_job();
+	}
 }
 
 
@@ -4213,18 +4225,24 @@ void vehicle_t::replenish()
 	cnv->set_wait_lock((sint32)replenish_time);
 }
 
-void vehicle_t::maintain()
+sint64 vehicle_t::get_maintenance_duration() const
 {
-	// Do not call replenish() recursively as this will trigger the wait
-	km_since_last_replenish = 0;
-
 	// The recorded availability examples require the time spent in active
 	// service, not elapsed wall-clock time. The accumulator excludes depot
 	// storage, layover, maintenance and overhaul.
 	const uint32 availability = min(get_availability(), (uint8)100);
-	const sint64 maintenance_time = ((sint64)active_service_time * (sint64)(100 - availability)) / 100ll;
-	cnv->set_wait_lock(max(cnv->get_wait_lock(), (sint32)min(maintenance_time, (sint64)SINT32_MAX_VALUE)));
-	cnv->set_state(convoi_t::MAINTENANCE);
+	return ((sint64)active_service_time * (sint64)(100 - availability)) / 100ll;
+}
+
+sint64 vehicle_t::get_overhaul_duration() const
+{
+	return (welt->ticks_per_world_month * (sint64)desc->get_overhaul_month_tenths()) / 10u;
+}
+
+void vehicle_t::maintain()
+{
+	// Do not call replenish() recursively as this will trigger the wait
+	km_since_last_replenish = 0;
 
 	last_maintenance_time = welt->get_ticks();
 	active_service_time = 0u;
@@ -4232,15 +4250,16 @@ void vehicle_t::maintain()
 	last_maintenance_month = welt->get_current_month();
 }
 
-bool vehicle_t::overhaul()
+bool vehicle_t::overhaul(convoi_t *context)
 {
+	convoi_t *c = context ? context : cnv;
 	player_t* owner = get_owner();
-	if (!owner && cnv)
+	if (!owner && c)
 	{
 		// A vehicle must have an owner. If a takeover or an old save has left
 		// the vehicle without one, fall back to the convoy owner rather than
 		// dereferencing a null player when booking the overhaul.
-		owner = cnv->get_owner();
+		owner = c->get_owner();
 		if (owner)
 		{
 			set_owner(owner);
@@ -4264,10 +4283,7 @@ bool vehicle_t::overhaul()
 	last_maintenance_time = welt->get_ticks();
 	active_service_time = 0u;
 
-	cnv->set_wait_lock(max(cnv->get_wait_lock(), (welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10u));
 	// Players should probably need to split convoys before overhauls if they wish to overhaul only some vehicles (e.g., the locomotive). TODO: Consider UI implications for this.
-	cnv->set_state(convoi_t::OVERHAUL);
-
 	km_since_last_overhaul = 0;
 	overhauls++;
 	last_overhaul_month = welt->get_current_month();
@@ -4278,18 +4294,18 @@ bool vehicle_t::overhaul()
 
 	if (upgrade)
 	{
-		if (cnv->front() == this)
+		if (c && c->front() == this)
 		{
-			const char* cnv_name = cnv->get_name();
+			const char* cnv_name = c->get_name();
 			if (strcmp(cnv_name, desc->get_name()) == 0)
 			{
-				cnv->set_name(upgrade->get_name());
+				c->set_name(upgrade->get_name());
 			}
 		}
 		set_desc(upgrade);
 	}
 
-	update_livery();
+	update_livery(c);
 	return true;
 }
 
@@ -4339,17 +4355,23 @@ void vehicle_t::add_active_service_time(uint32 ticks)
 	}
 }
 
-void vehicle_t::update_livery()
+void vehicle_t::update_livery(convoi_t *context)
 {
-	// Only the owner may change a vehicle's livery. In a convoy whose vehicles
-	// belong to more than one player, a vehicle owned by a player other than
-	// the convoy's owner keeps the livery it wears.
-	if (get_owner() != cnv->get_owner())
+	convoi_t *c = context ? context : cnv;
+	if (!c)
 	{
 		return;
 	}
 
-	const livery_scheme_t* const scheme = welt->get_settings().get_livery_scheme(cnv->get_livery_scheme_index());
+	// Only the owner may change a vehicle's livery. In a convoy whose vehicles
+	// belong to more than one player, a vehicle owned by a player other than
+	// the convoy's owner keeps the livery it wears.
+	if (get_owner() != c->get_owner())
+	{
+		return;
+	}
+
+	const livery_scheme_t* const scheme = welt->get_settings().get_livery_scheme(c->get_livery_scheme_index());
 	if (!scheme)
 	{
 		return;

@@ -38,6 +38,11 @@ protected:
 	slist_tpl<vehicle_t *> vehicles;
 	slist_tpl<convoihandle_t> convois;
 	vector_tpl<convoihandle_t> under_maintenance; // Includes maintenance and overhaul, but not replenishment.
+	// Vehicles with a pending maintenance or overhaul job, in queue order. The
+	// queue covers vehicles that stay in their Convoy and loose pool vehicles;
+	// see vehicle_t::depot_job_state.
+	vector_tpl<vehicle_t*> maintenance_queue;
+	uint32 next_maintenance_queue_index = 0;
 
 	void rdwr_vehicle(slist_tpl<vehicle_t*> &list, loadsave_t *file);
 
@@ -229,9 +234,8 @@ public:
 
 	void add_to_world_list(bool lock = false);
 
-	// Adds a convoy to a depot for maintenance.
-	// Keeps track of how many are in for maintenance at once for the purposes of the maintenance limit.
-	// Includes overhauls.
+	// Adds a convoy to a depot for maintenance. The per-vehicle queue decides
+	// when each vehicle's work starts.
 	void register_for_maintenance(convoihandle_t cnv);
 
 	// Puts the convoy at the head of the maintenance queue
@@ -240,9 +244,46 @@ public:
 	// Move to the back of the maintenance queue.
 	void depriortise_for_maintenance(convoihandle_t cnv);
 
-	// True if this convoy is registered for maintenance, but not currently being worked on because there
-	// are too many other convoys being worked on at present.
-	bool is_awaiting_attention(convoihandle_t cnv) const;
+	// Add the vehicles of a Convoy that remain in it to the per-vehicle queue.
+	// The two lists hold the vehicles whose overhaul or maintenance work has
+	// already been applied.
+	void queue_convoy_maintenance(convoihandle_t cnv, const vector_tpl<vehicle_t*> &overhauled, const vector_tpl<vehicle_t*> &maintained);
+
+	// Add a loose pool vehicle whose work is due. The caller has already applied
+	// the work and passes its duration in ticks.
+	void queue_pool_vehicle_maintenance(vehicle_t *v, sint64 duration);
+
+	// Remove a vehicle that is being sold or destroyed from the queue.
+	void remove_vehicle_from_maintenance_queue(vehicle_t *v);
+
+	// Clear the jobs of every vehicle of a Convoy that is leaving the depot.
+	void clear_convoy_maintenance_jobs(convoihandle_t cnv);
+
+	// True when every vehicle of the Convoy with a depot job has completed it.
+	bool convoy_maintenance_complete(convoihandle_t cnv) const;
+
+	// Ticks until the last vehicle of the Convoy is released, or 0 when complete.
+	sint64 convoy_maintenance_remaining(convoihandle_t cnv) const;
+
+	// Number of vehicles currently being worked on.
+	uint8 count_in_progress_depot_jobs() const;
+
+	// Rebuild maintenance_queue from the saved per-vehicle fields after a load.
+	void rebuild_maintenance_queue();
+
+	// Re-project the waiting jobs and start any that can start. Call after a
+	// duration changes.
+	void refresh_depot_queue();
+
+	// Project release times for the waiting jobs and start waiting jobs while
+	// the depot has free maintenance places.
+	void reproject_depot_jobs();
+	void start_depot_jobs();
+	void complete_depot_jobs();
+
+	// Add a Convoy-level wait (replacement shunting or in-place upgrade) to the
+	// first vehicle job of the Convoy.
+	void add_convoy_extra_wait(convoihandle_t cnv, sint64 extra);
 
 	// Load-time pairing: drop stale maintenance-queue entries (unbound, wrong state, wrong depot)
 	// and re-queue maintain-state convoys of this depot that the queue is missing. Raw appends only:

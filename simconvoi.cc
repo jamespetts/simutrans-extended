@@ -1430,7 +1430,33 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 	}
 
 	// still have to wait before next action?
-	wait_lock -= delta_t;
+	if (state == MAINTENANCE || state == OVERHAUL)
+	{
+		// The depot's per-vehicle queue owns the countdown. Set wait_lock to the
+		// remaining time and clear it only when every vehicle of this Convoy has
+		// been released.
+		grund_t *gr = welt->lookup(front()->get_pos());
+		depot_t *dep = gr ? gr->get_depot() : NULL;
+		if (dep)
+		{
+			if (dep->convoy_maintenance_complete(self))
+			{
+				wait_lock = 0;
+			}
+			else
+			{
+				wait_lock = (sint32)min(dep->convoy_maintenance_remaining(self), (sint64)SINT32_MAX_VALUE);
+				if (wait_lock < 1)
+				{
+					wait_lock = 1;
+				}
+			}
+		}
+	}
+	else
+	{
+		wait_lock -= delta_t;
+	}
 	if(wait_lock > 0) {
 		// A convoy under depot maintenance is stepped through depot_t::sync_step.
 		// Return SYNC_REMOVE so that the world sync list drops it after this pass
@@ -1469,7 +1495,6 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 
 		case OVERHAUL:
 		case MAINTENANCE:
-			if (true) // For compiling only
 			{
 				const depot_t* dep = welt->lookup(front()->get_pos())->get_depot();
 				if (!dep)
@@ -1478,13 +1503,6 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 					state = INITIAL;
 					break;
 				}
-
-				if (dep->is_awaiting_attention(self))
-				{
-					// The maintenance time does not count down if this is awaiting attention.
-					wait_lock += delta_t;
-				}
-
 			}
 			// Fallthrough intended
 
@@ -7784,14 +7802,14 @@ void convoi_t::destroy()
 	// there or is in its maintenance queue. Remove the convoy from the depot
 	// lists now, while that handle still resolves: the destructor calls
 	// self.detach(), which makes every convoihandle_t to this convoy resolve to
-	// null, and depot_t::sync_step() and depot_t::is_awaiting_attention() would
-	// then dereference that null pointer.
+	// null, and depot_t::sync_step() would then dereference that null pointer.
 	if(  !welt->is_destroying()  ) {
 		const koord3d pos = get_pos();
 		grund_t *gr = pos == koord3d::invalid ? NULL : welt->lookup( pos );
 		depot_t *dep = gr ? gr->get_depot() : NULL;
 		if(  dep  ) {
 			dep->remove_convoi( self );
+			dep->clear_convoy_maintenance_jobs( self );
 		}
 	}
 

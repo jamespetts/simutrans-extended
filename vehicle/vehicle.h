@@ -515,6 +515,15 @@ protected:
 	// overhaul. Depot storage, layover, maintenance and overhaul do not count.
 	uint32 active_service_time;
 
+	// A depot maintenance job. The depot queue uses these fields instead of a
+	// single Convoy wait_lock so that every vehicle has its own wait time and
+	// queue position. A vehicle in a Convoy and a loose pool vehicle use the
+	// same fields. The state enum is public; see the accessors below.
+	sint64 depot_release_time = 0;
+	uint8 depot_job_state = depot_job_none;
+	uint32 depot_queue_index = 0;
+	sint64 depot_job_duration = 0;
+
 	uint32 fuel_used_this_trip = 0;
 
 	sint64 ticks_at_last_departure;
@@ -946,7 +955,7 @@ public:
 
 	void set_current_livery(const char* liv) { current_livery = liv; }
 	const char* get_current_livery() const { return current_livery.c_str(); }
-	void update_livery(); // Helper method for overhauls
+	void update_livery(convoi_t *context = NULL); // Helper method for overhauls
 
 	virtual sint32 get_takeoff_route_index() const { return INVALID_INDEX; }
 	virtual sint32 get_touchdown_route_index() const { return INVALID_INDEX; }
@@ -977,10 +986,19 @@ public:
 	virtual uint8 get_availability() const;
 
 	void replenish();
+	// Apply routine maintenance to the vehicle. The caller owns the wait time
+	// through the depot job fields.
 	void maintain();
 	// Returns false without changing the vehicle when the owner cannot afford
-	// the overhaul or automatic upgrade.
-	virtual bool overhaul();
+	// the overhaul or automatic upgrade. The caller owns the wait time through
+	// the depot job fields. context supplies the Convoy whose livery and name
+	// are updated when an automatic upgrade applies; it may be NULL for a loose
+	// vehicle.
+	virtual bool overhaul(convoi_t *context = NULL);
+	// Duration of the work that maintain() or overhaul() would apply now, without
+	// changing the vehicle. The result is in ticks.
+	sint64 get_maintenance_duration() const;
+	sint64 get_overhaul_duration() const;
 	sint64 get_overhaul_cost() const;
 	sint64 get_overhaul_or_upgrade_cost() const;
 	bool can_afford_overhaul() const;
@@ -993,6 +1011,46 @@ public:
 	bool get_do_not_overhaul() const { return do_not_overhaul; }
 	bool get_do_not_auto_upgrade() const { return do_not_auto_upgrade; }
 	const vehicle_desc_t* get_auto_upgrade() const;
+
+	// Depot maintenance job states and accessors.
+	enum depot_job_state_t : uint8 {
+		depot_job_none = 0,
+		depot_job_waiting = 1,
+		depot_job_in_progress = 2,
+		depot_job_complete = 3
+	};
+	bool has_depot_job() const { return depot_job_state != depot_job_none; }
+	bool is_depot_job_complete() const { return depot_job_state == depot_job_complete; }
+	uint8 get_depot_job_state() const { return depot_job_state; }
+	void set_depot_job(uint8 state, uint32 queue_index, sint64 duration)
+	{
+		depot_job_state = state;
+		depot_queue_index = queue_index;
+		depot_job_duration = duration;
+		depot_release_time = 0;
+	}
+	void start_depot_job(sint64 release_time)
+	{
+		depot_job_state = depot_job_in_progress;
+		depot_release_time = release_time;
+	}
+	void complete_depot_job()
+	{
+		depot_job_state = depot_job_complete;
+		depot_release_time = 0;
+	}
+	void clear_depot_job()
+	{
+		depot_job_state = depot_job_none;
+		depot_release_time = 0;
+		depot_queue_index = 0;
+		depot_job_duration = 0;
+	}
+	sint64 get_depot_release_time() const { return depot_release_time; }
+	uint32 get_depot_queue_index() const { return depot_queue_index; }
+	sint64 get_depot_job_duration() const { return depot_job_duration; }
+	void set_depot_job_duration(sint64 duration) { depot_job_duration = duration; }
+	void set_depot_release_time(sint64 release_time) { depot_release_time = release_time; }
 
 	enum
 	{

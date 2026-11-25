@@ -100,9 +100,9 @@ protected:
 	bool is_overhaul_needed() const OVERRIDE;
 	bool is_overhaul_nearly_due(uint8 percentage) const OVERRIDE;
 
-	bool overhaul() OVERRIDE
+	bool overhaul(convoi_t *context = NULL) OVERRIDE
 	{
-		if (!vehicle_t::overhaul())
+		if (!vehicle_t::overhaul(context))
 		{
 			return false;
 		}

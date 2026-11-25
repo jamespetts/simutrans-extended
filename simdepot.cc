@@ -897,17 +897,24 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 
 	for (uint32 i = vehicles_to_overhaul.get_count(); i-- != 0;)
 	{
-		if (!vehicles_to_overhaul[i]->overhaul())
+		vehicle_t *v = vehicles_to_overhaul[i];
+		// Store the duration on the vehicle because the queue is filled after
+		// the routine-maintenance group has been released to another Convoy.
+		v->set_depot_job_duration(v->get_overhaul_duration());
+		if (!v->overhaul(acnv.get_rep()))
 		{
 			// The owner could no longer afford the overhaul. Leave the
 			// vehicle due and move it to the routine-maintenance group.
-			vehicles_to_maintain.append(vehicles_to_overhaul[i]);
+			vehicles_to_maintain.append(v);
 			vehicles_to_overhaul.remove_at(i);
 		}
 	}
 
 	for (auto veh : vehicles_to_maintain)
 	{
+		// Routine-maintenance duration uses active_service_time, which
+		// maintain() resets.
+		veh->set_depot_job_duration(veh->get_maintenance_duration());
 		veh->maintain();
 	}
 
@@ -931,11 +938,13 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		}
 
 		register_for_maintenance(acnv);
+		queue_convoy_maintenance(acnv, vehicles_to_overhaul, vehicles_to_maintain);
 	}
 	else if (!vehicles_to_maintain.empty())
 	{
 		acnv->set_state(convoi_t::MAINTENANCE);
 		register_for_maintenance(acnv);
+		queue_convoy_maintenance(acnv, vehicles_to_overhaul, vehicles_to_maintain);
 	}
 
 	if (replaced)
@@ -944,8 +953,17 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		// stock is bought rather than built, so only the shunting needed to
 		// swap the consist is charged. A vehicle that was upgraded in place
 		// counts as an overhaul instead and keeps the overhaul duration.
-		const sint32 shunting_wait = (sint32)welt->get_seconds_to_ticks(welt->get_settings().get_shunting_time_seconds());
-		acnv->set_wait_lock(max(acnv->get_wait_lock(), max(shunting_wait, upgrade_wait)));
+		const sint64 shunting_wait = welt->get_seconds_to_ticks(welt->get_settings().get_shunting_time_seconds());
+		add_convoy_extra_wait(acnv, max(shunting_wait, (sint64)upgrade_wait));
+	}
+
+	// convoi_t::step() runs the post-arrival state switch in the same call that
+	// entered the depot. A positive wait keeps it from advancing the schedule
+	// before depot_t::sync_step() can apply the per-vehicle queue.
+	if (!vehicles_to_overhaul.empty() || !vehicles_to_maintain.empty())
+	{
+		const sint64 remaining = convoy_maintenance_remaining(acnv);
+		acnv->set_wait_lock(remaining > 0 ? (sint32)min(remaining, (sint64)SINT32_MAX_VALUE) : 0);
 	}
 
 	// Maintained convoys are stepped via depot_t::sync_step. convoi_t::sync_step
@@ -997,6 +1015,9 @@ void depot_t::upgrade_vehicle(convoihandle_t cnv, const vehicle_desc_t* vb)
 		{
 			if(cnv->get_vehicle(i)->get_desc()->get_upgrades(c) == vb)
 			{
+				// An upgraded vehicle replaces the old one. A pending depot job
+				// belongs to the old vehicle and cannot be transferred.
+				remove_vehicle_from_maintenance_queue(cnv->get_vehicle(i));
 				vehicle_t* new_veh = vehicle_builder_t::build(get_pos(), get_owner(), NULL, vb, true, cnv->get_livery_scheme_index());
 				cnv->upgrade_vehicle(i, new_veh);
 				if(cnv->get_vehicle(i)->get_desc()->get_trailer_count() == 1 && cnv->get_vehicle(i)->get_desc()->get_power() != 0)
@@ -1074,6 +1095,7 @@ void depot_t::remove_vehicles_to_end(convoihandle_t cnv, int ipos)
 
 void depot_t::sell_vehicle(vehicle_t* veh)
 {
+	remove_vehicle_from_maintenance_queue(veh);
 	vehicles.remove(veh);
 	sint64 cost = veh->calc_sale_value();
 	get_owner()->book_new_vehicle(cost, get_pos().get_2d(), get_waytype() );
@@ -1420,6 +1442,7 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		{
 			// convoi can start now
 			cnv->start(this);
+			clear_convoy_maintenance_jobs(cnv);
 
 			// remove from depot lists
 			remove_convoi( cnv );
@@ -1481,6 +1504,15 @@ void depot_t::rdwr(loadsave_t *file)
 	}
 
 	rdwr_maintenance_queue(file);
+
+	if (file->is_version_ex_atleast(15, 24))
+	{
+		file->rdwr_long(next_maintenance_queue_index);
+	}
+	else if (file->is_loading())
+	{
+		next_maintenance_queue_index = 0;
+	}
 }
 
 void depot_t::rdwr_maintenance_queue(loadsave_t* file)
@@ -1541,6 +1573,7 @@ void depot_t::validate_maintenance_queue()
 			under_maintenance.append(c);
 		}
 	}
+	rebuild_maintenance_queue();
 }
 
 
@@ -1821,13 +1854,6 @@ void depot_t::add_to_world_list(bool)
 void depot_t::register_for_maintenance(convoihandle_t cnv)
 {
 	under_maintenance.append(cnv);
-
-	if (cnv->get_vehicle_count() > get_tile()->get_desc()->get_max_vehicles_under_maintenance())
-	{
-		// Must account for multiple vehicles in a convoy.
-		const sint32 time_multiplier = ((sint32)cnv->get_vehicle_count() * 100) / (sint32)get_tile()->get_desc()->get_max_vehicles_under_maintenance();
-		cnv->set_wait_lock((cnv->get_wait_lock() * time_multiplier) / 100);
-	}
 }
 
 void depot_t::prioritise_for_maintenance(convoihandle_t cnv)
@@ -1848,51 +1874,332 @@ void depot_t::depriortise_for_maintenance(convoihandle_t cnv)
 	under_maintenance.append(cnv);
 }
 
-bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
+uint8 depot_t::count_in_progress_depot_jobs() const
 {
-	if (!under_maintenance.is_contained(cnv))
+	uint8 count = 0;
+	for (auto const v : maintenance_queue)
 	{
-		dbg->error("bool depot_t::is_awaiting_attention(convoihandle_t cnv) const", "Convoy %s not in maintenance queue where it is expected to be", cnv->get_name());
-		return false;
-	}
-
-	if (under_maintenance.index_of(cnv) == 0)
-	{
-		// The head of the queue is always being worked on, even if it has more vehicles than the depot can
-		// maintain at once (register_for_maintenance lengthens its time instead). Reporting it as waiting
-		// froze its countdown for ever, so that it never finished maintenance.
-		return false;
-	}
-
-	uint32 queue_pos = 0;
-	bool our_cnv = false;
-
-	for (auto cnv_mnt : under_maintenance)
-	{
-		if (!cnv_mnt.is_bound())
+		if (v && v->get_depot_job_state() == vehicle_t::depot_job_in_progress)
 		{
-			// The convoy was destroyed after it entered the queue. Contributes no
-			// vehicles, so skipping it does not change the capacity count.
+			count++;
+		}
+	}
+	return count;
+}
+
+void depot_t::reproject_depot_jobs()
+{
+	const sint64 now = welt->get_ticks();
+	uint16 capacity = get_tile()->get_desc()->get_max_vehicles_under_maintenance();
+	if (capacity < 1)
+	{
+		capacity = 1;
+	}
+
+	// One free time per maintenance place. An in-progress job occupies one
+	// place until its release time; a waiting job is projected onto the place
+	// that becomes free first. This is a projection for display and for the
+	// Convoy wait; the actual start time is set when the job starts.
+	vector_tpl<sint64> server_free;
+	for (uint16 i = 0; i < capacity; i++)
+	{
+		server_free.append(now);
+	}
+
+	for (auto v : maintenance_queue)
+	{
+		if (!v)
+		{
 			continue;
 		}
-		if (cnv_mnt == cnv)
+		if (v->get_depot_job_state() == vehicle_t::depot_job_in_progress)
 		{
-			our_cnv = true;
+			uint16 best = 0;
+			for (uint16 i = 1; i < capacity; i++)
+			{
+				if (server_free[i] < server_free[best])
+				{
+					best = i;
+				}
+			}
+			server_free[best] = max(server_free[best], v->get_depot_release_time());
 		}
-		else if (our_cnv)
+		else if (v->get_depot_job_state() == vehicle_t::depot_job_waiting)
 		{
-			// Finish counting only after we get to the end of the cnv in question.
-			break;
+			uint16 best = 0;
+			for (uint16 i = 1; i < capacity; i++)
+			{
+				if (server_free[i] < server_free[best])
+				{
+					best = i;
+				}
+			}
+			const sint64 start = max(now, server_free[best]);
+			const sint64 release = start + v->get_depot_job_duration();
+			v->set_depot_release_time(release);
+			server_free[best] = release;
 		}
-		queue_pos += cnv_mnt->get_vehicle_count();
+	}
+}
+
+void depot_t::start_depot_jobs()
+{
+	uint16 capacity = get_tile()->get_desc()->get_max_vehicles_under_maintenance();
+	if (capacity < 1)
+	{
+		capacity = 1;
+	}
+	uint16 in_progress = count_in_progress_depot_jobs();
+	if (in_progress >= capacity)
+	{
+		return;
 	}
 
-	if (queue_pos >= get_tile()->get_desc()->get_max_vehicles_under_maintenance())
+	const sint64 now = welt->get_ticks();
+	bool changed = false;
+	for (auto v : maintenance_queue)
+	{
+		if (!v || v->get_depot_job_state() != vehicle_t::depot_job_waiting)
+		{
+			continue;
+		}
+		if (in_progress >= capacity)
+		{
+			break;
+		}
+		v->start_depot_job(now + v->get_depot_job_duration());
+		in_progress++;
+		changed = true;
+	}
+
+	if (changed)
+	{
+		reproject_depot_jobs();
+	}
+}
+
+void depot_t::complete_depot_jobs()
+{
+	const sint64 now = welt->get_ticks();
+	bool changed = false;
+	for (uint32 i = 0; i < maintenance_queue.get_count();)
+	{
+		vehicle_t *v = maintenance_queue[i];
+		if (!v)
+		{
+			maintenance_queue.remove_at(i);
+			changed = true;
+			continue;
+		}
+		if (v->get_depot_job_state() == vehicle_t::depot_job_in_progress && v->get_depot_release_time() <= now)
+		{
+			v->complete_depot_job();
+			changed = true;
+			if (!v->get_convoi())
+			{
+				// A loose pool vehicle becomes an Available Vehicle as soon as
+				// its work is complete. It has no Convoy to wait for.
+				maintenance_queue.remove_at(i);
+				v->clear_depot_job();
+				continue;
+			}
+		}
+		i++;
+	}
+
+	if (changed)
+	{
+		reproject_depot_jobs();
+	}
+}
+
+void depot_t::refresh_depot_queue()
+{
+	reproject_depot_jobs();
+	start_depot_jobs();
+}
+
+void depot_t::queue_convoy_maintenance(convoihandle_t cnv, const vector_tpl<vehicle_t*> &overhauled, const vector_tpl<vehicle_t*> &maintained)
+{
+	if (!cnv.is_bound())
+	{
+		return;
+	}
+
+	// Queue in the Convoy's consist order, not in the classification order, so
+	// that the queue is the same on every peer and after a load.
+	bool queued = false;
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		vehicle_t *v = cnv->get_vehicle(i);
+		if (!v->has_depot_job() && (overhauled.is_contained(v) || maintained.is_contained(v)))
+		{
+			v->set_depot_job(vehicle_t::depot_job_waiting, next_maintenance_queue_index++, v->get_depot_job_duration());
+			maintenance_queue.append(v);
+			queued = true;
+		}
+	}
+
+	if (queued)
+	{
+		refresh_depot_queue();
+	}
+}
+
+void depot_t::queue_pool_vehicle_maintenance(vehicle_t *v, sint64 duration)
+{
+	if (!v || v->has_depot_job())
+	{
+		return;
+	}
+	v->set_depot_job(vehicle_t::depot_job_waiting, next_maintenance_queue_index++, duration);
+	maintenance_queue.append(v);
+	refresh_depot_queue();
+}
+
+void depot_t::remove_vehicle_from_maintenance_queue(vehicle_t *v)
+{
+	if (!v)
+	{
+		return;
+	}
+	maintenance_queue.remove(v);
+	v->clear_depot_job();
+	refresh_depot_queue();
+}
+
+void depot_t::clear_convoy_maintenance_jobs(convoihandle_t cnv)
+{
+	if (!cnv.is_bound())
+	{
+		return;
+	}
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		vehicle_t *v = cnv->get_vehicle(i);
+		maintenance_queue.remove(v);
+		v->clear_depot_job();
+	}
+	refresh_depot_queue();
+}
+
+void depot_t::add_convoy_extra_wait(convoihandle_t cnv, sint64 extra)
+{
+	if (!cnv.is_bound() || extra <= 0)
+	{
+		return;
+	}
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		vehicle_t *v = cnv->get_vehicle(i);
+		if (v->has_depot_job() && !v->is_depot_job_complete())
+		{
+			v->set_depot_job_duration(v->get_depot_job_duration() + extra);
+			refresh_depot_queue();
+			return;
+		}
+	}
+}
+
+bool depot_t::convoy_maintenance_complete(convoihandle_t cnv) const
+{
+	if (!cnv.is_bound())
 	{
 		return true;
 	}
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		const vehicle_t *v = cnv->get_vehicle(i);
+		if (v->has_depot_job() && !v->is_depot_job_complete())
+		{
+			return false;
+		}
+	}
+	return true;
+}
 
-	return false;
+sint64 depot_t::convoy_maintenance_remaining(convoihandle_t cnv) const
+{
+	if (!cnv.is_bound())
+	{
+		return 0;
+	}
+	const sint64 now = welt->get_ticks();
+	sint64 remaining = 0;
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		const vehicle_t *v = cnv->get_vehicle(i);
+		if (v->is_depot_job_complete())
+		{
+			continue;
+		}
+		if (v->get_depot_job_state() == vehicle_t::depot_job_in_progress)
+		{
+			if (v->get_depot_release_time() > now)
+			{
+				remaining = max(remaining, v->get_depot_release_time() - now);
+			}
+		}
+		else if (v->get_depot_job_state() == vehicle_t::depot_job_waiting)
+		{
+			const sint64 release = v->get_depot_release_time();
+			remaining = max(remaining, release > now ? release - now : v->get_depot_job_duration());
+		}
+	}
+	return remaining;
+}
+
+void depot_t::rebuild_maintenance_queue()
+{
+	maintenance_queue.clear();
+
+	uint32 max_index = 0;
+	const auto add_vehicle = [&](vehicle_t *v) {
+		if (v && v->has_depot_job())
+		{
+			maintenance_queue.append(v);
+			max_index = max(max_index, v->get_depot_queue_index() + 1);
+			if (v->get_depot_job_state() == vehicle_t::depot_job_in_progress && v->get_depot_release_time() == 0)
+			{
+				v->set_depot_release_time(welt->get_ticks() + v->get_depot_job_duration());
+			}
+		}
+	};
+
+	for (auto const v : vehicles)
+	{
+		add_vehicle(v);
+	}
+	for (auto const c : convois)
+	{
+		if (c.is_bound())
+		{
+			for (uint8 i = 0; i < c->get_vehicle_count(); i++)
+			{
+				add_vehicle(c->get_vehicle(i));
+			}
+		}
+	}
+
+	// Insertion sort by queue index. The queue is small and this avoids
+	// depending on the saved list order.
+	for (uint32 i = 1; i < maintenance_queue.get_count(); i++)
+	{
+		vehicle_t *v = maintenance_queue[i];
+		uint32 j = i;
+		while (j > 0 && maintenance_queue[j - 1]->get_depot_queue_index() > v->get_depot_queue_index())
+		{
+			maintenance_queue[j] = maintenance_queue[j - 1];
+			j--;
+		}
+		maintenance_queue[j] = v;
+	}
+
+	if (next_maintenance_queue_index < max_index)
+	{
+		next_maintenance_queue_index = max_index;
+	}
+	refresh_depot_queue();
 }
 
 sync_result depot_t::sync_step(uint32 delta_t)
@@ -1919,8 +2226,27 @@ sync_result depot_t::sync_step(uint32 delta_t)
 			under_maintenance.remove_at(i);
 			continue;
 		}
-		c->sync_step(delta_t);
 		++i;
+	}
+
+	complete_depot_jobs();
+	start_depot_jobs();
+
+	for (uint32 i = 0; i < under_maintenance.get_count();)
+	{
+		const convoihandle_t c = under_maintenance[i];
+		if (!c.is_bound() || (c->get_state() != convoi_t::MAINTENANCE && c->get_state() != convoi_t::OVERHAUL))
+		{
+			under_maintenance.remove_at(i);
+			continue;
+		}
+		c->sync_step(delta_t);
+		// A Convoy leaving the depot removes itself from this list, so only
+		// advance when the entry is still at the current index.
+		if (i < under_maintenance.get_count() && under_maintenance[i] == c)
+		{
+			++i;
+		}
 	}
 
 	return sync_result::SYNC_OK;
