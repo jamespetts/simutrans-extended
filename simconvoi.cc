@@ -101,7 +101,7 @@ karte_ptr_t convoi_t::welt;
 /*
  * Debugging helper - translate state value to human readable name
  */
-static const char * state_names[convoi_t::MAX_STATES] =
+static const char * state_names[] =
 {
 	"INITIAL",
 	"EDIT_SCHEDULE",
@@ -135,6 +135,9 @@ static const char * state_names[convoi_t::MAX_STATES] =
 	"SHUNTING",
 	"AWAITING_RECOMBINATION"
 };
+
+static_assert(sizeof(state_names) / sizeof(state_names[0]) == convoi_t::MAX_STATES,
+	"state_names must cover every convoi_t::states value; a new state also needs a case in convoi_t::sync_step().");
 
 
 // Reset some values.  Used in init and replacing.
@@ -1460,6 +1463,7 @@ sync_result convoi_t::sync_step(uint32 delta_t)
 		case EMERGENCY_STOP:
 		case REPLENISHING:
 		case SHUNTING:
+		case AWAITING_TRIGGER:
 		case AWAITING_RECOMBINATION:
 			break;
 
@@ -2613,8 +2617,20 @@ void convoi_t::step()
 		case LOADING:
 		case WAITING_FOR_LOADING_THREE_MONTHS:
 		case WAITING_FOR_LOADING_FOUR_MONTHS:
+			if (state == REPLENISHING)
+			{
+				// step() returns early while wait_lock > 0, so the replenishment
+				// dwell has expired. Apply the ordinary loading and departure rules.
+				state = LOADING;
+			}
 			laden();
-			if (state != SELF_DESTRUCT && state != REPLENISHING)
+			if (state == REPLENISHING)
+			{
+				// A new replenishment dwell started while loading; wait for it
+				// instead of falling through to SELF_DESTRUCT below.
+				break;
+			}
+			if (state != SELF_DESTRUCT)
 			{
 				//When loading, vehicle should not be on passing lane.
 				str = (strasse_t*)welt->lookup(get_pos())->get_weg(road_wt);

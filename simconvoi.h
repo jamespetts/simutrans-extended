@@ -81,6 +81,11 @@ public:
 	/** Constants */
 	enum { max_vehicle=8, max_rail_vehicle = 64 };
 
+	/**
+	 * Convoy states. These values are persisted by convoi_t::rdwr(); append new
+	 * states before MAX_STATES and never insert one in the middle. Add the state
+	 * to state_names and handle it in convoi_t::sync_step().
+	 */
 	enum states {
 		INITIAL, // INITIAL means stored in the depot
 		EDIT_SCHEDULE,

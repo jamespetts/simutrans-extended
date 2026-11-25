@@ -153,7 +153,10 @@ local fixture = {
 	crossroads_max_west_on_junction = 0,
 	// junction-curve
 	curve_destinations = [],
-	curve_arrived = {}
+	curve_arrived = {},
+	// trigger-wait
+	trigger_seen = false,
+	trigger_steps = 0
 }
 
 
@@ -697,6 +700,98 @@ function observe_single_run()
 	if (same_pos(slot.pos, ROAD_END))
 	{
 		print("RUNTIME CASE " + case_name + ": convoy reached " + pos_text(ROAD_END))
+		pass()
+	}
+}
+
+
+// A convoy waits at a stop for a departure trigger that is never sent. The
+// receiver bit is set and no broadcaster sends it, so the convoy must remain in
+// AWAITING_TRIGGER. Before the fix for GitHub issue 701, the first
+// convoi_t::sync_step() after arrival aborted with "Wrong state 27".
+function setup_trigger_wait(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, ROAD_END, road, true), "build the straight road"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, ROAD_END), "build the terminal at the road end"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, STOP_POS), "build the trigger stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc_for(wt_road)), "build the road depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
+	if (!check(fixture.depot != null, "the road depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	local stop_entry = make_entry(STOP_POS, 71, 0)
+	stop_entry.conditional_depart_before_wait = true
+	stop_entry.condition_bitfield_receiver = 1
+	local cnv = make_convoy(pl, desc, [stop_entry, make_entry(ROAD_END, 72, 0)], "trigger-wait")
+	if (cnv == null)
+	{
+		return false
+	}
+	fixture.convoys = [cnv]
+	if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start the trigger-wait convoy"))
+	{
+		return false
+	}
+	return true
+}
+
+
+function observe_trigger_wait()
+{
+	local cnv = fixture.convoys[0]
+	if (cnv == null || !cnv.is_valid())
+	{
+		return
+	}
+	local state = cnv.get_state()
+	if (!fixture.trigger_seen)
+	{
+		if (state == convoy_state_awaiting_trigger)
+		{
+			fixture.trigger_seen = true
+			fixture.trigger_steps = 0
+			print("RUNTIME CASE " + case_name + ": convoy is awaiting a trigger at " + pos_text(cnv.get_pos()))
+			return
+		}
+		local slot = front_slot(cnv)
+		if (slot != null && slot.pos.x > STOP_POS.x)
+		{
+			fail("the convoy passed the trigger stop without entering AWAITING_TRIGGER (state " + state + ")")
+		}
+		return
+	}
+	++fixture.trigger_steps
+	if (state != convoy_state_awaiting_trigger)
+	{
+		fail("the convoy left AWAITING_TRIGGER after " + fixture.trigger_steps + " observations (state " + state + ")")
+		return
+	}
+	if (fixture.trigger_steps >= 100)
+	{
+		print("RUNTIME CASE " + case_name + ": convoy remained in AWAITING_TRIGGER for " + fixture.trigger_steps + " observations")
 		pass()
 	}
 }
@@ -2291,6 +2386,10 @@ function setup()
 	{
 		return setup_single_run(pl)
 	}
+	if (case_name == "trigger-wait")
+	{
+		return setup_trigger_wait(pl)
+	}
 	if (case_name == "moving-gap")
 	{
 		return setup_moving_gap(pl)
@@ -2358,6 +2457,10 @@ function observe()
 	else if (case_name == "single-run")
 	{
 		observe_single_run()
+	}
+	else if (case_name == "trigger-wait")
+	{
+		observe_trigger_wait()
 	}
 	else if (case_name == "moving-gap")
 	{
