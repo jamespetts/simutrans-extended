@@ -434,7 +434,10 @@ void simline_t::rdwr(loadsave_t *file)
 	}
 	else
 	{
-		for (int j = 0; j<MAX_LINE_COST; j++)
+		// LINE_GOODS_CAPACITY was added in 15.24. Older saves, and saves
+		// written for an older target version, have no entry for it.
+		const int max_line_cost = file->is_version_ex_atleast(15, 24) ? MAX_LINE_COST : MAX_LINE_COST - 1;
+		for (int j = 0; j<max_line_cost; j++)
 		{
 			for (int k = MAX_MONTHS-1; k>=0; k--)
 			{
@@ -512,7 +515,7 @@ void simline_t::rdwr(loadsave_t *file)
 
 	if(file->get_extended_version() >= 2)
 	{
-		const uint8 counter = file->is_version_less(103, 0) ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : file->get_extended_version() < 15 ? LINE_WAYTOLL : MAX_LINE_COST;
+		const uint8 counter = file->is_version_less(103, 0) ? LINE_DISTANCE : file->get_extended_version() < 12 ? LINE_REFUNDS + 1 : file->get_extended_version() < 15 ? LINE_WAYTOLL : !file->is_version_ex_atleast(15, 24) ? LINE_GOODS_CAPACITY : MAX_LINE_COST;
 		for(uint8 i = 0; i < counter; i ++)
 		{
 			file->rdwr_long(rolling_average[i]);
@@ -1474,24 +1477,52 @@ sint64 simline_t::get_stat_converted(int month, int cost_type) const
 	return value;
 }
 
+uint32 simline_t::get_load_factor(int first_month, int month_count, line_cost_t payload_type, line_cost_t capacity_type) const
+{
+	sint64 total_payload = 0;
+	sint64 total_capacity = 0;
+	for (int m = first_month; m < first_month + month_count && m < MAX_MONTHS; m++)
+	{
+		total_payload += financial_history[m][payload_type];
+		total_capacity += financial_history[m][capacity_type];
+	}
+	return total_capacity > 0 ? (uint32)(1000 * total_payload / total_capacity) : 0;
+}
+
 uint32 simline_t::get_load_factor_pax_year() const
 {
 	if (!goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)) return 0;
 
-	sint64 total_seat_km = 0;
-	sint64 total_pax_km = 0;
-	for (uint8 m = 0; m < MAX_MONTHS; m++) {
-		total_seat_km += financial_history[m][LINE_CAPACITY];
-		total_pax_km += financial_history[m][LINE_PAX_DISTANCE];
-	}
-	return total_seat_km ? (uint32)(1000 * total_pax_km / total_seat_km) : 0;
+	return get_load_factor(0, MAX_MONTHS, LINE_PAX_DISTANCE, LINE_CAPACITY);
 }
 
 uint32 simline_t::get_load_factor_pax_last_month() const
 {
 	if (!goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)) return 0;
 
-	return financial_history[1][LINE_CAPACITY] ? (uint32)(1000 * financial_history[1][LINE_PAX_DISTANCE] / financial_history[1][LINE_CAPACITY]) : 0;
+	return get_load_factor(1, 1, LINE_PAX_DISTANCE, LINE_CAPACITY);
+}
+
+uint32 simline_t::get_load_factor_pax_last_two_months() const
+{
+	if (!goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)) return 0;
+
+	return get_load_factor(1, 2, LINE_PAX_DISTANCE, LINE_CAPACITY);
+}
+
+uint32 simline_t::get_load_factor_goods_year() const
+{
+	return get_load_factor(0, MAX_MONTHS, LINE_PAYLOAD_DISTANCE, LINE_GOODS_CAPACITY);
+}
+
+uint32 simline_t::get_load_factor_goods_last_month() const
+{
+	return get_load_factor(1, 1, LINE_PAYLOAD_DISTANCE, LINE_GOODS_CAPACITY);
+}
+
+uint32 simline_t::get_load_factor_goods_last_two_months() const
+{
+	return get_load_factor(1, 2, LINE_PAYLOAD_DISTANCE, LINE_GOODS_CAPACITY);
 }
 
 sint64 simline_t::get_service_frequency()

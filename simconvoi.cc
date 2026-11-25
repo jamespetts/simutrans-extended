@@ -6372,6 +6372,16 @@ void convoi_t::laden() //"load" (Babelfish)
 			if (v->get_cargo_type() == goods_manager_t::passengers) {
 				book( v->get_cargo_max() * journey_distance_meters/100, CONVOI_CAPACITY );
 			}
+			else if (line.is_bound() && v->get_cargo_type() && v->get_cargo_type() != goods_manager_t::mail)
+			{
+				// Freight capacity distance, in the same units as
+				// LINE_PAYLOAD_DISTANCE: capacity units * kg per unit * metres.
+				// Mail is excluded because it has its own statistics.
+				const sint64 goods_capacity = (sint64)v->get_cargo_max()
+					* (sint64)v->get_cargo_type()->get_weight_per_unit()
+					* (sint64)journey_distance_meters / 100000;
+				line->book(goods_capacity, LINE_GOODS_CAPACITY);
+			}
 		}
 
 		// Point-to-point journey time across a consist recombination.

@@ -24,7 +24,7 @@
 
                                 // Ext|Std|Description
 enum line_cost_t {
-	LINE_CAPACITY = 0,          //  0 |   | the distance (km) travelled by vacant seats
+	LINE_CAPACITY = 0,          //  0 |   | the distance (km) travelled by passenger capacity (seat-km)
 	//LINE_TRANSPORTED_GOODS,   //    | 1 | the amount of ware that has been transported
 	LINE_PAX_DISTANCE,          //  1 |   | the distance (km) travelled by passenger
 	LINE_AVERAGE_SPEED,         //  2 |   | average speed of all convoys in the line
@@ -40,7 +40,8 @@ enum line_cost_t {
 	LINE_WAYTOLL,               // 12 | 8 |
 	LINE_MAIL_DISTANCE,         // 13 |   | the distance (km) travelled by mail
 	LINE_PAYLOAD_DISTANCE,      // 14 |   | moving 1 ton of cargo a distance of 1 km
-	MAX_LINE_COST               // 15 | 9 | Total number of cost items
+	LINE_GOODS_CAPACITY,        // 15 |   | the distance (km) travelled by freight capacity (tonne-km)
+	MAX_LINE_COST               // 16 | 9 | Total number of cost items
 };
 
 class karte_ptr_t;
@@ -279,9 +280,21 @@ public:
 	sint64 get_finance_history(int month, line_cost_t cost_type) const { return financial_history[month][cost_type]; }
 	sint64 get_stat_converted(int month, int cost_type) const;
 
-	// retrun passenger load factor from finance history. up to 1 decimal place
+	// Return a load factor from the stored monthly payload and capacity
+	// distances, in tenths of a percent. The first month is the current,
+	// incomplete month; 1 is the most recent complete month. A load factor is
+	// 1000 when every unit of capacity travelled fully loaded.
+	uint32 get_load_factor(int first_month, int month_count, line_cost_t payload_type, line_cost_t capacity_type) const;
+
+	// Passenger load factors. Up to one decimal place.
 	uint32 get_load_factor_pax_year() const;
 	uint32 get_load_factor_pax_last_month() const;
+	uint32 get_load_factor_pax_last_two_months() const;
+
+	// Freight load factors. Mail is excluded because it has its own statistics.
+	uint32 get_load_factor_goods_year() const;
+	uint32 get_load_factor_goods_last_month() const;
+	uint32 get_load_factor_goods_last_two_months() const;
 
 	void book(sint64 amount, line_cost_t cost_type)
 	{

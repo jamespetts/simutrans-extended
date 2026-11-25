@@ -59,6 +59,7 @@ static const char *cost_type[MAX_LINE_COST] =
 	"Pax-km",
 	"Mail-km",
 	"Freight-km", // ton-km
+	"Freight capacity",
 	"Distance",
 	"Average speed",
 	"Comfort time",
@@ -78,6 +79,7 @@ const uint8 cost_type_color[MAX_LINE_COST] =
 	COL_LIGHT_PURPLE,
 	COL_TRANSPORTED,
 	COL_BROWN,
+	COL_LIGHT_BROWN,
 	COL_DISTANCE,
 	COL_AVERAGE_SPEED,
 	COL_COMFORT,
@@ -97,14 +99,14 @@ static uint8 max_idx=0;
 
 static uint8 statistic[MAX_LINE_COST]={
 	LINE_CAPACITY, LINE_PAX_DISTANCE, LINE_MAIL_DISTANCE, LINE_PAYLOAD_DISTANCE,
-	LINE_DISTANCE, LINE_AVERAGE_SPEED, LINE_COMFORT, LINE_REVENUE,
+	LINE_GOODS_CAPACITY, LINE_DISTANCE, LINE_AVERAGE_SPEED, LINE_COMFORT, LINE_REVENUE,
 	LINE_OPERATIONS, LINE_REFUNDS, LINE_WAYTOLL, LINE_PROFIT,
 	LINE_CONVOIS, LINE_DEPARTURES, LINE_DEPARTURES_SCHEDULED
 };
 
 static uint8 statistic_type[MAX_LINE_COST]={
 	gui_chart_t::SEAT_KM, gui_chart_t::PAX_KM, gui_chart_t::KG_KM, gui_chart_t::TON_KM,
-	gui_chart_t::DISTANCE, gui_chart_t::STANDARD, gui_chart_t::TIME, gui_chart_t::MONEY,
+	gui_chart_t::TON_KM, gui_chart_t::DISTANCE, gui_chart_t::STANDARD, gui_chart_t::TIME, gui_chart_t::MONEY,
 	gui_chart_t::MONEY, gui_chart_t::MONEY, gui_chart_t::MONEY, gui_chart_t::MONEY, gui_chart_t::STANDARD, gui_chart_t::STANDARD, gui_chart_t::STANDARD
 };
 
@@ -1552,15 +1554,20 @@ void schedule_list_gui_t::rdwr( loadsave_t *file )
 	}
 	size.rdwr( file );
 	simline_t::rdwr_linehandle_t(file, line);
-	int chart_records = line_cost_t::MAX_LINE_COST;
-	// If change MAX_LINE_COST, separate the number of records for the previous save.
-	//if (file->is_version_ex_less(15,xx)) {
-	//	chart_records = xx;
-	//}
-	for (int i=0; i<chart_records; i++) {
-		bool b = filterButtons[i].pressed;
-		file->rdwr_bool( b );
-		filterButtons[i].pressed = b;
+	// The Freight capacity curve was inserted at index 4 in 15.24. Older saves
+	// store 15 button states in the old order, without that curve.
+	const bool has_goods_capacity = file->is_version_ex_atleast(15, 24);
+	const int chart_records = has_goods_capacity ? line_cost_t::MAX_LINE_COST : line_cost_t::MAX_LINE_COST - 1;
+	for (int i = 0; i < chart_records; i++)
+	{
+		const int button_index = has_goods_capacity || i < 4 ? i : i + 1;
+		bool b = filterButtons[button_index].pressed;
+		file->rdwr_bool(b);
+		filterButtons[button_index].pressed = b;
+	}
+	if (!has_goods_capacity)
+	{
+		filterButtons[4].pressed = false;
 	}
 	file->rdwr_long( cont_xoff );
 	file->rdwr_long( cont_yoff );
