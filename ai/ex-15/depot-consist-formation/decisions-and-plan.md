@@ -51,8 +51,10 @@ The code baseline is in [code-baseline](code-baseline.md).
    [fleet-size](fleet-size.md#choosing-which-convoy-to-withdraw).
 5. **Automatic fleet adjustment.** The passenger load-factor guard is fixed (done). A goods load
    factor is to be added. Automatic adjustment is in scope for this feature, not deferred. The line
-   management window gains a **Fleet** tab after the **Convoys** tab. Accepted
-   [RECOLLECTION:2026-11-25 user statement].
+   management window gains a **Fleet** tab after the **Convoys** tab. The goods load factor uses a
+   new `LINE_GOODS_CAPACITY` line counter; the line chart gains a **Freight capacity** curve with
+   its own colour and translation entry. The policy uses the last two complete months, not a
+   per-line window setting. Accepted [RECOLLECTION:2026-11-25 user statement].
 6. **Fleet tab contents.** The tab shows the number of Convoys on the line, the current average
    loading, the depots served by the line, and for each depot the matching vehicles currently loose
    or under maintenance. Depots without a Depot Consist Order are greyed out with an explanatory
@@ -81,27 +83,42 @@ The code baseline is in [code-baseline](code-baseline.md).
     The subagent treats [interface](interface.md) as the information architecture and
     [fleet-size](fleet-size.md) as the policy model, and considers the additional information
     players need.
+12. **Withdrawal depot and the manual withdraw controls.** A Withdrawal uses the next depot on the
+    Convoy's schedule. Only when the schedule has no depot entry does it fall back to the existing
+    search for the nearest suitable depot, and then to `home_depot`. The manual withdraw controls
+    (the Convoy detail button and the line's **Withdraw All** button) use the same maintenance-type
+    `convoi_t::go_to_depot()` call instead of selling the Convoy when it becomes empty.
+    [RECOLLECTION:2026-11-25 user statement].
+13. **Withdrawal representation.** There is no separate `convoi_t::withdraw_to_depot()`. A
+    Withdrawal triggers the existing maintenance-type `convoi_t::go_to_depot()` call for the chosen
+    Convoy. Whether the Convoy is held on arrival is decided by the Target Fleet Size check.
+    [RECOLLECTION:2026-11-25 user statement].
+14. **Per-vehicle maintenance queue.** Depot maintenance capacity is counted per vehicle, not per
+    Convoy. Each vehicle has its own wait time and queue position. This applies both to a
+    decomposed Convoy and to a Convoy that stays together because its depot entry has a blank
+    Depot Consist Order; a Convoy leaves when all of its vehicles have been released.
+    [RECOLLECTION:2026-11-25 user statement].
+15. **Stored vehicle work.** A vehicle in the Depot Vehicle Pool is maintained or overhauled as soon
+    as the work becomes due, unless it is mothballed. The mothballing controls are missing from the
+    interface and are deferred to a later session. [RECOLLECTION:2026-11-25 user statement].
+16. **Priority order.** Work proceeds in the handoff order: load factors, per-vehicle work, the
+    Depot Consist Order and Decomposition, New Convoys, Target Fleet Size and Withdrawal, automatic
+    adjustment and the Fleet tab, replacement integration, pooling and diagnostics, then
+    persistence and network testing. Each phase is committed only when its tests pass.
+    [RECOLLECTION:2026-11-25 user statement].
 
-## Decisions still open
+## Decisions resolved on 2026-11-25
 
-1. **Withdrawal depot.** The proposal is the nearest suitable depot, falling back to the Convoy's
-   `home_depot`. The alternatives are the next depot on the schedule or the home depot only. The
-   chosen Convoy is the one farthest from that depot, so the two choices interact.
-2. **Goods load factor.** The proposal adds `LINE_GOODS_CAPACITY` and a goods load factor of
-   `LINE_PAYLOAD_DISTANCE / LINE_GOODS_CAPACITY`. The passenger denominator becomes
-   `LINE_CAPACITY - LINE_GOODS_CAPACITY`, so both factors are correct on a mixed line. The smaller
-   alternative uses the existing `LINE_CAPACITY` denominator for both, which is exact for
-   single-type lines and approximate for mixed lines.
-3. **Mixed lines.** The proposal uses the higher of the passenger and goods load factors for the
-   automatic policy. Confirm.
-4. **Withdrawal representation.** The existing `convoi_t::go_to_depot()` detaches the line; the
-   Withdrawal must keep the line and schedule. Confirm the new operation's saved representation.
-5. **Maximum Consists calculation.** The Fleet tab's "maximum that can run now" is the Deployed
-   Convoys plus the complete Consists the greedy Depot Assembly solver can form from each depot's
-   Available Vehicles and under-maintenance stock. Confirm that a practical greedy count is
-   acceptable, or whether an optimal packing is required.
-6. **Automatic policy window.** Last month or last year? The proposal uses the last month for
-   responsiveness and the year for stability, selectable per line.
+1. **Withdrawal depot.** The next depot on the schedule. Where the schedule has no depot entry,
+   fall back to the existing nearest-suitable-depot search and then `home_depot`.
+2. **Goods load factor.** `LINE_GOODS_CAPACITY`, booked for freight vehicles only, with
+   `LINE_PAYLOAD_DISTANCE / LINE_GOODS_CAPACITY`. `LINE_CAPACITY` is already passenger capacity
+   because it is booked only for passenger vehicles; no subtraction is needed.
+3. **Mixed lines.** The higher of the passenger and goods load factors.
+4. **Withdrawal representation.** Trigger the existing maintenance-type `convoi_t::go_to_depot()`
+   call. There is no separate withdrawal operation.
+5. **Maximum Consists calculation.** The greedy runtime count, not an optimal packing.
+6. **Automatic policy window.** The last two complete months, fixed.
 
 ## Implementation order
 
@@ -110,12 +127,13 @@ The bug fixes from the design review are complete; the code changes in this list
 work.
 
 1. **Load factors and line statistics.** The passenger guard is fixed. Add the goods capacity counter,
-   the goods load factor and the line-level statistics the Fleet tab needs. This is the measurement
-   prerequisite for the automatic policy.
-2. **Per-vehicle work duration.** Add a way for `depot_t::convoi_arrived()` to obtain each vehicle's
-   maintenance or overhaul duration without `vehicle_t::maintain()` and `vehicle_t::overhaul()`
-   setting the Convoy state and `wait_lock` directly. Store the Release Time on the vehicle or in a
-   depot job list. Blank-order behaviour is unchanged.
+   the goods load factor, the last-two-months getters and the **Freight capacity** chart curve. This
+   is the measurement prerequisite for the automatic policy.
+2. **Per-vehicle work duration and queue.** Separate each vehicle's maintenance or overhaul duration
+   from `vehicle_t::maintain()` and `vehicle_t::overhaul()`, which currently set the Convoy state and
+   `wait_lock`. Give each vehicle its own job state, queue position and release time. Replace the
+   Convoy-level `depot_t::under_maintenance` capacity accounting with a per-vehicle queue. This
+   applies to blank-order visits too: the Convoy leaves when all of its vehicles are released.
 3. **Depot order UI and Decomposition.** Show the departure-consist control on depot entries.
    Implement Decomposition and the Original Convoy arrangement. Remove
    `release_maintained_vehicles()`. Rewrite the four `maintenance-split` cases to author orders.
@@ -167,13 +185,6 @@ When the design is implemented, these documents need changes:
 
 ## Open questions
 
-- Does the depot capacity model need a group-start scheduler, so that a decomposed Convoy's
-  vehicles do not become available before the Convoy reaches the head of
-  `depot_t::under_maintenance`? The simpler alternative computes Release Times at arrival and can
-  make a group available early. The group-start model preserves the current capacity semantics but
-  needs a per-vehicle "work started" state. See [code-baseline](code-baseline.md).
-- Should a pool vehicle that becomes due for maintenance or overhaul while stored be maintained
-  immediately, when selected, or only when a Convoy visits? The design recommends on selection.
 - How should a Held Convoy in a depot that is not on its line's route be dispatched? The design
   checks a route to the next schedule entry and reports failure; the player must move or sell it.
 - Does the path explorer's `schedule_t::parse_orders()` need to skip depot orders? The function

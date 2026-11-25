@@ -78,10 +78,12 @@ The line management window gains a **Fleet** tab immediately after the existing 
 
 1. **Target and policy controls.** The Target Fleet Size number, the automatic policy switch,
    `target_min`, `target_max`, the add/remove thresholds and month counts, and the manual override.
-   The controls commit through `TOOL_CHANGE_LINE`.
+   The controls commit through `TOOL_CHANGE_LINE`. The policy uses the last two complete months; the
+   window is not a control.
 2. **Fleet summary.** Deployed, Held, under-maintenance and total Convoys; the monthly fixed cost of
-   the Held Convoys and the Depot Vehicle Pool; the current passenger and goods load factors. State
-   the value used by the automatic policy.
+   the Held Convoys and the Depot Vehicle Pool; the passenger and goods load factors for last month
+   and for the two-month policy window. State the higher value that the automatic policy uses. The
+   line chart's **Freight capacity** curve shows the goods denominator over time.
 3. **Depots served by the line.** One row per depot that the line's schedule visits or that holds
    one of the line's Convoys. A depot without a Depot Consist Order is greyed out with a mouseover:
    "This depot has no departure consist order. Add one on the depot's schedule entry to re-form
@@ -107,8 +109,9 @@ line it shows the compact state and, where relevant, the remaining work:
 
 - `DEPLOYED`;
 - `ENTERING DEPOT`;
-- `MAINTENANCE` with the remaining wait and queue position;
-- `OVERHAUL` with the remaining wait and queue position;
+- `MAINTENANCE` with the remaining wait, the vehicle queue position and how many of the Convoy's
+  vehicles are still unreleased;
+- `OVERHAUL` with the same per-vehicle information;
 - `AWAITING TRIGGER`;
 - `HELD` (an `INITIAL` Convoy) with the depot and the reason it is held;
 - `REPLENISHING` or `SHUNTING` when those states apply;

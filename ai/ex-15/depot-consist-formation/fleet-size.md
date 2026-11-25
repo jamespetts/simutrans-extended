@@ -15,9 +15,11 @@ Depot Consist Order and Depot Vehicle Pool](../depot-consist-formation.md#terms)
 
 - **Withdrawal** is the instruction that sends a Deployed Convoy to a depot and holds it there as a
   Held Convoy, reducing the number of Deployed Convoys by one.
-- **Load factor** is the ratio of loaded distance to capacity distance. The existing passenger load
-  factor is `LINE_PAX_DISTANCE / LINE_CAPACITY` in tenths of a percent; the proposed goods equivalent
-  is `LINE_PAYLOAD_DISTANCE / LINE_GOODS_CAPACITY`.
+- **Load factor** is the ratio of loaded distance to capacity distance. The passenger load factor is
+  `LINE_PAX_DISTANCE / LINE_CAPACITY` in tenths of a percent, where `LINE_CAPACITY` is booked only
+  for passenger vehicles. The goods load factor is `LINE_PAYLOAD_DISTANCE / LINE_GOODS_CAPACITY`,
+  where `LINE_GOODS_CAPACITY` is booked only for freight vehicles. Mail has its own
+  `LINE_MAIL_DISTANCE` and is excluded from both.
 
 ## Target Fleet Size
 
@@ -83,13 +85,17 @@ remains Deployed and keeps serving until it enters the depot; it is not teleport
 place. The count therefore falls when the Convoy enters the depot, not when the Withdrawal is
 issued.
 
-The existing `convoi_t::go_to_depot()` inserts a `store`/`delete_entry` schedule entry; on arrival,
-`depot_t::convoi_arrived()` detaches the Convoy from its line [CODE]. A Withdrawal must keep the
-line and schedule so that the Convoy can return when the target rises. The design therefore needs a
-separate `convoi_t::withdraw_to_depot()` operation, or a flag that makes the existing depot visit
-keep the line and set `INITIAL` on arrival. The exact representation is an implementation decision
-for the next session; the behaviour is that the Convoy becomes a normal Held Convoy at the chosen
-depot.
+A Withdrawal calls the existing maintenance-type `convoi_t::go_to_depot()` path for the chosen
+Convoy, so the Convoy keeps its line and schedule and enters the depot as a maintenance visit. The
+depot chooses the next depot entry on the Convoy's schedule. Where the schedule has no depot entry,
+it uses the existing nearest-suitable-depot search and then `home_depot`. On arrival, the Convoy is
+held as a Held Convoy if the line has reached its target; the per-Convoy `withdrawal_pending` flag
+records that the hold is intentional, so the Convoy is not immediately dispatched again.
+
+The manual withdraw controls use the same call. The Convoy detail window's **withdraw** button and
+the line's **Withdraw All** button currently set `convoi_t::withdraw`, which runs the Convoy empty
+and sells it when it becomes empty. Under this design they send the Convoy to the depot for a
+maintenance-type visit instead, and it is held there rather than sold.
 
 #### Choosing which Convoy to withdraw
 
@@ -102,11 +108,12 @@ lexicographic, from highest to lowest:
    `convoi_t::is_overhaul_needed()`. Among these, the most overdue first.
 2. **A Convoy that is already scheduled or routed to a depot.** It will leave the deployed count
    without a new instruction; do not divert another Convoy first.
-3. **The Convoy farthest from a suitable depot in its remaining schedule.** A Convoy far from a
-   depot serves more of its route before it can be withdrawn, so more passengers and cargo reach
+3. **The Convoy farthest from its next scheduled depot.** A Convoy far from the next depot on its
+   schedule serves more of its route before it can be withdrawn, so more passengers and cargo reach
    their intended stops instead of being discharged at the depot. The cost is that the line stays
-   above target for longer and the Convoy may run further before it reaches the depot. The user
-   chose this priority on 2026-11-25
+   above target for longer and the Convoy may run further before it reaches the depot. Where the
+   schedule has no depot entry, the distance to the nearest suitable depot is used instead. The
+   user chose this priority on 2026-11-25
    [RECOLLECTION:2026-11-25 user statement].
 4. **The least loaded Convoy.** Its withdrawal removes the least-used capacity. Use the same load
    factor as the automatic adjustment; for a mixed line, use the higher of the passenger and goods
@@ -157,25 +164,29 @@ surface.
 
 ### Load factors
 
-The existing passenger load factor is `simline_t::get_load_factor_pax_last_month()` and
-`get_load_factor_pax_year()`, in tenths of a percent from `LINE_PAX_DISTANCE` and `LINE_CAPACITY`
-[CODE `simline.cc`]. The guard is `!goods_catg_index.is_contained(INDEX_PAS)`, so a line without
-passengers returns 0.
+The passenger load factor is `simline_t::get_load_factor_pax_last_month()`,
+`get_load_factor_pax_last_two_months()` and `get_load_factor_pax_year()`, in tenths of a percent
+from `LINE_PAX_DISTANCE` and `LINE_CAPACITY` [CODE `simline.cc`]. `LINE_CAPACITY` is booked only for
+vehicles whose cargo type is `goods_manager_t::passengers`, so it is seat-km and does not mix seats
+with tonnes [CODE `simconvoi.cc`].
 
-A goods load factor is required. The proposed form is `LINE_PAYLOAD_DISTANCE /
-LINE_GOODS_CAPACITY`, where `LINE_GOODS_CAPACITY` is a new line counter that accumulates the distance
-travelled by goods capacity, empty and loaded. `LINE_CAPACITY` remains the total capacity distance
-for every vehicle. The passenger denominator becomes `LINE_CAPACITY - LINE_GOODS_CAPACITY`, floored
-at zero for older saves where the goods counter is absent; the goods denominator is
-`LINE_GOODS_CAPACITY`. This makes both factors correct on a mixed line without a second new counter.
-`LINE_CAPACITY` is booked from `vehicle_t::get_cargo_max()` for every vehicle, so a line that
-carries both passengers and goods has a total that mixes seats and tonnes [CODE `simconvoi.cc`]. The
-new goods counter isolates the goods share; subtracting it from `LINE_CAPACITY` gives the passenger
-share. The new counter is saved under the next `EX_SAVE_MINOR`.
+The goods load factor is `LINE_PAYLOAD_DISTANCE / LINE_GOODS_CAPACITY`. `LINE_GOODS_CAPACITY` is a
+line counter booked for freight vehicles, but not for passenger or mail vehicles. It uses
+`vehicle_t::get_cargo_max() * vehicle_t::get_cargo_type()->get_weight_per_unit() * distance`, the
+same units as `LINE_PAYLOAD_DISTANCE`, so the ratio is a true loaded-fraction on a mixed line. Mail
+is excluded because `LINE_MAIL_DISTANCE` measures it separately. The counter is saved under
+`EX_SAVE_MINOR` 24; older saves load it as zero and return a goods load factor of zero until a
+month of data exists.
 
-If the project prefers the smaller change, the goods load factor can use the existing
-`LINE_CAPACITY` denominator. That is correct for goods-only lines and approximate for mixed lines;
-the design records the separate counter as the recommended form.
+The line chart gains a **Freight capacity** curve next to **Freight-km**, with its own colour
+(`COL_LIGHT_BROWN`) and translation entry in `simutrans/text/en.tab`. **Seat-km** remains the
+passenger capacity curve. The chart's saved filter-button states are migrated so that an older
+save's buttons keep their meaning.
+
+The getters are implemented by `simline_t::get_load_factor(first_month, month_count,
+payload_type, capacity_type)`. `get_load_factor_pax_last_two_months()` and
+`get_load_factor_goods_last_two_months()` aggregate months 1 and 2, the two most recent complete
+months.
 
 ### Policy
 
@@ -208,9 +219,10 @@ models a company's fleet management rule, not an arbitrary tuning constant.
   and empty in the other has a moderate average, even though the peak direction needs more capacity.
   The manual target lets the player cover the peak; a directional policy would need per-direction
   statistics, which do not exist. The policy uses the round-trip average for the first version.
-- **Window.** The getters offer last month and the last year. The policy should use the last month
-  for responsiveness and the year for stability; the player chooses in the Fleet tab. A shorter
-  rolling window would need new statistics.
+- **Window.** The policy uses `get_load_factor_pax_last_two_months()` and
+  `get_load_factor_goods_last_two_months()`, which aggregate months 1 and 2 of the financial
+  history. The current, incomplete month is excluded. Two months smooth a single unusual month
+  without making the policy slow to respond. The window is fixed, not a per-line setting.
 
 ### Limitations
 
@@ -227,10 +239,10 @@ models a company's fleet management rule, not an arbitrary tuning constant.
 
 ## Open questions
 
-- Does the Withdrawal operation keep the Convoy's current schedule position and line, or does it
-  store the Convoy and give it a new schedule position when it returns? The proposal keeps both.
-- Which depot does a Withdrawal choose: the nearest suitable depot, the Convoy's `home_depot`, or
-  the next depot on its schedule? The proposal is the nearest suitable depot, falling back to the
-  home depot. The chosen Convoy is the one farthest from that depot, so the two choices interact.
-- Should the automatic policy use the last month, the last year, or a shorter rolling window?
 - Should the target be per line or per line and direction? The proposal is per line.
+- Should mail have its own load factor and automatic policy? The current design measures passengers
+  and freight only; mail has separate statistics.
+- How should the manual **Withdraw All** control interact with a line that has no Target Fleet Size?
+  It sends each Convoy to a depot, but with no target there is nothing to hold it there after the
+  maintenance visit. The current proposal is that the per-Convoy `withdrawal_pending` flag holds it
+  until the player starts it or raises the target.

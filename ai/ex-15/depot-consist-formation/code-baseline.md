@@ -80,11 +80,13 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
   is detached without a refactor.
 - `depot_t::register_for_maintenance()` appends the Convoy to `under_maintenance` and, when the
   Convoy has more vehicles than `building_desc_t::get_max_vehicles_under_maintenance()`, multiplies
-  the Convoy's `wait_lock` by `vehicle_count * 100 / max_vehicles` [CODE simdepot.cc].
+  the Convoy's `wait_lock` by `vehicle_count * 100 / max_vehicles` [CODE simdepot.cc]. The queue
+  entry and the capacity count are therefore per Convoy in the current code.
 - `depot_t::sync_step()` drops unbound or departed queue entries, then calls
   `c->sync_step(delta_t)` for each Convoy in `under_maintenance` [CODE `simdepot.cc`].
   `depot_t::is_awaiting_attention()` counts the vehicles of the Convoys ahead and freezes a Convoy
-  behind the depot capacity [CODE `simdepot.cc`].
+  behind the depot capacity [CODE `simdepot.cc`]. The design replaces this Convoy-level accounting
+  with a per-vehicle queue; see [per-vehicle work](#per-vehicle-work-and-the-depot-queue).
 - `depot_t::convois` is appended on arrival and removed by `remove_convoi()`, which is called from
   `sell_convoy()`, `start_convoi()` and `convoi_t::destroy()` [CODE `simdepot.cc`; `simconvoi.cc`].
   The automatic maintenance completion path reaches `convoi_t::step()`'s `ROUTE_JUST_FOUND` case,
@@ -161,12 +163,17 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
 
 ### Line statistics
 
-- `simline_t::get_load_factor_pax_last_month()` and `get_load_factor_pax_year()` return a
-  passenger load factor in tenths of a percent [CODE `simline.cc`]. Their guard is
-  `!goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)`, so a line without passengers
-  returns 0.
-- There is no equivalent goods load factor on `simline_t` [CODE]. The design adds one; see
-  [fleet-size](fleet-size.md).
+- `simline_t::get_load_factor_pax_last_month()`, `get_load_factor_pax_last_two_months()` and
+  `get_load_factor_pax_year()` return a passenger load factor in tenths of a percent [CODE
+  `simline.cc`]. Their guard is `!goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)`, so a
+  line without passengers returns 0.
+- `LINE_CAPACITY` is booked only for vehicles whose cargo type is `goods_manager_t::passengers`
+  [CODE `simconvoi.cc`]. It is seat-km, not a mixture of seats and tonnes.
+- `LINE_GOODS_CAPACITY` is booked for freight vehicles, but not for passenger or mail vehicles. It
+  uses the vehicle's capacity, the cargo weight per unit and the distance, the same units as
+  `LINE_PAYLOAD_DISTANCE` [CODE `simconvoi.cc`]. The goods load factors use
+  `LINE_PAYLOAD_DISTANCE / LINE_GOODS_CAPACITY`; see [fleet-size](fleet-size.md).
+- Mail is measured separately by `LINE_MAIL_DISTANCE` and is excluded from both load factors.
 - `simline_t::get_service_frequency()` computes a service frequency from the Convoys for which
   `convoi_t::in_depot()` is false [CODE `simline.cc`]. `convoi_t::in_depot()` returns true only for
   `INITIAL`, so a Convoy in `MAINTENANCE` or `OVERHAUL` is included by this test [CODE
@@ -218,33 +225,38 @@ Add to `vehicle_t`:
 
 - `sint64 depot_release_time`: the tick at which the work completes. 0 means no pending depot job.
 - `uint8 depot_job_state`: 0 = none, 1 = waiting for depot capacity, 2 = in progress, 3 = complete.
-  The exact encoding is an implementation detail; the states are needed to keep a decomposed group
-  frozen until its Convoy reaches the head of `under_maintenance`.
+- `uint32 depot_queue_index`: the vehicle's position in the depot queue, used to rebuild the queue
+  after a load without relying on pointer order. The depot stores the next index to allocate.
 
-Both fields are saved in `vehicle_t::rdwr_from_convoi()` under the next `EX_SAVE_MINOR`, with
-defaults 0 for older saves. A vehicle inside a Convoy must not have a pending job; validate this on
-load. A vehicle in `depot_t::vehicles` with a release time in the past is available.
+All three fields are saved in `vehicle_t::rdwr_from_convoi()` under `EX_SAVE_MINOR` 24, with
+defaults 0 for older saves. A vehicle inside a Convoy may have a pending job while the Convoy is
+under maintenance; validate that the state is consistent on load. A vehicle in `depot_t::vehicles`
+whose work is due is queued immediately unless it is mothballed.
 
-The alternative is a depot-side list of `(vehicle_t*, release_time, state)`. It avoids two fields on
-every vehicle but needs matching on load, because `vehicle_t` has no persistent id. The per-vehicle
-fields are simpler and travel with the vehicle if the player moves it; they are the recommendation.
+The alternative is a depot-side list of `(vehicle_t*, release_time, state, queue_index)`. It avoids
+three fields on every vehicle but needs matching on load, because `vehicle_t` has no persistent id.
+The per-vehicle fields are simpler and travel with the vehicle if the player moves it; they are the
+recommendation.
 
-### Depot capacity and the queue
+### Per-vehicle work and the depot queue
 
-`depot_t::is_awaiting_attention()` counts only the vehicles in the Convoys ahead. Once the
-Maintenance-Only Group is detached, those vehicles are no longer in the queue, so the depot could
-admit a new group while the pool still occupies capacity. The design has two options:
+Depot maintenance capacity is counted per vehicle, not per Convoy. Each arriving vehicle receives
+its own job state, its own queue position and its own Release Time. The depot starts work on up to
+`building_desc_t::get_max_vehicles_under_maintenance()` vehicles at a time, in queue order. A
+Convoy leaves when every one of its vehicles has been released, whether or not a Depot Consist
+Order decomposed it.
 
-- **Group-start scheduler.** Keep the Original Convoy in `under_maintenance`; mark its detached
-  vehicles `waiting for depot capacity`. When the Convoy reaches the head, set each Release Time to
-  `now + duration * capacity_multiplier`. `is_awaiting_attention()` adds the number of in-progress
-  pool vehicles to the count. This preserves the current capacity semantics.
-- **Arrival-time release.** Compute Release Times at arrival. This is simpler but can release a
-  group's vehicles before the group would have reached the head, effectively exceeding the depot's
-  capacity. It is acceptable only as a first approximation with a documented limitation.
+The current code counts per Convoy: `register_for_maintenance()` appends the Convoy,
+`is_awaiting_attention()` counts the vehicles of the Convoys ahead, and an oversized Convoy's
+`wait_lock` is multiplied instead of being split into separate vehicle waits [CODE `simdepot.cc`].
+The refactor replaces that accounting. `under_maintenance` remains the list of Convoys that the
+depot steps, but the capacity and Release Times are per vehicle. The saved queue order must be
+stable; the current `depot_t::rdwr_maintenance_queue()` saves the Convoy ids in order
+[CODE `simdepot.cc`], and the per-vehicle queue needs an equivalent saved order.
 
-The parent design recommends the group-start scheduler because the current queue and the per-line
-limit already depend on capacity accounting.
+A vehicle in the Depot Vehicle Pool that becomes due for maintenance or overhaul is worked on as
+soon as it becomes due, unless it is mothballed. Mothballing has no interface in the current code
+and is deferred.
 
 ### A pool-only solver
 

@@ -18,14 +18,15 @@ The intended saved fields are:
 |---|---|---|---|---|
 | `vehicle_t` | `depot_release_time` | `sint64` | 0 | Ticks; 0 means no pending job. Saved in `vehicle_t::rdwr_from_convoi()`. |
 | `vehicle_t` | `depot_job_state` | `uint8` | 0 | None, waiting, in progress, complete. Saved in the same block. |
+| `vehicle_t` | `depot_queue_index` | `uint32` | 0 | Position in the depot queue, used to rebuild the queue after a load. |
 | `simline_t` | `target_convoy_count` | `uint16` | 0 | 0 means no target. Saved in `simline_t::rdwr()`. |
 | `simline_t` | `fleet_policy` | `uint8` | 0 | Off or automatic. Saved in `simline_t::rdwr()`. |
 | `simline_t` | `target_min`, `target_max` | `uint16` each | 0 | Bounds for the automatic policy. |
 | `simline_t` | `add_threshold`, `remove_threshold` | `uint16` each | 0 | Load-factor thresholds in tenths of a percent. |
 | `simline_t` | `add_months`, `remove_months` | `uint8` each | 0 | Consecutive-month counts for the policy. |
-| `simline_t` | `LINE_GOODS_CAPACITY` | new `financial_history` entry | 0 | Goods capacity distance, added to the `MAX_LINE_COST` array. Older saves load zero; the goods load factor is zero until a month of data exists, and the passenger denominator `LINE_CAPACITY - LINE_GOODS_CAPACITY` floors at zero. |
+| `simline_t` | `LINE_GOODS_CAPACITY` | new `financial_history` entry | 0 | Freight capacity distance, added to the `MAX_LINE_COST` array. Older saves load zero; the goods load factor is zero until a month of data exists. The passenger denominator remains `LINE_CAPACITY`, which is booked only for passenger vehicles. |
 | `convoi_t` | `replacement_awaiting_formation` | `bool` | false | True after `replace_now()` has bought or sold stock but before the one-shot order departs. Saved in `convoi_t::rdwr()`. |
-| `convoi_t` | `withdrawal_pending` | `bool` | false | True while a Withdrawal is in progress; the chosen depot is stored in `withdrawal_depot` (`koord3d`). The exact representation is still open. |
+| `convoi_t` | `withdrawal_pending` | `bool` | false | True while a Withdrawal is in progress. A Withdrawal uses the existing maintenance-type `convoi_t::go_to_depot()` call, so no separate depot coordinate is stored. |
 
 The replacement order itself is derived from `replace_data_t`, which is already saved. The
 recommendation is to keep `replace_data_t` until the assembled Consist departs and add the

@@ -129,14 +129,16 @@ On arrival at a maintenance or overhaul visit with a non-blank Depot Consist Ord
    reversed [CODE `simconvoi.cc`].
 4. Every other vehicle is removed from the Original Convoy with
    `convoi_t::remove_vehicle_at()` and appended to `depot_t::vehicles`.
-5. Each moved vehicle receives a Release Time. The Release Time is the current tick plus the
-   vehicle's own maintenance or overhaul duration, multiplied by the same depot-capacity
-   multiplier that `depot_t::register_for_maintenance()` applies to a Convoy that is larger than
-   `building_desc_t::get_max_vehicles_under_maintenance()` [CODE `simdepot.cc`].
-6. The Original Convoy's `wait_lock` is the Lead Vehicle's own duration, plus any replacement
-   shunting or in-place-upgrade wait. Its state is `OVERHAUL` when the Lead Vehicle was overhauled
-   and `MAINTENANCE` otherwise. The work applied to the detached vehicles does not set the
-   Original Convoy's state or `wait_lock`.
+5. Each vehicle, including every moved vehicle and every vehicle that stays in the Original
+   Convoy, joins the depot's per-vehicle maintenance queue. Its Release Time is set when it reaches
+   the head of the queue, as the current tick plus its own maintenance or overhaul duration. The
+   depot works on up to `building_desc_t::get_max_vehicles_under_maintenance()` vehicles at once
+   [CODE `depot_t::is_awaiting_attention()` counts vehicles, but per Convoy; `simdepot.cc`]. A
+   Convoy's wait is until its last vehicle is released.
+6. The Original Convoy's state is `OVERHAUL` when at least one of its remaining vehicles was
+   overhauled and `MAINTENANCE` otherwise. Its `wait_lock` covers the Lead Vehicle's own duration
+   and any replacement shunting or in-place-upgrade wait, but the depot does not let it leave until
+   every vehicle of its Consist is released.
 7. Each moved vehicle's `loose_recipient_id` and `loose_recipient_flags` are set from the order's
    `available_to` setting. The default `available_to_is_same` resolves to the Original Convoy's
    line, or to the Original Convoy when it is lineless [CODE `dataobj/consist_order_t.h`;
@@ -231,7 +233,8 @@ is visible rather than silent.
 When the Original Convoy departs, it keeps its `convoi_t` id, name, line, schedule,
 `home_depot`, statistics, `replace_data_t`, `withdraw` flag and livery scheme (defined in
 [depot maintenance](depot-maintenance.md#terms)). It is the same object that arrived [PROPOSED].
-The Lead Vehicle is in slot 0.
+The Lead Vehicle is in slot 0. It departs only when every vehicle in its Consist is released, so a
+blank-order visit also waits for the whole Consist's per-vehicle work.
 
 When a New Convoy departs, it is created with `depot_t::add_convoi(false)`. It receives
 [PROPOSED]:
@@ -278,10 +281,12 @@ The target governs both directions:
   schedule entry. If no Held Convoy can run, the line assembles a New Convoy from the Depot Vehicle
   Pool if an order is satisfiable. If neither is possible, the line stays below the target.
 - **Above the target.** When the number of Deployed Convoys exceeds the target, the line withdraws
-  Convoys one at a time until the count is at or below the target. A withdrawal instructs the
-  chosen Convoy to go to a suitable depot at the next opportunity. The Convoy remains Deployed and
-  keeps serving until it enters the depot; it is not teleported or stopped in place. The choice of
-  Convoy is a deterministic priority rule; see
+  Convoys one at a time until the count is at or below the target. A withdrawal sends the chosen
+  Convoy to the next depot on its schedule, through the maintenance-type
+  `convoi_t::go_to_depot()` call. Where the schedule has no depot entry, it falls back to the
+  nearest suitable depot and then `home_depot`. The Convoy remains Deployed and keeps serving until
+  it enters the depot; it is not teleported or stopped in place. The manual withdraw controls use
+  the same call. The choice of Convoy is a deterministic priority rule; see
   [fleet-size](depot-consist-formation/fleet-size.md).
 
 Every depot departure checks the target, including an Original Convoy completing maintenance. If
