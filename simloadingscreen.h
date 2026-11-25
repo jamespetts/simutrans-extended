@@ -24,6 +24,7 @@ class loadingscreen_t
 {
 private:
 	const char *what, *info;
+	const char *last_info; ///< info last drawn; NULL forces a redraw
 	uint32 progress, max_progress;
 	int last_bar_len;
 	bool show_logo;
@@ -44,7 +45,7 @@ public:
 
 	void set_max( uint32 max ) { max_progress = max; }
 
-	void set_info( const char *info ) { this->info = info; }
+	void set_info( const char *info ) { this->info = info; this->last_info = NULL; }
 
 	void set_what( const char *what ) { this->what = what; }
 };

@@ -22,6 +22,7 @@ loadingscreen_t::loadingscreen_t( const char *w, uint32 max_p, bool logo, bool c
 {
 	what = w;
 	info = NULL;
+	last_info = NULL;
 	progress = 0;
 	max_progress = max_p;
 	last_bar_len = -1;
@@ -78,8 +79,12 @@ void loadingscreen_t::display()
 
 		dr_prepare_flush();
 
-		if(  info  ) {
+		// The info text sits above the progress bar, whose redraw does not clear
+		// it. Redrawing it on every progress update would alpha-blend its
+		// antialiased edges over the pixels drawn by the previous update.
+		if(  info  &&  info != last_info  ) {
 			display_proportional_rgb( half_width, bar_y - LINESPACE - 2, info, ALIGN_CENTER_H, color_idx_to_rgb(COL_WHITE), true );
+			last_info = info;
 		}
 
 		// outline
@@ -119,8 +124,9 @@ void loadingscreen_t::set_progress( uint32 progress )
 			display_fillbox_wh_rgb( 0, 0, display_get_width(), display_get_height(), color_idx_to_rgb(COL_BLACK), true );
 			display_logo();
 			dr_flush();
-			// force the progress bar to be redrawn at the new width
+			// force the progress bar and static text to be redrawn at the new size
 			last_bar_len = -1;
+			last_info = NULL;
 			// queue the event anyway, so the viewport is correctly updated on world resume (screen will be resized again).
 			queued_events.append(ev);
 		}
