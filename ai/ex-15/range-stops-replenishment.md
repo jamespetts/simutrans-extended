@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6a9e8d963
+verified: ex-15 @ 6a9e8d963; ex-15 @ f41b00399f (2026-11-25, safe REPLENISHING completion transition)
 ---
 # ex-15 range stops and replenishment
 
@@ -107,12 +107,15 @@ vocabulary is defined in the [glossary](../glossary.md).
   `wait_lock` each time. The runtime needs one convoy dwell value derived from the
   applicable vehicles, analogous to the longest-vehicle rule for maintenance.
 - The ordinary convoy loader does not start replenishment. No code checks
-  facilities, requests replenishment or transitions from replenishment back to
-  loading or departure.
-- `vehicle_t::replenish()` and the `REPLENISHING` branch of `convoi_t::step()`
-  have an unsafe completion path recorded in [known-bugs](../known-bugs.md).
-  Replenishment must be connected with explicit departure handling, not merely by
-  calling `replenish()`.
+  facilities or requests replenishment. `convoi_t::step()` handles the return
+  from replenishment to loading and departure; the runtime still has to call
+  `vehicle_t::replenish()` from the stop logic.
+- The completion path is safe: when the replenishment dwell expires,
+  `convoi_t::step()` sets the state to `LOADING` before calling `laden()`, so the
+  ordinary loading and departure rules apply. If `laden()` starts another
+  replenishment dwell, the step returns without falling through to
+  `SELF_DESTRUCT`. The runtime must still supply one convoy dwell value derived
+  from the applicable vehicles, as noted above.
 - `replace_data_t::on_replenish` has no trigger code.
 
 ### Verification

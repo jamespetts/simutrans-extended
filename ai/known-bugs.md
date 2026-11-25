@@ -217,20 +217,6 @@ Rank on discovery; re-rank on triage.
   explicitly (the shipped simuconf sets only `base_meters_per_tile`); the settings-window reset
   path can change the scale to the constructor default 250 even without such a key.
 
-### `REPLENISHING` expiry can fall through to convoy destruction — priority 3
-
-- The `REPLENISHING` branch of `convoi_t::step()` is grouped with the loading states and calls
-  `convoi_t::laden()`. If `laden()` leaves the state as `REPLENISHING` - for example because minimum
-  loading, a timed wait or spacing prevents departure - the subsequent condition
-  `state != SELF_DESTRUCT && state != REPLENISHING` is false. Control then falls through to the
-  `SELF_DESTRUCT` case and calls `convoi_t::destroy()`.
-- `vehicle_t::replenish()` has no callers, so the path is not currently reachable. It becomes
-  reachable as soon as range-stop runtime calls it. A safe transition must leave `REPLENISHING` for `LOADING` or
-  `ROUTING_1` before returning from `laden()`, and the dwell-expiry cases need behavioural tests.
-- The intended range-stop runtime and outstanding decisions are in
-  [ex-15/range-stops-replenishment](ex-15/range-stops-replenishment.md).
-  [CODE ex-15 @ 6a9e8d963]
-
 ### `float32e8_t` numeric edge cases — priority 3
 
 - **Negative shift in `exp2()`.** `float32e8_t::exp2()` (utils/float32e8_t.cc) logs an error
@@ -363,7 +349,6 @@ confirms they affect current builds in live games.
 
 | Forum report | Last active | Notes |
 |---|---|---|
-| `REPLENISHING` expiry can fall through to convoy destruction (not a forum report: code inspection 2026-11-16) | — | detailed entry above; latent because `vehicle_t::replenish()` has no caller; must be fixed before range-stop runtime |
 | `float32e8_t` numeric edge cases (not a forum report: code inspection 2026-11-24) | — | detailed entry above; negative shift in `exp2()` for exponents 33..1023, non-canonical zero from `operator /`, and exponent narrowing with corrupt saved exponents; no demonstrated trigger with valid pak/save values |
 | Toolbar scroll arrows are not clickable (not a forum report: third-party usability transcript) | — | `gui/tool_selector.cc`: `tool_selector_t::draw` draws `gui_theme_t::arrow_button_left_img`, `arrow_button_right_img`, `arrow_button_up_img` and `arrow_button_down_img`; `tool_selector_t::infowin_event` handles dragging and icon hits only, so a click on an arrow activates the icon under it, and wheel events are not handled. Workaround: drag the toolbar. Proposed change and context → [gui/usability-considerations](gui/usability-considerations.md) [CODE ex-15 @ 97029f453] |
 | Settings dialogue labels are raw configuration keys (not a forum report: third-party usability transcript) | — | `gui/settings_stats.h`: `INIT_NUM`, `INIT_BOOL`, `INIT_COST`, `INIT_LB` and `INIT_COLOR` call `gui_label_t::set_text_pointer`, which does not translate; many keys (e.g. `frames_per_second`, `max_route_steps`) have no entry in `simutrans/text/en.tab` or `simutrans/pak128.Britain-Ex/text/en.tab`, so they are displayed verbatim. `gui_numberinput_t::draw` adds only a numeric-range tooltip. Display/localisation only. Context → [gui/usability-considerations](gui/usability-considerations.md) [CODE ex-15 @ 97029f453] |

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23)
+verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23); ex-15 @ f41b00399f (2026-11-25, trigger-wait road case)
 ---
 # Scripting & tests
 
@@ -345,7 +345,7 @@ Tests section. See [documentation-architecture](documentation-architecture.md) f
   cases or reload runners.
 - [road-vehicle-operations implementation](road-vehicle-operations/implementation.md#tests) — read
   when running the `road-cases/` group of the pending-runtime fixture (`single-run`,
-  `moving-gap`, `overtake`, `junction`, `crossroads`, `queue`, `stop-release`,
+  `trigger-wait`, `moving-gap`, `overtake`, `junction`, `crossroads`, `queue`, `stop-release`,
   `reverse-through`, `reverse-through-westbound`, `terminal-stands`, `terminal-turnover`,
   `through-pass`, `through-pass-oncoming`), the `save-reload-stand` reload case, or extending
   the road-space, stop-stand and private-car tests.

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail continuity across splits and loose stock); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail continuity across splits and loose stock); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case); ex-15 @ f41b00399f (2026-11-25, AWAITING_TRIGGER sync-step handling)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -81,10 +81,13 @@ explorer's treatment of consist orders.
   reversing station stops).
 - **Ignore choose sign** — `rail_vehicle_t::activate_choose_signal`, `road_vehicle_t::hop_check`;
   GUI control + "[IC]" prefix + skin.
-- **Trigger runtime** — `convoi_t::AWAITING_TRIGGER` state; receiver bitfield matching in the step
-  logic; `simline_t::propagate_triggers` (with trigger_one_only: earliest-arriving satisfied convoy
-  first); clear_stored_triggers_on_dep handling. GUI sets only the bitfield numbers (inputs select
-  condition numbers 0–15 — the 16 designed conditions) and a line selector.
+- **Trigger runtime** — `convoi_t::AWAITING_TRIGGER` state; `convoi_t::sync_step()` treats it as a
+  stationary state, while loading and trigger matching run in `convoi_t::step()`; receiver bitfield
+  matching in the step logic; `simline_t::propagate_triggers` (with trigger_one_only: earliest-arriving
+  satisfied convoy first); clear_stored_triggers_on_dep handling. GUI sets only the bitfield numbers
+  (inputs select condition numbers 0–15 — the 16 designed conditions) and a line selector.
+  The pending-runtime `trigger-wait` case keeps a convoy in this state and asserts that it remains
+  there.
 - **Loading-control flags** (discharge_payload / set_down_only / pick_up_only) — enforced in
   `hat_gehalten`/unload paths and in the path explorer
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202997.html].

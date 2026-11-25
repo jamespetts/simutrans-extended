@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 82b143fc38 plus working-tree junction clearance changes
+verified: ex-15 @ 82b143fc38 plus working-tree junction clearance changes; ex-15 @ f41b00399f (2026-11-25, trigger-wait road case and test counts)
 ---
 # Road vehicle operations: implementation
 
@@ -333,11 +333,16 @@ bytes per halt tile on x64.
 ## Tests
 
 `tests/pending-runtime/road-harness.nut` and `tests/pending-runtime/road-cases/` provide the
-`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains fourteen
+`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains fifteen
 cases:
 
 - `single-run`: one convoy crosses a straight road to its destination without a false block or
   stall.
+- `trigger-wait`: a convoy arrives at a through stop whose entry has a non-zero
+  `condition_bitfield_receiver` and the `conditional_depart_before_wait` schedule flag (the
+  "wait for trigger" option), with no convoy or line sending a matching trigger. It must stay in
+  `AWAITING_TRIGGER` for 100 observations without the `convoi_t::sync_step()` abort reported as
+  [GitHub issue 701](https://github.com/jamespetts/simutrans-extended/issues/701).
 - `moving-gap`: a fast follower catches a slow leader near the end of a 14-tile road. The
   follower starts when the leader is at x = 10, so the remaining route is too short for
   `convoi_t::can_overtake` and the follower must follow. Once both fronts have been on the
@@ -421,13 +426,13 @@ scripts\run-pending-runtime-reload-tests.ps1 -CaseName save-reload-stand
   -Exe simutrans\Simutrans-Extended-Debug.exe
 ```
 
-The fourteen road cases pass with the Profile x64 build and `-nomidi -nosound -fast_forward`
-(about 20 s with four jobs). The cases do not directly create a one-way dead end, so the
-one-way dead-end exception has no dedicated scripted case. The standard Squirrel suite passes
-(81 of 81). The network smoke test passes with 1049 per-step private-car route hashes identical
-between two runs. The `division`,
-`pair`, `choose` and `ownership` pending-runtime groups pass (37 cases). `save-reload-stand`
-passes on the server after the join and in the fresh offline load.
+The fifteen road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
+(45 s with eight jobs in the 2026-11-25 run). The cases do not directly create a one-way dead end,
+so the one-way dead-end exception has no dedicated scripted case. The standard Squirrel suite
+passes (82 of 82). The network smoke test passes with 1049 per-step private-car route hashes
+identical between two runs. The `division`, `pair`, `choose` and `ownership` pending-runtime
+groups pass (37 cases). `save-reload-stand` passes on the server after the join and in the fresh
+offline load.
 
 The reaction distance also has a compile-time test: the two `static_assert`s on
 `road_space::reaction_gap_mm` in `vehicle/road_vehicle.cc`.
