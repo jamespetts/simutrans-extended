@@ -106,15 +106,20 @@ For a vehicle longer than one tile, the requirement is capped at one tile's leng
 vehicle cannot clear a one-tile junction, so an uncapped requirement could never be satisfied.
 
 The check evaluates `road_space::allows_queueing(exit)` before scanning the tile. If it is
-false, the exit tile is a bend, a diagonal road tile or a level crossing, and it does not admit
-a queue in one lateral position, so any vehicle on the exit tile in the same lateral position
-blocks entry regardless of its position. Otherwise the scan skips a vehicle beside the lane at a stop stand and skips
-oncoming traffic whose entry direction is the reverse of the entering vehicle's exit direction.
-A vehicle on the exit tile which entered from another arm is treated as blocking, because its
-path may conflict with the entering vehicle. A vehicle which entered from the junction is
-converted from its tile's step scale to straight steps with `road_space::step_scale` before its
-rear is compared with the required distance; this handles a vehicle turning on a cardinal
-junction tile.
+false, the exit tile is a level crossing, a diagonal road tile, a bend or a dead end, and it
+does not admit a following vehicle in one lateral position, so a vehicle on the exit tile on
+the same path as the entering vehicle blocks entry regardless of its position. A bend, a
+diagonal road tile and a level crossing have two road arms, so a vehicle which is not on the
+entering vehicle's path is coming the other way; `vehicle_base_t::get_blocking_vehicle`, which
+decides which vehicles block entry to a tile, permits a vehicle travelling the other way to
+share the tile, so that vehicle does not block entry. If
+`road_space::allows_queueing(exit)` is true, the scan skips a vehicle beside the lane at a stop
+stand and skips oncoming traffic whose entry direction is the reverse of the entering vehicle's
+exit direction, while a vehicle on the exit tile which entered from another arm is treated as
+blocking because its path may conflict with the entering vehicle. A vehicle which entered from
+the junction is converted from its tile's step scale to straight steps with
+`road_space::step_scale` before its rear is compared with the required distance; this handles a
+vehicle turning on a cardinal junction tile.
 
 The check is made at junction entry, not every step. If the exit tile fills after a vehicle has
 entered the junction, the ordinary following rule still prevents an overlap; the exit-clearance
@@ -328,7 +333,7 @@ bytes per halt tile on x64.
 ## Tests
 
 `tests/pending-runtime/road-harness.nut` and `tests/pending-runtime/road-cases/` provide the
-`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains thirteen
+`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains fourteen
 cases:
 
 - `single-run`: one convoy crosses a straight road to its destination without a false block or
@@ -360,6 +365,12 @@ cases:
   and exercise the conflicting-path and exit-clearance rules. All five must reach their
   destinations. The run reached at least two westbound convoys on the junction tile and
   passed.
+- `junction-curve`: two adjacent junctions. A convoy enters the first junction from the south
+  and turns east into the second, whose east arm leads into a bend. A second convoy comes north
+  through the bend and continues west through both junctions. The first convoy's junction entry
+  is checked against the bend, which holds the second convoy; the second convoy's junction
+  entry is checked against the first junction, which holds the first convoy. Both must reach
+  their destinations.
 - `queue`: two convoys leave one depot in the same step and follow one another on a straight
   road. The following vehicle must stay behind the leading vehicle's rear whenever both are
   on one tile and when the follower is on the tile immediately behind the leader's tile, and
@@ -410,11 +421,11 @@ scripts\run-pending-runtime-reload-tests.ps1 -CaseName save-reload-stand
   -Exe simutrans\Simutrans-Extended-Debug.exe
 ```
 
-The thirteen road cases pass with the Profile x64 build and `-nomidi -nosound -fast_forward`
-(about 21 s with four jobs). The cases do not directly create a one-way dead end or a bend as
-a junction exit, so the one-way dead-end exception and the non-queueing exit rule have no
-dedicated scripted case. The standard Squirrel suite passes (81 of 81). The network smoke test
-passes with 1049 per-step private-car route hashes identical between two runs. The `division`,
+The fourteen road cases pass with the Profile x64 build and `-nomidi -nosound -fast_forward`
+(about 20 s with four jobs). The cases do not directly create a one-way dead end, so the
+one-way dead-end exception has no dedicated scripted case. The standard Squirrel suite passes
+(81 of 81). The network smoke test passes with 1049 per-step private-car route hashes identical
+between two runs. The `division`,
 `pair`, `choose` and `ownership` pending-runtime groups pass (37 cases). `save-reload-stand`
 passes on the server after the join and in the fresh offline load.
 

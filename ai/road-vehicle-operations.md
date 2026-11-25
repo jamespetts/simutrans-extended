@@ -160,11 +160,15 @@ comments on `STANDSTILL_GAP_MM` and `REACTION_TIME_MS`. `VEHICLE_STEPS_PER_TILE`
 `YARDS_PER_VEHICLE_STEP_SHIFT` provide the unit conversions.
 
 Apply this rule on straight road tiles and on road junctions (T junctions and crossroads).
-Bends, diagonal road tiles and level crossings keep the one-vehicle rule. A junction tile uses
-the same following rule only between vehicles that enter by the same edge and leave by the
-same edge; `vehicle_base_t::get_blocking_vehicle` still refuses entry to a vehicle on a
-conflicting path. A vehicle whose route ends on the tile has no exit direction and is treated
-as on the same path as any vehicle entering by the same edge.
+Bends, diagonal road tiles and level crossings do not use the following rule: a vehicle on the
+same path as an entering vehicle blocks entry regardless of its position, while a vehicle
+travelling the other way can share the tile because
+`vehicle_base_t::get_blocking_vehicle`, which decides which vehicles block entry to a tile,
+permits vehicles travelling in opposite directions to share the tile. A junction tile uses the
+same following rule only between vehicles that enter by the same edge and leave by the same
+edge; `vehicle_base_t::get_blocking_vehicle` still refuses entry to a vehicle on a conflicting
+path. A vehicle whose route ends on the tile has no exit direction and is treated as on the
+same path as any vehicle entering by the same edge.
 
 ### Junction entry and exit clearance
 
@@ -183,16 +187,19 @@ leader that was already ahead at entry. For a vehicle longer than one tile, the 
 capped at one tile's length: such a vehicle cannot clear a one-tile junction, so an uncapped
 requirement could never be satisfied.
 
-If `road_space::allows_queueing(exit)` is false, the exit tile is a bend, a diagonal road tile
-or a level crossing, and it does not admit a queue in one lateral position. In that case any
-vehicle on the exit tile in the same lateral position blocks entry, regardless of its position,
-because the entering vehicle cannot stop behind it. A vehicle on the exit tile that entered
-from another arm is also treated as blocking, because its path may conflict with the entering
-vehicle. Oncoming traffic in the other carriageway and vehicles beside the lane at a stop stand
-are ignored. This is the road equivalent of the rule that a driver must not enter a box junction
-unless the exit is clear. It prevents the gridlock case where a vehicle enters a junction,
-stops behind a queue, and blocks the cross traffic which the vehicle ahead needs in order to
-leave.
+If `road_space::allows_queueing(exit)` is false, the exit tile is a level crossing, a diagonal
+road tile, a bend or a dead end, and it does not admit a following vehicle in one lateral
+position. In that case a vehicle on the exit tile on the same path as the entering vehicle
+blocks entry, regardless of its position, because the entering vehicle cannot stop behind it.
+A bend, a diagonal road tile and a level crossing have two road arms, so a vehicle on the exit
+tile that entered from the other arm is coming the other way;
+`vehicle_base_t::get_blocking_vehicle`, which decides which vehicles block entry to a tile,
+permits the two directions to share the tile, so that vehicle does not block entry. If the exit tile does admit queueing, a vehicle that entered from another arm is
+treated as blocking, because its path through the junction may conflict with the entering
+vehicle. Vehicles beside the lane at a stop stand are ignored in either case. This is the road
+equivalent of the rule that a driver must not enter a box junction unless the exit is clear. It prevents the gridlock case where a
+vehicle enters a junction, stops behind a queue, and blocks the cross traffic which the vehicle
+ahead needs in order to leave.
 
 The entry check is `road_space::junction_exit_clear`, called from
 `road_vehicle_t::apply_following_rule` and `private_car_t::apply_following_rule` during the

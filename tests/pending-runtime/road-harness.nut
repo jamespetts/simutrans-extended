@@ -61,6 +61,22 @@ local CROSSROADS_EAST_STOP = coord3d(12, 5, 0)
 local CROSSROADS_NORTH_STOP = coord3d(7, 3, 0)
 local CROSSROADS_SOUTH_STOP = coord3d(7, 7, 0)
 
+// The junction-curve case has two adjacent junctions. Junction A at (5,5) is
+// entered from the south by the first convoy, which turns east towards
+// junction B at (6,5). B's east arm leads into a bend at (7,5) whose other arm
+// runs south. The second convoy starts south of the bend and runs north
+// through it, then west through B and A. The approaches to A and to the bend
+// are both four tiles, so the two convoys reach the junction entries at about
+// the same time and each one's exit tile then holds the other one.
+local CURVE_A = coord3d(5, 5, 0)
+local CURVE_B = coord3d(6, 5, 0)
+local CURVE_BEND = coord3d(7, 5, 0)
+local CURVE_WEST_END = coord3d(2, 5, 0)
+local CURVE_B_NORTH_END = coord3d(6, 3, 0)
+local CURVE_A_SOUTH_DEPOT = coord3d(5, 9, 0)
+local CURVE_C_SOUTH_DEPOT = coord3d(7, 9, 0)
+local CURVE_SOUTH_STOP = coord3d(7, 7, 0)
+
 // The through-pass-oncoming case uses a two-way road between two depots, with
 // a through stop in the middle, a second stop west of it for the westbound
 // stream's first entry, and a terminal on a branch at each end.
@@ -134,7 +150,10 @@ local fixture = {
 	crossroads_west_ids = [],
 	crossroads_arrived = {},
 	crossroads_max_on_junction = 0,
-	crossroads_max_west_on_junction = 0
+	crossroads_max_west_on_junction = 0,
+	// junction-curve
+	curve_destinations = [],
+	curve_arrived = {}
 }
 
 
@@ -1340,6 +1359,127 @@ function observe_crossroads()
 }
 
 
+function setup_junction_curve(pl)
+{
+	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	if (!check(road != null, "no flat road is available"))
+	{
+		return false
+	}
+	// The west arm and the two junctions.
+	if (!check_tool(command_x.build_way(pl, CURVE_WEST_END, CURVE_B, road, true), "build the west arm to junction B"))
+	{
+		return false
+	}
+	// The south arm of junction A.
+	if (!check_tool(command_x.build_way(pl, CURVE_A, CURVE_A_SOUTH_DEPOT, road, true), "build the south arm of junction A"))
+	{
+		return false
+	}
+	// The third arm of junction B and the bend C.
+	if (!check_tool(command_x.build_way(pl, CURVE_B, CURVE_B_NORTH_END, road, true), "build the north arm of junction B"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, CURVE_B, CURVE_BEND, road, true), "build the bend approach from junction B"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_way(pl, CURVE_BEND, CURVE_C_SOUTH_DEPOT, road, true), "build the south road from the bend"))
+	{
+		return false
+	}
+	if (!check(build_terminal(pl, CURVE_WEST_END), "build the west terminal"))
+	{
+		return false
+	}
+	if (!check(build_through_stop(pl, CURVE_SOUTH_STOP), "build the south stop"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, CURVE_A_SOUTH_DEPOT, depot_desc_for(wt_road)), "build the junction A depot"))
+	{
+		return false
+	}
+	if (!check_tool(command_x.build_depot(pl, CURVE_C_SOUTH_DEPOT, depot_desc_for(wt_road)), "build the bend depot"))
+	{
+		return false
+	}
+	fixture.depot = depot_x(CURVE_A_SOUTH_DEPOT.x, CURVE_A_SOUTH_DEPOT.y, CURVE_A_SOUTH_DEPOT.z)
+	fixture.second_depot = depot_x(CURVE_C_SOUTH_DEPOT.x, CURVE_C_SOUTH_DEPOT.y, CURVE_C_SOUTH_DEPOT.z)
+	if (!check(fixture.depot != null && fixture.second_depot != null, "a junction-curve depot was not found after building"))
+	{
+		return false
+	}
+	local desc = road_vehicle_desc()
+	if (!check(desc != null, "no road vehicle is available"))
+	{
+		return false
+	}
+	// The second entry of each schedule is behind the first one on the way
+	// back, so the outbound leg is the path through both junctions. The case
+	// finishes when the first entry is reached.
+	local from_south = make_convoy_at(fixture.depot, pl, desc,
+		[make_entry(CURVE_SOUTH_STOP, 301, 0), make_entry(CURVE_B, 302, 0)], "junction convoy")
+	local through_bend = make_convoy_at(fixture.second_depot, pl, desc,
+		[make_entry(CURVE_WEST_END, 303, 0), make_entry(CURVE_BEND, 304, 0)], "bend convoy")
+	if (from_south == null || through_bend == null)
+	{
+		return false
+	}
+	fixture.convoys = [from_south, through_bend]
+	fixture.curve_destinations = [CURVE_SOUTH_STOP, CURVE_WEST_END]
+	if (!check_tool(fixture.depot.start_convoy(pl, from_south), "start the junction convoy"))
+	{
+		return false
+	}
+	if (!check_tool(fixture.second_depot.start_convoy(pl, through_bend), "start the bend convoy"))
+	{
+		return false
+	}
+	fixture.started = [true, true]
+	return true
+}
+
+
+function observe_junction_curve()
+{
+	for (local i = 0; i < fixture.convoys.len(); i++)
+	{
+		local slot = front_slot(fixture.convoys[i])
+		if (slot == null)
+		{
+			continue
+		}
+		if (same_pos(slot.pos, fixture.curve_destinations[i])
+			&& !(fixture.convoys[i].id in fixture.curve_arrived))
+		{
+			fixture.curve_arrived[fixture.convoys[i].id] <- true
+			print("RUNTIME CASE " + case_name + ": convoy " + fixture.convoys[i].id
+				+ " reached " + pos_text(slot.pos))
+		}
+	}
+	if ((fixture.observations % 200) == 0)
+	{
+		local a = front_slot(fixture.convoys[0])
+		local b = front_slot(fixture.convoys[1])
+		if (a != null && b != null)
+		{
+			print("RUNTIME CASE " + case_name + ": junction convoy at " + pos_text(a.pos)
+				+ " speed " + fixture.convoys[0].get_speed() + "; bend convoy at "
+				+ pos_text(b.pos) + " speed " + fixture.convoys[1].get_speed()
+				+ "; arrived " + fixture.curve_arrived.len() + " of " + fixture.convoys.len())
+		}
+	}
+	if (fixture.curve_arrived.len() < fixture.convoys.len())
+	{
+		return
+	}
+	print("RUNTIME CASE " + case_name + ": both convoys left the adjacent junctions and reached their destinations")
+	pass()
+}
+
+
 function setup_terminal(pl)
 {
 	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
@@ -2167,6 +2307,10 @@ function setup()
 	{
 		return setup_crossroads(pl)
 	}
+	if (case_name == "junction-curve")
+	{
+		return setup_junction_curve(pl)
+	}
 	if (case_name == "stop-release")
 	{
 		return setup_stop_release(pl)
@@ -2230,6 +2374,10 @@ function observe()
 	else if (case_name == "crossroads")
 	{
 		observe_crossroads()
+	}
+	else if (case_name == "junction-curve")
+	{
+		observe_junction_curve()
 	}
 	else if (case_name == "stop-release")
 	{

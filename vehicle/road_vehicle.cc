@@ -752,9 +752,12 @@ bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi e
 		: (pc != NULL && pc->get_desc() != NULL ? pc->get_desc()->get_topspeed() : self.speed);
 	const uint32 stopping_gap = following_gap(max(max_speed, self.speed), true);
 	const sint32 required = (sint32)min(self.length + stopping_gap, (uint32)VEHICLE_STEPS_PER_TILE);
-	// A tile that does not allow queueing (a bend or a diagonal road) holds only
-	// one vehicle: a follower cannot stop behind an occupant there, so any
-	// same-path vehicle must block entry regardless of its position.
+	// A tile that does not allow queueing is a level crossing, a diagonal
+	// road, a bend or a dead end. It does not admit a following vehicle: a
+	// follower cannot stop behind an occupant there, so any same-path vehicle
+	// must block entry regardless of its position. On a two-arm tile of these
+	// kinds a vehicle travelling the other way can share the tile, as it can
+	// at the corresponding straight tile.
 	const bool exit_allows_queueing = allows_queueing(exit);
 	for (uint8 pos = 0; pos < exit->get_top(); pos++)
 	{
@@ -793,11 +796,15 @@ bool junction_exit_clear(const grund_t *exit, const user_t &self, ribi_t::ribi e
 				return false;
 			}
 		}
-		else if (other.entry_direction != ribi_t::backward(exit_direction))
+		else if (exit_allows_queueing && other.entry_direction != ribi_t::backward(exit_direction))
 		{
-			// A vehicle which entered the exit tile from another arm could
-			// conflict with the path through the junction. Oncoming traffic is
-			// in the other carriageway and does not block.
+			// A vehicle which entered a junction exit tile from another arm
+			// could conflict with the path through the junction, so it blocks.
+			// On a two-arm tile that does not allow queueing (a bend, a
+			// diagonal road or a level crossing), a vehicle which is not on the
+			// entering vehicle's path is coming the other way; opposite
+			// directions share road tiles, so that vehicle does not block
+			// entry, and the exit_allows_queueing test excludes it here.
 			return false;
 		}
 	}
