@@ -161,16 +161,27 @@ void ticker::draw()
 
 	// do partial redraw
 	display_scroll_band( start_y, dx_since_last_draw, TICKER_HEIGHT );
-	display_fillbox_wh_rgb(width-dx_since_last_draw-6, start_y, dx_since_last_draw+6, TICKER_HEIGHT, SYSCOL_TICKER_BACKGROUND, true);
+	const int clear_start = width - dx_since_last_draw - 6;
+	const int clear_width = dx_since_last_draw + 6;
+	display_fillbox_wh_rgb(clear_start, start_y, clear_width, TICKER_HEIGHT, SYSCOL_TICKER_BACKGROUND, true);
 
-	// ok, ready for the text
-	PUSH_CLIP( 0, start_y, width - 1, TICKER_HEIGHT );
+	// display_scroll_band() has already shifted the pixels of the messages that
+	// were on screen. Only draw the newly exposed strip: drawing a message
+	// again over its shifted pixels would alpha-blend its antialiased edges
+	// over the shifted glyph pixels and make the text look coarse. The 4 pixel
+	// margin allows for glyph ink that extends beyond the advance width.
+	PUSH_CLIP( clear_start, start_y, clear_width, TICKER_HEIGHT );
 	for(node & n : list) {
-		if (n.xpos < width) {
+		if (n.xpos < width  &&  n.xpos + n.w + 4 > clear_start) {
 			display_proportional_clip_rgb(n.xpos, start_y + TICKER_V_SPACE, n.msg, ALIGN_LEFT, n.color, true);
 		}
 	}
 	POP_CLIP();
+
+	if(  dx_since_last_draw > 0  ) {
+		// display_scroll_band() does not mark the shifted area dirty.
+		mark_rect_dirty_wc( 0, start_y, width - 1, start_y + TICKER_HEIGHT - 1 );
+	}
 
 	dx_since_last_draw = 0;
 }
