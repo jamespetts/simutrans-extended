@@ -358,6 +358,10 @@ The composition of consists from non-identical rolling stock, the treatment of
 the leftover overhaul sets, and combinations of more than two convoys are not
 settled. They are recorded as open decisions below.
 
+The design in [depot consist formation](depot-consist-formation.md) proposes to replace this
+automatic rule with an explicit Depot Consist Order and a Depot Vehicle Pool. The rule described
+in this section remains the current behaviour until that design is implemented.
+
 ## Decisions, deferrals and open questions
 
 This section records the decisions taken for 15.x, the work intentionally

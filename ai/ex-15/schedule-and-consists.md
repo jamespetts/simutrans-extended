@@ -410,7 +410,8 @@ the split-off convoy rather than the line it is about to join.
 - **Depot-entry orders never execute.** `process_consist_order` has one call site (`hat_gehalten`),
   always with `dep == nullptr`, so its depot branch (`access_convoy_list`, `get_vehicle_list`) is
   dead; the schedule GUI hides the settings tab containing the consist-order button on depot
-  entries.
+  entries. The design in [depot consist formation](depot-consist-formation.md) proposes to
+  activate that branch with a Depot Consist Order and a Depot Vehicle Pool.
 
 ### Layover registry consistency
 
