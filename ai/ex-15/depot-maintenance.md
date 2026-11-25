@@ -304,64 +304,25 @@ The mode is therefore cheaper to operate but more expensive to buy. It is not
 precisely economically comparable to full maintenance, and play-testing is
 needed to confirm that the formula balances.
 
-### Releasing maintained vehicles from overhauling convoys
+### Depot Consist Orders replace the automatic release rule
 
-The grouping rule above applies within one convoy at arrival. This rule applies
-across two convoys of the same line. In the recorded case, train A's locomotive
-and train B's carriages are due for overhaul, while A's carriages and B's
-locomotive need only routine maintenance. The maintenance-only vehicles finish
-earlier. The rule forms a serviceable train from those vehicles and starts it
-while the overhaul sets remain in the depot. This does not shorten the overhaul;
-it releases the maintenance-only vehicles instead of leaving them idle.
+`depot_t::convoi_arrived()` no longer calls `release_maintained_vehicles()`. A
+blank Depot Consist Order leaves the Convoy together through a mixed
+maintenance and overhaul visit; the per-vehicle queue releases each vehicle
+when its own work is complete, and the Convoy leaves when all of its vehicles
+are released. A non-blank order decomposes the Convoy on arrival: the Lead
+Vehicle stays in the Original Convoy and every other vehicle waits in the
+Depot Vehicle Pool. `depot_t::try_assemble_convoy()` re-forms the Consist from
+the pool when the order can be satisfied.
 
-`depot_t::convoi_arrived()` calls `release_maintained_vehicles()` after the
-replacement block and after `vehicle_t::maintain()`/`vehicle_t::overhaul()` have
-been applied, and before `register_for_maintenance()`. The rule is:
-
-- The arriving convoy must have a non-empty overhaul set and a non-empty
-  maintenance-only set. It must be line-bound, have a non-empty schedule, must
-  not have been replaced on this visit and must not be held for an unaffordable
-  overhaul.
-- If another convoy of the same line has maintenance or overhaul work due and is
-  routed to the same depot, the arriving maintenance-only vehicles are held for
-  it. The held vehicles are placed in a new line-bound convoy in state
-  `INITIAL` in the depot, with a copy of the schedule advanced one entry past
-  the depot. This is the **held convoy**. It is an ordinary stored convoy and is
-  saved by the existing format.
-- When the second convoy arrives, its maintenance-only vehicles are added to the
-  held convoy. The rule tries the new vehicles at the front, then appended, and
-  starts the first arrangement that is powered, coupling-valid, has a front cab
-  and can find a route to the next schedule entry. The start uses
-  `convoi_t::start()`, not `depot_t::start_convoi()`, so it has no window or
-  depot-frame effects.
-- A trailer moves only when its coupled leader moves. The test is
-  `vehicle_desc_t::get_trailer()` on the leading vehicle, so a steam tender, an
-  articulated bus section and a tram section stay with their powered unit.
-- The two original convoys keep their overhaul sets, line, `wait_lock`,
-  schedule position and depot registration. They advance past the depot entry
-  when their overhauls finish. The combined convoy starts at the first arrival's
-  next stop; the original convoys are one schedule entry out of phase.
-- The overhaul set is not validated. If the leftover vehicles cannot form a
-  train after the overhaul, the player must re-form them. This is deliberate for
-  the recorded locomotive/carriages case: validating the overhaul set would
-  refuse the split.
-- The per-line limit is unchanged. The recorded case needs
-  `simline_t::max_convoys_at_depot` to be at least 2 when the depot entry is
-  conditional, because the second convoy otherwise skips the depot. The
-  runtime case uses a plain depot entry, so it works with the default of 1.
-
-The rule is covered by `maintenance-split`, `maintenance-split-invalid`,
-`maintenance-split-unreachable` and `maintenance-cross-convoy` in
-`tests/pending-runtime/maintenance-cases/`. The invalid and unreachable cases
-cover the undo path. The cross-convoy case covers the two-train combination.
-
-The composition of consists from non-identical rolling stock, the treatment of
-the leftover overhaul sets, and combinations of more than two convoys are not
-settled. They are recorded as open decisions below.
-
-The design in [depot consist formation](depot-consist-formation.md) proposes to replace this
-automatic rule with an explicit Depot Consist Order and a Depot Vehicle Pool. The rule described
-in this section remains the current behaviour until that design is implemented.
+The behaviour, the recipient rules and the failure modes are in
+[depot consist formation](depot-consist-formation.md#decomposition) and
+[Depot Assembly](depot-consist-formation.md#depot-assembly). The former
+automatic-release tests `maintenance-split`, `maintenance-split-invalid`,
+`maintenance-split-unreachable` and `maintenance-cross-convoy` were removed;
+`depot-order` and `depot-order-exclude` in
+`tests/pending-runtime/maintenance-cases/` cover the order path. The two-train
+pooling case is deferred until the New Convoy arrangement exists.
 
 ## Decisions, deferrals and open questions
 

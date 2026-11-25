@@ -21,6 +21,10 @@ Tags: `[CODE]` marks a fact verified against the checked-out code. `[PROPOSED]` 
 design proposes and the code does not implement. `[OPEN]` marks a question that needs a user
 decision or further investigation.
 
+The per-vehicle depot maintenance queue, the Depot Consist Order on a depot entry, Decomposition
+and the Original Convoy arrangement are implemented on ex-15 [CODE]. The New Convoy arrangement,
+the Target Fleet Size, the Fleet tab and the replacement integration remain [PROPOSED].
+
 ## Terms
 
 - **Consist** is the ordered list of vehicles in a `convoi_t`, from the front of the Convoy to the
@@ -93,9 +97,9 @@ the schedule string through the existing `TOOL_CHANGE_CONVOI` and `TOOL_CHANGE_L
 stop-level order: `convoi_t::hat_gehalten()` does not evaluate it, and the path explorer must not
 treat it as a through journey [PROPOSED].
 
-The schedule window currently hides the settings tab, including the consist-order button, on
-non-station entries [CODE `gui/schedule_gui.cc`]. Depot entries must show a departure-consist
-control for this design to be usable. The interface design is in
+The schedule window shows a **Departure consist** tab on depot entries. The tab holds the
+consist-order button and a status line that reads "unchanged" or "order set"; it replaces the stop
+settings tabs on a depot entry [CODE `gui/schedule_gui.cc`]. The interface design is in
 [interface](depot-consist-formation/interface.md).
 
 ### Blank order means no re-arrangement
@@ -117,8 +121,7 @@ must be rewritten to author orders, and the corresponding section of
 
 ### Decomposition
 
-On arrival at a maintenance or overhaul visit with a non-blank Depot Consist Order
-[PROPOSED]:
+On arrival at a maintenance or overhaul visit with a non-blank Depot Consist Order [CODE]:
 
 1. The replacement block, if any, runs first; see Replacement below.
 2. `depot_t::convoi_arrived()` classifies the vehicles into the Overhaul Group and the
@@ -176,7 +179,8 @@ described in [interface](depot-consist-formation/interface.md).
 
 ### Depot Assembly
 
-The depot attempts Depot Assembly when a trigger occurs [PROPOSED]:
+The depot attempts Depot Assembly when a trigger occurs. The Original Convoy arrangement is
+implemented; the New Convoy arrangement is proposed [CODE for the Original Convoy arrangement]:
 
 - a vehicle's Release Time is reached;
 - a Convoy arrives at the depot with a non-blank order;

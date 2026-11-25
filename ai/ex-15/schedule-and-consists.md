@@ -407,11 +407,12 @@ the split-off convoy rather than the line it is about to join.
   players in a message-style window (`consist_change_news`, `gui/messagebox.h`) and the message
   log. Losing the last convoy of a surviving line warns the referring players instead of removing
   anything. This is what prevents a stale id binding to a new object that reuses the id slot.
-- **Depot-entry orders never execute.** `process_consist_order` has one call site (`hat_gehalten`),
-  always with `dep == nullptr`, so its depot branch (`access_convoy_list`, `get_vehicle_list`) is
-  dead; the schedule GUI hides the settings tab containing the consist-order button on depot
-  entries. The design in [depot consist formation](depot-consist-formation.md) proposes to
-  activate that branch with a Depot Consist Order and a Depot Vehicle Pool.
+- **Depot-entry orders execute at the depot, not at a stop.** A non-blank Depot Consist Order on a
+  depot entry decomposes the arriving Convoy and re-forms it from the Depot Vehicle Pool; a blank
+  order leaves the Convoy together. `depot_t::try_assemble_convoy()` matches the order with
+  `convoi_t::match_consist_order()` and commits the Original Convoy arrangement. The stop-level
+  `process_consist_order` call site is unchanged. The schedule window shows a **Departure
+  consist** tab on depot entries. See [depot consist formation](depot-consist-formation.md).
 
 ### Layover registry consistency
 

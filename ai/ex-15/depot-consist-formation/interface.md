@@ -71,6 +71,14 @@ work.
 
 ## Interface
 
+### Depot schedule entry
+
+A depot entry in the schedule window shows a **Departure consist** tab instead of the stop
+settings tabs [CODE `gui/schedule_gui.cc`]. The tab has the **Modify consist** button, which opens
+the existing `consist_order_frame_t`, and a status line that reads "unchanged" when the order is
+blank and "order set" when it is not. The window title and tooltip identify the order as the
+depot's departure consist, not a stop-level recombination [PROPOSED for the final wording].
+
 ### Fleet tab
 
 The line management window gains a **Fleet** tab immediately after the existing **Convoys** tab

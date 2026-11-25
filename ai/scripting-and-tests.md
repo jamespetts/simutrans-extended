@@ -79,15 +79,16 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   within a bound that allows the per-kilometre running costs booked on the final approach
   and the one-currency-unit rounding of the script cash interface. The case reports its
   result when the overhaul state is entered and does not wait for the
-  overhaul duration [EXECUTION-VERIFIED:2026-11-24]. The `maintenance-split`,
-  `maintenance-split-invalid`, `maintenance-split-unreachable` and
-  `maintenance-cross-convoy` cases cover the automatic release of maintenance-only
-  vehicles from mixed maintenance/overhaul visits, including the undo paths and
-  the two-train combination [EXECUTION-VERIFIED:2026-11-25]. The
-  `maintenance-withdraw` case withdraws a convoy while it is in the maintenance
-  queue and asserts that the game survives the following sync steps and that the
-  depot drops the destroyed convoy from its convoy list
-  [EXECUTION-VERIFIED:2026-11-25].
+  overhaul duration [EXECUTION-VERIFIED:2026-11-24]. The `depot-order` case
+  authors a three-slot Depot Consist Order, observes the original Convoy
+  decompose to its Lead Vehicle, and asserts that Depot Assembly re-forms the
+  three-vehicle Consist in the order's vehicle order before the Convoy leaves.
+  The `depot-order-exclude` case names only the first two vehicles and leaves
+  an overhauled third vehicle in the Depot Vehicle Pool while the original
+  Convoy departs [EXECUTION-VERIFIED:2026-11-25]. The `maintenance-withdraw`
+  case withdraws a convoy while it is in the maintenance queue and asserts that
+  the game survives the following sync steps and that the depot drops the
+  destroyed convoy from its convoy list [EXECUTION-VERIFIED:2026-11-25].
 - The AI host mode is designed but unused; expect latent assumptions (global `welt`, null
   scenario, GUI calls, `get_my_player` returning null) until it is exercised.
 

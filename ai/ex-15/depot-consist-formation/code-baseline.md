@@ -96,8 +96,9 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
   which calls `depot_t::start_convoi(self, false)`; that call removes the Convoy from `convois` and
   `under_maintenance`, and `start_convoi()` clears the Convoy's vehicle jobs. A Convoy that cannot
   start remains in the depot by design.
-- `depot_t::convoi_arrived()` calls `release_maintained_vehicles()` for a mixed visit [CODE
-  `simdepot.cc`]. The Depot Consist Order design removes this rule [PROPOSED].
+- `depot_t::convoi_arrived()` no longer calls `release_maintained_vehicles()` for a mixed visit.
+  A blank order leaves the Convoy together; a non-blank order decomposes it and Depot Assembly
+  re-forms it. See [Depot Consist Order execution](#depot-consist-order-execution).
 - Maintenance and overhaul completion happens in `convoi_t::step()`: when `wait_lock <= 0`, it
   advances past the depot entry if that is still current and sets `ROUTING_1` [CODE
   `simconvoi.cc`]. The design's Target Fleet Size check and Depot Assembly must intercept this
@@ -106,6 +107,36 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
   the target and the pending assembly. If the target is met, it converts the Convoy to a Held
   Convoy. If the order is still waiting for other vehicles, it holds the Convoy in its maintenance
   state. In neither case does it let `convoi_t::step()` set `ROUTING_1`.
+
+### Depot Consist Order execution
+
+- `depot_t::convoi_arrived()` reads the current depot entry's order with
+  `schedule_t::entry_has_consist_order()` and `schedule_t::get_consist_order()` [CODE].
+  A blank order (no entry in `schedule_t::orders`, or a `consist_order_t` with no slots) leaves the
+  Convoy together. A non-blank order triggers Decomposition.
+- Decomposition takes the Lead Vehicle from `convoi_t::get_forward_consist()` and removes every
+  other vehicle with `convoi_t::remove_vehicle()`. The moved vehicles are appended to
+  `depot_t::vehicles`, receive a `loose_recipient` from the order's `available_to` setting, and
+  receive a depot job with their already-computed duration. The Lead Vehicle remains the only
+  vehicle of the Original Convoy [CODE `simdepot.cc`].
+- `depot_t::awaiting_assembly` holds the Convoys whose Lead Vehicle is released but whose order is
+  not yet satisfied. `convoy_maintenance_complete()` returns false for a Convoy in that list, so
+  `convoi_t::sync_step()` does not let it leave [CODE].
+- `depot_t::try_assemble_depot_orders()` runs from `depot_t::sync_step()`. For each held Convoy it
+  builds the available list from `depot_t::vehicles` whose jobs are complete or absent, calls
+  `convoi_t::match_consist_order()` with the Convoy's forward consist as the shadow, and requires
+  the first chosen vehicle to be the Lead Vehicle [CODE].
+- `depot_t::try_assemble_convoy()` appends the chosen pool vehicles to the Original Convoy with
+  `convoi_t::add_vehicle()`, applies the chosen orientations, sets the leading and last flags,
+  calls `convoi_t::check_validity()`, clears the Convoy's depot jobs and sets `wait_lock` to zero
+  [CODE]. A failed match or validity check leaves the Convoy in the depot and reports once.
+- `schedule_gui_t` shows a **Departure consist** tab on depot entries, with a
+  `bt_depot_consist_order` button that opens the same `consist_order_frame_t` as the stop-level
+  order [CODE `gui/schedule_gui.cc`].
+- `release_maintained_vehicles()` and its split/held-Convoy helpers are removed. The former
+  `maintenance-split`, `maintenance-split-invalid`, `maintenance-split-unreachable` and
+  `maintenance-cross-convoy` cases are replaced by `depot-order` and `depot-order-exclude`
+  [CODE `tests/pending-runtime/maintenance-cases/`].
 
 ### Depot vehicle pool and primitives
 

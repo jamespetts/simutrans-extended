@@ -126,18 +126,17 @@ The phases keep the standard Squirrel suite and the pending-runtime maintenance 
 The bug fixes from the design review are complete; the code changes in this list are new feature
 work.
 
-1. **Load factors and line statistics.** The passenger guard is fixed. Add the goods capacity counter,
-   the goods load factor, the last-two-months getters and the **Freight capacity** chart curve. This
-   is the measurement prerequisite for the automatic policy.
-2. **Per-vehicle work duration and queue.** Separate each vehicle's maintenance or overhaul duration
-   from `vehicle_t::maintain()` and `vehicle_t::overhaul()`, which currently set the Convoy state and
-   `wait_lock`. Give each vehicle its own job state, queue position and release time. Replace the
-   Convoy-level `depot_t::under_maintenance` capacity accounting with a per-vehicle queue. This
-   applies to blank-order visits too: the Convoy leaves when all of its vehicles are released.
-3. **Depot order UI and Decomposition.** Show the departure-consist control on depot entries.
-   Implement Decomposition and the Original Convoy arrangement. Remove
-   `release_maintained_vehicles()`. Rewrite the four `maintenance-split` cases to author orders.
-   Blank order now leaves the Convoy together.
+1. **Load factors and line statistics.** Implemented. The passenger guard is fixed; the goods
+   capacity counter, the goods load factor, the last-two-months getters and the **Freight
+   capacity** chart curve are in the tree [CODE].
+2. **Per-vehicle work duration and queue.** Implemented. `vehicle_t` has the four job fields, the
+   depot has `maintenance_queue`, and `depot_t::start_depot_jobs()`,
+   `complete_depot_jobs()` and `reproject_depot_jobs()` run the queue [CODE].
+3. **Depot order UI and Decomposition.** Implemented for the Original Convoy arrangement. Depot
+   entries show a **Departure consist** tab; a non-blank order decomposes the Convoy and
+   `depot_t::try_assemble_convoy()` re-forms it from the pool. `release_maintained_vehicles()` and
+   its helpers are removed. The four former `maintenance-split` cases are replaced by
+   `depot-order` and `depot-order-exclude` [CODE].
 4. **New Convoy arrangement.** Create a New Convoy from the Depot Vehicle Pool, copy the schedule
    past the depot, set the line and start it. Test identity, statistics, `start_reversed` and the
    no-route failure.
