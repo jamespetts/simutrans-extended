@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24); working tree 2026-11-24 (per-line depot limit, consist overhaul grouping, simplified-maintenance wear bypass and purchase-price compensation, replacement delay); working tree 2026-11-25 (automatic release of maintained vehicles, cross-convoy combination, sync-list fix)
+verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24); efe5757b13 (2026-11-25, per-line depot limit, consist overhaul grouping, simplified-maintenance wear bypass and purchase-price compensation, replacement delay, automatic release of maintained vehicles, cross-convoy combination, sync-list fix)
 ---
 # ex-15 depot maintenance and vehicle availability
 
