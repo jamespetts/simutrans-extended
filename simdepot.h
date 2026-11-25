@@ -43,6 +43,12 @@ protected:
 	// see vehicle_t::depot_job_state.
 	vector_tpl<vehicle_t*> maintenance_queue;
 	uint32 next_maintenance_queue_index = 0;
+	// Convoys whose own vehicles are released but whose Depot Consist Order
+	// cannot yet be satisfied from the pool. They are held in the depot until
+	// the order can be assembled.
+	vector_tpl<convoihandle_t> awaiting_assembly;
+	// Convoys for which the current unsatisfied order has already been reported.
+	vector_tpl<convoihandle_t> assembly_reported;
 
 	void rdwr_vehicle(slist_tpl<vehicle_t*> &list, loadsave_t *file);
 
@@ -270,6 +276,11 @@ public:
 
 	// Rebuild maintenance_queue from the saved per-vehicle fields after a load.
 	void rebuild_maintenance_queue();
+
+	// Attempt Depot Assembly for every Convoy in the depot whose Lead Vehicle
+	// is released and whose current depot entry has a non-blank order.
+	void try_assemble_depot_orders();
+	bool try_assemble_convoy(convoihandle_t cnv);
 
 	// Re-project the waiting jobs and start any that can start. Call after a
 	// duration changes.

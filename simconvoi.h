@@ -2030,6 +2030,7 @@ public:
 		// loading.
 		bool execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair);
 
+	public:
 		// The convoy's vehicles in forward order: a reversed consist is
 		// de-reversed for matching against a consist order. Does not change state.
 		void get_forward_consist(vector_tpl<vehicle_t*> &consist) const;
@@ -2046,6 +2047,7 @@ public:
 		// orientation of each vehicle in the same order.
 		consist_order_process_result match_consist_order(const consist_order_t &order, const vector_tpl<vehicle_t*> &available, const vector_tpl<vehicle_t*> &shadow, vector_tpl<vehicle_t*> &final_consist, vector_tpl<bool> &final_reversed, const cargo_service_context_t *cargo_service = nullptr) const;
 
+	private:
 		// Solve a pair without changing any state: search for a disjoint pair of
 		// coupling-valid powered final consists satisfying both orders. Returns
 		// false and sets failure when no arrangement exists or the search reaches

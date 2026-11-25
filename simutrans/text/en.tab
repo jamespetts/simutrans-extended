@@ -6704,6 +6704,16 @@ help_txt_speed_limit_between_two_points
 Limit the speed of this consist on this part of its schedule to save fuel or even out the service
 modify_the_consist_at_this_schedule_entry
 Open a window to set detailed options automatically to modify this consist at this point in its schedule
+depot_order
+Departure consist
+depot_order_set
+Departure consist: order set
+depot_order_unchanged
+Departure consist: unchanged
+depot_order_explanation
+A blank order leaves the train together. An order re-forms the train from the vehicles in this depot when it can be satisfied.
+modify_the_consist_at_this_depot_entry
+Open a window to set the consist that is to leave this depot
 consist_order
 Modify consist at this stop
 limit_to_same_vehicle

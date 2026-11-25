@@ -62,545 +62,6 @@ static void classify_vehicle_for_maintenance(vehicle_t *v, vector_tpl<vehicle_t*
 	maintain.append(v);
 }
 
-
-// Undo a tentative split: move the vehicles back to their original positions in
-// the original convoy and destroy the new convoy. The new convoy has not been
-// registered for maintenance and has not been started, so it has no other state
-// to unwind.
-static void undo_depot_split(depot_t *dep, convoihandle_t acnv, convoihandle_t new_cnv,
-	const vector_tpl<vehicle_t*> &moved, const vector_tpl<uint16> &positions)
-{
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		new_cnv->remove_vehicle(moved[i]);
-		acnv->add_vehicle(moved[i], (uint8)positions[i]);
-	}
-	dep->access_convoy_list().remove(new_cnv);
-	new_cnv->self_destruct();
-}
-
-
-// Restore a group of vehicles that was moved between two convoys: remove
-// whatever reached the target and re-insert every vehicle at its original
-// position in the source. Safe after a partial move.
-static void restore_transferred_vehicles(convoihandle_t source, convoihandle_t target,
-	const vector_tpl<vehicle_t*> &moved, const vector_tpl<uint16> &positions)
-{
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		target->remove_vehicle(moved[i]);
-	}
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		source->add_vehicle(moved[i], (uint8)positions[i]);
-	}
-}
-
-
-// True if v is a trailer (tender or similar) of the vehicle immediately in
-// front of it, according to the leader's descriptor.
-static bool vehicle_is_trailer_of(const vehicle_t *v, const vehicle_t *leader)
-{
-	if (!v || !leader)
-	{
-		return false;
-	}
-	const vehicle_desc_t *leader_desc = leader->get_desc();
-	for (uint8 i = 0; i < leader_desc->get_trailer_count(); i++)
-	{
-		if (leader_desc->get_trailer(i) == v->get_desc())
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-
-// Collect the maintained vehicles of a convoy in consist order, with their
-// original positions. A trailer moves only when its coupled leader also moves,
-// so that a tender stays with a locomotive that is being overhauled instead of
-// being separated from it. Returns false when there is nothing to move or when
-// the original convoy would be left with no vehicles.
-static bool collect_maintained_vehicles(convoihandle_t cnv, const vector_tpl<vehicle_t*> &maintained,
-	vector_tpl<vehicle_t*> &moved, vector_tpl<uint16> &positions)
-{
-	vehicle_t *previous = NULL;
-	for (uint16 i = 0; i < cnv->get_vehicle_count(); i++)
-	{
-		vehicle_t *v = cnv->get_vehicle(i);
-		if (maintained.is_contained(v)
-			&& !(vehicle_is_trailer_of(v, previous) && (previous == NULL || !maintained.is_contained(previous))))
-		{
-			moved.append(v);
-			positions.append(i);
-		}
-		previous = v;
-	}
-	return !moved.empty() && moved.get_count() < cnv->get_vehicle_count();
-}
-
-
-// Copy the source convoy's schedule and advance the copy one entry past the
-// depot, using convoi_t::advance_schedule_internal()'s direction rule: a
-// mirrored schedule reverses at either end. Returns null when the schedule has
-// no other entry to resume at.
-static schedule_t *copy_schedule_past_depot(convoihandle_t source, const koord3d &depot_pos, bool &reverse)
-{
-	if (!source->get_schedule() || source->get_schedule()->empty())
-	{
-		return NULL;
-	}
-	schedule_t *sch = source->get_schedule()->copy();
-	reverse = source->get_reverse_schedule();
-	if (!sch->empty() && sch->get_current_entry().pos == depot_pos)
-	{
-		if (sch->is_mirrored() && sch->get_current_stop() == sch->get_count() - 1)
-		{
-			reverse = true;
-		}
-		else if (sch->is_mirrored() && sch->get_current_stop() == 0)
-		{
-			reverse = false;
-		}
-		if (reverse)
-		{
-			sch->advance_reverse();
-		}
-		else
-		{
-			sch->advance();
-		}
-		if (sch->get_current_entry().pos == depot_pos)
-		{
-			delete sch;
-			return NULL;
-		}
-	}
-	return sch;
-}
-
-
-// True if any vehicle needs routine maintenance or an overhaul. This uses the
-// vehicle predicates rather than convoi_t::is_maintenance_needed() and
-// convoi_t::is_overhaul_needed(), which return false when simplified
-// maintenance is enabled, because pre-15 saves force that setting. The depot
-// classifier uses the vehicle predicates, so this matches the work that
-// depot_t::convoi_arrived() will actually do.
-static bool convoy_has_due_work(convoihandle_t c)
-{
-	for (uint16 i = 0; i < c->get_vehicle_count(); i++)
-	{
-		vehicle_t *v = c->get_vehicle(i);
-		if (v->is_maintenance_needed() || v->is_overhaul_needed())
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-
-// Find the line-bound INITIAL convoy in this depot whose maintenance work is
-// complete and which is waiting to be combined with another convoy's maintained
-// vehicles. The lowest convoy id is chosen so that the result does not depend
-// on the order of simline_t::line_managed_convoys or depot_t::convois.
-static convoihandle_t find_held_maintained_convoy(convoihandle_t acnv, const koord3d &depot_pos)
-{
-	if (!acnv->get_line().is_bound())
-	{
-		return convoihandle_t();
-	}
-	convoihandle_t found;
-	for (auto const &c : acnv->get_line()->get_convoys())
-	{
-		if (!c.is_bound() || c.get_rep() == acnv.get_rep())
-		{
-			continue;
-		}
-		if (c->get_state() != convoi_t::INITIAL || c->get_pos() != depot_pos)
-		{
-			continue;
-		}
-		if (convoy_has_due_work(c))
-		{
-			// A convoy held for an unaffordable overhaul keeps its overdue
-			// vehicles; it is not a maintained group waiting for combination.
-			continue;
-		}
-		if (!found.is_bound() || c.get_id() < found.get_id())
-		{
-			found = c;
-		}
-	}
-	return found;
-}
-
-
-// True if another convoy of the same line still has to visit this depot for
-// maintenance and has not yet been processed here. Such a convoy is expected to
-// arrive and its maintained group can be combined with this convoy's group.
-// Membership of the line's convoy list, not its order, is used. The schedule
-// containing the depot is enough: the other convoy may still be on its way to
-// the depot or at a stop before it.
-static bool has_approaching_maintenance_partner(convoihandle_t acnv, const koord3d &depot_pos)
-{
-	if (!acnv->get_line().is_bound())
-	{
-		return false;
-	}
-	for (auto const &c : acnv->get_line()->get_convoys())
-	{
-		if (!c.is_bound() || c.get_rep() == acnv.get_rep())
-		{
-			continue;
-		}
-		const int state = c->get_state();
-		if (state == convoi_t::MAINTENANCE || state == convoi_t::OVERHAUL)
-		{
-			continue;
-		}
-		if (!convoy_has_due_work(c))
-		{
-			// It would skip a conditionally skipped depot entry, so it is not
-			// a partner for this visit. This also excludes a held maintained
-			// group waiting for combination. A line-bound INITIAL convoy that
-			// is due for work is included: it is stored in a depot and ready
-			// to leave, and will visit this depot when it does.
-			continue;
-		}
-		schedule_t *sch = c->get_schedule();
-		if (sch && !sch->empty() && sch->is_contained(depot_pos))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-
-// Install an advanced schedule copy and the source's line on a held convoy.
-// The held convoy stays in INITIAL; it is started only when its combined
-// consist can run.
-static bool install_held_schedule_and_line(convoihandle_t held, convoihandle_t source, const koord3d &depot_pos)
-{
-	bool reverse = false;
-	schedule_t *sch = copy_schedule_past_depot(source, depot_pos, reverse);
-	if (!sch)
-	{
-		return false;
-	}
-	held->set_schedule(sch);
-	held->set_line(source->get_line());
-	held->set_reverse_schedule(reverse);
-	if (!held->get_line().is_bound())
-	{
-		// The held convoy owns sch; the caller destroys it.
-		return false;
-	}
-	if (held->get_vehicle_count() > 0)
-	{
-		held->set_name(held->front()->get_desc()->get_name());
-	}
-	return true;
-}
-
-
-// The same consist tests depot_t::start_convoi() applies before departure.
-static bool held_can_start(convoihandle_t held)
-{
-	if (held->get_vehicle_count() == 0 || held->is_unpowered() || !held->check_validity())
-	{
-		return false;
-	}
-	const vehicle_t *front = held->front();
-	return (front->get_desc()->get_basic_constraint_prev(front->is_reversed()) & vehicle_desc_t::can_be_head) != 0;
-}
-
-
-// Start a held convoy through convoi_t::start(), not depot_t::start_convoi(),
-// so that no local-only window or depot-frame effects run. Returns false and
-// leaves the convoy in the depot when the route check fails.
-static bool start_held_convoy(depot_t *dep, convoihandle_t held)
-{
-	if (held->get_state() != convoi_t::INITIAL || !held->get_schedule() || held->get_schedule()->empty())
-	{
-		return false;
-	}
-	vehicle_t *front = held->front();
-	front->release_target_reservations();
-	if (!front->calc_route(dep->get_pos(), held->get_schedule()->get_current_entry().pos,
-		held->get_min_top_speed(), held->has_tall_vehicles(), held->access_route()))
-	{
-		return false;
-	}
-	// convoi_t::start() asserts that the first route tile has ground. Both the
-	// success and failure paths of calc_route put the start tile at the front;
-	// test it here so a malformed route cannot reach the assertion.
-	if (!world()->lookup(held->access_route()->front()))
-	{
-		return false;
-	}
-	const koord3d home_depot = held->get_home_depot();
-	dep->access_convoy_list().remove(held);
-	held->start(dep);
-	if (held->get_state() == convoi_t::INITIAL)
-	{
-		// Should not happen with a state INITIAL convoy and a non-empty
-		// schedule; put it back so that it is not stranded outside the depot.
-		dep->access_convoy_list().append(held);
-		return false;
-	}
-	if (home_depot != koord3d::invalid)
-	{
-		// convoi_t::start() moves the home depot to the first route tile. The
-		// held convoy's home depot is the depot tile, which an INITIAL convoy
-		// needs for the load-time depot lookup.
-		held->set_home_depot(home_depot);
-	}
-	return true;
-}
-
-
-// Create a line-bound INITIAL convoy from a maintained group. The convoy is
-// held in the depot until a partner arrives or the player starts it.
-static void create_held_convoy(depot_t *dep, convoihandle_t acnv, const vector_tpl<vehicle_t*> &moved,
-	const vector_tpl<uint16> &positions, const koord3d &depot_pos)
-{
-	convoihandle_t held = dep->add_convoi(false);
-	held->set_owner(acnv->get_owner());
-	held->set_livery_scheme_index(acnv->get_livery_scheme_index());
-
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		acnv->remove_vehicle(moved[i]);
-	}
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		vehicle_t *v = moved[i];
-		v->set_pos(depot_pos);
-		if (!held->add_vehicle(v, held->get_vehicle_count()))
-		{
-			restore_transferred_vehicles(acnv, held, moved, positions);
-			dep->access_convoy_list().remove(held);
-			held->self_destruct();
-			return;
-		}
-	}
-	if (!install_held_schedule_and_line(held, acnv, depot_pos))
-	{
-		restore_transferred_vehicles(acnv, held, moved, positions);
-		dep->access_convoy_list().remove(held);
-		held->self_destruct();
-		return;
-	}
-	held->get_owner()->book_convoi_number(1, held->front()->get_desc()->get_waytype());
-}
-
-
-// Move this convoy's maintained group into the held convoy. When no further
-// partner is expected, try the group at the front and then appended, and start
-// the first arrangement that is a valid powered, routable consist. When a
-// partner is still expected, keep the group in the held convoy for the next
-// arrival.
-static void merge_into_held(depot_t *dep, convoihandle_t acnv, convoihandle_t held,
-	const vector_tpl<vehicle_t*> &moved, const vector_tpl<uint16> &positions,
-	bool partner_expected, const koord3d &depot_pos)
-{
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		acnv->remove_vehicle(moved[i]);
-	}
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		vehicle_t *v = moved[i];
-		v->set_pos(depot_pos);
-		if (!held->add_vehicle(v, (uint8)i))
-		{
-			restore_transferred_vehicles(acnv, held, moved, positions);
-			return;
-		}
-	}
-	if (partner_expected)
-	{
-		return;
-	}
-	if (held_can_start(held) && start_held_convoy(dep, held))
-	{
-		return;
-	}
-
-	// The arriving group was not a valid lead. Try it behind the held
-	// convoy's existing vehicles.
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		held->remove_vehicle(moved[i]);
-	}
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		vehicle_t *v = moved[i];
-		if (!held->add_vehicle(v, held->get_vehicle_count()))
-		{
-			restore_transferred_vehicles(acnv, held, moved, positions);
-			return;
-		}
-	}
-	if (held_can_start(held) && start_held_convoy(dep, held))
-	{
-		return;
-	}
-	// Neither arrangement can run. Put this group back in its original convoy
-	// and leave the held convoy as it was.
-	restore_transferred_vehicles(acnv, held, moved, positions);
-}
-
-
-// Form the maintained vehicles of a convoy under overhaul into a separate
-// convoy and start it, leaving the overhauled vehicles in the depot. The
-// maintained group must be a valid powered consist on its own; otherwise
-// nothing is changed.
-//
-// The motivating case is a line whose convoys mix vehicles due for overhaul
-// with vehicles that need only routine maintenance. With
-// simline_t::max_convoys_at_depot at its default of 1, two convoys of the same
-// line normally cannot hold a depot maintenance place at the same time, so the
-// cross-convoy form of that case also needs the per-line value to be at least 2.
-// The split itself does not change the limit.
-//
-// No new saved state is needed: the result is two ordinary convoys and the
-// existing save format carries both. The operation reads only synced state and
-// allocates convoy ids in a fixed order, so every peer performs the same split.
-static void split_maintained_from_overhaul(depot_t *dep, convoihandle_t acnv, const vector_tpl<vehicle_t*> &maintained)
-{
-	// Collect the maintained vehicles in consist order, with their original
-	// positions, so that a failed split can restore the original consist.
-	vector_tpl<vehicle_t*> moved;
-	vector_tpl<uint16> positions;
-	if (!collect_maintained_vehicles(acnv, maintained, moved, positions))
-	{
-		// Either there is nothing to move or the original convoy would be left
-		// with no vehicles.
-		return;
-	}
-
-	convoihandle_t new_cnv = dep->add_convoi(false);
-	new_cnv->set_owner(acnv->get_owner());
-	new_cnv->set_livery_scheme_index(acnv->get_livery_scheme_index());
-
-	for (uint32 i = 0; i < moved.get_count(); i++)
-	{
-		vehicle_t *v = moved[i];
-		acnv->remove_vehicle(v);
-		v->set_pos(dep->get_pos());
-		new_cnv->add_vehicle(v, new_cnv->get_vehicle_count());
-	}
-
-	// The same tests depot_t::start_convoi() applies before a depot departure:
-	// a powered consist, coupling validity and a cab at the front.
-	bool start_ok = !new_cnv->is_unpowered() && new_cnv->check_validity();
-	if (start_ok)
-	{
-		const vehicle_t *front = new_cnv->front();
-		start_ok = (front->get_desc()->get_basic_constraint_prev(front->is_reversed()) & vehicle_desc_t::can_be_head) != 0;
-	}
-	if (!start_ok)
-	{
-		undo_depot_split(dep, acnv, new_cnv, moved, positions);
-		return;
-	}
-
-	// Copy the original's schedule and advance the copy past the depot entry.
-	// The original keeps its own position and advances past the depot entry
-	// when its overhaul finishes, so the two convoys are one schedule entry out
-	// of phase.
-	bool reverse = false;
-	schedule_t *new_schedule = copy_schedule_past_depot(acnv, dep->get_pos(), reverse);
-	if (!new_schedule)
-	{
-		undo_depot_split(dep, acnv, new_cnv, moved, positions);
-		return;
-	}
-	new_cnv->set_schedule(new_schedule);
-	new_cnv->set_line(acnv->get_line());
-	// set_line() re-applies the line's schedule to the same object and may
-	// toggle the direction for a bidirectional line, so reassert the direction
-	// that the copied schedule was advanced in.
-	new_cnv->set_reverse_schedule(reverse);
-	if (!new_cnv->get_line().is_bound())
-	{
-		undo_depot_split(dep, acnv, new_cnv, moved, positions);
-		return;
-	}
-	new_cnv->set_name(new_cnv->front()->get_desc()->get_name());
-
-	// Depot_t::start_convoi() also verifies that a route exists, but it creates
-	// windows and touches the depot frame. Repeat the route check here and start
-	// through convoi_t::start() instead, so that the operation has no local-only
-	// side effects.
-	vehicle_t *front = new_cnv->front();
-	front->release_target_reservations();
-	if (!front->calc_route(dep->get_pos(), new_cnv->get_schedule()->get_current_entry().pos,
-		new_cnv->get_min_top_speed(), new_cnv->has_tall_vehicles(), new_cnv->access_route()))
-	{
-		undo_depot_split(dep, acnv, new_cnv, moved, positions);
-		return;
-	}
-	if (!world()->lookup(new_cnv->access_route()->front()))
-	{
-		// convoi_t::start() asserts that the first route tile has ground.
-		undo_depot_split(dep, acnv, new_cnv, moved, positions);
-		return;
-	}
-
-	const koord3d original_home_depot = acnv->get_home_depot();
-	dep->access_convoy_list().remove(new_cnv);
-	new_cnv->start(dep);
-	new_cnv->get_owner()->book_convoi_number(1, front->get_desc()->get_waytype());
-	if (original_home_depot != koord3d::invalid)
-	{
-		// convoi_t::start() moves the home depot to the first route tile; keep
-		// the base depot of the convoy the vehicles came from.
-		new_cnv->set_home_depot(original_home_depot);
-	}
-}
-
-
-// Release the maintained vehicles of a convoy under overhaul. The vehicles go
-// into a held convoy when another convoy of the same line is routed to this
-// depot, so that the two maintained groups can be combined; the held convoy is
-// started when the combined consist can run. With no partner expected, the
-// existing single-convoy split is used, including its undo path.
-//
-// The overhauled vehicles stay in their original convoys. Each original keeps
-// its own schedule position, wait_lock and line, and advances past the depot
-// entry when its overhaul finishes.
-static void release_maintained_vehicles(depot_t *dep, convoihandle_t acnv, const vector_tpl<vehicle_t*> &maintained)
-{
-	vector_tpl<vehicle_t*> moved;
-	vector_tpl<uint16> positions;
-	if (!collect_maintained_vehicles(acnv, maintained, moved, positions))
-	{
-		return;
-	}
-
-	const convoihandle_t held = find_held_maintained_convoy(acnv, dep->get_pos());
-	const bool partner_expected = has_approaching_maintenance_partner(acnv, dep->get_pos());
-
-	if (held.is_bound())
-	{
-		merge_into_held(dep, acnv, held, moved, positions, partner_expected, dep->get_pos());
-	}
-	else if (partner_expected)
-	{
-		create_held_convoy(dep, acnv, moved, positions, dep->get_pos());
-	}
-	else
-	{
-		split_maintained_from_overhaul(dep, acnv, maintained);
-	}
-}
-
-
 slist_tpl<depot_t *> depot_t::all_depots;
 
 
@@ -801,6 +262,10 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		}
 	}
 
+	// A new visit starts a new Depot Assembly attempt.
+	awaiting_assembly.remove(acnv);
+	assembly_reported.remove(acnv);
+
 	vector_tpl<vehicle_t*> vehicles_to_overhaul;
 	vector_tpl<vehicle_t*> vehicles_to_maintain;
 	vector_tpl<vehicle_t*> unaffordable_overhauls;
@@ -918,25 +383,80 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		veh->maintain();
 	}
 
+	// A Depot Consist Order re-forms the Convoy from the Depot Vehicle Pool.
+	// The Lead Vehicle stays in the Original Convoy; every other vehicle goes
+	// to the pool with its own maintenance job. A blank order leaves the Convoy
+	// together and is handled by the per-vehicle queue only.
+	bool has_depot_order = false;
+	const consist_order_t *depot_order = NULL;
+	if (acnv->get_schedule() != NULL && !acnv->get_schedule()->empty())
+	{
+		const uint16 entry_id = acnv->get_schedule()->get_current_entry().unique_entry_id;
+		if (acnv->get_schedule()->entry_has_consist_order(entry_id))
+		{
+			const consist_order_t &order = acnv->get_schedule()->get_consist_order(entry_id);
+			if (order.get_count() > 0)
+			{
+				has_depot_order = true;
+				depot_order = &order;
+			}
+		}
+	}
+
+	bool decomposed = false;
+	if (has_depot_order && depot_order != NULL && !hold_for_unaffordable_overhaul && !replaced)
+	{
+		vector_tpl<vehicle_t*> forward;
+		acnv->get_forward_consist(forward);
+		vehicle_t *lead = forward.empty() ? NULL : forward[0];
+		if (lead != NULL)
+		{
+			vector_tpl<vehicle_t*> to_move;
+			for (uint8 i = 0; i < acnv->get_vehicle_count(); i++)
+			{
+				vehicle_t *v = acnv->get_vehicle(i);
+				if (v != lead)
+				{
+					to_move.append(v);
+				}
+			}
+			for (auto v : to_move)
+			{
+				acnv->remove_vehicle(v);
+				v->set_pos(get_pos());
+				v->set_leading(false);
+				v->set_last(false);
+				if (depot_order->is_available_to_any())
+				{
+					v->clear_loose_recipient();
+				}
+				else if (depot_order->is_available_to_same())
+				{
+					if (acnv->get_line().is_bound())
+					{
+						v->set_loose_recipient(acnv->get_line().get_id(), false, true);
+					}
+					else
+					{
+						v->set_loose_recipient(acnv.get_id(), true, true);
+					}
+				}
+				else
+				{
+					v->set_loose_recipient(depot_order->get_available_to_id(), depot_order->get_available_to_is_convoy());
+				}
+				vehicles.append(v);
+				queue_pool_vehicle_maintenance(v, v->get_depot_job_duration());
+			}
+			lead->set_leading(true);
+			lead->set_last(true);
+			decomposed = true;
+		}
+	}
+
 	if(!vehicles_to_overhaul.empty())
 	{
 		acnv->set_state(convoi_t::OVERHAUL);
-
-		// Release the vehicles that needed only routine maintenance instead of
-		// leaving them trapped until the overhaul of the rest finishes. When
-		// another convoy of the same line is routed to this depot, the group is
-		// held so that the two maintained groups can be combined. The operation
-		// is refused after a replacement, while an unaffordable overhaul is
-		// being held, for a lineless convoy or an empty schedule, and when
-		// either group is empty or the retained group is not a valid powered
-		// consist. See release_maintained_vehicles().
-		if (!replaced && !hold_for_unaffordable_overhaul && !vehicles_to_maintain.empty()
-			&& acnv->get_line().is_bound() && acnv->get_schedule() != NULL
-			&& !acnv->get_schedule()->empty())
-		{
-			release_maintained_vehicles(this, acnv, vehicles_to_maintain);
-		}
-
 		register_for_maintenance(acnv);
 		queue_convoy_maintenance(acnv, vehicles_to_overhaul, vehicles_to_maintain);
 	}
@@ -945,6 +465,23 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 		acnv->set_state(convoi_t::MAINTENANCE);
 		register_for_maintenance(acnv);
 		queue_convoy_maintenance(acnv, vehicles_to_overhaul, vehicles_to_maintain);
+	}
+	else if (decomposed)
+	{
+		// The Lead Vehicle has no work of its own, but the order still has to
+		// be assembled before the Convoy may leave.
+		acnv->set_state(convoi_t::MAINTENANCE);
+		register_for_maintenance(acnv);
+	}
+
+	if (has_depot_order)
+	{
+		// Hold the Convoy until Depot Assembly can satisfy the order.
+		if (!awaiting_assembly.is_contained(acnv))
+		{
+			awaiting_assembly.append(acnv);
+		}
+		acnv->set_wait_lock(1);
 	}
 
 	if (replaced)
@@ -2107,6 +1644,10 @@ bool depot_t::convoy_maintenance_complete(convoihandle_t cnv) const
 	{
 		return true;
 	}
+	if (awaiting_assembly.is_contained(cnv))
+	{
+		return false;
+	}
 	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
 	{
 		const vehicle_t *v = cnv->get_vehicle(i);
@@ -2123,6 +1664,10 @@ sint64 depot_t::convoy_maintenance_remaining(convoihandle_t cnv) const
 	if (!cnv.is_bound())
 	{
 		return 0;
+	}
+	if (awaiting_assembly.is_contained(cnv))
+	{
+		return 1;
 	}
 	const sint64 now = welt->get_ticks();
 	sint64 remaining = 0;
@@ -2200,6 +1745,203 @@ void depot_t::rebuild_maintenance_queue()
 		next_maintenance_queue_index = max_index;
 	}
 	refresh_depot_queue();
+
+	// A Convoy held for an unsatisfied order must resume its assembly attempt
+	// after a load. The order is stored in the schedule; the Lead Vehicle's job
+	// state tells whether its own work is done.
+	awaiting_assembly.clear();
+	assembly_reported.clear();
+	for (auto const c : under_maintenance)
+	{
+		if (!c.is_bound() || !c->get_schedule() || c->get_schedule()->empty())
+		{
+			continue;
+		}
+		const schedule_entry_t &entry = c->get_schedule()->get_current_entry();
+		if (entry.pos != get_pos() || !c->get_schedule()->entry_has_consist_order(entry.unique_entry_id))
+		{
+			continue;
+		}
+		const consist_order_t &order = c->get_schedule()->get_consist_order(entry.unique_entry_id);
+		if (order.get_count() == 0)
+		{
+			continue;
+		}
+		vector_tpl<vehicle_t*> forward;
+		c->get_forward_consist(forward);
+		if (!forward.empty() && (!forward[0]->has_depot_job() || forward[0]->is_depot_job_complete()))
+		{
+			awaiting_assembly.append(c);
+		}
+	}
+}
+
+void depot_t::try_assemble_depot_orders()
+{
+	for (uint32 i = 0; i < under_maintenance.get_count(); i++)
+	{
+		const convoihandle_t cnv = under_maintenance[i];
+		if (!cnv.is_bound() || !cnv->get_schedule() || cnv->get_schedule()->empty())
+		{
+			continue;
+		}
+		const schedule_entry_t &entry = cnv->get_schedule()->get_current_entry();
+		if (entry.pos != get_pos() || !cnv->get_schedule()->entry_has_consist_order(entry.unique_entry_id))
+		{
+			continue;
+		}
+		const consist_order_t &order = cnv->get_schedule()->get_consist_order(entry.unique_entry_id);
+		if (order.get_count() == 0)
+		{
+			continue;
+		}
+		vector_tpl<vehicle_t*> forward;
+		cnv->get_forward_consist(forward);
+		if (forward.empty())
+		{
+			continue;
+		}
+		vehicle_t *lead = forward[0];
+		if (lead->has_depot_job() && !lead->is_depot_job_complete())
+		{
+			continue;
+		}
+		if (!awaiting_assembly.is_contained(cnv))
+		{
+			awaiting_assembly.append(cnv);
+		}
+		if (try_assemble_convoy(cnv))
+		{
+			awaiting_assembly.remove(cnv);
+			assembly_reported.remove(cnv);
+		}
+	}
+}
+
+bool depot_t::try_assemble_convoy(convoihandle_t cnv)
+{
+	if (!cnv.is_bound() || cnv->get_vehicle_count() == 0 || !cnv->get_schedule() || cnv->get_schedule()->empty())
+	{
+		return false;
+	}
+	const schedule_entry_t &entry = cnv->get_schedule()->get_current_entry();
+	if (entry.pos != get_pos() || !cnv->get_schedule()->entry_has_consist_order(entry.unique_entry_id))
+	{
+		return false;
+	}
+	const consist_order_t &order = cnv->get_schedule()->get_consist_order(entry.unique_entry_id);
+	if (order.get_count() == 0)
+	{
+		return false;
+	}
+
+	vector_tpl<vehicle_t*> shadow;
+	cnv->get_forward_consist(shadow);
+	if (shadow.empty())
+	{
+		return false;
+	}
+	vehicle_t *lead = shadow[0];
+	if (lead->has_depot_job() && !lead->is_depot_job_complete())
+	{
+		return false;
+	}
+
+	vector_tpl<vehicle_t*> available;
+	for (auto v : vehicles)
+	{
+		if (!v->has_depot_job() || v->is_depot_job_complete())
+		{
+			available.append(v);
+		}
+	}
+
+	vector_tpl<vehicle_t*> final_consist;
+	vector_tpl<bool> final_reversed;
+	const convoi_t::consist_order_process_result result =
+		cnv->match_consist_order(order, available, shadow, final_consist, final_reversed);
+	if (result == convoi_t::fail || final_consist.empty() || final_consist[0] != lead)
+	{
+		if (!assembly_reported.is_contained(cnv))
+		{
+			assembly_reported.append(cnv);
+			dbg->warning("depot_t::try_assemble_convoy()", "Convoy %s cannot satisfy the Depot Consist Order at %s", cnv->get_name(), get_pos().get_str());
+			if (cnv->get_owner())
+			{
+				cnv->get_owner()->report_vehicle_problem(cnv, get_pos());
+			}
+		}
+		return false;
+	}
+
+	vector_tpl<vehicle_t*> added;
+	for (uint32 i = 1; i < final_consist.get_count(); i++)
+	{
+		vehicle_t *v = final_consist[i];
+		if (v->get_convoi() == cnv.get_rep())
+		{
+			continue;
+		}
+		if (v->get_convoi() != NULL)
+		{
+			for (auto a : added)
+			{
+				cnv->remove_vehicle(a);
+				vehicles.append(a);
+				a->clear_depot_job();
+			}
+			return false;
+		}
+		v->set_reversed(final_reversed[i]);
+		v->set_pos(get_pos());
+		vehicles.remove(v);
+		if (!cnv->add_vehicle(v, (uint8)i))
+		{
+			vehicles.append(v);
+			for (auto a : added)
+			{
+				cnv->remove_vehicle(a);
+				vehicles.append(a);
+				a->clear_depot_job();
+			}
+			return false;
+		}
+		added.append(v);
+	}
+
+	lead->set_reversed(final_reversed[0]);
+	for (uint8 i = 0; i < cnv->get_vehicle_count(); i++)
+	{
+		cnv->get_vehicle(i)->set_leading(i == 0);
+		cnv->get_vehicle(i)->set_last(i + 1 == cnv->get_vehicle_count());
+	}
+
+	if (!cnv->check_validity())
+	{
+		for (auto a : added)
+		{
+			cnv->remove_vehicle(a);
+			vehicles.append(a);
+			a->set_pos(get_pos());
+			a->clear_depot_job();
+		}
+		lead->set_leading(true);
+		lead->set_last(true);
+		if (!assembly_reported.is_contained(cnv))
+		{
+			assembly_reported.append(cnv);
+			dbg->warning("depot_t::try_assemble_convoy()", "Convoy %s assembled an invalid Depot Consist Order at %s", cnv->get_name(), get_pos().get_str());
+			if (cnv->get_owner())
+			{
+				cnv->get_owner()->report_vehicle_problem(cnv, get_pos());
+			}
+		}
+		return false;
+	}
+
+	clear_convoy_maintenance_jobs(cnv);
+	cnv->set_wait_lock(0);
+	return true;
 }
 
 sync_result depot_t::sync_step(uint32 delta_t)
@@ -2231,6 +1973,7 @@ sync_result depot_t::sync_step(uint32 delta_t)
 
 	complete_depot_jobs();
 	start_depot_jobs();
+	try_assemble_depot_orders();
 
 	for (uint32 i = 0; i < under_maintenance.get_count();)
 	{

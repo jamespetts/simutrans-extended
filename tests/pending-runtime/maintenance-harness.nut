@@ -102,6 +102,16 @@ local CROSS_CONVOY_CASE = ("maintenance_cross_convoy_case" in getroottable()) &&
 // checks that the depot survives the following sync steps and drops the convoy
 // from its lists.
 local WITHDRAW_CASE = ("maintenance_withdraw_case" in getroottable()) && ::maintenance_withdraw_case
+// The depot-order case authors a Depot Consist Order on the depot entry. The
+// Convoy decomposes on arrival: the Lead Vehicle stays in the original Convoy
+// and the other vehicles wait in the Depot Vehicle Pool. When every vehicle is
+// released, Depot Assembly re-forms the original Consist and the Convoy leaves.
+local DEPOT_ORDER_CASE = ("maintenance_depot_order_case" in getroottable()) && ::maintenance_depot_order_case
+// The exclude case authors an order that names only the first two vehicles.
+// The last vehicle is due for overhaul and is left in the Depot Vehicle Pool
+// while the original Convoy departs with the vehicles the order names.
+local DEPOT_ORDER_EXCLUDE_CASE = ("maintenance_depot_order_exclude_case" in getroottable()) && ::maintenance_depot_order_exclude_case
+local DEPOT_ORDER_ANY_CASE = DEPOT_ORDER_CASE || DEPOT_ORDER_EXCLUDE_CASE
 local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
@@ -171,7 +181,8 @@ local fixture = {
 	cross_checked = false,
 	cross_b_started = false,
 	withdraw_steps = 0,
-	withdraw_cleared_steps = 0
+	withdraw_cleared_steps = 0,
+	order_descs = []
 }
 
 
@@ -316,6 +327,25 @@ function make_entry(pos, unique_entry_id)
 }
 
 
+// One specific-vehicle slot per descriptor, in the given order. Used to author
+// the Depot Consist Order that re-forms the fixture's Convoy.
+function make_depot_order(descriptors)
+{
+	local order = consist_order_x()
+	local slots = []
+	foreach (desc in descriptors)
+	{
+		local slot = consist_order_element_x()
+		local alternative = vehicle_description_x()
+		alternative.specific_vehicle = desc
+		slot.alternatives = [alternative]
+		slots.append(slot)
+	}
+	order.slots = slots
+	return order
+}
+
+
 // Creates a line with the given schedule and returns it, or null. The split
 // case needs a line because depot_t::convoi_arrived() does not split a lineless
 // convoy.
@@ -429,6 +459,33 @@ function setup()
 	if (SPLIT_UNREACHABLE_CASE)
 	{
 		if (!check(back.entries[2].unique_entry_id == UNREACHABLE_ENTRY_ID, "schedule entry 2 is not the unreachable entry " + UNREACHABLE_ENTRY_ID)) { return false }
+	}
+
+	if (DEPOT_ORDER_ANY_CASE)
+	{
+		local slots = cnv.get_vehicle_snapshot();
+		local descriptors = [];
+		local included = DEPOT_ORDER_EXCLUDE_CASE ? slots.len() - 1 : slots.len();
+		for (local i = 0; i < included; i++)
+		{
+			descriptors.append(slots[i].desc);
+		}
+		fixture.order_descs = descriptors;
+
+		if (DEPOT_ORDER_EXCLUDE_CASE)
+		{
+			local last = slots.len() - 1;
+			if (!check(cnv.set_maintenance_distances_for_testing(last, 0, OVERHAUL_DISTANCE), "set the excluded vehicle's overhaul distance")) { return false; }
+			if (!check(slots[last].overhaul_cost > 0, "the excluded vehicle reports no overhaul cost")) { return false; }
+			if (!check_tool(pl.book_cash(slots[last].overhaul_cost + 100000), "add cash for the excluded vehicle's overhaul")) { return false; }
+		}
+
+		local order = make_depot_order(descriptors);
+		local ordered = cnv.get_schedule();
+		ordered.orders.rawset(DEPOT_ENTRY_ID, order);
+		if (!check_tool(cnv.change_schedule(pl, ordered), "commit the depot consist order")) { return false; }
+		local back_order = cnv.get_schedule();
+		if (!check(back_order.orders.rawget(DEPOT_ENTRY_ID) != null, "the committed schedule has no depot consist order")) { return false; }
 	}
 
 	if (CROSS_CONVOY_CASE)
@@ -655,6 +712,21 @@ function enter_withdrawal(cnv, state)
 
 function enter_service(cnv, state)
 {
+	if (DEPOT_ORDER_ANY_CASE)
+	{
+		if (!check(fixture.saw_stop, "the convoy entered a depot service state before it reached the stop, so it did not run the lap the case expects")) { return false }
+		local slots = cnv.get_vehicle_snapshot()
+		if (!check(slots.len() == 1, "the Depot Consist Order should leave the Lead Vehicle alone in the original convoy, but it has " + slots.len() + " vehicles")) { return false }
+		fixture.service_state = state
+		fixture.service_steps = 1
+		fixture.first_wait = cnv.get_service_wait_ticks()
+		fixture.last_wait = fixture.first_wait
+		fixture.before_availability = slots[0].availability
+		fixture.before_km_overhaul = slots[0].km_since_last_overhaul
+		fixture.stage = "service"
+		print("RUNTIME CASE " + case_name + ": the order decomposed the convoy and left the Lead Vehicle in the original convoy")
+		return true
+	}
 	if (SPLIT_INVALID_CASE || SPLIT_UNREACHABLE_CASE)
 	{
 		return enter_split_undo_service(cnv, state)
@@ -734,6 +806,14 @@ function observe_service(cnv)
 		return
 	}
 
+	if (DEPOT_ORDER_ANY_CASE)
+	{
+		// The Convoy leaves the maintenance state when Depot Assembly has
+		// re-formed its Consist. observe_departure() asserts the result.
+		fixture.stage = "departing"
+		print("RUNTIME CASE " + case_name + ": the order was assembled and the convoy left the maintenance state")
+		return
+	}
 	if (!check(fixture.service_steps > 1, "the convoy stayed in maintenance for only " + fixture.service_steps + " observation step, so the state did not persist across more than one observation step")) { return }
 	if (!check(fixture.last_wait < fixture.first_wait, "the service wait did not fall below its first value of " + fixture.first_wait + " ticks (last observed " + fixture.last_wait + "), so the countdown that ends the visit was not observed")) { return }
 
@@ -745,7 +825,8 @@ function observe_service(cnv)
 function observe_departure(cnv)
 {
 	local slots = cnv.get_vehicle_snapshot()
-	if (!check(slots.len() == fixture.vehicle_count, "the convoy snapshot has " + slots.len() + " slots, expected the convoy's " + fixture.vehicle_count + " vehicles")) { return }
+	local expected_count = DEPOT_ORDER_ANY_CASE ? fixture.order_descs.len() : fixture.vehicle_count
+	if (!check(slots.len() == expected_count, "the convoy snapshot has " + slots.len() + " slots, expected the convoy's " + expected_count + " vehicles")) { return }
 	local slot = slots[0]
 
 	// Capture the post-visit read model once, on the first observation after the
@@ -764,6 +845,15 @@ function observe_departure(cnv)
 		if (!check(slot.km_since_last_overhaul >= fixture.before_km_overhaul, "the distance since the last overhaul fell from " + fixture.before_km_overhaul + " to " + slot.km_since_last_overhaul + " km during a routine maintenance visit")) { return }
 		fixture.captured_after = true
 		print("RUNTIME CASE " + case_name + ": after maintenance " + slots.len() + " vehicles report 0 km since the last maintenance; the leading vehicle reports availability " + slot.availability + " and overhaul count " + slot.overhaul_count)
+	}
+
+	if (DEPOT_ORDER_ANY_CASE)
+	{
+		if (!check(slots.len() == fixture.order_descs.len(), "the assembled convoy has " + slots.len() + " vehicles, expected the " + fixture.order_descs.len() + " vehicles named by the order")) { return }
+		for (local i = 0; i < slots.len(); i++)
+		{
+			if (!check(slots[i].desc.get_name() == fixture.order_descs[i].get_name(), "assembled vehicle " + i + " is " + slots[i].desc.get_name() + ", expected " + fixture.order_descs[i].get_name())) { return }
+		}
 	}
 
 	if (slot.pos.x > DEPOT_POS.x && cnv.get_current_entry_id() == STOP_ENTRY_ID)

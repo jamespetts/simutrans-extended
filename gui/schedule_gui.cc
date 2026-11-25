@@ -1270,6 +1270,29 @@ void schedule_gui_t::build_table()
 			}
 			cont_settings_2.end_table();
 
+		// Depot departure consist. A depot entry uses this tab instead of the
+		// stop settings tabs: an order here re-forms the Convoy from the
+		// Depot Vehicle Pool, while a blank order leaves it together.
+		cont_depot_order.set_table_frame(true);
+		cont_depot_order.set_table_layout(1, 0);
+		cont_depot_order.set_margin(scr_size(D_H_SPACE, D_MARGIN_TOP), scr_size(0, D_V_SPACE));
+		cont_depot_order.add_table(2,1)->set_spacing(scr_size(D_H_SPACE,1));
+		{
+			bt_depot_consist_order.init(button_t::roundbox_state, "modify_consist", scr_coord(0,0), D_WIDE_BUTTON_SIZE);
+			bt_depot_consist_order.set_tooltip("modify_the_consist_at_this_depot_entry");
+			if (skinverwaltung_t::open_window) {
+				bt_depot_consist_order.set_image(skinverwaltung_t::open_window->get_image_id(0));
+				bt_depot_consist_order.set_image_position_right(true);
+			}
+			bt_depot_consist_order.add_listener(this);
+			bt_depot_consist_order.pressed = false;
+			cont_depot_order.add_component(&bt_depot_consist_order);
+			lb_depot_order_status.init(SYSCOL_TEXT, gui_label_t::left);
+			cont_depot_order.add_component(&lb_depot_order_status);
+		}
+		cont_depot_order.end_table();
+		cont_depot_order.new_component<gui_label_t>("depot_order_explanation");
+
 			// trigger
 			cont_settings_2.new_component<gui_divider_t>();
 			bt_send_trigger.init(button_t::square_automatic, "Send trigger on arrival");
@@ -2090,13 +2113,24 @@ void schedule_gui_t::update_selection()
 			// not a station
 			if (is_depot) {
 				entry_no->init(current_stop + 1, 0, gui_schedule_entry_number_t::number_style::depot);
+				// A depot entry shows the Depot Consist Order tab instead of
+				// the stop settings tabs.
+				tabs.clear();
+				tabs.add_tab(&cont_depot_order, translator::translate("depot_order"));
+				const uint16 entry_id = schedule->entries[schedule->get_current_stop()].unique_entry_id;
+				const bool has_order = schedule->entry_has_consist_order(entry_id)
+					&& schedule->get_consist_order(entry_id).get_count() > 0;
+				lb_depot_order_status.buf().clear();
+				lb_depot_order_status.buf().append(translator::translate(has_order ? "depot_order_set" : "depot_order_unchanged"));
+				lb_depot_order_status.update();
+				bt_depot_consist_order.pressed = has_order;
 			}
 			else {
 				entry_no->init(old_line.is_bound() ? old_line->get_line_color_index() : 255, player->get_player_nr(), gui_schedule_entry_number_t::number_style::waypoint);
 			}
 
 			// tab1 componets
-			if (tabs.get_count() > 1) {
+			if (!is_depot && tabs.get_count() > 1) {
 				tabs.clear();
 				tabs.add_tab(&cont_settings_1, translator::translate("entry_setting_1"));
 			}
@@ -2899,7 +2933,7 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 				schedule->entries[schedule->get_current_stop()].clear_flag(schedule_entry_t::uncouple_target_sch_is_reversed);
 			}
 		}
-		else if (comp == &bt_consist_order) {
+		else if (comp == &bt_consist_order || comp == &bt_depot_consist_order) {
 			// Opens new window to alter the consist order
 			const uint16 entry_id = schedule->entries[schedule->get_current_stop()].unique_entry_id;
 			consist_order_frame_t *win = dynamic_cast<consist_order_frame_t*>(win_get_magic(magic_consist_order));
