@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bdfdc8311 (odometer passage); other content ex-15 @ 1c8d9cadf plus working tree (2026-11-14)
+verified: ex-15 @ bdfdc8311 (odometer passage); other content ex-15 @ 1c8d9cadf plus working tree (2026-11-14); convoi_t::destroy teardown and depot-list removal @ c0fe14eb93 plus working tree (2026-11-25)
 ---
 # Vehicles, consists & convoys
 
@@ -56,8 +56,9 @@ verified: ex-15 @ bdfdc8311 (odometer passage); other content ex-15 @ 1c8d9cadf 
 - `convoi_t::remove_vehicle_at(i)` only detaches (`set_convoi(NULL)` + array compaction +
   `recalc_metrics`); it does NOT remove the vehicle from the map or release reservations.
 - On-map convoy teardown (`convoi_t::self_destruct` → `destroy()` next step; `destroy()` awaits
-  convoy threads, then per vehicle: `set_last(true)`, `leave_tile()` (releases crossings and
-  removes the object from the ground), crossing release, `set_flag(not_on_map)`,
+  convoy threads and the path explorer, removes the convoy from any depot's `convois` and
+  `under_maintenance` lists, then per vehicle: `set_last(true)`, `leave_tile()` (releases
+  crossings and removes the object from the ground), crossing release, `set_flag(not_on_map)`,
   `discard_cargo()`, `cleanup(owner)`, `delete`), booking `owner->book_new_vehicle(
   calc_sale_value())` once and `book_vehicle_number(-1)` per vehicle. `book_convoi_number(-1)`
   is booked only `if (front())` — an emptied convoy books nothing (matching: convoys created

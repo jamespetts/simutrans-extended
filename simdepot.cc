@@ -1869,6 +1869,12 @@ bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
 
 	for (auto cnv_mnt : under_maintenance)
 	{
+		if (!cnv_mnt.is_bound())
+		{
+			// The convoy was destroyed after it entered the queue. Contributes no
+			// vehicles, so skipping it does not change the capacity count.
+			continue;
+		}
 		if (cnv_mnt == cnv)
 		{
 			our_cnv = true;
@@ -1891,9 +1897,30 @@ bool depot_t::is_awaiting_attention(convoihandle_t cnv) const
 
 sync_result depot_t::sync_step(uint32 delta_t)
 {
-	for (auto c : under_maintenance)
+	// A convoy leaves MAINTENANCE or OVERHAUL before it leaves the depot: the
+	// state changes to ROUTING_1 in convoi_t::step(). This queue must drop the
+	// entry at once: start_convoi() or convoi_t::destroy() removes the convoy
+	// from the other depot lists later, but an entry left here would be stepped
+	// after the convoy has moved on or has been destroyed. Drop entries whose
+	// convoihandle_t no longer refers to a live convoy, and entries whose convoy
+	// has left those two states, so that every remaining entry is safe to
+	// dereference.
+	for (uint32 i = 0; i < under_maintenance.get_count();)
 	{
+		const convoihandle_t c = under_maintenance[i];
+		if (!c.is_bound())
+		{
+			under_maintenance.remove_at(i);
+			continue;
+		}
+		const int state = c->get_state();
+		if (state != convoi_t::MAINTENANCE && state != convoi_t::OVERHAUL)
+		{
+			under_maintenance.remove_at(i);
+			continue;
+		}
 		c->sync_step(delta_t);
+		++i;
 	}
 
 	return sync_result::SYNC_OK;

@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 7655609c9; ex-15 path-explorer rows @ 6447a1d2e (2026-11-07); ex-15 comfort wait read @ c1e914343 plus working tree (2026-11-09); ex-15 reservation-index changes @ 23271d64e and working-tree route-unreserve removal (2026-11-14)
+verified: master @ 7655609c9; ex-15 path-explorer rows @ 6447a1d2e (2026-11-07); ex-15 comfort wait read @ c1e914343 plus working tree (2026-11-09); ex-15 reservation-index changes @ 23271d64e and working-tree route-unreserve removal (2026-11-14); destroy path-explorer await @ c0fe14eb93 plus working tree (2026-11-25)
 ---
 # Threading
 
@@ -272,9 +272,12 @@ The mechanism making this safe has three parts:
    to valid memory for the rest of the window. NOTE: the quarantine intercepts `putback_node`
    BEFORE its size normalisation — the stored size must be the caller's original, because the
    flush re-enters `putback_node` and it must normalise exactly once.
-3. **Convoy lifetime**: `convoi_t::destroy()` and the `convoi_t(player_t*)` constructor call
-   `await_convoy_threads()` first (no-op when workers are parked), so a convoy can never be freed
-   or its handle-table reallocated mid-window (liquidation, `remove_player`, depot tools).
+3. **Convoy lifetime**: `convoi_t::destroy()` awaits `await_convoy_threads()` and
+   `await_path_explorer()` first (no-op when workers are parked), so a convoy can never be
+   freed or its handle-table reallocated mid-window (liquidation, `remove_player`, depot
+   tools), and the path explorer cannot read a deleted schedule or a convoy-list entry that
+   the destruction removes. The `convoi_t(player_t*)` constructor calls
+   `await_convoy_threads()` first.
    `convoi_t::state`, `obj_t::flags`, `grund_t::flags`, `vehicle_base_t::disp_lane` and
    `karte_t::path_explorer_working` are `std::atomic` because they are legitimately read by
    workers while written by the main thread (single-writer each).

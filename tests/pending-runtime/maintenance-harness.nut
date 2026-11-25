@@ -98,6 +98,10 @@ local SPLIT_UNREACHABLE_CASE = ("maintenance_split_unreachable_case" in getroott
 // maintained; train B's carriage is due for overhaul and its locomotive and
 // tender are only maintained. The maintained groups combine into one convoy.
 local CROSS_CONVOY_CASE = ("maintenance_cross_convoy_case" in getroottable()) && ::maintenance_cross_convoy_case
+// The withdraw case destroys a convoy while it is in the maintenance queue and
+// checks that the depot survives the following sync steps and drops the convoy
+// from its lists.
+local WITHDRAW_CASE = ("maintenance_withdraw_case" in getroottable()) && ::maintenance_withdraw_case
 local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
@@ -165,7 +169,9 @@ local fixture = {
 	vehicle_count_b = 0,
 	cross_steps = 0,
 	cross_checked = false,
-	cross_b_started = false
+	cross_b_started = false,
+	withdraw_steps = 0,
+	withdraw_cleared_steps = 0
 }
 
 
@@ -630,6 +636,23 @@ function enter_split_undo_service(cnv, state)
 }
 
 
+// The withdraw case: the convoy is in the maintenance queue. Toggle the
+// withdraw flag through the same tool that the convoy detail window uses. The
+// convoy is empty, because depot_t::convoi_arrived() discards the load, and its
+// state is not INITIAL, so convoi_t::set_withdraw() schedules it for
+// self-destruction. convoi_t::destroy() must remove it from the depot lists
+// before convoi_t::~convoi_t() detaches its convoihandle_t; otherwise the next
+// depot sync step dereferences a null pointer.
+function enter_withdrawal(cnv, state)
+{
+	fixture.stage = "withdrawing"
+	fixture.withdraw_steps = 0
+	fixture.withdraw_cleared_steps = 0
+	print("RUNTIME CASE " + case_name + ": convoy entered state " + state + "; withdrawing it from the maintenance queue")
+	return check_tool(cnv.toggle_withdraw(player_x(0)), "withdraw the convoy under maintenance")
+}
+
+
 function enter_service(cnv, state)
 {
 	if (SPLIT_INVALID_CASE || SPLIT_UNREACHABLE_CASE)
@@ -643,6 +666,11 @@ function enter_service(cnv, state)
 	if (!check(fixture.saw_stop, "the convoy entered a depot service state before it reached the stop, so it did not run the lap the case expects")) { return false }
 	local expected_state = OVERHAUL_CASE ? convoy_state_overhaul : convoy_state_maintenance
 	if (!check(state == expected_state, "the depot visit put the convoy in state " + state + "; " + case_name + " expects state " + expected_state)) { return false }
+
+	if (WITHDRAW_CASE)
+	{
+		return enter_withdrawal(cnv, state)
+	}
 
 	fixture.service_state = state
 	fixture.service_steps = 1
@@ -748,6 +776,51 @@ function observe_departure(cnv)
 	if (fixture.departure_steps > DEPARTURE_STEP_LIMIT)
 	{
 		fail("the convoy did not leave the depot towards the stop entry within " + DEPARTURE_STEP_LIMIT + " observation steps (state " + cnv.get_state() + ", position " + slot.pos + ")")
+	}
+}
+
+
+// The withdraw case: the withdrawn convoy must disappear, the depot must drop
+// it from its convoy list, and the process must survive several further sync
+// steps, because depot_t::sync_step() walks the maintenance queue every sync
+// step. A stale, detached handle in that queue would fault there.
+function observe_withdrawal()
+{
+	local cnv = convoy_x(fixture.convoy_id)
+	if (cnv.is_valid())
+	{
+		++fixture.withdraw_steps
+		if (fixture.withdraw_steps > DEPARTURE_STEP_LIMIT)
+		{
+			fail("the convoy was still alive " + DEPARTURE_STEP_LIMIT + " observation steps after it was withdrawn")
+		}
+		return
+	}
+
+	// A destroyed convoy is pushed to Squirrel as null, so either an unbound
+	// entry or a matching id means the depot kept the stale handle.
+	foreach (c in fixture.depot.get_convoy_list())
+	{
+		if (c == null)
+		{
+			fail("the depot's convoy list still contains an unbound handle after the withdrawal")
+			return
+		}
+		if (c.id == fixture.convoy_id)
+		{
+			fail("the destroyed convoy " + fixture.convoy_id + " is still in the depot's convoy list")
+			return
+		}
+	}
+
+	if (fixture.withdraw_cleared_steps == 0)
+	{
+		print("RUNTIME CASE " + case_name + ": the withdrawn convoy is gone and the depot no longer lists it")
+	}
+	++fixture.withdraw_cleared_steps
+	if (fixture.withdraw_cleared_steps >= 4)
+	{
+		pass()
 	}
 }
 
@@ -870,6 +943,14 @@ function observe_cross_convoy()
 
 function observe()
 {
+	if (fixture.stage == "withdrawing")
+	{
+		// The withdrawn convoy is expected to disappear, so this stage must be
+		// handled before the validity check below.
+		observe_withdrawal()
+		return
+	}
+
 	local cnv = convoy_x(fixture.convoy_id)
 	if (!cnv.is_valid())
 	{

@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24); efe5757b13 (2026-11-25, per-line depot limit, consist overhaul grouping, simplified-maintenance wear bypass and purchase-price compensation, replacement delay, automatic release of maintained vehicles, cross-convoy combination, sync-list fix)
+verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24); efe5757b13 (2026-11-25, per-line depot limit, consist overhaul grouping, simplified-maintenance wear bypass and purchase-price compensation, replacement delay, automatic release of maintained vehicles, cross-convoy combination, sync-list fix); maintenance-queue lifecycle and withdrawal case @ c0fe14eb93 plus working tree (2026-11-25)
 ---
 # ex-15 depot maintenance and vehicle availability
 
@@ -126,6 +126,15 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
 - Maintenance cannot be interrupted once started. `convoi_t::start()` accepts
   only the stored or routing states, so a convoy under maintenance cannot be
   started through the ordinary depot controls.
+- A convoy's entry in `depot_t::under_maintenance` lasts while the convoy is in
+  `MAINTENANCE` or `OVERHAUL`. `depot_t::sync_step()` removes an entry whose
+  convoy has been destroyed or has left those states before it steps the
+  remaining entries, and `depot_t::is_awaiting_attention()` skips a destroyed
+  convoy when it counts the vehicles ahead of the convoy it is asked about.
+  `convoi_t::destroy()` removes a convoy that is
+  destroyed while queued from the depot lists before the destructor invalidates
+  the depot's reference to it. Without those removals, the next depot sync step
+  would dereference a destroyed convoy.
 
 ### Maintenance duration
 

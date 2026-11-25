@@ -7748,6 +7748,11 @@ void convoi_t::destroy()
 	// running, e.g. inside the single-threaded step loop or during teardown).
 	world()->await_convoy_threads();
 
+	// The path explorer reads convoy schedules and iterates the world's convoy
+	// list. Park it as well: this function deletes the schedule and removes the
+	// convoy from that list.
+	world()->await_path_explorer();
+
 	// Release any way reservations held by this convoy: leave_tile() removes the
 	// vehicles from the map but does not unreserve, so destroying a standing or
 	// routed convoy would leave stale reservations blocking the ways.
@@ -7762,6 +7767,21 @@ void convoi_t::destroy()
 		halthandle_t layover_halt = haltestelle_t::get_halt(get_pos(), owner);
 		if(  layover_halt.is_bound()  ) {
 			layover_halt->remove_laid_over(self);
+		}
+	}
+
+	// A depot keeps a convoihandle_t to this convoy while the convoy is stored
+	// there or is in its maintenance queue. Remove the convoy from the depot
+	// lists now, while that handle still resolves: the destructor calls
+	// self.detach(), which makes every convoihandle_t to this convoy resolve to
+	// null, and depot_t::sync_step() and depot_t::is_awaiting_attention() would
+	// then dereference that null pointer.
+	if(  !welt->is_destroying()  ) {
+		const koord3d pos = get_pos();
+		grund_t *gr = pos == koord3d::invalid ? NULL : welt->lookup( pos );
+		depot_t *dep = gr ? gr->get_depot() : NULL;
+		if(  dep  ) {
+			dep->remove_convoi( self );
 		}
 	}
 

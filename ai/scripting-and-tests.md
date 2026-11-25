@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23); ex-15 @ f41b00399f (2026-11-25, trigger-wait road case)
+verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23); ex-15 @ f41b00399f (2026-11-25, trigger-wait road case); maintenance-withdraw case @ c0fe14eb93 plus working tree (2026-11-25)
 ---
 # Scripting & tests
 
@@ -83,7 +83,11 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   `maintenance-split-invalid`, `maintenance-split-unreachable` and
   `maintenance-cross-convoy` cases cover the automatic release of maintenance-only
   vehicles from mixed maintenance/overhaul visits, including the undo paths and
-  the two-train combination [EXECUTION-VERIFIED:2026-11-25].
+  the two-train combination [EXECUTION-VERIFIED:2026-11-25]. The
+  `maintenance-withdraw` case withdraws a convoy while it is in the maintenance
+  queue and asserts that the game survives the following sync steps and that the
+  depot drops the destroyed convoy from its convoy list
+  [EXECUTION-VERIFIED:2026-11-25].
 - The AI host mode is designed but unused; expect latent assumptions (global `welt`, null
   scenario, GUI calls, `get_my_player` returning null) until it is exercised.
 

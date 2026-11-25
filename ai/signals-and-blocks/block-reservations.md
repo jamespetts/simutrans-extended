@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle and handoff independent of call_on); ex-15 @ b501f13f3 (2026-11-15, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation, route-unreserve removal and call-on/refactor changes (2026-11-14)
+verified: ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle and handoff independent of call_on); ex-15 @ b501f13f3 (2026-11-15, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile); ex-15 @ 684d570f9 plus working-tree recombination runtime (2026-11-13); reservation audit 2026-11-14; reservation-index implementation, route-unreserve removal and call-on/refactor changes (2026-11-14); destroy path-explorer await @ c0fe14eb93 plus working tree (2026-11-25)
 ---
 # Block reservations and reservation clearing
 
@@ -135,7 +135,8 @@ block and one train staff), `rail_vehicle_t::unreserve_station` (fallback), `con
   vehicle's heading, and the result of `schiene_t::reserve` is ignored. It is used after a reversal (`convoi_t::vorfahren`), after a
   consist or working-method change (`commit_recombined_consist`, `convoi_t::set_working_method`), in the no-route states of
   `convoi_t::step`, by `release_target_reservations` and by the brute-force fallbacks.
-- `convoi_t::destroy()` awaits the convoy route-finding threads, then calls `unreserve_route()`: `rail_vehicle_t::leave_tile` clears only
+- `convoi_t::destroy()` awaits the convoy route-finding threads and the path explorer, then calls
+  `unreserve_route()`: `rail_vehicle_t::leave_tile` clears only
   the tile the last vehicle leaves, not reservations held ahead of the train or elsewhere on the convoy's route, so the broad release
   is required before the vehicles leave the map. The call is skipped while the world itself is being destroyed.
 
