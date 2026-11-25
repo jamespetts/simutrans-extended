@@ -21,9 +21,11 @@ Tags: `[CODE]` marks a fact verified against the checked-out code. `[PROPOSED]` 
 design proposes and the code does not implement. `[OPEN]` marks a question that needs a user
 decision or further investigation.
 
-The per-vehicle depot maintenance queue, the Depot Consist Order on a depot entry, Decomposition
-and the Original Convoy arrangement are implemented on ex-15 [CODE]. The New Convoy arrangement,
-the Target Fleet Size, the Fleet tab and the replacement integration remain [PROPOSED].
+The per-vehicle depot maintenance queue, the Depot Consist Order on a depot entry, Decomposition,
+the Original Convoy arrangement and the New Convoy arrangement are implemented on ex-15 [CODE]. The
+Target Fleet Size, the Fleet tab and the replacement integration remain [PROPOSED]. The New Convoy
+arrangement has no runtime test yet because the rail fixture has only one powered vehicle; a
+two-locomotive fixture is the next test addition.
 
 ## Terms
 
@@ -196,8 +198,10 @@ order (line id, then convoy id), the solver tries two arrangements:
    Vehicles fill the remaining slots. The Original Convoy is the departing Convoy. It waits until
    every chosen vehicle is an Available Vehicle.
 2. **New Convoy arrangement.** Available Vehicles alone satisfy the order, and the line's Target
-   Fleet Size requires another Deployed Convoy. A New Convoy is created from the Depot Vehicle
-   Pool. The Original Convoy remains in the depot with its Lead Vehicle.
+   Fleet Size requires another Deployed Convoy, or the order excludes the Lead Vehicle. A New
+   Convoy is created from the Depot Vehicle Pool. The Original Convoy remains in the depot with its
+   Lead Vehicle, is advanced past the depot entry and is set to `INITIAL` as a Held Convoy [CODE
+   `depot_t::try_form_new_convoy()`; `depot_t::hold_original_convoy()`].
 
 The Original Convoy's `wait_lock` can reach zero before the other chosen vehicles are Available
 Vehicles. The depot holds the Convoy in its maintenance state until the full Consist is assembled;
@@ -240,8 +244,8 @@ When the Original Convoy departs, it keeps its `convoi_t` id, name, line, schedu
 The Lead Vehicle is in slot 0. It departs only when every vehicle in its Consist is released, so a
 blank-order visit also waits for the whole Consist's per-vehicle work.
 
-When a New Convoy departs, it is created with `depot_t::add_convoi(false)`. It receives
-[PROPOSED]:
+When a New Convoy departs, it is created with `depot_t::add_convoi(false)`. It receives [CODE
+`depot_t::try_form_new_convoy()`]:
 
 - a new `convoi_t` id and a name from its leading vehicle, following the existing depot assembly
   convention;

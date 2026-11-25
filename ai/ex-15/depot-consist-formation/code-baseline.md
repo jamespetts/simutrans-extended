@@ -130,6 +130,13 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
   `convoi_t::add_vehicle()`, applies the chosen orientations, sets the leading and last flags,
   calls `convoi_t::check_validity()`, clears the Convoy's depot jobs and sets `wait_lock` to zero
   [CODE]. A failed match or validity check leaves the Convoy in the depot and reports once.
+- `depot_t::try_form_new_convoy()` implements the New Convoy arrangement. It matches the order with
+  an empty shadow against the available pool, creates a Convoy with `depot_t::add_convoi(false)`,
+  moves the chosen vehicles, copies the source schedule past the depot with
+  `copy_schedule_past_depot()`, sets the line, livery and name, checks the route and starts the
+  Convoy with `convoi_t::start()` [CODE]. `depot_t::hold_original_convoy()` advances the source past
+  the depot entry, sets it to `INITIAL` and removes its jobs and queue entry, so the source becomes
+  a Held Convoy [CODE].
 - `schedule_gui_t` shows a **Departure consist** tab on depot entries, with a
   `bt_depot_consist_order` button that opens the same `consist_order_frame_t` as the stop-level
   order [CODE `gui/schedule_gui.cc`].

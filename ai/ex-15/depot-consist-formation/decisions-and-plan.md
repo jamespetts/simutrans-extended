@@ -137,9 +137,12 @@ work.
    `depot_t::try_assemble_convoy()` re-forms it from the pool. `release_maintained_vehicles()` and
    its helpers are removed. The four former `maintenance-split` cases are replaced by
    `depot-order` and `depot-order-exclude` [CODE].
-4. **New Convoy arrangement.** Create a New Convoy from the Depot Vehicle Pool, copy the schedule
-   past the depot, set the line and start it. Test identity, statistics, `start_reversed` and the
-   no-route failure.
+4. **New Convoy arrangement.** Implemented in `depot_t::try_form_new_convoy()`: the pool alone
+   satisfies the order, the schedule is copied past the depot with `copy_schedule_past_depot()`,
+   the line and livery are inherited, the vehicles are added, the route is checked and the Convoy
+   starts through `convoi_t::start()`. The Original Convoy is held by
+   `depot_t::hold_original_convoy()`. The runtime test is deferred until a two-locomotive fixture
+   exists [CODE].
 5. **Target Fleet Size, Held Convoys and Withdrawal.** Add `simline_t::target_convoy_count`, the
    line control and the `TOOL_CHANGE_LINE` case. Implement the Deployed count, holding, dispatch and
    the Withdrawal operation with the chosen priority rule. Test the maintenance-cover rotation and
