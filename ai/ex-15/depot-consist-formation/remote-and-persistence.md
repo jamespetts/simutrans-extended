@@ -19,6 +19,8 @@ The intended saved fields are:
 | `vehicle_t` | `depot_release_time` | `sint64` | 0 | Ticks; 0 means no pending job. Saved in `vehicle_t::rdwr_from_convoi()`. |
 | `vehicle_t` | `depot_job_state` | `uint8` | 0 | None, waiting, in progress, complete. Saved in the same block. |
 | `vehicle_t` | `depot_queue_index` | `uint32` | 0 | Position in the depot queue, used to rebuild the queue after a load. |
+| `vehicle_t` | `depot_job_duration` | `sint64` | 0 | Length of the maintenance or overhaul job in ticks. |
+| `depot_t` | `next_maintenance_queue_index` | `uint32` | 0 | Next queue index to allocate. Saved in `depot_t::rdwr()`. |
 | `simline_t` | `target_convoy_count` | `uint16` | 0 | 0 means no target. Saved in `simline_t::rdwr()`. |
 | `simline_t` | `fleet_policy` | `uint8` | 0 | Off or automatic. Saved in `simline_t::rdwr()`. |
 | `simline_t` | `target_min`, `target_max` | `uint16` each | 0 | Bounds for the automatic policy. |

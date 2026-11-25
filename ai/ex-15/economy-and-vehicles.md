@@ -82,16 +82,21 @@ maintenance queues, maintenance duration, overhauls or overhaul finance on ex-15
 
 ## Depot visits & availability — PARTIAL
 
-- The depot time depends on active-service time and availability. `vehicle_t::maintain()` uses
-  `active_service_time * (100 - availability) / 100`; `convoi_t::sync_step()` accumulates that time
-  while the convoy is in an active state, and `vehicle_t::rdwr()` saves the counter under Extended
-  save revision 21. `convoi_t::enter_depot()` and `convoi_t::ziel_erreicht()` preserve the wait.
-  The settled rules, remaining decisions and resumption order are in
-  [depot-maintenance](depot-maintenance.md). Maintenance is non-interruptible (`convoi_t::start`
-  proceeds only from INITIAL/ROUTING states).
-- Depot queue: `depot_t::under_maintenance`, register_for_maintenance (time multiplier when over
-  capacity), is_awaiting_attention, queue rdwr gated extended ≥ 15; capacity .dat
-  max_vehicles_under_maintenance (default 4, building_tile_desc_t).
+- The depot time depends on active-service time and availability.
+  `vehicle_t::get_maintenance_duration()` returns
+  `active_service_time * (100 - availability) / 100`; `convoi_t::sync_step()` accumulates that
+  time while the convoy is in an active state, and `vehicle_t::rdwr_from_convoi()` saves the
+  counter under Extended save revision 21. `convoi_t::enter_depot()` and
+  `convoi_t::ziel_erreicht()` preserve the wait. The settled rules, remaining decisions and
+  resumption order are in [depot-maintenance](depot-maintenance.md). Maintenance is
+  non-interruptible (`convoi_t::start` proceeds only from INITIAL/ROUTING states).
+- Depot queue: `depot_t::under_maintenance` holds the Convoys that the depot steps;
+  `depot_t::maintenance_queue` holds their vehicles in queue order. Each vehicle has
+  `depot_job_state`, `depot_release_time`, `depot_queue_index` and `depot_job_duration`, saved
+  under Extended save revision 24. `depot_t::start_depot_jobs()`,
+  `depot_t::complete_depot_jobs()` and `depot_t::reproject_depot_jobs()` run the queue. Capacity
+  .dat `max_vehicles_under_maintenance` (default 4, `building_tile_desc_t`) is counted per
+  vehicle.
 - Triggers: maintenance_interval_km per vehicle, else months-based settings
   (maintenance_interval_months default 12, extended_maintenance_interval_months default 18);
   simplified_maintenance disables the convoy-level requirements, bypasses the wear-driven

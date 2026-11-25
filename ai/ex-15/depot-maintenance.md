@@ -101,15 +101,16 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
   A vehicle that is not yet due but has covered at least the line's overhaul
   grouping percentage of its own interval joins the overhaul group; see
   Overhauls and upgrades.
-- The convoy's maintenance duration is the longest individual vehicle duration,
-  not the sum. A convoy larger than the depot capacity receives a proportional
-  time multiplier.
-- Depot capacity `max_vehicles_under_maintenance` is measured in vehicles. A
-  convoy at the head of `depot_t::under_maintenance` always progresses; convoys
-  behind it have their countdown frozen while they await attention.
-  `depot_t::prioritise_for_maintenance()` moves a convoy to the front and
-  `depot_t::depriortise_for_maintenance()` moves it to the back. Those methods
-  define the queue policy; only controls that call them are missing.
+- Depot capacity `max_vehicles_under_maintenance` is counted per vehicle, not
+  per Convoy. Each vehicle in a maintenance or overhaul visit has its own job,
+  queue position and release time on `vehicle_t` (`depot_job_state`,
+  `depot_release_time`, `depot_queue_index`, `depot_job_duration`). The depot
+  starts up to `max_vehicles_under_maintenance` jobs at once and starts the next
+  waiting job when a place frees. A Convoy leaves when all of its vehicles are
+  complete. `depot_t::prioritise_for_maintenance()` and
+  `depot_t::depriortise_for_maintenance()` reorder
+  `depot_t::under_maintenance`; they do not reorder the per-vehicle queue, which
+  is ordered by `depot_queue_index`. Those methods have no callers.
 - A line stores `simline_t::max_convoys_at_depot`, the maximum number of its
   convoys that may hold a depot maintenance place at the same depot at the same time.
   `convoi_t::advance_schedule()` checks `simline_t::has_depot_maintenance_slot()`
@@ -129,9 +130,9 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
 - A convoy's entry in `depot_t::under_maintenance` lasts while the convoy is in
   `MAINTENANCE` or `OVERHAUL`. `depot_t::sync_step()` removes an entry whose
   convoy has been destroyed or has left those states before it steps the
-  remaining entries, and `depot_t::is_awaiting_attention()` skips a destroyed
-  convoy when it counts the vehicles ahead of the convoy it is asked about.
-  `convoi_t::destroy()` removes a convoy that is
+  remaining entries. `convoi_t::sync_step()` asks the depot whether the Convoy's
+  vehicles are complete and how long remains; it does not count `wait_lock` down
+  itself in those states. `convoi_t::destroy()` removes a convoy that is
   destroyed while queued from the depot lists before the destructor invalidates
   the depot's reference to it. Without those removals, the next depot sync step
   would dereference a destroyed convoy.

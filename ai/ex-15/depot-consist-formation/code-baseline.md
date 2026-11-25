@@ -63,46 +63,49 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
 
 - `depot_t::convoi_arrived()` (simdepot.cc) discards cargo, classifies each vehicle with the
   file-local `classify_vehicle_for_maintenance()`, applies the grouping percentage, runs the
-  replacement block, calls `vehicle_t::overhaul()` or `vehicle_t::maintain()`, sets the Convoy
-  state to `OVERHAUL` or `MAINTENANCE`, registers it with `register_for_maintenance()`, and appends
-  it to `convois` [CODE].
-- `vehicle_t::maintain()` computes
-  `maintenance_time = active_service_time * (100 - availability) / 100`, then calls
-  `cnv->set_wait_lock(max(cnv->get_wait_lock(), maintenance_time))` and
-  `cnv->set_state(convoi_t::MAINTENANCE)` [CODE vehicle/vehicle.cc].
-- `vehicle_t::overhaul()` computes
-  `(welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10`, sets the Convoy wait and
-  state, resets the counters, books the overhaul or upgrade cost and increments `overhauls` [CODE
-  vehicle/vehicle.cc].
-- Both methods require a non-null `cnv`. `convoi_t::remove_vehicle_at()` calls
-  `v->set_convoi(NULL)` [CODE `simconvoi.cc`]; `depot_t::remove_vehicle()` then appends the
-  detached vehicle to `depot_t::vehicles`. A vehicle cannot be maintained or overhauled after it
-  is detached without a refactor.
-- `depot_t::register_for_maintenance()` appends the Convoy to `under_maintenance` and, when the
-  Convoy has more vehicles than `building_desc_t::get_max_vehicles_under_maintenance()`, multiplies
-  the Convoy's `wait_lock` by `vehicle_count * 100 / max_vehicles` [CODE simdepot.cc]. The queue
-  entry and the capacity count are therefore per Convoy in the current code.
-- `depot_t::sync_step()` drops unbound or departed queue entries, then calls
-  `c->sync_step(delta_t)` for each Convoy in `under_maintenance` [CODE `simdepot.cc`].
-  `depot_t::is_awaiting_attention()` counts the vehicles of the Convoys ahead and freezes a Convoy
-  behind the depot capacity [CODE `simdepot.cc`]. The design replaces this Convoy-level accounting
-  with a per-vehicle queue; see [per-vehicle work](#per-vehicle-work-and-the-depot-queue).
+  replacement block, stores each vehicle's duration, applies `vehicle_t::overhaul(context)` or
+  `vehicle_t::maintain()`, sets the Convoy state to `OVERHAUL` or `MAINTENANCE`, registers the
+  Convoy with `register_for_maintenance()`, queues its vehicles with
+  `depot_t::queue_convoy_maintenance()`, sets an initial positive `wait_lock` when any vehicle has
+  a non-zero duration, and appends the Convoy to `convois` [CODE].
+- `vehicle_t::get_maintenance_duration()` returns
+  `active_service_time * (100 - availability) / 100`. `vehicle_t::maintain()` applies the work and
+  resets `active_service_time`, `km_since_last_maintenance` and `last_maintenance_month`; it no
+  longer sets the Convoy state or `wait_lock` [CODE vehicle/vehicle.cc].
+- `vehicle_t::get_overhaul_duration()` returns
+  `(welt->ticks_per_world_month * desc->get_overhaul_month_tenths()) / 10`.
+  `vehicle_t::overhaul(convoi_t *context)` applies the work, resets the counters, books the
+  overhaul or upgrade cost, increments `overhauls`, applies an automatic upgrade and updates the
+  livery; it no longer sets the Convoy state or `wait_lock`. `context` supplies the Convoy whose
+  name and livery scheme are updated when the vehicle is loose [CODE vehicle/vehicle.cc].
+- `convoi_t::remove_vehicle_at()` calls `v->set_convoi(NULL)` [CODE `simconvoi.cc`];
+  `depot_t::remove_vehicle()` then appends the detached vehicle to `depot_t::vehicles`. The new
+  duration and apply split means a detached vehicle can still be overhauled or maintained.
+- `depot_t::register_for_maintenance()` appends the Convoy to `under_maintenance` [CODE
+  simdepot.cc]. The capacity count and the Release Times are per vehicle, in
+  `depot_t::maintenance_queue`; see [per-vehicle work](#per-vehicle-work-and-the-depot-queue).
+- `depot_t::sync_step()` drops unbound or departed queue entries, completes jobs whose release
+  time has been reached, starts waiting jobs while the depot has free maintenance places, and steps
+  each Convoy in `under_maintenance` [CODE `simdepot.cc`].
+- `convoi_t::sync_step()` asks the depot for `convoy_maintenance_complete()` and
+  `convoy_maintenance_remaining()` while the Convoy is in `MAINTENANCE` or `OVERHAUL`; it does not
+  count `wait_lock` down itself in those states [CODE `simconvoi.cc`].
 - `depot_t::convois` is appended on arrival and removed by `remove_convoi()`, which is called from
   `sell_convoy()`, `start_convoi()` and `convoi_t::destroy()` [CODE `simdepot.cc`; `simconvoi.cc`].
   The automatic maintenance completion path reaches `convoi_t::step()`'s `ROUTE_JUST_FOUND` case,
   which calls `depot_t::start_convoi(self, false)`; that call removes the Convoy from `convois` and
-  `under_maintenance`. The normal departure path therefore cleans the depot list. A Convoy that
-  cannot start remains in the depot by design.
+  `under_maintenance`, and `start_convoi()` clears the Convoy's vehicle jobs. A Convoy that cannot
+  start remains in the depot by design.
 - `depot_t::convoi_arrived()` calls `release_maintained_vehicles()` for a mixed visit [CODE
   `simdepot.cc`]. The Depot Consist Order design removes this rule [PROPOSED].
 - Maintenance and overhaul completion happens in `convoi_t::step()`: when `wait_lock <= 0`, it
   advances past the depot entry if that is still current and sets `ROUTING_1` [CODE
   `simconvoi.cc`]. The design's Target Fleet Size check and Depot Assembly must intercept this
   transition; otherwise an Original Convoy leaves the depot without the departure check. The
-  natural hook is `depot_t::sync_step()`: before it steps a Convoy whose `wait_lock` is about to
-  expire, it checks the target and the pending assembly. If the target is met, it converts the
-  Convoy to a Held Convoy. If the order is still waiting for other vehicles, it holds the Convoy in
-  its maintenance state. In neither case does it let `convoi_t::step()` set `ROUTING_1`.
+  natural hook is `depot_t::sync_step()`: before it lets the jobs of a Convoy complete, it checks
+  the target and the pending assembly. If the target is met, it converts the Convoy to a Held
+  Convoy. If the order is still waiting for other vehicles, it holds the Convoy in its maintenance
+  state. In neither case does it let `convoi_t::step()` set `ROUTING_1`.
 
 ### Depot vehicle pool and primitives
 
@@ -210,53 +213,64 @@ separate three things:
 2. Applying the work to the vehicle (counter resets, cost booking, overhaul count and upgrade).
 3. Assigning the duration to the Convoy `wait_lock` or to the vehicle's Release Time.
 
-`vehicle_t::overhaul()` also reads `cnv->front()` and `cnv->get_livery_scheme_index()` to rename
-the Convoy and update the livery when an automatic upgrade applies [CODE `vehicle/vehicle.cc`].
-A loose vehicle has no Convoy, so the refactor must pass the departing Convoy's livery scheme to
-the work method, or apply the livery and name update at commit. The recommended shape is a
-`vehicle_t` method that returns the duration and applies the vehicle-local work, plus the existing
-`convoi_t` callers that aggregate the maximum for a whole-Convoy visit and apply the Convoy-level
-livery and name changes. The blank-order path must produce exactly the current `wait_lock` and
-state so that existing behaviour and tests do not change.
+`vehicle_t::overhaul(convoi_t *context)` reads `context->front()` and
+`context->get_livery_scheme_index()` to rename the Convoy and update the livery when an automatic
+upgrade applies [CODE `vehicle/vehicle.cc`]. `context` is the arriving Convoy, so a loose vehicle
+can be overhauled with no Convoy by passing NULL; the livery update is then skipped. The
+blank-order path now uses the same per-vehicle queue and produces the same total wait as a queue of
+the Consist's vehicles rather than a multiplied whole-Convoy wait.
 
-### Per-vehicle Release Time and job state
+### Per-vehicle job state
 
-Add to `vehicle_t`:
+`vehicle_t` holds:
 
 - `sint64 depot_release_time`: the tick at which the work completes. 0 means no pending depot job.
-- `uint8 depot_job_state`: 0 = none, 1 = waiting for depot capacity, 2 = in progress, 3 = complete.
+- `uint8 depot_job_state`: `depot_job_none`, `depot_job_waiting`, `depot_job_in_progress` or
+  `depot_job_complete`.
 - `uint32 depot_queue_index`: the vehicle's position in the depot queue, used to rebuild the queue
-  after a load without relying on pointer order. The depot stores the next index to allocate.
+  after a load without relying on pointer order.
+- `sint64 depot_job_duration`: the length of the job in ticks, stored before `maintain()` resets
+  `active_service_time`.
 
-All three fields are saved in `vehicle_t::rdwr_from_convoi()` under `EX_SAVE_MINOR` 24, with
+All four fields are saved in `vehicle_t::rdwr_from_convoi()` under `EX_SAVE_MINOR` 24, with
 defaults 0 for older saves. A vehicle inside a Convoy may have a pending job while the Convoy is
-under maintenance; validate that the state is consistent on load. A vehicle in `depot_t::vehicles`
-whose work is due is queued immediately unless it is mothballed.
+under maintenance; `depot_t::rebuild_maintenance_queue()` restores the queue from the saved fields
+after a load. A vehicle in `depot_t::vehicles` whose work is due is queued immediately unless it is
+mothballed; the pool-side due-work check is not yet wired into `depot_t::sync_step()`.
 
-The alternative is a depot-side list of `(vehicle_t*, release_time, state, queue_index)`. It avoids
-three fields on every vehicle but needs matching on load, because `vehicle_t` has no persistent id.
-The per-vehicle fields are simpler and travel with the vehicle if the player moves it; they are the
-recommendation.
+The alternative is a depot-side list of `(vehicle_t*, release_time, state, queue_index, duration)`.
+It avoids four fields on every vehicle but needs matching on load, because `vehicle_t` has no
+persistent id. The per-vehicle fields are simpler and travel with the vehicle if the player moves
+it; they are the implemented form.
 
 ### Per-vehicle work and the depot queue
 
-Depot maintenance capacity is counted per vehicle, not per Convoy. Each arriving vehicle receives
-its own job state, its own queue position and its own Release Time. The depot starts work on up to
-`building_desc_t::get_max_vehicles_under_maintenance()` vehicles at a time, in queue order. A
-Convoy leaves when every one of its vehicles has been released, whether or not a Depot Consist
+Depot maintenance capacity is counted per vehicle, not per Convoy. Each vehicle in a maintenance
+or overhaul visit receives a job on `vehicle_t`:
+
+- `depot_job_state`: `depot_job_none`, `depot_job_waiting`, `depot_job_in_progress` or
+  `depot_job_complete`;
+- `depot_release_time`: the absolute tick when the job completes;
+- `depot_queue_index`: the deterministic position in the depot queue;
+- `depot_job_duration`: the length of the job in ticks.
+
+`depot_t::maintenance_queue` holds the vehicles with jobs in queue order. The depot starts work on
+up to `building_desc_t::get_max_vehicles_under_maintenance()` vehicles at a time
+(`depot_t::start_depot_jobs()`), marks jobs complete at their release time
+(`depot_t::complete_depot_jobs()`), and projects the release times of waiting jobs with one free
+time per maintenance place (`depot_t::reproject_depot_jobs()`). A Convoy leaves when every one of
+its vehicles is complete (`depot_t::convoy_maintenance_complete()`), whether or not a Depot Consist
 Order decomposed it.
 
-The current code counts per Convoy: `register_for_maintenance()` appends the Convoy,
-`is_awaiting_attention()` counts the vehicles of the Convoys ahead, and an oversized Convoy's
-`wait_lock` is multiplied instead of being split into separate vehicle waits [CODE `simdepot.cc`].
-The refactor replaces that accounting. `under_maintenance` remains the list of Convoys that the
-depot steps, but the capacity and Release Times are per vehicle. The saved queue order must be
-stable; the current `depot_t::rdwr_maintenance_queue()` saves the Convoy ids in order
-[CODE `simdepot.cc`], and the per-vehicle queue needs an equivalent saved order.
+The queue is rebuilt after a load by `depot_t::rebuild_maintenance_queue()`, which scans
+`depot_t::vehicles` and the vehicles of every Convoy in `convois`, sorts by `depot_queue_index`,
+and repairs `next_maintenance_queue_index`. `depot_t::validate_maintenance_queue()` calls it from
+`karte_t::load()`. The per-vehicle fields and the next index are saved under `EX_SAVE_MINOR` 24.
 
 A vehicle in the Depot Vehicle Pool that becomes due for maintenance or overhaul is worked on as
-soon as it becomes due, unless it is mothballed. Mothballing has no interface in the current code
-and is deferred.
+soon as it becomes due, unless it is mothballed. The pool-side due-work check is not yet wired into
+`depot_t::sync_step()`; the current phase queues vehicles that arrive in a Convoy. Mothballing has
+no interface in the current code and is deferred.
 
 ### A pool-only solver
 
