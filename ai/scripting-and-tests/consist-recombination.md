@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger/freight H cargo cases, schedule-edit cases, passenger capacity, mail/TPO cases, nested split and three loaded pair reload cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24, delay arithmetic against the runner limits); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger/freight H cargo cases, schedule-edit cases, passenger capacity, mail/TPO cases, nested split and three loaded pair reload cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24, delay arithmetic against the runner limits); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, `rear-portion-order`, `departure-reversal` and `departure-reversal-freight` pass; `schedule-edit-divergence` accepts the D packet continuing); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -83,10 +83,12 @@ normal advance from the target entry. The reversed cases also check the traversa
 The further cases are a plain uncouple, a deleted target line, a target entry without an order, an
 unsatisfiable order, an unpowered result, collection from the stop's pool, a reversed target
 schedule, a lineless target convoy, a mirrored source schedule, a targetless order that reverses a
-two-vehicle consist, a plain uncouple of a loaded passenger carriage and a nested split:
+two-vehicle consist, a plain uncouple of a loaded passenger carriage, a nested split, a rear
+portion order check and two departure reversals:
 `plain-uncouple`, `broken-target`, `target-no-order`, `unsatisfiable-target`, `unpowered-target`,
 `pool-collection`, `reversed-target`, `lineless-target`, `reversed-source`, `facing`,
-`plain-uncouple-passenger` and `nested-split`.
+`plain-uncouple-passenger`, `nested-split`, `rear-portion-order`, `departure-reversal` and
+`departure-reversal-freight`.
 
 `facing` builds `[retained, turned]`, a two-vehicle consist that is valid as written. Its entry at
 the junction carries a targetless consist order for `[turned, retained]`. The turned vehicle is an
@@ -106,6 +108,28 @@ and a portion on line P `[second, first]`, then divides that portion at the nort
 `[second]` on line P and `[first]` on line Q. It asserts both final portions, the vehicle count and
 the absence of stranded or duplicated vehicles. Both cases passed on 2026-11-22
 [EXECUTION-VERIFIED:2026-11-22, Debug x64].
+
+`rear-portion-order` starts `[retained, split, split_tail]` and retains only `retained`, so the
+displaced vehicles are the rear `[split, split_tail]` group. The target entry's order has two slots
+whose alternatives match any vehicle, so the order treats either vehicle order as valid and a
+reversed collection order reaches `convoi_t::match_consist_order` unchanged. The case asserts that
+`split`, the vehicle that stood immediately behind `retained`, is the portion's leading vehicle and
+that it stands ahead of `split_tail`. `convoi_t::commit_recombined_consist` creates the displaced
+group in the order in which the vehicles stood, so the portion is promoted in that order and
+departs with `split` leading. The case passed on the fixed build
+[EXECUTION-VERIFIED:2026-11-25, Debug x64].
+
+`departure-reversal` uses a multiple unit whose rear car has a driving cab. Its target line leaves
+the junction west while the source arrives east, so the portion must reverse.
+`convoi_t::get_terminal_shunt_mode` selects `change_direction`: the array order reverses and the
+train is driven from the rear cab. The case asserts the order in which the vehicles stood before
+departure, then the reversed order and the flipped per-vehicle orientation flags.
+
+`departure-reversal-freight` uses a powered leader and a rear vehicle with no head-end cab (a
+brake van). The target line also leaves west. `convoi_t::get_terminal_shunt_mode` uses a turning or
+shunting mode; the two-vehicle array order stays the same, every vehicle is turned, and the
+locomotive remains leading with the brake van trailing. The case asserts the unchanged order and
+the flipped flags.
 
 ## Paired-exchange cases (`pair-cases/`)
 
@@ -278,9 +302,10 @@ packet is ordinary saved halt cargo; no factory-produced packet takes part in an
   stops.
 - `schedule-edit-divergence` starts with a source A-B-P and a target B-D-P; the target is edited
   mid-run to B-D. A trailing wagon holds one packet for D and one for P, so the two requirements
-  diverge at B; `convoi_t::discharge_divergent_wagons` empties the wagon at B and both packets
-  become halt cargo. A full leading wagon for P prevents the discharged P packet from being reloaded
-  in the same pass.
+  diverge at B; `convoi_t::discharge_divergent_wagons` empties the wagon at B. The P packet becomes
+  halt cargo. The D packet is still served by the edited target schedule and may wait at the halt
+  or continue on the portion. A full leading wagon for P keeps the discharged P packet at the
+  halt for the remainder of the pass.
 - `schedule-edit-through-pool` removes the target entry's consist order mid-run, so no split-off
   portion forms. A wagon loaded for D stays loose at B with its load rather than being carried past
   its next transfer.
@@ -468,9 +493,14 @@ editing; run the full set only before pushing or merging a package:
   touches the saved journey-time table, run `pickup-reload` as well. A change to
   `unload_newly_loose_cargo`, the loose-stock passenger rule or the TPO selection must run
   `plain-uncouple-passenger`, `pair-passenger-loose`, `mail-tpo` and `mail-no-tpo`. A change to
-  `convoi_t::match_consist_order`, including the branch that handles optional slots, or
-  to the Multi-Owner Access Rule must run both `ownership-*` cases; a change to the incremental
-  access check in `paired_exchange_solver_t` must run the paired cases.
+  the order in which `convoi_t::commit_recombined_consist` collects displaced vehicles must run
+  `rear-portion-order`; a change to its deferred stop unload for a portion being formed must run
+  `goods-division`, `multi-destination-same-portion` and `schedule-edit-divergence`. A change to
+  the departure direction, `convoi_t::reverse_order` or `convoi_t::get_terminal_shunt_mode` must
+  run `departure-reversal` and `departure-reversal-freight`. A change to
+  `convoi_t::match_consist_order`, including the branch that
+  handles optional slots, or to the Multi-Owner Access Rule must run both `ownership-*` cases; a
+  change to the incremental access check in `paired_exchange_solver_t` must run the paired cases.
 - **Package.** Run the whole group once the package's behaviour is complete and before committing
   it: `forward` plus `cases/` (the division and targetless cases), `pair-cases/` (the paired
   exchanges), `choose-cases/` (the choose-signal cases), `pickup-cases/` (the pick-up goods
@@ -540,6 +570,10 @@ remain unscripted.
   fixture map's saved settings carry no toll revenue percentage, so `player_t::get_way_tolls()` cannot
   distinguish a working apportionment from a missing one. A case would need a map whose saved settings enable
   the toll, or a way for a script to read the apportioned revenue directly.
+- `schedule-edit-divergence` accepts the D packet either remaining at the halt or continuing on
+  the portion, because the edited target schedule still serves D. It asserts that the divergent P
+  packet is discharged and that the wagon carries at most the D load. Whether a loading pass
+  should exclude any packet discharged at the same stop is open.
 - The flash-load full-credit case requires the interval between the wagon release and the collector's next B
   arrival to be at least the load share. Whether a future change to loading times or service timings could
   make that interval too short is not bounded by the fixture; the case fails with an explicit message rather
@@ -644,5 +678,14 @@ On 2026-11-22 the passenger loose-unload fix and its cases were added:
 15-case pick-up group had 10 passes and the five known fare-rounding failures; the three loaded pair
 reloads and the `pair-reload` regression passed with the checklist pair counts recorded above
 [EXECUTION-VERIFIED:2026-11-22, ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix,
-Debug x64]. The planned coverage list is the operation-scope record from
+Debug x64]. On 2026-11-25 the `rear-portion-order` case was added with the standing-order and
+deferred-unload fix in `convoi_t::commit_recombined_consist`: it failed before the fix with
+`split_tail` in the leading slot and passes after it. The 16-case division group passed, including
+`departure-reversal` and `departure-reversal-freight`, which were added on the same day and passed
+on the same build; the 15-case pick-up group had 10 passes and the five known fare-rounding
+failures; the 11-case paired
+group, the 17-case choose-signal group, the two ownership cases and the 20-case road and
+maintenance groups all passed on the fixed Debug x64 build with `-nomidi`
+[EXECUTION-VERIFIED:2026-11-25, ex-15 @ 1578e7a689 plus working-tree fix]. The planned coverage
+list is the operation-scope record from
 [ex-15/recombination-design](../ex-15/recombination-design.md).

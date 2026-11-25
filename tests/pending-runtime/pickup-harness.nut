@@ -74,6 +74,7 @@ local f = {
 	last_arrival = 0,
 	period = 0,
 	third_observations = 0,
+	divergence_portion_left_b = false,
 	steps = 0
 }
 
@@ -1273,33 +1274,52 @@ function observe_schedule_edit_divergence()
 			"the divergence target portion does not hold the mixed-destination wagon")) { return }
 		if (!check(portion.get_current_entry_id() == 51 && same_pos(slots[0].pos, B),
 			"the divergence target portion is not at its B entry")) { return }
-		if (!check(slots[1].cargo == 0,
-			"the mixed-destination wagon kept " + slots[1].cargo + " units at the division")) { return }
+		// The target line still serves D, so the D packet may already have
+		// been reloaded into the wagon. The wagon carries the D packet at most;
+		// the P packet is the divergent one.
+		local expected_d = f.injected_amount - f.second_amount
+		if (!check(slots[1].cargo <= expected_d,
+			"the mixed-destination wagon carried more than its D load at the division: " + slots[1].cargo + " of " + expected_d)) { return }
 		f.split_id = portion.id
 		f.phase = "wait-for-halt-cargo"
 		return
 	}
 	if (f.phase == "wait-for-halt-cargo")
 	{
-		// Freight unloaded at a halt spends its transshipment time in the
-		// transferring list before get_freight_to_dest can read it as waiting
-		// cargo. The mixed wagon must still be empty when both packets become
-		// ready; carrying either packet away is not a successful discharge.
+		// The P packet is divergent: the edited target line omits it, so it
+		// becomes halt cargo. The D packet is still served by the target line,
+		// so it may wait at B or continue on the portion. The wagon carries the
+		// D packet at most; a P packet aboard would exceed that.
 		local portion = convoy_x(f.split_id)
 		if (!check(portion.is_valid(), "the divergence target portion disappeared")) { return }
 		local slots = portion.get_vehicle_snapshot()
-		if (!check(slots.len() == 2 && same_desc(slots[1].desc, f.wagon) && slots[1].cargo == 0,
-			"the mixed-destination wagon carried discharged cargo onward")) { return }
+		if (!check(slots.len() == 2 && same_desc(slots[1].desc, f.wagon),
+			"the divergence target portion has lost the mixed wagon")) { return }
+		local expected_d = f.injected_amount - f.second_amount
+		local carried_d = slots[1].cargo
+		if (!check(carried_d <= expected_d,
+			"the mixed-destination wagon carried more than its D load onward: " + carried_d + " of " + expected_d)) { return }
+		if (portion.get_current_entry_id() != 51)
+		{
+			// The portion has left B. Any D packet it carried is aboard or
+			// already delivered.
+			f.divergence_portion_left_b = true
+		}
 
 		local halt = halt_at(B)
 		if (!check(halt != null, "the B halt disappeared during divergence discharge")) { return }
-		local expected_d = f.injected_amount - f.second_amount
 		local waiting_d = halt.get_freight_to_dest(f.goods, f.consumer_pos)
 		local waiting_p = halt.get_freight_to_dest(f.goods, f.p_factory_pos)
-		if (waiting_d != expected_d || waiting_p != f.second_amount)
+		if (waiting_p != f.second_amount)
 		{
-			if (!check(waiting_d <= expected_d && waiting_p <= f.second_amount,
-				"B holds more than the two discharged packets")) { return }
+			if (!check(waiting_p <= f.second_amount,
+				"B holds more than the discharged P packet")) { return }
+			return
+		}
+		if (!f.divergence_portion_left_b && waiting_d + carried_d != expected_d)
+		{
+			if (!check(waiting_d <= expected_d,
+				"B holds more than the D packet")) { return }
 			return
 		}
 		pass()

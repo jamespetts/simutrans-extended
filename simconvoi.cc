@@ -11610,6 +11610,12 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 		cargo_service = &default_cargo_service;
 	}
 
+	// form_divided_portion assigns the portion's target schedule after this
+	// function returns. The stop unload therefore waits for that assignment, so
+	// packet routes are repaired against the target schedule and through cargo
+	// stays aboard.
+	const bool defer_unload = cargo_service && cargo_service->schedule && cargo_service->schedule != schedule;
+
 	vector_tpl<vehicle_t*> final_consist;
 	vector_tpl<bool> final_reversed;
 	vector_tpl<vehicle_t*> available_vehicles;
@@ -11682,7 +11688,7 @@ convoi_t::consist_order_process_result convoi_t::process_consist_order(const con
 			recipient_is_convoy = order.get_available_to_is_convoy();
 		}
 
-		const uint32 recombined_turn_ticks = commit_recombined_consist(final_consist, final_reversed, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy, recipient_is_any, recipient_is_same, coupling_operations);
+		const uint32 recombined_turn_ticks = commit_recombined_consist(final_consist, final_reversed, halt, recipient_id, recipient_is_convoy, split_candidate, joining_convoy, recipient_is_any, recipient_is_same, coupling_operations, defer_unload);
 		if (turn_ticks)
 		{
 			*turn_ticks = recombined_turn_ticks;
@@ -11940,8 +11946,11 @@ convoi_t::consist_order_process_result convoi_t::match_consist_order(const consi
 					&& shadow_consist[i]->matches_consist_order_element(element, j)
 					&& choose_candidate_orientation(shadow_consist[i], i, element_count, final_consist, final_reversed, chosen_reversed))
 				{
-					// The existing vehicle in its existing position is a match - maybe
-					// it is in the right position but the wrong orientation.
+					// The existing vehicle in its existing position is the first
+					// choice. Trying it first keeps a consist that already stands in
+					// the order at zero coupling cost; a different vehicle is chosen
+					// when this one does not fit. The vehicle may still be in the
+					// right position but the wrong orientation.
 					final_consist.append(shadow_consist[i]);
 					final_reversed.append(chosen_reversed);
 					existing_vehicle_count++;
@@ -12166,7 +12175,7 @@ static uint32 count_shunt_coupling_operations(const vector_tpl<vehicle_t*> *cons
 }
 
 
-uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same, uint32 *coupling_operations)
+uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same, uint32 *coupling_operations, bool defer_unload)
 {
 	// Assumptions: the vector consists of an ordered set of vehicles to make up the new consist.
 	// The vehicles may include vehicles already present in the consist, but will always include
@@ -12246,6 +12255,19 @@ uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicle
 		if (vehicles.get_count() > layout_slots.get_count())
 		{
 			can_lay_out = false;
+		}
+	}
+
+	// A split-off group may become a running convoy, so its vehicle array
+	// records the order the vehicles stand in: index 0 is the front of travel.
+	// Record that order before the removal loop changes the array; the group is
+	// restored to it below.
+	vector_tpl<vehicle_t*> source_order;
+	if (split_candidate)
+	{
+		for (uint8 i = 0; i < vehicle_count; i++)
+		{
+			source_order.append(vehicle[i]);
 		}
 	}
 
@@ -12386,6 +12408,27 @@ uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicle
 		}
 	}
 
+	// Restore the standing order of the split-off group. The group becomes a
+	// new running convoy whose front is its first vehicle. The removal loop
+	// reaches vehicles from the rear, so it collects them rear-first; this
+	// block puts the vehicle that stood at the front first. A portion
+	// continuing in the direction it already faces then departs in that order.
+	// If the target schedule departs the other way, the ordinary departure
+	// logic reverses the order or drives from the rear cab as the vehicle
+	// descriptors allow.
+	if (split_candidate && displaced_vehicles.get_count() > 1)
+	{
+		vector_tpl<vehicle_t*> ordered_displaced;
+		for (vehicle_t *const v : source_order)
+		{
+			if (displaced_vehicles.is_contained(v))
+			{
+				ordered_displaced.append(v);
+			}
+		}
+		displaced_vehicles = ordered_displaced;
+	}
+
 	vehicle[0]->set_leading(true);
 	vehicle[vehicle_count - 1]->set_last(true);
 
@@ -12470,10 +12513,12 @@ uint32 convoi_t::commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicle
 
 	// A vehicle that joined from another convoy may not have received that
 	// convoy's arrival unload pass. Discharge any packet whose destination or
-	// next transfer is this stop before the consist departs. A division defers
-	// this until both portions are known, so that passengers and goods can be
-	// moved to a portion that serves them first.
-	if (halt.is_bound() && !split_candidate)
+	// next transfer is this stop before the consist departs. A division waits
+	// until both portions are known, so that passengers and goods can move to a
+	// portion that serves them first. A portion being formed also waits for its
+	// target schedule, which is assigned after this commit; the caller then
+	// discharges with that schedule and through cargo stays aboard.
+	if (halt.is_bound() && !split_candidate && !defer_unload)
 	{
 		unload_cargo_for_stop(halt);
 	}

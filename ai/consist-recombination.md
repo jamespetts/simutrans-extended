@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case)
 ---
 # Consist recombination
 
@@ -175,8 +175,12 @@ released from `AWAITING_RECOMBINATION`, and both convoys continue.
 the failed slot: it fills slots in order, tries the vehicle already in the slot first, then the
 available vehicles, enforces the coupling predicates (head, adjacent and tail) in the orientation
 chosen for each vehicle, deduplicates a vehicle already used in an earlier slot, and accepts the
-result only when it is complete, powered and permitted by the Multi-Owner Access Rule. It does not
-backtrack; the paired exchange uses `paired_exchange_solver_t` instead. The rule is that the owner
+result only when it is complete, powered and permitted by the Multi-Owner Access Rule. Because the
+vehicle already in the slot is tried first, a slot whose existing vehicle satisfies the order and
+couples in place costs nothing to keep; a rearrangement happens only where that vehicle does not
+satisfy the slot or cannot couple in the resulting sequence. The commit then charges only the
+couplings it actually breaks or makes. The matching pass is greedy; the paired exchange uses
+`paired_exchange_solver_t`, which searches both orders jointly. The rule is that the owner
 of the first powered vehicle in the final consist (`L`) must permit every other vehicle's owner
 (`v`): `owner(L)->allows_access_to(owner(v)->get_player_nr())`. `convoi_t::match_consist_order`,
 including the branch that handles optional slots, applies it to the completed consist;
@@ -205,17 +209,32 @@ editor's list verdict is facing-neutral because it cannot know which vehicle ano
 supply or which way round that vehicle will be; the runtime resolves that choice.
 
 `convoi_t::commit_recombined_consist` moves, substitutes, adds and removes vehicles and creates a
-laid-over convoy for the displaced vehicles. It delivers cargo whose destination is the stop, repairs
-the route of packets that will travel onward, and retains through cargo in vehicles that become loose
-stock (including a vehicle substituted out of the consist). A `discharge_payload` entry forces a full
-discharge. For a division, delivery in the split candidate is deferred until `form_divided_portion`
-has assigned its target schedule. When the receiver is the shared-contact mover and its route ends at
-the joining convoy's contact tile, the commit records both consists' vehicle positions before
-detaching them and lays the final groups out on those slots with `vehicle_t::set_layout_position`: the
-joining convoy's remainder in the front slots, the receiver's final consist behind it and loose stock
-behind that. The joining convoy releases and re-takes its reservations around the repositioning. The commit
-unreserves the receiving convoy's reservations and calls `convoi_t::reserve_own_tiles()`;
+laid-over convoy for the displaced vehicles. A split-off group is created in the order in which its
+vehicles stood in the consist being divided, front of travel first, so `form_divided_portion`
+matches the target order against the formation in the order the vehicles stand. The ordering is
+applied when the group is created; the commit's coupling count covers only the couplings it breaks
+or makes. The commit delivers cargo whose destination is the stop, repairs the route of packets
+that will travel onward, and retains through cargo in vehicles that become loose stock (including a
+vehicle substituted out of the consist). A `discharge_payload` entry forces a full discharge. For a
+division, delivery in the split candidate is deferred until `form_divided_portion` has assigned its
+target schedule. The commit also defers the portion's stop unload until that assignment, so the
+unload repairs packet routes against the target schedule and keeps through cargo aboard. When the
+receiver is the shared-contact mover and its route ends at the joining convoy's contact tile, the
+commit records both consists' vehicle positions before detaching them and lays the final groups
+out on those slots with `vehicle_t::set_layout_position`: the joining convoy's remainder in the
+front slots, the receiver's final consist behind it and loose stock behind that. The joining
+convoy releases and re-takes its reservations around the repositioning. The commit unreserves the
+receiving convoy's reservations and calls `convoi_t::reserve_own_tiles()`;
 `convoi_t::form_divided_portion` removes the promoted portion from and re-adds it to `welt->sync`.
+
+A promoted portion leaves the stop in the direction its schedule gives it. If that is the direction
+in which its vehicles already stand, it departs directly in that direction. If the schedule leaves
+in the opposite direction, the ordinary departure logic (`convoi_t::go_alte_direction`) finds the
+front facing the other way and calls `convoi_t::reverse_order`, which charges the existing
+reversal time. `convoi_t::get_terminal_shunt_mode` returns `change_direction` when the rear
+vehicle's next end can be a head, so a multiple unit, or a push-pull consist whose rear vehicle has
+a driving cab, is driven from its rear cab; otherwise the mode is `shunting_loco`, `rearrange` or
+`wye` and the existing shunting rules apply.
 
 `convoi_t::commit_paired_exchange` handles both sides of a pair atomically: vehicles that leave both
 final consists keep through cargo when they are laid out as loose stock; direct transfers keep their load; a

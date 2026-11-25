@@ -122,9 +122,13 @@ local fixture = {
 	release_convoy_removed = false,
 	retained = null,
 	split = null,
+	split_tail = null,
 	pool = null,
 	uncouple_entry_id = UNCOUPLE_ENTRY_ID,
 	uncouple_index = 1,
+	departure_checked = false,
+	departure_flag_front = false,
+	departure_flag_rear = false,
 	reached_junction = false,
 	pool_prepared = false,
 	pool_donor_id = 0,
@@ -409,6 +413,77 @@ function select_nested_vehicles()
 }
 
 
+// Select two powered bidirectional cars that form a multiple unit: each can
+// lead, trail and be driven from the rear, and each couples to the other in
+// both directions. The departure-reversal case needs the rear car to offer a
+// driving cab when the train is reversed, so that
+// convoi_t::get_terminal_shunt_mode selects change_direction.
+function select_multiple_unit_pair()
+{
+	local candidates = []
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+	{
+		if (desc.get_power() == 0) { continue }
+		if (!desc.is_bidirectional()) { continue }
+		if (!desc.can_be_first() || !desc.can_be_last()) { continue }
+		if (!desc.can_be_first_when_reversed()) { continue }
+		if (desc.needs_electrification()) { continue }
+		if (desc.get_successors().len() > 0) { continue }
+		candidates.append(desc)
+	}
+	foreach (a in candidates)
+	{
+		foreach (b in candidates)
+		{
+			if (!a.is_equal(b)
+				&& vehicle_desc_x.is_coupling_allowed(a, b)
+				&& vehicle_desc_x.is_coupling_allowed(b, a))
+			{
+				return [a, b]
+			}
+		}
+	}
+	return null
+}
+
+
+// Select a freight-like reversal pair: a powered leader and a brake van with
+// no head-end cab. convoi_t::get_terminal_shunt_mode uses a turning or
+// shunting mode; the pair leaves in the opposite direction with its array
+// order unchanged and every vehicle turned.
+function select_freight_reversal_pair()
+{
+	local leaders = []
+	local tails = []
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+	{
+		if (desc.needs_electrification()) { continue }
+		if (desc.get_successors().len() > 0) { continue }
+		if (desc.get_power() > 0 && desc.can_be_first())
+		{
+			leaders.append(desc)
+		}
+		else if (desc.get_power() == 0 && desc.can_be_last()
+			&& !desc.can_be_first() && !desc.can_be_first_when_reversed())
+		{
+			tails.append(desc)
+		}
+	}
+	foreach (leader in leaders)
+	{
+		if (!vehicle_desc_x.is_coupling_allowed(leader, leader)) { continue }
+		foreach (tail in tails)
+		{
+			if (vehicle_desc_x.is_coupling_allowed(leader, tail))
+			{
+				return [leader, tail]
+			}
+		}
+	}
+	return null
+}
+
+
 // Whether a descriptor list contains the given descriptor. The script API's
 // descriptor identity is compared with is_equal().
 function descriptor_in_list(list, desc)
@@ -525,6 +600,36 @@ function select_follower(leader)
 }
 
 
+// The rear vehicle of the split-off group in the rear-portion-order case. An
+// unpowered descriptor that is different from the vehicle in front of it is
+// preferred, so the case can tell the two vehicles apart by descriptor. The
+// vehicle must also be able to stand at the front in some orientation:
+// convoi_t::match_consist_order accepts the group in its collected order, and a
+// vehicle that cannot lead would make it repair that order. A descriptor equal
+// to avoid is skipped so the case can distinguish the two vehicles. If the
+// pakset provides no other suitable follower, setup fails with an explicit
+// message.
+function select_tail_follower(leader, avoid)
+{
+	local fallback = null
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_rail))
+	{
+		if (desc.needs_electrification()) { continue }
+		if (!desc.can_be_last()) { continue }
+		// The case needs a rear vehicle that can also stand at the front in
+		// some orientation, or the matcher would reject the reversed group and
+		// silently repair the order that the case is testing.
+		if (!desc.can_be_first() && !desc.can_be_first_when_reversed()) { continue }
+		if (desc.get_successors().len() > 0) { continue }
+		if (!vehicle_desc_x.is_coupling_allowed(leader, desc)) { continue }
+		if (avoid != null && desc.is_equal(avoid)) { continue }
+		if (desc.get_power() == 0) { return desc }
+		if (fallback == null) { fallback = desc }
+	}
+	return fallback
+}
+
+
 
 function make_entry(pos, unique_entry_id)
 {
@@ -546,6 +651,23 @@ function make_order(descriptors)
 		local alternative = vehicle_description_x()
 		alternative.specific_vehicle = desc
 		slot.alternatives = [alternative]
+		slots.append(slot)
+	}
+	order.slots = slots
+	return order
+}
+
+
+// An order whose slots each hold one wildcard alternative. Any vehicle fills
+// any slot, so either vehicle order satisfies the order.
+function make_wildcard_order(slot_count)
+{
+	local order = consist_order_x()
+	local slots = []
+	for (local i = 0; i < slot_count; i++)
+	{
+		local slot = consist_order_element_x()
+		slot.alternatives = [vehicle_description_x()]
 		slots.append(slot)
 	}
 	order.slots = slots
@@ -633,6 +755,11 @@ function create_depot_convoy(pl, descriptors, what)
 
 function source_consist_descriptors()
 {
+	if (case_name == "rear-portion-order" || case_name == "departure-reversal"
+		|| case_name == "departure-reversal-freight")
+	{
+		return [fixture.retained, fixture.split, fixture.split_tail]
+	}
 	return [fixture.retained, fixture.split]
 }
 
@@ -692,6 +819,19 @@ function check_target_line_readback()
 
 	if (!check(TARGET_ENTRY_ID in schedule.orders, "target line P schedule has no order at entry " + TARGET_ENTRY_ID)) { return false }
 	local order = schedule.orders[TARGET_ENTRY_ID]
+	if (case_name == "rear-portion-order" || case_name == "departure-reversal"
+		|| case_name == "departure-reversal-freight")
+	{
+		if (!check(order.slots.len() == 2, "target line P order at entry " + TARGET_ENTRY_ID + " has " + order.slots.len() + " slots, expected 2")) { return false }
+		for (local i = 0; i < 2; i++)
+		{
+			if (!check(order.slots[i].alternatives.len() == 1, "target line P order slot " + i + " has " + order.slots[i].alternatives.len() + " alternatives, expected 1")) { return false }
+			local alternative = order.slots[i].alternatives[0]
+			if (!check(alternative.specific_vehicle == null, "target line P order slot " + i + " names a specific vehicle; this case requires a wildcard")) { return false }
+			if (!check(alternative.empty, "target line P order slot " + i + " is not a wildcard alternative")) { return false }
+		}
+		return true
+	}
 	local expected = target_order_descriptors()
 	if (!check(order.slots.len() == expected.len(), "target line P order at entry " + TARGET_ENTRY_ID + " has " + order.slots.len() + " slots, expected " + expected.len())) { return false }
 	for (local i = 0; i < expected.len(); i++)
@@ -713,7 +853,15 @@ function create_target_line(pl)
 	fixture.target_line_id = line.id
 
 	local entries = []
-	if (case_name == "reversed-target")
+	if (case_name == "departure-reversal" || case_name == "departure-reversal-freight")
+	{
+		// The portion is at the junction and the target schedule's next entry
+		// is the trunk stop to the west, so the portion must leave in the
+		// opposite direction from the source's eastbound arrival.
+		entries.append(make_entry(JUNCTION_POS, TARGET_ENTRY_ID))
+		entries.append(make_entry(TRUNK_POS, NEXT_TARGET_ENTRY_ID))
+	}
+	else if (case_name == "reversed-target")
 	{
 		entries.append(make_entry(NORTH_POS, PREVIOUS_TARGET_ENTRY_ID))
 		entries.append(make_entry(JUNCTION_POS, TARGET_ENTRY_ID))
@@ -724,7 +872,15 @@ function create_target_line(pl)
 		entries.append(make_entry(NORTH_POS, NEXT_TARGET_ENTRY_ID))
 	}
 	local schedule = schedule_x(wt_rail, entries)
-	if (case_name != "target-no-order")
+	if (case_name == "rear-portion-order" || case_name == "departure-reversal"
+		|| case_name == "departure-reversal-freight")
+	{
+		// A two-slot wildcard order: neither slot prefers a descriptor, so the
+		// matcher treats the displaced group's existing order as already
+		// satisfying the order, whichever way round the group was collected.
+		schedule.orders.rawset(TARGET_ENTRY_ID, make_wildcard_order(2))
+	}
+	else if (case_name != "target-no-order")
 	{
 		schedule.orders.rawset(TARGET_ENTRY_ID, make_order(target_order_descriptors()))
 	}
@@ -1035,7 +1191,32 @@ function setup()
 		if (!check(main_halt.get_name() == loop_halt.get_name(), "the junction main and loop platforms have different stop names, so they are separate halts and the source cannot see the laid-over pool vehicle")) { return false }
 	}
 
-	if (case_name == "plain-uncouple-passenger")
+	if (case_name == "rear-portion-order")
+	{
+		local trio = select_vehicles()
+		if (!check(trio != null, "no pair of independently powered rail vehicles that can run on non-electrified track is available")) { return false }
+		fixture.retained = trio[0]
+		fixture.split = trio[1]
+		fixture.split_tail = select_tail_follower(fixture.split, fixture.split)
+		if (!check(fixture.split_tail != null, "no rail vehicle that can be coupled behind the split-off leader is available")) { return false }
+	}
+	else if (case_name == "departure-reversal")
+	{
+		local pair = select_multiple_unit_pair()
+		if (!check(pair != null, "no pair of bidirectional powered railcars that can be driven from the rear cab is available")) { return false }
+		fixture.retained = pair[0]
+		fixture.split = pair[1]
+		fixture.split_tail = pair[0]
+	}
+	else if (case_name == "departure-reversal-freight")
+	{
+		local pair = select_freight_reversal_pair()
+		if (!check(pair != null, "no powered leader and rear vehicle that cannot be a head is available")) { return false }
+		fixture.retained = pair[0]
+		fixture.split = pair[0]
+		fixture.split_tail = pair[1]
+	}
+	else if (case_name == "plain-uncouple-passenger")
 	{
 		if (!check(select_passenger_carriage_pair(), "no powered passenger railcar with a passenger carriage whose accommodation class the railcar cannot load is available")) { return false }
 	}
@@ -2393,11 +2574,249 @@ function check_nested_second_formation(portion, second)
 }
 
 
+// The fixture's trains run east, so a slot with a smaller x is behind one with
+// a larger x. Within one tile the smaller steps value is behind.
+function slot_is_behind(a, b)
+{
+	if (a.pos.x != b.pos.x)
+	{
+		return a.pos.x < b.pos.x
+	}
+	return a.steps < b.steps
+}
+
+
+// The rear-portion-order case: the source arrives as [retained, split,
+// split_tail] and the source order retains only the leader. The target order
+// is two wildcard slots, so the displaced group [split, split_tail] satisfies
+// the order in either array order. The group must nevertheless keep its
+// physical order: split, the vehicle that stood immediately behind the
+// retained leader, must lead the portion and split_tail must be behind it. A
+// group collected from the rear of the source in reverse puts split_tail in
+// slot 0, and the portion then departs with its rear vehicle leading.
+function observe_rear_portion_order()
+{
+	local src = source_convoy()
+	if (!src.is_valid())
+	{
+		fail("the source convoy disappeared before the rear-portion order could be observed")
+		return
+	}
+
+	local on_line = target_line_convoys()
+	if (on_line.len() > 1)
+	{
+		fail("target line P has " + on_line.len() + " convoys; expected exactly one split-off portion")
+		return
+	}
+	if (on_line.len() == 0)
+	{
+		if (laid_over_carrier(fixture.split) != null)
+		{
+			fixture.loose_stock_seen = true
+		}
+		fixture.waiting_for = "a split-off portion on target line P"
+		if (!source_waiting_at_uncouple())
+		{
+			return
+		}
+		junction_progress(fixture.waiting_for)
+		return
+	}
+
+	local portion = on_line[0]
+	local source_vehicles = src.get_vehicles()
+	if (!check(source_vehicles.len() == 1 && vehicle_matches(source_vehicles[0], fixture.retained), "the source convoy does not hold exactly the retained leader")) { return }
+	if (!check(portion.get_line() != null && portion.get_line().is_valid() && portion.get_line().id == fixture.target_line_id, "the split-off portion is not assigned to target line P")) { return }
+	if (!check(portion.get_current_entry_id() == TARGET_ENTRY_ID, "the split-off portion is at entry " + portion.get_current_entry_id() + ", expected target entry " + TARGET_ENTRY_ID)) { return }
+	if (!check(portion.get_state() == convoy_state_loading, "the split-off portion is in state " + portion.get_state() + ", expected the loading state " + convoy_state_loading)) { return }
+
+	local slots = portion.get_vehicle_snapshot()
+	if (!check(slots.len() == 2, "the split-off portion snapshot has " + slots.len() + " slots, expected 2")) { return }
+	if (!check(slots[0].index == 0 && slots[1].index == 1, "the split-off portion snapshot slots are not in running order")) { return }
+	if (!check(vehicle_matches(slots[0].desc, fixture.split), "the split-off portion's leading vehicle is not the vehicle that stood behind the retained leader")) { return }
+	if (!check(vehicle_matches(slots[1].desc, fixture.split_tail), "the split-off portion's rear vehicle is not the expected tail vehicle")) { return }
+	if (!check(!slot_is_behind(slots[0], slots[1]), "the split-off portion's leading vehicle stands behind its second vehicle; the group was collected in reverse order")) { return }
+
+	local total = world_vehicle_total()
+	if (!check(total == 3, "the map holds " + total + " vehicles, expected the original three")) { return }
+
+	fixture.portion_id = portion.id
+	pass()
+}
+
+
+// The departure-reversal case: the portion stands in the source's eastbound
+// order, but its target schedule leaves west from the junction. The ordinary
+// departure logic therefore reverses the order. The consist is a multiple
+// unit whose rear car has a driving cab, so convoi_t::get_terminal_shunt_mode
+// selects change_direction: the array reverses and the train is driven from
+// the rear cab.
+function observe_departure_reversal()
+{
+	local src = source_convoy()
+	if (!src.is_valid())
+	{
+		fail("the source convoy disappeared before the departure reversal could be observed")
+		return
+	}
+
+	local portion = convoy_x(fixture.portion_id)
+	if (!portion.is_valid())
+	{
+		local on_line = target_line_convoys()
+		if (on_line.len() > 1)
+		{
+			fail("target line P has " + on_line.len() + " convoys; expected exactly one split-off portion")
+			return
+		}
+		if (on_line.len() == 0)
+		{
+			if (laid_over_carrier(fixture.split) != null)
+			{
+				fixture.loose_stock_seen = true
+			}
+			fixture.waiting_for = "a split-off portion on target line P"
+			if (!source_waiting_at_uncouple())
+			{
+				return
+			}
+			junction_progress(fixture.waiting_for)
+			return
+		}
+		portion = on_line[0]
+		fixture.portion_id = portion.id
+	}
+
+	if (!fixture.departure_checked)
+	{
+		// Before departure the portion must still be in its standing order.
+		local source_vehicles = src.get_vehicles()
+		if (!check(source_vehicles.len() == 1 && vehicle_matches(source_vehicles[0], fixture.retained), "the source convoy does not hold exactly the retained leader")) { return }
+		if (!check(portion.get_current_entry_id() == TARGET_ENTRY_ID, "the split-off portion is at entry " + portion.get_current_entry_id() + ", expected target entry " + TARGET_ENTRY_ID)) { return }
+		if (!check(portion.get_state() == convoy_state_loading, "the split-off portion is in state " + portion.get_state() + ", expected the loading state " + convoy_state_loading)) { return }
+		local slots = portion.get_vehicle_snapshot()
+		if (!check(slots.len() == 2, "the split-off portion snapshot has " + slots.len() + " slots, expected 2")) { return }
+		if (!check(vehicle_matches(slots[0].desc, fixture.split) && vehicle_matches(slots[1].desc, fixture.split_tail), "the split-off portion is not in its standing order before departure")) { return }
+		fixture.departure_flag_front = slots[0].reversed
+		fixture.departure_flag_rear = slots[1].reversed
+		fixture.departure_checked = true
+		return
+	}
+
+	local slots = portion.get_vehicle_snapshot()
+	if (!check(slots.len() == 2, "the split-off portion snapshot has " + slots.len() + " slots, expected 2")) { return }
+	if (vehicle_matches(slots[0].desc, fixture.split) && vehicle_matches(slots[1].desc, fixture.split_tail))
+	{
+		// The portion is still in its standing order. The departure reversal
+		// runs when the convoy moves, after the schedule entry advances to the
+		// target stop.
+		departure_step("the split-off portion reversing its standing order")
+		return
+	}
+	if (!check(vehicle_matches(slots[0].desc, fixture.split_tail) && vehicle_matches(slots[1].desc, fixture.split),
+		"the split-off portion did not reverse its standing order: slot0 split=" + vehicle_matches(slots[0].desc, fixture.split)
+		+ ", slot0 tail=" + vehicle_matches(slots[0].desc, fixture.split_tail)
+		+ ", slot1 split=" + vehicle_matches(slots[1].desc, fixture.split)
+		+ ", slot1 tail=" + vehicle_matches(slots[1].desc, fixture.split_tail)
+		+ ", reversed=" + slots[0].reversed + "/" + slots[1].reversed
+		+ ", pos=" + portion.get_pos().x + "," + portion.get_pos().y)) { return }
+	if (!check(slots[0].reversed != fixture.departure_flag_rear && slots[1].reversed != fixture.departure_flag_front, "the split-off portion did not turn its vehicles when reversing")) { return }
+	pass()
+}
+
+
+// The freight departure-reversal case: a locomotive and a brake van with no
+// head-end cab. convoi_t::get_terminal_shunt_mode uses a turning or shunting
+// mode. The two-vehicle array order stays the same, every vehicle is turned,
+// and the train leaves in the opposite direction with the locomotive still
+// leading and the brake van still trailing.
+function observe_departure_reversal_freight()
+{
+	local src = source_convoy()
+	if (!src.is_valid())
+	{
+		fail("the source convoy disappeared before the freight departure reversal could be observed")
+		return
+	}
+
+	local portion = convoy_x(fixture.portion_id)
+	if (!portion.is_valid())
+	{
+		local on_line = target_line_convoys()
+		if (on_line.len() > 1)
+		{
+			fail("target line P has " + on_line.len() + " convoys; expected exactly one split-off portion")
+			return
+		}
+		if (on_line.len() == 0)
+		{
+			if (laid_over_carrier(fixture.split) != null)
+			{
+				fixture.loose_stock_seen = true
+			}
+			fixture.waiting_for = "a split-off portion on target line P"
+			if (!source_waiting_at_uncouple())
+			{
+				return
+			}
+			junction_progress(fixture.waiting_for)
+			return
+		}
+		portion = on_line[0]
+		fixture.portion_id = portion.id
+	}
+
+	if (!fixture.departure_checked)
+	{
+		local source_vehicles = src.get_vehicles()
+		if (!check(source_vehicles.len() == 1, "the source convoy has " + source_vehicles.len() + " vehicles, expected the retained leader")) { return }
+		if (!check(portion.get_current_entry_id() == TARGET_ENTRY_ID, "the split-off portion is at entry " + portion.get_current_entry_id() + ", expected target entry " + TARGET_ENTRY_ID)) { return }
+		if (!check(portion.get_state() == convoy_state_loading, "the split-off portion is in state " + portion.get_state() + ", expected the loading state " + convoy_state_loading)) { return }
+		local slots = portion.get_vehicle_snapshot()
+		if (!check(slots.len() == 2, "the split-off portion snapshot has " + slots.len() + " slots, expected 2")) { return }
+		if (!check(vehicle_matches(slots[0].desc, fixture.split) && vehicle_matches(slots[1].desc, fixture.split_tail),
+			"the split-off portion is not in its standing order before departure")) { return }
+		fixture.departure_flag_front = slots[0].reversed
+		fixture.departure_flag_rear = slots[1].reversed
+		fixture.departure_checked = true
+		return
+	}
+
+	local slots = portion.get_vehicle_snapshot()
+	if (!check(slots.len() == 2, "the split-off portion snapshot has " + slots.len() + " slots, expected 2")) { return }
+	if (slots[0].reversed == fixture.departure_flag_front
+		&& slots[1].reversed == fixture.departure_flag_rear)
+	{
+		departure_step("the freight portion reversing its standing order")
+		return
+	}
+	if (!check(vehicle_matches(slots[0].desc, fixture.split) && vehicle_matches(slots[1].desc, fixture.split_tail),
+		"the freight portion did not keep its standing order when reversing")) { return }
+	if (!check(slots[0].reversed != fixture.departure_flag_front
+		&& slots[1].reversed != fixture.departure_flag_rear,
+		"the freight portion did not turn its vehicles when reversing")) { return }
+	pass()
+}
+
+
 function observe()
 {
 	if (case_name == "forward" || case_name == "reload")
 	{
 		observe_forward()
+	}
+	else if (case_name == "rear-portion-order")
+	{
+		observe_rear_portion_order()
+	}
+	else if (case_name == "departure-reversal")
+	{
+		observe_departure_reversal()
+	}
+	else if (case_name == "departure-reversal-freight")
+	{
+		observe_departure_reversal_freight()
 	}
 	else if (case_name == "facing")
 	{

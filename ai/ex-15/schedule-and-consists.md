@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail continuity across splits and loose stock); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail continuity across splits and loose stock); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -105,20 +105,27 @@ explorer's treatment of consist orders.
   convoy is on a line, and whose own schedule is used when it is lineless. The target entry
   (`target_unique_entry_uncouple`) must exist in that schedule, carry a consist order and lie at
   the halt the convoy has stopped at, checked with `haltestelle_t::get_halt` for the target's
-  owner. When the target resolves, the source entry's order runs as usual, but its displaced
-  vehicles are collected into a newly created laid-over convoy instead of being appended to an
-  existing one (`commit_recombined_consist` with the split-candidate handle). `convoi_t::form_divided_portion`
-  applies the target entry's order to that convoy and promotes it only when the result is complete
-  and powered. A promoted portion joins the target line (`convoi_t::set_line`) or receives a copy
-  of the lineless target convoy's schedule, starts at the target entry in the direction given by
+  owner. When the target resolves, the source entry's order runs as usual, and its displaced
+  vehicles form a newly created laid-over convoy of their own (`commit_recombined_consist` with the
+  split-candidate handle). The displaced group is created in the order in which its vehicles stood
+  in the consist being divided, front of travel first; the commit applies the ordering when it
+  creates the group. `convoi_t::form_divided_portion` applies the target entry's order to that
+  convoy and promotes it only when the result is complete and powered. A promoted portion joins
+  the target line (`convoi_t::set_line`) or receives a copy of the lineless target convoy's
+  schedule, starts at the target entry in the direction given by
   `uncouple_target_sch_is_reversed`, is removed from the halt's lay-over registry
   (`haltestelle_t::remove_laid_over`), inherits the source's `arrival_time`, takes current-position
   `last_stop_pos` values, is removed from and re-added to `welt->sync`, and enters `LOADING` with
-  the `shunting_time_seconds` wait lock. `last_stop_id` is set to the current halt, so the target
-  entry's order is not processed again on the next loading pass. A plain uncouple (target id 0), an
-  unresolved or deleted target, a target entry without an order, an unsatisfiable order and an
-  unpowered result all leave the displaced vehicles as ordinary loose stock. An entry carrying both
-  `couple` and `uncouple` is excluded from this path. `commit_recombined_consist` defers the
+  the `shunting_time_seconds` wait lock. `commit_recombined_consist` also defers the portion's
+  stop unload until `form_divided_portion` assigns the target schedule, so the unload uses the
+  assigned target schedule and through cargo stays aboard. The portion departs in the direction
+  its target schedule gives: if that is the direction its vehicles already face, it departs
+  directly in that direction; otherwise the ordinary departure logic reverses the order or drives
+  from the rear cab as `convoi_t::get_terminal_shunt_mode` allows. `last_stop_id` is set to the
+  current halt, so the target entry's order runs once at this stop. A plain uncouple (target id
+  0), an unresolved or deleted target, a target entry without an order, an unsatisfiable order and
+  an unpowered result all leave the displaced vehicles as ordinary loose stock. An entry carrying
+  both `couple` and `uncouple` is excluded from this path. `commit_recombined_consist` defers the
   discharge of a displacement collected into a split candidate: `form_divided_portion` discharges the
   portion only when the target order cannot be completed or the result is unpowered, so a promoted
   portion keeps its load (the decided discharge boundary). A vehicle displaced by substitution keeps

@@ -1847,7 +1847,9 @@ public:
 		// Replace this convoy's vehicles with the given final consist. Returns the
 		// extra shunting time needed to turn vehicles. If coupling_operations is
 		// not null, it receives the number of couplings and uncouplings performed.
-		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same, uint32 *coupling_operations = nullptr);
+		// With defer_unload true, the caller discharges stop cargo after assigning
+		// the convoy's final schedule.
+		uint32 commit_recombined_consist(vector_tpl<vehicle_t*> const& vehicles, vector_tpl<bool> const& vehicles_reversed, halthandle_t halt, uint16 recipient_id, bool recipient_is_convoy, convoihandle_t *split_candidate, convoihandle_t joining_convoy, bool recipient_is_any, bool recipient_is_same, uint32 *coupling_operations = nullptr, bool defer_unload = false);
 
 		// A division's vehicle-to-portion plan, derived from the current forward
 		// consist and the two end-state orders. Valid only when both orders can
