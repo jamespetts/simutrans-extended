@@ -1476,7 +1476,7 @@ sint64 simline_t::get_stat_converted(int month, int cost_type) const
 
 uint32 simline_t::get_load_factor_pax_year() const
 {
-	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+	if (!goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)) return 0;
 
 	sint64 total_seat_km = 0;
 	sint64 total_pax_km = 0;
@@ -1489,7 +1489,7 @@ uint32 simline_t::get_load_factor_pax_year() const
 
 uint32 simline_t::get_load_factor_pax_last_month() const
 {
-	if (goods_catg_index.is_contained(!goods_manager_t::INDEX_PAS)) return 0;
+	if (!goods_catg_index.is_contained(goods_manager_t::INDEX_PAS)) return 0;
 
 	return financial_history[1][LINE_CAPACITY] ? (uint32)(1000 * financial_history[1][LINE_PAX_DISTANCE] / financial_history[1][LINE_CAPACITY]) : 0;
 }
