@@ -10,4 +10,4 @@
 #
 # Format: <pakset repo branch> = <full commit sha>
 master = 7215850ebc47f432f3b7e97201e9a508b5046cbf
-ex-15 = 70a098c64daf4894668faa4e07dbbb5c6d5717cc
+ex-15 = bdf8c6fccc65ca8c25fcca6125a3e0472b08db49
