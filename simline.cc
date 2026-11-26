@@ -1599,6 +1599,11 @@ bool simline_t::withdraw_one_convoy()
 
 	best->set_withdrawal_pending(true);
 	best->set_no_load(true);
+	if (best_heading)
+	{
+		// The Convoy is already on its way to a depot; it is held on arrival.
+		return true;
+	}
 	if (!best->go_to_depot(false, false, true))
 	{
 		best->set_withdrawal_pending(false);
