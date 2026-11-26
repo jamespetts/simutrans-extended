@@ -1024,6 +1024,12 @@ void schedule_list_gui_t::draw(scr_coord pos, scr_size size)
 		if(  (!line->get_schedule()->empty()  &&  !line->get_schedule()->matches( welt, last_schedule ))  ||  last_vehicle_count != line->count_convoys()  ||  line->get_goods_catg_index().get_count() != line_goods_catg_count  ) {
 			update_lineinfo( line );
 		}
+		else if (info_tabs.get_active_tab_index() == 1)
+		{
+			// Keep the Fleet tab live without overwriting a control that the
+			// player is editing.
+			update_fleet_tab(false);
+		}
 
 		PUSH_CLIP( pos.x + 1, pos.y + D_TITLEBAR_HEIGHT, size.w - 2, size.h - D_TITLEBAR_HEIGHT);
 		display(pos);
@@ -1108,7 +1114,7 @@ void schedule_list_gui_t::display(scr_coord pos)
 	}
 	lb_convoy_count.update();
 
-	update_fleet_tab();
+	update_fleet_tab(true);
 
 	// Display service frequency
 	const sint64 service_frequency = line->get_service_frequency();
@@ -1541,7 +1547,7 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 }
 
 
-void schedule_list_gui_t::update_fleet_tab()
+void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 {
 	if (!line.is_bound())
 	{
@@ -1662,14 +1668,17 @@ void schedule_list_gui_t::update_fleet_tab()
 		(int)(deployed + held + pool_consists), (int)deployed, (int)held, (int)pool_consists);
 	lb_fleet_max.update();
 
-	numimp_target_consists.set_value(line->get_target_convoy_count());
-	bt_fleet_policy.pressed = line->get_fleet_policy() != 0;
-	numimp_fleet_target_min.set_value(line->get_fleet_target_min());
-	numimp_fleet_target_max.set_value(line->get_fleet_target_max());
-	numimp_fleet_add_threshold.set_value(line->get_fleet_add_threshold());
-	numimp_fleet_remove_threshold.set_value(line->get_fleet_remove_threshold());
-	numimp_fleet_add_months.set_value(line->get_fleet_add_months());
-	numimp_fleet_remove_months.set_value(line->get_fleet_remove_months());
+	if (update_controls)
+	{
+		numimp_target_consists.set_value(line->get_target_convoy_count());
+		bt_fleet_policy.pressed = line->get_fleet_policy() != 0;
+		numimp_fleet_target_min.set_value(line->get_fleet_target_min());
+		numimp_fleet_target_max.set_value(line->get_fleet_target_max());
+		numimp_fleet_add_threshold.set_value(line->get_fleet_add_threshold());
+		numimp_fleet_remove_threshold.set_value(line->get_fleet_remove_threshold());
+		numimp_fleet_add_months.set_value(line->get_fleet_add_months());
+		numimp_fleet_remove_months.set_value(line->get_fleet_remove_months());
+	}
 }
 
 

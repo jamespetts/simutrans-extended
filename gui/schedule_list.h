@@ -146,7 +146,7 @@ private:
 	void display(scr_coord pos);
 
 	void update_lineinfo(linehandle_t new_line);
-	void update_fleet_tab();
+	void update_fleet_tab(bool update_controls = false);
 
 	linehandle_t line;
 
