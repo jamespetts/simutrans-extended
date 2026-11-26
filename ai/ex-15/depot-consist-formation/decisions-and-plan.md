@@ -143,13 +143,17 @@ work.
    starts through `convoi_t::start()`. The Original Convoy is held by
    `depot_t::hold_original_convoy()`. The runtime test is deferred until a two-locomotive fixture
    exists [CODE].
-5. **Target Fleet Size, Held Convoys and Withdrawal.** Add `simline_t::target_convoy_count`, the
-   line control and the `TOOL_CHANGE_LINE` case. Implement the Deployed count, holding, dispatch and
-   the Withdrawal operation with the chosen priority rule. Test the maintenance-cover rotation and
-   the above-target withdrawal.
-6. **Automatic adjustment and the Fleet tab.** Add the policy fields, thresholds, hysteresis and
-   the Fleet tab data model. The tab is read-only except for the target and policy controls, which
-   commit through `TOOL_CHANGE_LINE`.
+5. **Target Fleet Size, Held Convoys and Withdrawal.** Implemented.
+   `simline_t::target_convoy_count`, `count_deployed_convoys()`, `dispatch_held_convoy()`,
+   `withdraw_excess_convoys()` and `withdraw_one_convoy()` are in the tree;
+   `depot_t::should_hold_convoy()` and `depot_t::hold_convoy()` hold a Convoy at the target.
+   `TOOL_CHANGE_LINE` case `'n'` sets the target and case `'p'` sets the policy. The
+   `fleet-target` runtime case covers raising the target, dispatching Held Convoys and lowering it
+   to withdraw one [CODE].
+6. **Automatic adjustment and the Fleet tab.** Implemented. The `fleet_*` fields,
+   `simline_t::adjust_fleet_policy()`, the Fleet tab with target and policy controls, the summary,
+   load factors, depot rows and the maximum-consists estimate are in the tree. The target and
+   policy controls commit through `TOOL_CHANGE_LINE` [CODE].
 7. **Replacement integration.** Build the one-shot order from `replace_data_t`, keep the existing
    replacement UI, and preserve the replacement's purchase, sale and upgrade rules. Test
    `on_maintenance`, `on_overhaul`, retained stock, existing stock and in-place upgrades.

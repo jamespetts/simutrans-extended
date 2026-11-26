@@ -220,6 +220,32 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
   `INITIAL`, so a Convoy in `MAINTENANCE` or `OVERHAUL` is included by this test [CODE
   `simconvoi.h`].
 
+### Target Fleet Size and Fleet tab
+
+- `simline_t` stores `target_convoy_count`, `fleet_policy`, `fleet_target_min`,
+  `fleet_target_max`, `fleet_add_threshold`, `fleet_remove_threshold`, `fleet_add_months`,
+  `fleet_remove_months`, `fleet_months_above` and `fleet_months_below`, all saved in
+  `simline_t::rdwr()` under `EX_SAVE_MINOR` 24 [CODE].
+- `simline_t::count_deployed_convoys()` counts line-bound Convoys that are not `INITIAL`, not
+  withdrawn, not inside a depot state and have at least one vehicle. `ROUTING_1`,
+  `ROUTE_JUST_FOUND`, `LEAVING_DEPOT` and `NO_ROUTE` count [CODE].
+- `simline_t::dispatch_held_convoy()` starts the lowest-id Held Convoy that can route, through
+  `depot_t::start_convoi()` [CODE]. `simline_t::withdraw_excess_convoys()` and
+  `withdraw_one_convoy()` choose by the lexicographic priority and call
+  `convoi_t::go_to_depot(false, false, true)` [CODE].
+- `depot_t::should_hold_convoy()` and `depot_t::hold_convoy()` keep a Convoy in the depot when the
+  target is met or `convoi_t::withdrawal_pending` is set. `convoi_t::step()` checks them before
+  setting `ROUTING_1`; `depot_t::start_convoi()` checks them for automatic starts [CODE].
+- `simline_t::adjust_fleet_policy()` runs from `simline_t::new_month()`. It uses the higher of the
+  passenger and goods two-month load factors, the consecutive-month counters, and calls
+  `dispatch_held_convoy()` or `withdraw_excess_convoys()` when the target changes [CODE].
+- `TOOL_CHANGE_LINE` case `'n'` sets the target and case `'p'` sets the policy. The script API
+  `line_x.set_target_convoy_count()` invokes case `'n'`
+  [CODE `simtool.cc`; `script/api/api_line.cc`].
+- `schedule_list_gui_t` has a **Fleet** tab with the target and policy controls, the fleet summary,
+  load factors, the maximum-consists estimate and one row per scheduled depot [CODE
+  `gui/schedule_list.cc`]. The Convoys tab **Maintenance** column is not implemented.
+
 ## Reuse map
 
 | Requirement | Existing entity | Gap |

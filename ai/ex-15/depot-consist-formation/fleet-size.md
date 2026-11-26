@@ -79,7 +79,7 @@ is satisfiable. If neither is possible, the line stays below the target until on
 ### Above the target: withdrawal
 
 When the number of Deployed Convoys exceeds the target, the line withdraws Convoys one at a time
-until the count is at or below the target [PROPOSED]. A Withdrawal instructs the chosen Convoy to go
+until the count is at or below the target [CODE `simline_t::withdraw_excess_convoys()`]. A Withdrawal instructs the chosen Convoy to go
 to a suitable depot at the next opportunity and to be held there as a Held Convoy. The Convoy
 remains Deployed and keeps serving until it enters the depot; it is not teleported or stopped in
 place. The count therefore falls when the Convoy enters the depot, not when the Withdrawal is
@@ -93,14 +93,14 @@ held as a Held Convoy if the line has reached its target; the per-Convoy `withdr
 records that the hold is intentional, so the Convoy is not immediately dispatched again.
 
 The manual withdraw controls use the same call. The Convoy detail window's **withdraw** button and
-the line's **Withdraw All** button currently set `convoi_t::withdraw`, which runs the Convoy empty
-and sells it when it becomes empty. Under this design they send the Convoy to the depot for a
-maintenance-type visit instead, and it is held there rather than sold.
+the line's **Withdraw All** button set `convoi_t::withdrawal_pending` and send the Convoy to the
+next depot on its schedule for a maintenance-type visit. The Convoy is held there rather than sold
+[CODE `convoi_t::set_withdraw()`].
 
 #### Choosing which Convoy to withdraw
 
-The choice is deterministic and is made from synced state [PROPOSED]. The recommended priority is
-lexicographic, from highest to lowest:
+The choice is deterministic and is made from synced state [CODE `simline_t::withdraw_one_convoy()`].
+The priority is lexicographic, from highest to lowest:
 
 1. **A Convoy already due or urgently due for maintenance or overhaul.** It needs a depot visit
    anyway; sending it now removes it from service without a separate diversion. The maintenance
@@ -115,9 +115,8 @@ lexicographic, from highest to lowest:
    schedule has no depot entry, the distance to the nearest suitable depot is used instead. The
    user chose this priority on 2026-11-25
    [RECOLLECTION:2026-11-25 user statement].
-4. **The least loaded Convoy.** Its withdrawal removes the least-used capacity. Use the same load
-   factor as the automatic adjustment; for a mixed line, use the higher of the passenger and goods
-   load factors (see the open questions).
+4. **The least loaded Convoy.** Its withdrawal removes the least-used capacity. The implementation
+   uses `convoi_t::get_loading_level()` ascending, which is the Convoy's current load percentage.
 5. **Lowest `convoihandle_t` id.** The final tie-break for determinism.
 
 The priority uses integer values and no floating point. The maintenance flags, the load factor in
@@ -190,15 +189,24 @@ months.
 
 ### Policy
 
-A per-line policy adjusts the Target Fleet Size from observed demand [PROPOSED]:
+A per-line policy adjusts the Target Fleet Size from observed demand
+[CODE `simline_t::adjust_fleet_policy()`]:
 
 - `fleet_policy`: off or automatic;
-- `target_min` and `target_max`: the bounds the policy may set;
-- `add_threshold` and `add_months`: if the load factor exceeds `add_threshold` for `add_months`
-  consecutive months, increase the target by 1, up to `target_max`;
-- `remove_threshold` and `remove_months`: if the load factor is below `remove_threshold` for
-  `remove_months` consecutive months, decrease the target by 1, down to `target_min`;
-- hysteresis requires `add_threshold > remove_threshold`; the month counts prevent oscillation.
+- `fleet_target_min` and `fleet_target_max`: the bounds the policy may set; the lower bound is 1
+  while the policy is active, because 0 means that the line has no target;
+- `fleet_add_threshold` and `fleet_add_months`: if the load factor is at or above the threshold for
+  the month count, increase the target by 1, up to the upper bound;
+- `fleet_remove_threshold` and `fleet_remove_months`: if the load factor is at or below the
+  threshold for the month count, decrease the target by 1, down to the lower bound;
+- `fleet_months_above` and `fleet_months_below`: the consecutive-month counters, saved under
+  `EX_SAVE_MINOR` 24;
+- hysteresis requires `add_threshold > remove_threshold`; the tool and the Fleet tab reject a pair
+  that does not satisfy this.
+
+The policy runs from `simline_t::new_month()` after the monthly history roll, so months 1 and 2 are
+the two most recent complete months. Increasing the target dispatches one Held Convoy. Decreasing
+the target calls `simline_t::withdraw_excess_convoys()`.
 
 Increasing the target allows a Held Convoy to be dispatched or a New Convoy to be assembled.
 Decreasing the target starts the Withdrawal rule. Neither direction destroys a Convoy in service.

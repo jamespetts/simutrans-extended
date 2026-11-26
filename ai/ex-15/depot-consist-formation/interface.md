@@ -81,34 +81,31 @@ depot's departure consist, not a stop-level recombination [PROPOSED for the fina
 
 ### Fleet tab
 
-The line management window gains a **Fleet** tab immediately after the existing **Convoys** tab
-[PROPOSED]. It shows, from top to bottom:
+The line management window has a **Fleet** tab immediately after the **Convoys** tab [CODE
+`gui/schedule_list.cc`]. It shows, from top to bottom:
 
-1. **Target and policy controls.** The Target Fleet Size number, the automatic policy switch,
-   `target_min`, `target_max`, the add/remove thresholds and month counts, and the manual override.
-   The controls commit through `TOOL_CHANGE_LINE`. The policy uses the last two complete months; the
+1. **Target and policy controls.** The Target Fleet Size number and a **Set** button; the automatic
+   policy switch; `fleet_target_min`, `fleet_target_max`, the add/remove thresholds in tenths of a
+   percent and the add/remove month counts; and a **Set policy** button. The controls commit through
+   `TOOL_CHANGE_LINE` cases `'n'` and `'p'`. The policy uses the last two complete months; the
    window is not a control.
 2. **Fleet summary.** Deployed, Held, under-maintenance and total Convoys; the monthly fixed cost of
-   the Held Convoys and the Depot Vehicle Pool; the passenger and goods load factors for last month
-   and for the two-month policy window. State the higher value that the automatic policy uses. The
+   the Held Convoys and the Depot Vehicle Pool. The passenger and goods load factors for last month
+   and for the two-month policy window, and the higher value that the automatic policy uses. The
    line chart's **Freight capacity** curve shows the goods denominator over time.
-3. **Depots served by the line.** One row per depot that the line's schedule visits or that holds
-   one of the line's Convoys. A depot without a Depot Consist Order is greyed out with a mouseover:
+3. **Depots served by the line.** One row per depot that the line's schedule visits. The row shows
+   whether the depot has a Depot Consist Order, how many of the line's Convoys are under maintenance
+   there, how many pool vehicles it holds, how many of those are available, and the estimated number
+   of complete Consists the order can form. A depot without an order is greyed out with a mouseover:
    "This depot has no departure consist order. Add one on the depot's schedule entry to re-form
-   trains here." Convoys under maintenance at a greyed-out depot are listed under it, because they
-   are still part of the line's fleet even though the depot cannot re-form them.
-4. **Depot detail.** For a depot with a Depot Consist Order, list the Available Vehicles and the
-   vehicles under maintenance that match the order's slots, with the slot each could fill. Show the
-   Held Convoys at that depot. Show whether the order is currently satisfiable and, if not, the
-   first missing slot.
-5. **Maximum Consists that can run now.** A statement of the number of complete Consists the line
-   could deploy at present from the current Deployed Convoys plus the complete Consists that the
-   Depot Assembly solver can form from each depot's Available Vehicles and under-maintenance stock.
-   The count is capped by the number of satisfiable orders and by the target; show the uncapped
-   number and the target so the player can see which limit applies. The calculation uses the same
-   greedy assembly rule as the runtime, so it is a practical maximum, not an optimal packing.
-6. **Diagnostics.** The reasons a Convoy cannot be dispatched or withdrawn, the deposit's queue
-   position, and the monthly cost of the current spare capacity.
+   trains here."
+4. **Maximum Consists that can run now.** The Deployed count plus the Held count plus the estimated
+   pool Consists from each depot with an order. The estimate is the smallest number of available
+   vehicles matching any one slot, capped by the number that the pool can supply; it is a practical
+   greedy count, not an optimal packing.
+5. **Diagnostics.** The reasons a Convoy cannot be dispatched or withdrawn, the depot queue position
+   and the monthly cost of the current spare capacity are not yet shown. The per-slot depot detail
+   and the Convoys tab **Maintenance** column remain [PROPOSED].
 
 ### Convoys tab
 

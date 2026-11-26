@@ -85,10 +85,13 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   three-vehicle Consist in the order's vehicle order before the Convoy leaves.
   The `depot-order-exclude` case names only the first two vehicles and leaves
   an overhauled third vehicle in the Depot Vehicle Pool while the original
-  Convoy departs [EXECUTION-VERIFIED:2026-11-25]. The `maintenance-withdraw`
-  case withdraws a convoy while it is in the maintenance queue and asserts that
-  the game survives the following sync steps and that the depot drops the
-  destroyed convoy from its convoy list [EXECUTION-VERIFIED:2026-11-25].
+  Convoy departs [EXECUTION-VERIFIED:2026-11-25]. The `fleet-target` case raises
+  a line's Target Fleet Size from 0 to 1 and 2, asserts that the lowest-id Held
+  Convoy is dispatched each time, then lowers the target to 1 and asserts that
+  one Deployed Convoy is withdrawn to the depot and held. The
+  `maintenance-withdraw` case withdraws a Convoy while it is in the maintenance
+  queue and asserts that the Convoy is held in INITIAL and stays in the depot's
+  convoy list [EXECUTION-VERIFIED:2026-11-26].
 - The AI host mode is designed but unused; expect latent assumptions (global `welt`, null
   scenario, GUI calls, `get_my_player` returning null) until it is exercised.
 
