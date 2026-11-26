@@ -2826,6 +2826,15 @@ void convoi_t::step()
 		case MAINTENANCE:
 			if (wait_lock <= 0)
 			{
+				grund_t *gr = welt->lookup(get_pos());
+				depot_t *dep = gr ? gr->get_depot() : NULL;
+				if (dep && dep->should_hold_convoy(self))
+				{
+					// The line target is met or the Convoy is manually
+					// withdrawn. Convert it to a Held Convoy instead of routing.
+					dep->hold_convoy(self);
+					break;
+				}
 				// Depart as on any scheduled departure: advance past the depot entry if it is still
 				// the current one, then route. Leaving directly in LEAVING_DEPOT would drive out on
 				// the stale route into the same depot again (and never leave the depot's lists).
@@ -5427,6 +5436,15 @@ void convoi_t::rdwr(loadsave_t *file)
 		DBG_MESSAGE("convoi_t::rdwr", "no_load=%i", no_load);
 		file->rdwr_bool(withdraw);
 		DBG_MESSAGE("convoi_t::rdwr", "withdraw=%i", withdraw);
+	}
+
+	if (file->is_version_ex_atleast(15, 24))
+	{
+		file->rdwr_bool(withdrawal_pending);
+	}
+	else if (file->is_loading())
+	{
+		withdrawal_pending = false;
 	}
 
 	// reverse_schedule
@@ -8635,12 +8653,57 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 	route_t route;
 	bool home_depot_found = false;
 	bool other_depot_found = false;
-	if (use_home_depot && home_depot_valid) {
+
+	// Prefer the next depot on the schedule. Only when the schedule has no
+	// reachable depot entry does the existing home-depot or nearest-depot
+	// search apply. A Convoy already standing on a suitable depot enters it
+	// instead of routing to a later schedule entry.
+	const grund_t *here_gr = welt->lookup(get_pos());
+	const bool already_at_depot = here_gr && here_gr->get_depot() && here_gr->get_depot()->is_suitable_for(front(), traction_types);
+	if (!already_at_depot && (!aircraft || aircraft->is_on_ground()) && schedule && schedule->get_count() > 0)
+	{
+		const uint8 schedule_count = schedule->get_count();
+		uint8 pos = schedule->get_current_stop();
+		for (uint8 step = 1; step < schedule_count; step++)
+		{
+			if (reverse_schedule)
+			{
+				pos = (pos + schedule_count - 1) % schedule_count;
+			}
+			else
+			{
+				pos = (pos + 1) % schedule_count;
+			}
+			const grund_t *gr = welt->lookup(schedule->entries[pos].pos);
+			if (!gr)
+			{
+				continue;
+			}
+			depot_t *dep = gr->get_depot();
+			if (!dep || !dep->is_suitable_for(front(), traction_types))
+			{
+				continue;
+			}
+			if (range != 0 && ((shortest_distance(get_pos().get_2d(), schedule->entries[pos].pos.get_2d()) * (uint32)welt->get_settings().get_meters_per_tile()) / 1000) + distance_to_last_stop_km > range)
+			{
+				continue;
+			}
+			front()->release_target_reservations();
+			if (front()->calc_route(get_pos(), schedule->entries[pos].pos, get_min_top_speed(), has_tall_vehicles(), &route) != route_t::no_route)
+			{
+				depot_pos = schedule->entries[pos].pos;
+				other_depot_found = true;
+				break;
+			}
+		}
+	}
+
+	if (!other_depot_found && use_home_depot && home_depot_valid) {
 		// The home depot is OK, use it.
 		depot_pos = get_home_depot();
 		home_depot_found = true;
 	}
-	else {
+	else if (!other_depot_found) {
 		// See if we're already sitting on top of a depot.
 		// (The route finder won't find a depot if we're standing on top of it, believe it or not.)
 		bool current_location_valid = false;
@@ -8732,7 +8795,16 @@ bool convoi_t::go_to_depot(bool show_success, bool use_home_depot, bool maintain
 			// Insert will move the pointer past the inserted item; move back to it
 			sch->advance_reverse();
 			// We still have to call set_schedule
+			const int previous_state = get_state();
 			bool schedule_setting_succeeded = set_schedule(sch);
+			if (schedule_setting_succeeded && previous_state != convoi_t::INITIAL
+				&& previous_state != convoi_t::EDIT_SCHEDULE && get_state() == convoi_t::EDIT_SCHEDULE)
+			{
+				// set_schedule() stops a running Convoy to edit its schedule.
+				// Saving and sending a Convoy to a depot is not an edit: restore
+				// the state so that it runs to the new depot entry.
+				set_state((uint16)previous_state);
+			}
 			transport_success = schedule_insertion_succeeded && schedule_setting_succeeded;
 		}
 	}
@@ -8818,26 +8890,29 @@ uint16 convoi_t::get_true_tile_length() const
 }
 
 
-// if withdraw and empty, then self destruct
+// A withdrawal sends the Convoy to the next depot on its schedule and holds it
+// there. It no longer sells the Convoy when it becomes empty.
 void convoi_t::set_withdraw(bool new_withdraw)
 {
 	withdraw = new_withdraw;
-	if(withdraw && (loading_level == 0 || goods_catg_index.empty())) {
-		// test if convoi in depot and not driving
-		grund_t *gr = welt->lookup( get_pos());
-		if(  gr  &&  gr->get_depot()  &&  state == INITIAL  ) {
-#if 1
-			// do not touch line bound convois in depots
-			withdraw = false;
-			no_load = false;
-#else
-			// disassemble also line bound convois in depots
-			gr->get_depot()->disassemble_convoi(self, true);
-#endif
-		}
-		else {
-			self_destruct();
-		}
+	if (!withdraw)
+	{
+		withdrawal_pending = false;
+		return;
+	}
+
+	withdrawal_pending = true;
+	no_load = true;
+
+	if (state == INITIAL || convoi_t::is_inside_depot_state(state))
+	{
+		// A Convoy already in a depot is already withdrawn.
+		return;
+	}
+
+	if (loading_level == 0 || goods_catg_index.empty())
+	{
+		go_to_depot(false, false, true);
 	}
 }
 
@@ -10393,10 +10468,15 @@ void convoi_t::check_departure(halthandle_t halt)
 		}
 	}
 
-	if(withdraw && (loading_level == 0 || goods_catg_index.empty())) {
-		// destroy when empty
-		self_destruct();
-		return;
+	if (withdraw && (loading_level == 0 || goods_catg_index.empty())
+		&& state != INITIAL && !convoi_t::is_inside_depot_state(state))
+	{
+		// Withdraw to a depot instead of selling the empty Convoy.
+		const grund_t *gr = schedule ? welt->lookup(schedule->get_current_entry().pos) : NULL;
+		if (!gr || !gr->get_depot())
+		{
+			go_to_depot(false, false, true);
+		}
 	}
 
 	// loading is finished => maybe drive on

@@ -1313,7 +1313,7 @@ void convoi_detail_t::init(convoihandle_t cnv)
 
 		cont_maintenance_tab.new_component<gui_empty_t>();
 		withdraw_button.init(button_t::roundbox, "withdraw", scr_coord(0,0), D_BUTTON_SIZE);
-		withdraw_button.set_tooltip("Convoi is sold when all wagons are empty.");
+		withdraw_button.set_tooltip("The convoy runs empty and goes to the next depot on its schedule, where it is held.");
 		withdraw_button.add_listener(this);
 		cont_maintenance_tab.add_component(&withdraw_button);
 	}

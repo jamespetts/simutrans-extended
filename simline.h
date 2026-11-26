@@ -161,6 +161,23 @@ private:
 	// in an overhaul visit caused by another vehicle in the same consist.
 	uint8 overhaul_grouping_percentage = 90;
 
+	// The number of Deployed Convoys the line aims to keep in service. 0 means
+	// that the line has no target.
+	uint16 target_convoy_count = 0;
+
+	// Automatic Target Fleet Size policy. 0 = off, 1 = automatic. The
+	// thresholds are load factors in tenths of a percent.
+	uint8 fleet_policy = 0;
+	uint16 fleet_target_min = 1;
+	uint16 fleet_target_max = 0; // 0 means no upper bound.
+	uint16 fleet_add_threshold = 0;
+	uint16 fleet_remove_threshold = 0;
+	uint8 fleet_add_months = 0;
+	uint8 fleet_remove_months = 0;
+	// Consecutive months at or above/below the thresholds.
+	uint8 fleet_months_above = 0;
+	uint8 fleet_months_below = 0;
+
 	uint8 line_lettercode_style=no_letter_code;
 	uint8 line_color_index=255;
 
@@ -209,6 +226,52 @@ public:
 	 */
 	uint32 count_convoys() const { return line_managed_convoys.get_count(); }
 
+	// The number of line-bound Convoys that are actually running on the line:
+	// not INITIAL, not withdrawn, not inside a depot state and with at least
+	// one vehicle. ROUTING_1, ROUTE_JUST_FOUND, LEAVING_DEPOT and NO_ROUTE
+	// count as Deployed.
+	uint16 count_deployed_convoys() const;
+
+	uint16 get_target_convoy_count() const { return target_convoy_count; }
+	void set_target_convoy_count(uint16 count) { target_convoy_count = count; }
+
+	uint8 get_fleet_policy() const { return fleet_policy; }
+	void set_fleet_policy(uint8 policy) { fleet_policy = policy; }
+	uint16 get_fleet_target_min() const { return fleet_target_min; }
+	uint16 get_fleet_target_max() const { return fleet_target_max; }
+	uint16 get_fleet_add_threshold() const { return fleet_add_threshold; }
+	uint16 get_fleet_remove_threshold() const { return fleet_remove_threshold; }
+	uint8 get_fleet_add_months() const { return fleet_add_months; }
+	uint8 get_fleet_remove_months() const { return fleet_remove_months; }
+	void set_fleet_policy_values(uint8 policy, uint16 target_minimum, uint16 target_maximum,
+		uint16 add_threshold, uint16 remove_threshold, uint8 add_months, uint8 remove_months)
+	{
+		fleet_policy = policy;
+		fleet_target_min = target_minimum;
+		fleet_target_max = target_maximum;
+		fleet_add_threshold = add_threshold;
+		fleet_remove_threshold = remove_threshold;
+		fleet_add_months = add_months;
+		fleet_remove_months = remove_months;
+	}
+
+	// Start the lowest-id Held Convoy that can find a route, when the target
+	// would allow it. Returns true when a Convoy was started.
+	bool dispatch_held_convoy();
+
+	// Withdraw Deployed Convoys one at a time until the Deployed count is at or
+	// below the target. Each withdrawal is a maintenance-type depot visit that
+	// holds the Convoy on arrival.
+	void withdraw_excess_convoys();
+
+private:
+	// Choose and withdraw one Deployed Convoy by the priority in the fleet size
+	// design. Returns false when no Convoy can be withdrawn.
+	bool withdraw_one_convoy();
+	uint32 scheduled_distance_to_next_depot(convoihandle_t c) const;
+	void adjust_fleet_policy();
+
+public:
 	vector_tpl<convoihandle_t> const& get_convoys() const { return line_managed_convoys; }
 
 	/**

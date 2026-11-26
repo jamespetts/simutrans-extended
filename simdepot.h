@@ -277,6 +277,14 @@ public:
 	// Rebuild maintenance_queue from the saved per-vehicle fields after a load.
 	void rebuild_maintenance_queue();
 
+	// True when the Convoy must stay in the depot after its work is complete:
+	// the line target is met or a manual withdrawal is pending.
+	bool should_hold_convoy(convoihandle_t cnv) const;
+
+	// Convert a Convoy to a Held Convoy in INITIAL, advancing past the depot
+	// entry and clearing its depot jobs.
+	void hold_convoy(convoihandle_t cnv);
+
 	// Attempt Depot Assembly for every Convoy in the depot whose Lead Vehicle
 	// is released and whose current depot entry has a non-blank order.
 	void try_assemble_depot_orders();

@@ -12,6 +12,7 @@
 #include "components/gui_label.h"
 #include "components/gui_chart.h"
 #include "components/gui_textinput.h"
+#include "components/gui_numberinput.h"
 #include "components/gui_scrolled_list.h"
 #include "components/gui_scrollpane.h"
 #include "components/gui_tab_panel.h"
@@ -58,6 +59,19 @@ private:
 	static const char *sort_text[SORT_MODES];
 
 	button_t bt_new_line, bt_edit_line, bt_delete_line, bt_withdraw_line, bt_mode_convois;
+	button_t bt_set_target;
+	gui_numberinput_t numimp_target_consists;
+
+	// Fleet tab
+	gui_aligned_container_t cont_fleet;
+	gui_aligned_container_t cont_fleet_depots;
+	gui_scrollpane_t scroll_fleet;
+	button_t bt_fleet_policy;
+	gui_numberinput_t numimp_fleet_target_min, numimp_fleet_target_max;
+	gui_numberinput_t numimp_fleet_add_threshold, numimp_fleet_remove_threshold;
+	gui_numberinput_t numimp_fleet_add_months, numimp_fleet_remove_months;
+	button_t bt_set_fleet_policy;
+	gui_label_buf_t lb_fleet_summary, lb_fleet_load, lb_fleet_max;
 	button_t bt_hw_show_halt_name, bt_hw_divided_class, bt_hw_filter_by_line;
 	button_t sort_order;
 	button_t bt_access_minimap, bt_line_color_editor, bt_replace;
@@ -132,6 +146,7 @@ private:
 	void display(scr_coord pos);
 
 	void update_lineinfo(linehandle_t new_line);
+	void update_fleet_tab();
 
 	linehandle_t line;
 

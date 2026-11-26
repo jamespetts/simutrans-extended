@@ -24,6 +24,7 @@
 #include "simconvoi.h"
 #include "convoihandle_t.h"
 #include "simlinemgmt.h"
+#include "simdepot.h"
 #include "gui/simwin.h"
 #include "gui/gui_frame.h"
 #include "gui/schedule_list.h"
@@ -713,6 +714,31 @@ void simline_t::rdwr(loadsave_t *file)
 		}
 	}
 
+	if (file->is_version_ex_atleast(15, 24)) {
+		file->rdwr_short(target_convoy_count);
+		file->rdwr_byte(fleet_policy);
+		file->rdwr_short(fleet_target_min);
+		file->rdwr_short(fleet_target_max);
+		file->rdwr_short(fleet_add_threshold);
+		file->rdwr_short(fleet_remove_threshold);
+		file->rdwr_byte(fleet_add_months);
+		file->rdwr_byte(fleet_remove_months);
+		file->rdwr_byte(fleet_months_above);
+		file->rdwr_byte(fleet_months_below);
+	}
+	else if (file->is_loading()) {
+		target_convoy_count = 0;
+		fleet_policy = 0;
+		fleet_target_min = 1;
+		fleet_target_max = 0;
+		fleet_add_threshold = 0;
+		fleet_remove_threshold = 0;
+		fleet_add_months = 0;
+		fleet_remove_months = 0;
+		fleet_months_above = 0;
+		fleet_months_below = 0;
+	}
+
 	// discard old incompatible datum
 	if( file->is_loading() ) {
 		if( file->is_version_ex_less(14,57) ) {
@@ -905,6 +931,61 @@ void simline_t::new_month()
 	{
 		rolling_average[i] = 0;
 		rolling_average_count[i] = 0;
+	}
+
+	adjust_fleet_policy();
+}
+
+
+void simline_t::adjust_fleet_policy()
+{
+	if (fleet_policy == 0)
+	{
+		fleet_months_above = 0;
+		fleet_months_below = 0;
+		return;
+	}
+
+	// The higher of the passenger and goods factors is the binding measure on
+	// a mixed line. Both are in tenths of a percent.
+	const uint32 load = max(get_load_factor_pax_last_two_months(), get_load_factor_goods_last_two_months());
+	const uint16 upper = fleet_target_max == 0 ? 65535 : fleet_target_max;
+	const uint16 lower = fleet_target_min == 0 ? 1 : fleet_target_min;
+
+	if (fleet_add_threshold > 0 && fleet_add_months > 0 && load >= fleet_add_threshold)
+	{
+		if (fleet_months_above < 255)
+		{
+			fleet_months_above++;
+		}
+		if (fleet_months_above >= fleet_add_months && target_convoy_count < upper)
+		{
+			target_convoy_count++;
+			fleet_months_above = 0;
+			dispatch_held_convoy();
+		}
+	}
+	else
+	{
+		fleet_months_above = 0;
+	}
+
+	if (fleet_remove_threshold > 0 && fleet_remove_months > 0 && load <= fleet_remove_threshold)
+	{
+		if (fleet_months_below < 255)
+		{
+			fleet_months_below++;
+		}
+		if (fleet_months_below >= fleet_remove_months && target_convoy_count > lower)
+		{
+			target_convoy_count--;
+			fleet_months_below = 0;
+			withdraw_excess_convoys();
+		}
+	}
+	else
+	{
+		fleet_months_below = 0;
 	}
 }
 
@@ -1328,6 +1409,229 @@ void simline_t::set_withdraw( bool yes_no )
 	for (size_t i = line_managed_convoys.get_count(); i-- != 0;) {
 		line_managed_convoys[i]->set_no_load(yes_no); // must be first, since set withdraw might destroy convoi if in depot!
 		line_managed_convoys[i]->set_withdraw(yes_no);
+	}
+}
+
+uint16 simline_t::count_deployed_convoys() const
+{
+	uint16 count = 0;
+	for (auto const c : line_managed_convoys)
+	{
+		if (c.is_bound() && c->get_vehicle_count() > 0 && !c->get_withdraw()
+			&& c->get_state() != convoi_t::INITIAL
+			&& !convoi_t::is_inside_depot_state(c->get_state()))
+		{
+			count++;
+		}
+	}
+	return count;
+}
+
+bool simline_t::dispatch_held_convoy()
+{
+	if (target_convoy_count == 0 || count_deployed_convoys() >= target_convoy_count)
+	{
+		return false;
+	}
+
+	vector_tpl<convoihandle_t> held;
+	for (auto const c : line_managed_convoys)
+	{
+		if (c.is_bound() && c->get_state() == convoi_t::INITIAL && !c->is_withdrawal_pending())
+		{
+			held.append(c);
+		}
+	}
+	// Lowest convoy id first, so every peer chooses the same Convoy.
+	for (uint32 i = 1; i < held.get_count(); i++)
+	{
+		const convoihandle_t c = held[i];
+		uint32 j = i;
+		while (j > 0 && held[j - 1].get_id() > c.get_id())
+		{
+			held[j] = held[j - 1];
+			j--;
+		}
+		held[j] = c;
+	}
+
+	for (auto const c : held)
+	{
+		grund_t *gr = welt->lookup(c->get_pos());
+		depot_t *dep = gr ? gr->get_depot() : NULL;
+		if (dep)
+		{
+			c->set_withdrawal_pending(false);
+			if (dep->start_convoi(c, false))
+			{
+				return true;
+			}
+			c->set_withdrawal_pending(true);
+		}
+	}
+	return false;
+}
+
+// Scheduled distance in tiles from the current entry to the next depot entry.
+// When the schedule has no depot, the distance to the end of the schedule is
+// returned; the caller uses the Convoy's home depot as a fallback.
+uint32 simline_t::scheduled_distance_to_next_depot(convoihandle_t c) const
+{
+	const schedule_t *sch = c->get_schedule();
+	if (!sch || sch->empty())
+	{
+		return 0;
+	}
+	const uint8 start = sch->get_current_stop();
+	const uint8 count = sch->get_count();
+	uint32 distance = 0;
+	for (uint8 step = 1; step <= count; step++)
+	{
+		const uint8 i = (start + step) % count;
+		const uint8 prev = (i + count - 1) % count;
+		distance += shortest_distance(sch->entries[prev].pos.get_2d(), sch->entries[i].pos.get_2d());
+		const grund_t *gr = welt->lookup(sch->entries[i].pos);
+		if (gr && gr->get_depot())
+		{
+			return distance;
+		}
+	}
+	return distance;
+}
+
+bool simline_t::withdraw_one_convoy()
+{
+	convoihandle_t best;
+	int best_maintenance = -1;
+	sint64 best_overdue = 0;
+	bool best_heading = false;
+	uint32 best_distance = 0;
+	sint32 best_load = 0;
+	uint16 best_id = 0;
+
+	for (auto const c : line_managed_convoys)
+	{
+		if (!c.is_bound() || c->get_vehicle_count() == 0 || c->get_withdraw()
+			|| c->is_withdrawal_pending() || c->get_state() == convoi_t::INITIAL
+			|| convoi_t::is_inside_depot_state(c->get_state()))
+		{
+			continue;
+		}
+
+		int maintenance = 0;
+		if (c->is_maintenance_urgently_needed())
+		{
+			maintenance = 3;
+		}
+		else if (c->is_maintenance_needed())
+		{
+			maintenance = 2;
+		}
+		else if (c->is_overhaul_needed())
+		{
+			maintenance = 1;
+		}
+
+		sint64 overdue = 0;
+		for (uint8 i = 0; i < c->get_vehicle_count(); i++)
+		{
+			const vehicle_t *v = c->get_vehicle(i);
+			overdue = max(overdue, max((sint64)v->get_km_since_last_maintenance(), (sint64)v->get_km_since_last_overhaul()));
+		}
+
+		bool heading = c->get_state() == convoi_t::ENTERING_DEPOT;
+		const schedule_t *sch = c->get_schedule();
+		if (!heading && sch && !sch->empty())
+		{
+			const grund_t *gr = welt->lookup(sch->get_current_entry().pos);
+			heading = gr && gr->get_depot() != NULL;
+		}
+
+		const uint32 distance = scheduled_distance_to_next_depot(c);
+		const sint32 load = max((sint32)0, c->get_loading_level());
+
+		bool better = false;
+		if (!best.is_bound())
+		{
+			better = true;
+		}
+		else if (maintenance != best_maintenance)
+		{
+			better = maintenance > best_maintenance;
+		}
+		else if (overdue != best_overdue)
+		{
+			better = overdue > best_overdue;
+		}
+		else if (heading != best_heading)
+		{
+			better = heading;
+		}
+		else if (distance != best_distance)
+		{
+			better = distance > best_distance;
+		}
+		else if (load != best_load)
+		{
+			better = load < best_load;
+		}
+		else
+		{
+			better = c.get_id() < best_id;
+		}
+
+		if (better)
+		{
+			best = c;
+			best_maintenance = maintenance;
+			best_overdue = overdue;
+			best_heading = heading;
+			best_distance = distance;
+			best_load = load;
+			best_id = c.get_id();
+		}
+	}
+
+	if (!best.is_bound())
+	{
+		return false;
+	}
+
+	best->set_withdrawal_pending(true);
+	best->set_no_load(true);
+	if (!best->go_to_depot(false, false, true))
+	{
+		best->set_withdrawal_pending(false);
+		best->set_no_load(false);
+		return false;
+	}
+	return true;
+}
+
+void simline_t::withdraw_excess_convoys()
+{
+	if (target_convoy_count == 0)
+	{
+		return;
+	}
+	uint16 effective = 0;
+	for (auto const c : line_managed_convoys)
+	{
+		if (c.is_bound() && c->get_vehicle_count() > 0 && !c->get_withdraw()
+			&& !c->is_withdrawal_pending()
+			&& c->get_state() != convoi_t::INITIAL
+			&& !convoi_t::is_inside_depot_state(c->get_state()))
+		{
+			effective++;
+		}
+	}
+	while (effective > target_convoy_count)
+	{
+		if (!withdraw_one_convoy())
+		{
+			break;
+		}
+		effective--;
 	}
 }
 

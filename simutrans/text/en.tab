@@ -6714,6 +6714,36 @@ depot_order_explanation
 A blank order leaves the train together. An order re-forms the train from the vehicles in this depot when it can be satisfied.
 modify_the_consist_at_this_depot_entry
 Open a window to set the consist that is to leave this depot
+Fleet
+Fleet
+Target consists
+Target consists
+Automatic fleet policy
+Automatic fleet policy
+Target min
+Target min
+Target max
+Target max
+Add threshold (0.1%)
+Add threshold (0.1%)
+Remove threshold (0.1%)
+Remove threshold (0.1%)
+Add months
+Add months
+Remove months
+Remove months
+Set policy
+Set policy
+order set
+order set
+no order
+no order
+Deployed %d, held %d, under maintenance %d, total %d; held and pool fixed cost %lld per month
+Deployed %d, held %d, under maintenance %d, total %d; held and pool fixed cost %lld per month
+Passengers %.1f%% last month, %.1f%% two months; goods %.1f%% and %.1f%%; policy uses %.1f%%
+Passengers %.1f%% last month, %.1f%% two months; goods %.1f%% and %.1f%%; policy uses %.1f%%
+Maximum consists that can run now: %d (deployed %d + held %d + pool %d)
+Maximum consists that can run now: %d (deployed %d + held %d + pool %d)
 consist_order
 Modify consist at this stop
 limit_to_same_vehicle

@@ -95,6 +95,32 @@ call_tool_init line_change_schedule(simline_t* line, player_t *player, schedule_
 	return "Invalid schedule provided";
 }
 
+sint32 line_get_target_convoy_count(simline_t *line)
+{
+	return line ? (sint32)line->get_target_convoy_count() : 0;
+}
+
+sint32 line_get_deployed_convoy_count(simline_t *line)
+{
+	return line ? (sint32)line->count_deployed_convoys() : 0;
+}
+
+call_tool_init line_set_target_convoy_count(simline_t *line, player_t *player, sint32 target)
+{
+	if (!line) {
+		return "Invalid line";
+	}
+	if (target < 0) {
+		target = 0;
+	}
+	if (target > 65535) {
+		target = 65535;
+	}
+	cbuffer_t buf;
+	buf.printf("n,%i,%i", line->get_handle().get_id(), (int)target);
+	return call_tool_init(TOOL_CHANGE_LINE | SIMPLE_TOOL, buf, 0, player);
+}
+
 call_tool_init line_delete(simline_t* line, player_t *player)
 {
 	if (line->count_convoys() == 0) {
@@ -223,6 +249,9 @@ void export_line(HSQUIRRELVM vm)
 	 * @returns owner
 	 */
 	register_method(vm, &simline_t::get_owner, "get_owner");
+	register_method(vm, &line_get_target_convoy_count, "get_target_convoy_count", true);
+	register_method(vm, &line_get_deployed_convoy_count, "get_deployed_convoy_count", true);
+	register_method(vm, line_set_target_convoy_count, "set_target_convoy_count", true);
 	/**
 	 * Schedule of this line.
 	 */

@@ -28,6 +28,7 @@
 #include "../simmenu.h"
 #include "../utils/simstring.h"
 #include "../player/simplay.h"
+#include "../player/finance.h"
 
 #include "../bauer/vehikelbauer.h"
 
@@ -170,6 +171,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	scroll_times_history(&cont_times_history, true, true),
 	scroll_line_info(&cont_line_info, true, true),
 	scroll_fare_manager(&cont_tab_fare_manager, true, true),
+	scroll_fleet(&cont_fleet, true, true),
 	scl(gui_scrolled_list_t::listskin, line_scrollitem_t::compare),
 	lbl_filter("Line Filter"),
 	convoy_infos(),
@@ -284,7 +286,7 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 		cont_line_info.add_component(&bt_replace);
 
 		bt_withdraw_line.init(button_t::box_state, "Withdraw All", scr_coord(0, 0), scr_size(D_BUTTON_WIDTH+18,D_BUTTON_HEIGHT));
-		bt_withdraw_line.set_tooltip("Convoi is sold when all wagons are empty.");
+		bt_withdraw_line.set_tooltip("Convoys run empty and go to the next depot on their schedule, where they are held.");
 		if (skinverwaltung_t::alerts) {
 			bt_withdraw_line.set_image(skinverwaltung_t::alerts->get_image_id(2));
 		}
@@ -472,6 +474,67 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	bt_mode_convois.add_listener(this);
 	cont_convoys.add_component(&bt_mode_convois);
 	info_tabs.add_tab(&cont_convoys, translator::translate("Convoys"));
+
+	// Fleet tab: target, automatic policy, fleet summary and depot detail.
+	cont_fleet.set_table_layout(1, 0);
+	cont_fleet.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_H_SPACE, D_V_SPACE));
+	cont_fleet.add_table(3, 1)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	{
+		cont_fleet.new_component<gui_label_t>("Target consists");
+		numimp_target_consists.init(0, 0, 65535, 1);
+		numimp_target_consists.add_listener(this);
+		cont_fleet.add_component(&numimp_target_consists);
+		bt_set_target.init(button_t::roundbox, "Set", scr_coord(0, 0), D_BUTTON_SIZE);
+		bt_set_target.add_listener(this);
+		cont_fleet.add_component(&bt_set_target);
+	}
+	cont_fleet.end_table();
+	cont_fleet.add_component(&lb_fleet_summary);
+	cont_fleet.add_component(&lb_fleet_load);
+	cont_fleet.add_component(&lb_fleet_max);
+	cont_fleet.new_component<gui_divider_t>();
+
+	bt_fleet_policy.init(button_t::square_state, "Automatic fleet policy");
+	bt_fleet_policy.set_tooltip("The Target Fleet Size follows the line's passenger and goods load factors.");
+	bt_fleet_policy.add_listener(this);
+	cont_fleet.add_component(&bt_fleet_policy);
+
+	cont_fleet.add_table(4, 2)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	{
+		cont_fleet.new_component<gui_label_t>("Target min");
+		numimp_fleet_target_min.init(1, 1, 65535, 1);
+		numimp_fleet_target_min.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_target_min);
+		cont_fleet.new_component<gui_label_t>("Target max");
+		numimp_fleet_target_max.init(0, 0, 65535, 1);
+		numimp_fleet_target_max.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_target_max);
+
+		cont_fleet.new_component<gui_label_t>("Add threshold (0.1%)");
+		numimp_fleet_add_threshold.init(0, 0, 1000, 10);
+		numimp_fleet_add_threshold.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_add_threshold);
+		cont_fleet.new_component<gui_label_t>("Remove threshold (0.1%)");
+		numimp_fleet_remove_threshold.init(0, 0, 1000, 10);
+		numimp_fleet_remove_threshold.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_remove_threshold);
+
+		cont_fleet.new_component<gui_label_t>("Add months");
+		numimp_fleet_add_months.init(0, 0, 255, 1);
+		numimp_fleet_add_months.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_add_months);
+		cont_fleet.new_component<gui_label_t>("Remove months");
+		numimp_fleet_remove_months.init(0, 0, 255, 1);
+		numimp_fleet_remove_months.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_remove_months);
+	}
+	cont_fleet.end_table();
+	bt_set_fleet_policy.init(button_t::roundbox, "Set policy", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_set_fleet_policy.add_listener(this);
+	cont_fleet.add_component(&bt_set_fleet_policy);
+	cont_fleet.new_component<gui_divider_t>();
+	cont_fleet.add_component(&cont_fleet_depots);
+	info_tabs.add_tab(&scroll_fleet, translator::translate("Fleet"));
 
 
 	offset_y += D_BUTTON_HEIGHT;
@@ -671,6 +734,36 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 			// since init always returns false, it is safe to delete immediately
 			delete tmp_tool;
 			depot_t::update_all_win();
+		}
+	}
+	else if (comp == &bt_set_target) {
+		if (line.is_bound()) {
+			tool_t *tmp_tool = create_tool( TOOL_CHANGE_LINE | SIMPLE_TOOL );
+			cbuffer_t buf;
+			buf.printf( "n,%i,%i", line.get_id(), (int)numimp_target_consists.get_value() );
+			tmp_tool->set_default_param(buf);
+			welt->set_tool( tmp_tool, player );
+			delete tmp_tool;
+		}
+	}
+	else if (comp == &bt_fleet_policy) {
+		bt_fleet_policy.pressed ^= 1;
+	}
+	else if (comp == &bt_set_fleet_policy) {
+		if (line.is_bound()) {
+			tool_t *tmp_tool = create_tool( TOOL_CHANGE_LINE | SIMPLE_TOOL );
+			cbuffer_t buf;
+			buf.printf( "p,%i,%i,%i,%i,%i,%i,%i,%i", line.get_id(),
+				bt_fleet_policy.pressed ? 1 : 0,
+				(int)numimp_fleet_target_min.get_value(),
+				(int)numimp_fleet_target_max.get_value(),
+				(int)numimp_fleet_add_threshold.get_value(),
+				(int)numimp_fleet_remove_threshold.get_value(),
+				(int)numimp_fleet_add_months.get_value(),
+				(int)numimp_fleet_remove_months.get_value() );
+			tmp_tool->set_default_param(buf);
+			welt->set_tool( tmp_tool, player );
+			delete tmp_tool;
 		}
 	}
 	else if(comp == &bt_withdraw_line) {
@@ -1014,6 +1107,8 @@ void schedule_list_gui_t::display(scr_coord pos)
 		lb_convoy_count.buf().printf(translator::translate(", %d vehicles"), line_total_vehicle_count);
 	}
 	lb_convoy_count.update();
+
+	update_fleet_tab();
 
 	// Display service frequency
 	const sint64 service_frequency = line->get_service_frequency();
@@ -1443,6 +1538,138 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 	bt_line_color_editor.set_visible(line.is_bound());
 
 	reset_line_name();
+}
+
+
+void schedule_list_gui_t::update_fleet_tab()
+{
+	if (!line.is_bound())
+	{
+		return;
+	}
+
+	uint16 deployed = line->count_deployed_convoys();
+	uint16 held = 0;
+	uint16 under = 0;
+	sint64 monthly_fixed = 0;
+	for (auto const c : line->get_convoys())
+	{
+		if (!c.is_bound())
+		{
+			continue;
+		}
+		const int state = c->get_state();
+		if (state == convoi_t::INITIAL)
+		{
+			held++;
+			monthly_fixed += c->get_fixed_cost();
+		}
+		else if (convoi_t::is_inside_depot_state(state))
+		{
+			under++;
+		}
+	}
+
+	uint16 pool_consists = 0;
+	cont_fleet_depots.remove_all();
+	cont_fleet_depots.set_table_layout(1, 0);
+	schedule_t *sch = line->get_schedule();
+	for (uint8 i = 0; sch && i < sch->get_count(); i++)
+	{
+		const grund_t *gr = welt->lookup(sch->entries[i].pos);
+		depot_t *dep = gr ? gr->get_depot() : NULL;
+		if (!dep)
+		{
+			continue;
+		}
+		const uint16 entry_id = sch->entries[i].unique_entry_id;
+		const bool has_order = sch->entry_has_consist_order(entry_id) && sch->get_consist_order(entry_id).get_count() > 0;
+		uint16 line_under = 0;
+		for (auto const c : dep->get_convoy_list())
+		{
+			if (c.is_bound() && c->get_line().is_bound() && c->get_line().get_id() == line.get_id()
+				&& (c->get_state() == convoi_t::MAINTENANCE || c->get_state() == convoi_t::OVERHAUL))
+			{
+				line_under++;
+			}
+		}
+		uint16 available = 0;
+		for (auto const v : dep->get_vehicle_list())
+		{
+			monthly_fixed += v->get_fixed_cost(welt);
+			if (!v->has_depot_job() || v->is_depot_job_complete())
+			{
+				available++;
+			}
+		}
+		uint16 consists = 0;
+		if (has_order)
+		{
+			const consist_order_t &order = sch->get_consist_order(entry_id);
+			const uint16 slots = (uint16)order.get_count();
+			uint16 min_match = 65535;
+			for (uint16 s = 0; s < slots; s++)
+			{
+				uint16 match = 0;
+				for (auto const v : dep->get_vehicle_list())
+				{
+					if (v->has_depot_job() && !v->is_depot_job_complete())
+					{
+						continue;
+					}
+					for (uint8 a = 0; a < order.get_order(s).get_count(); a++)
+					{
+						if (v->matches_consist_order_element(order.get_order(s), a))
+						{
+							match++;
+							break;
+						}
+					}
+				}
+				min_match = min(min_match, match);
+			}
+			if (slots > 0 && min_match != 65535)
+			{
+				consists = min(min_match, available / slots);
+			}
+			pool_consists += consists;
+		}
+		gui_label_buf_t *row = cont_fleet_depots.new_component<gui_label_buf_t>();
+		row->init(has_order ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED, gui_label_t::left);
+		row->buf().printf("%s: %s, %d under maintenance, %d pool (%d available), up to %d consist(s)",
+			dep->get_name(), translator::translate(has_order ? "order set" : "no order"),
+			line_under, dep->get_vehicle_list().get_count(), available, consists);
+		row->update();
+		if (!has_order)
+		{
+			row->set_tooltip("This depot has no departure consist order. Add one on the depot's schedule entry to re-form trains here.");
+		}
+	}
+
+	const uint32 pax_month = line->get_load_factor_pax_last_month();
+	const uint32 pax_two = line->get_load_factor_pax_last_two_months();
+	const uint32 goods_month = line->get_load_factor_goods_last_month();
+	const uint32 goods_two = line->get_load_factor_goods_last_two_months();
+	const uint32 policy_load = max(pax_two, goods_two);
+
+	lb_fleet_summary.buf().printf(translator::translate("Deployed %d, held %d, under maintenance %d, total %d; held and pool fixed cost %lld per month"),
+		(int)deployed, (int)held, (int)under, (int)line->count_convoys(), (long long)convert_money(monthly_fixed));
+	lb_fleet_summary.update();
+	lb_fleet_load.buf().printf(translator::translate("Passengers %.1f%% last month, %.1f%% two months; goods %.1f%% and %.1f%%; policy uses %.1f%%"),
+		pax_month / 10.0, pax_two / 10.0, goods_month / 10.0, goods_two / 10.0, policy_load / 10.0);
+	lb_fleet_load.update();
+	lb_fleet_max.buf().printf(translator::translate("Maximum consists that can run now: %d (deployed %d + held %d + pool %d)"),
+		(int)(deployed + held + pool_consists), (int)deployed, (int)held, (int)pool_consists);
+	lb_fleet_max.update();
+
+	numimp_target_consists.set_value(line->get_target_convoy_count());
+	bt_fleet_policy.pressed = line->get_fleet_policy() != 0;
+	numimp_fleet_target_min.set_value(line->get_fleet_target_min());
+	numimp_fleet_target_max.set_value(line->get_fleet_target_max());
+	numimp_fleet_add_threshold.set_value(line->get_fleet_add_threshold());
+	numimp_fleet_remove_threshold.set_value(line->get_fleet_remove_threshold());
+	numimp_fleet_add_months.set_value(line->get_fleet_add_months());
+	numimp_fleet_remove_months.set_value(line->get_fleet_remove_months());
 }
 
 

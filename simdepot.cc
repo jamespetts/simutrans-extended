@@ -559,6 +559,14 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 	{
 		acnv->set_home_depot(get_pos());
 	}
+
+	// The Deployed count has just fallen. If the line is now below its target,
+	// dispatch a Held Convoy or leave the line below target until one is ready.
+	if (acnv->get_line().is_bound())
+	{
+		acnv->get_line()->dispatch_held_convoy();
+	}
+
 	DBG_MESSAGE("depot_t::convoi_arrived()", "convoi %d, %p entered depot", acnv.get_id(), acnv.get_rep());
 }
 
@@ -918,6 +926,43 @@ bool depot_t::start_all_convoys()
 }
 
 
+bool depot_t::should_hold_convoy(convoihandle_t cnv) const
+{
+	if (!cnv.is_bound())
+	{
+		return false;
+	}
+	if (cnv->is_withdrawal_pending())
+	{
+		if (!cnv->get_line().is_bound())
+		{
+			return true;
+		}
+		const uint16 target = cnv->get_line()->get_target_convoy_count();
+		return target == 0 || cnv->get_line()->count_deployed_convoys() >= target;
+	}
+	if (!cnv->get_line().is_bound())
+	{
+		return false;
+	}
+	const uint16 target = cnv->get_line()->get_target_convoy_count();
+	return target > 0 && cnv->get_line()->count_deployed_convoys() >= target;
+}
+
+void depot_t::hold_convoy(convoihandle_t cnv)
+{
+	if (!cnv.is_bound())
+	{
+		return;
+	}
+	cnv->advance_past_current_depot_entry();
+	cnv->set_state(convoi_t::INITIAL);
+	under_maintenance.remove(cnv);
+	clear_convoy_maintenance_jobs(cnv);
+	awaiting_assembly.remove(cnv);
+	cnv->set_wait_lock(0);
+}
+
 bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 {
 	// close schedule window if not yet closed
@@ -935,6 +980,22 @@ bool depot_t::start_convoi(convoihandle_t cnv, bool local_execution)
 		if(state != convoi_t::INITIAL && state != convoi_t::ROUTING_1 && state != convoi_t::ROUTE_JUST_FOUND) {
 			return false;
 		}
+	}
+
+	if (cnv.is_bound() && local_execution)
+	{
+		// A manual start ignores the target and clears a manual withdrawal.
+		cnv->set_withdrawal_pending(false);
+	}
+	else if (cnv.is_bound() && should_hold_convoy(cnv))
+	{
+		hold_convoy(cnv);
+		return false;
+	}
+	else if (cnv.is_bound() && cnv->is_withdrawal_pending())
+	{
+		// The target has been raised: the withdrawn Convoy may resume.
+		cnv->set_withdrawal_pending(false);
 	}
 
 	// convoi not in depot anymore, maybe user double-clicked on start-button
@@ -1877,15 +1938,7 @@ void depot_t::try_assemble_depot_orders()
 
 void depot_t::hold_original_convoy(convoihandle_t source)
 {
-	if (!source.is_bound())
-	{
-		return;
-	}
-	source->advance_past_current_depot_entry();
-	source->set_state(convoi_t::INITIAL);
-	under_maintenance.remove(source);
-	clear_convoy_maintenance_jobs(source);
-	awaiting_assembly.remove(source);
+	hold_convoy(source);
 }
 
 bool depot_t::try_form_new_convoy(convoihandle_t source, const consist_order_t &order, const vector_tpl<vehicle_t*> &available)

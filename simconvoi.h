@@ -308,6 +308,9 @@ private:
 	* the convoi is being withdrawn from service
 	*/
 	bool withdraw;
+	// True while a withdrawal is in progress: the Convoy is on its way to a
+	// depot and must be held there instead of resuming service.
+	bool withdrawal_pending = false;
 
 	/**
 	* nothing will be loaded onto this convoi
@@ -1426,6 +1429,8 @@ public:
 	inline bool has_obsolete_vehicles() const { return has_obsolete; }
 
 	inline bool get_withdraw() const { return withdraw; }
+	inline bool is_withdrawal_pending() const { return withdrawal_pending; }
+	inline void set_withdrawal_pending(bool value) { withdrawal_pending = value; }
 
 	void set_withdraw(bool new_withdraw);
 

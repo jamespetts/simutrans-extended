@@ -112,6 +112,10 @@ local DEPOT_ORDER_CASE = ("maintenance_depot_order_case" in getroottable()) && :
 // while the original Convoy departs with the vehicles the order names.
 local DEPOT_ORDER_EXCLUDE_CASE = ("maintenance_depot_order_exclude_case" in getroottable()) && ::maintenance_depot_order_exclude_case
 local DEPOT_ORDER_ANY_CASE = DEPOT_ORDER_CASE || DEPOT_ORDER_EXCLUDE_CASE
+// The target case builds two convoys of one line, both held in the depot, and
+// drives the Target Fleet Size: raise it to dispatch Held Convoys, lower it to
+// withdraw a Deployed Convoy to the depot.
+local TARGET_CASE = ("maintenance_target_case" in getroottable()) && ::maintenance_target_case
 local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
@@ -182,7 +186,8 @@ local fixture = {
 	cross_b_started = false,
 	withdraw_steps = 0,
 	withdraw_cleared_steps = 0,
-	order_descs = []
+	order_descs = [],
+	target_phase = 0
 }
 
 
@@ -417,7 +422,7 @@ function setup()
 	// depot. The depot tool creates a new convoy when it is given an unbound
 	// handle, as the first convoy above.
 	local cnv_b = null
-	if (CROSS_CONVOY_CASE)
+	if (CROSS_CONVOY_CASE || TARGET_CASE)
 	{
 		local before_b = convoy_ids()
 		if (!check_tool(depot.append_vehicle(pl, convoy_x(0), descs[0]), "put the second convoy's leading vehicle in the depot")) { return false }
@@ -488,7 +493,7 @@ function setup()
 		if (!check(back_order.orders.rawget(DEPOT_ENTRY_ID) != null, "the committed schedule has no depot consist order")) { return false; }
 	}
 
-	if (CROSS_CONVOY_CASE)
+	if (CROSS_CONVOY_CASE || TARGET_CASE)
 	{
 		// Both convoys use the line schedule, so both arrive at the depot with
 		// the depot entry current.
@@ -497,6 +502,15 @@ function setup()
 		fixture.line_id = line.id
 		if (!check_tool(cnv.set_line(pl, line), "assign the first convoy to the maintenance line")) { return false }
 		if (!check_tool(cnv_b.set_line(pl, line), "assign the second convoy to the maintenance line")) { return false }
+
+		if (TARGET_CASE)
+		{
+			// Both Convoys are INITIAL Held Convoys. Raising the target to 1
+			// must dispatch the lowest-id Convoy.
+			if (!check(line.get_deployed_convoy_count() == 0, "the target case starts with " + line.get_deployed_convoy_count() + " Deployed Convoys")) { return false }
+			if (!check_tool(line.set_target_convoy_count(pl, 1), "set the line target to 1")) { return false }
+			return true
+		}
 
 		local a_slots = cnv.get_vehicle_snapshot()
 		local b_slots = cnv_b.get_vehicle_snapshot()
@@ -870,48 +884,52 @@ function observe_departure(cnv)
 }
 
 
-// The withdraw case: the withdrawn convoy must disappear, the depot must drop
-// it from its convoy list, and the process must survive several further sync
-// steps, because depot_t::sync_step() walks the maintenance queue every sync
-// step. A stale, detached handle in that queue would fault there.
+// The withdraw case: a withdrawn convoy is no longer sold when it becomes
+// empty. It finishes its depot visit and is held in INITIAL in the depot's
+// convoy list. The process must survive several further sync steps, because
+// depot_t::sync_step() walks the maintenance queue every step.
 function observe_withdrawal()
 {
 	local cnv = convoy_x(fixture.convoy_id)
-	if (cnv.is_valid())
+	if (!cnv.is_valid())
+	{
+		fail("the withdrawn convoy was destroyed; a withdrawal must hold it in the depot")
+		return
+	}
+
+	if (cnv.get_state() != convoy_state_initial)
 	{
 		++fixture.withdraw_steps
 		if (fixture.withdraw_steps > DEPARTURE_STEP_LIMIT)
 		{
-			fail("the convoy was still alive " + DEPARTURE_STEP_LIMIT + " observation steps after it was withdrawn")
+			fail("the withdrawn convoy did not become INITIAL within " + DEPARTURE_STEP_LIMIT + " observation steps (state " + cnv.get_state() + ")")
 		}
 		return
 	}
 
-	// A destroyed convoy is pushed to Squirrel as null, so either an unbound
-	// entry or a matching id means the depot kept the stale handle.
 	foreach (c in fixture.depot.get_convoy_list())
 	{
 		if (c == null)
 		{
-			fail("the depot's convoy list still contains an unbound handle after the withdrawal")
+			fail("the depot's convoy list contains an unbound handle after the withdrawal")
 			return
 		}
 		if (c.id == fixture.convoy_id)
 		{
-			fail("the destroyed convoy " + fixture.convoy_id + " is still in the depot's convoy list")
+			if (fixture.withdraw_cleared_steps == 0)
+			{
+				print("RUNTIME CASE " + case_name + ": the withdrawn convoy is held in INITIAL and the depot still lists it")
+			}
+			++fixture.withdraw_cleared_steps
+			if (fixture.withdraw_cleared_steps >= 4)
+			{
+				pass()
+			}
 			return
 		}
 	}
 
-	if (fixture.withdraw_cleared_steps == 0)
-	{
-		print("RUNTIME CASE " + case_name + ": the withdrawn convoy is gone and the depot no longer lists it")
-	}
-	++fixture.withdraw_cleared_steps
-	if (fixture.withdraw_cleared_steps >= 4)
-	{
-		pass()
-	}
+	fail("the withdrawn convoy is INITIAL but the depot no longer lists it")
 }
 
 
@@ -1031,8 +1049,88 @@ function observe_cross_convoy()
 }
 
 
+function observe_target_fleet()
+{
+	local line = line_x(fixture.line_id)
+	local a = convoy_x(fixture.convoy_id)
+	local b = convoy_x(fixture.convoy_id_b)
+	if (!line.is_valid() || !a.is_valid() || !b.is_valid())
+	{
+		fail("the target case lost its line or one of its convoys")
+		return
+	}
+
+	if (fixture.target_phase == 0)
+	{
+		if (a.get_state() == convoy_state_initial)
+		{
+			++fixture.travel_steps
+			if (fixture.travel_steps > DEPARTURE_STEP_LIMIT)
+			{
+				fail("raising the target to 1 did not dispatch the first Held Convoy")
+			}
+			return
+		}
+		if (!check(b.get_state() == convoy_state_initial, "the second Held Convoy left the depot when the target was 1")) { return }
+		if (!check(line.get_deployed_convoy_count() == 1, "the Deployed count is " + line.get_deployed_convoy_count() + " after dispatching the first Convoy")) { return }
+		print("RUNTIME CASE " + case_name + ": target 1 dispatched the first Held Convoy")
+		if (!check_tool(line.set_target_convoy_count(player_x(0), 2), "raise the target to 2")) { return }
+		fixture.target_phase = 1
+		fixture.travel_steps = 0
+		return
+	}
+
+	if (fixture.target_phase == 1)
+	{
+		if (b.get_state() == convoy_state_initial)
+		{
+			++fixture.travel_steps
+			if (fixture.travel_steps > DEPARTURE_STEP_LIMIT)
+			{
+				fail("raising the target to 2 did not dispatch the second Held Convoy")
+			}
+			return
+		}
+		if (!check(line.get_deployed_convoy_count() == 2, "the Deployed count is " + line.get_deployed_convoy_count() + " after dispatching the second Convoy")) { return }
+		print("RUNTIME CASE " + case_name + ": target 2 dispatched the second Held Convoy")
+		if (!check_tool(line.set_target_convoy_count(player_x(0), 1), "lower the target to 1")) { return }
+		fixture.target_phase = 2
+		fixture.travel_steps = 0
+		return
+	}
+
+	if (line.get_deployed_convoy_count() > 1)
+	{
+		++fixture.travel_steps
+		if (fixture.travel_steps > DEPARTURE_STEP_LIMIT)
+		{
+			fail("lowering the target to 1 did not withdraw a Deployed Convoy (count " + line.get_deployed_convoy_count() + ")")
+		}
+		return
+	}
+
+	if (a.get_state() == convoy_state_initial || b.get_state() == convoy_state_initial)
+	{
+		print("RUNTIME CASE " + case_name + ": lowering the target to 1 withdrew and held one Convoy")
+		pass()
+		return
+	}
+
+	++fixture.travel_steps
+	if (fixture.travel_steps > DEPARTURE_STEP_LIMIT)
+	{
+		fail("the withdrawn Convoy did not become INITIAL within " + DEPARTURE_STEP_LIMIT + " observation steps")
+	}
+}
+
+
 function observe()
 {
+	if (TARGET_CASE)
+	{
+		observe_target_fleet()
+		return
+	}
 	if (fixture.stage == "withdrawing")
 	{
 		// The withdrawn convoy is expected to disappear, so this stage must be

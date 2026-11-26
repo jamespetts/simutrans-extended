@@ -10337,6 +10337,48 @@ bool tool_change_line_t::init( player_t *player )
 			}
 			break;
 
+		case 'n': // set the Target Fleet Size
+			{
+				if (line.is_bound()) {
+					sint32 target = atoi( p );
+					if (target < 0) {
+						target = 0;
+					}
+					if (target > 65535) {
+						target = 65535;
+					}
+					line->set_target_convoy_count((uint16)target);
+					// Raising the target dispatches Held Convoys; lowering it
+					// withdraws Convoys one at a time.
+					while (target > 0 && line->count_deployed_convoys() < (uint16)target && line->dispatch_held_convoy()) {
+					}
+					line->withdraw_excess_convoys();
+				}
+			}
+			break;
+
+		case 'p': // set the automatic Target Fleet Size policy
+			{
+				if (line.is_bound()) {
+					sint32 policy, target_min, target_max, add_threshold, remove_threshold, add_months, remove_months;
+					if (sscanf( p, "%d,%d,%d,%d,%d,%d,%d", &policy, &target_min, &target_max,
+						&add_threshold, &remove_threshold, &add_months, &remove_months) == 7) {
+						policy = max(0, min(1, policy));
+						target_min = max(1, min(65535, target_min));
+						target_max = max(0, min(65535, target_max));
+						add_threshold = max(0, min(1000, add_threshold));
+						remove_threshold = max(0, min(1000, remove_threshold));
+						add_months = max(0, min(255, add_months));
+						remove_months = max(0, min(255, remove_months));
+						if (add_threshold > remove_threshold) {
+							line->set_fleet_policy_values((uint8)policy, (uint16)target_min, (uint16)target_max,
+								(uint16)add_threshold, (uint16)remove_threshold, (uint8)add_months, (uint8)remove_months);
+						}
+					}
+				}
+			}
+			break;
+
 		case 't': // trims away convois on all lines of linetype with this default parameter
 			{
 				vector_tpl<linehandle_t> const& lines = player->simlinemgmt.get_line_list();
