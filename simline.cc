@@ -1855,8 +1855,9 @@ sint64 simline_t::get_service_frequency()
 	const int spacing = schedule->get_spacing();
 	if (line_managed_convoys.get_count() && spacing > 0)
 	{
-		// Check whether the spacing setting affects things.
-		sint64 spacing_ticks = welt->ticks_per_world_month / (sint64)spacing;
+		// Check whether the spacing setting affects things. The spacing is in
+		// departures per year, so the yearly tick count is the interval numerator.
+		sint64 spacing_ticks = (sint64)welt->ticks_per_world_month * 12 / (sint64)spacing;
 		const uint32 spacing_time = welt->ticks_to_tenths_of_minutes(spacing_ticks);
 		service_frequency = max(spacing_time, service_frequency);
 	}
