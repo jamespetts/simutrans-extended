@@ -9612,8 +9612,9 @@ uint32 convoi_t::calc_reverse_delay() const
 				}
 
 				halt->set_estimated_arrival_time(self.get_id(), eta);
-				const sint64 max_waiting_time = schedule->get_current_entry().waiting_time_shift ? welt->ticks_per_world_month >> (16ll - (sint64)schedule->get_current_entry().waiting_time_shift) : WAIT_INFINITE;
-				if((schedule->entries[schedule_entry].minimum_loading > 0 || schedule->entries[schedule_entry].is_flag_set(schedule_entry_t::wait_for_time)) && schedule->get_spacing() > 0)
+				const schedule_entry_t &future_entry = schedule->entries[schedule_entry];
+				const sint64 max_waiting_time = future_entry.waiting_time_shift ? welt->ticks_per_world_month >> (16ll - (sint64)future_entry.waiting_time_shift) : WAIT_INFINITE;
+				if((future_entry.minimum_loading > 0 || future_entry.is_flag_set(schedule_entry_t::wait_for_time)) && schedule->get_spacing() > 0)
 				{
 					sint64 spacing_multiplier = 1;
 
@@ -9633,9 +9634,9 @@ uint32 convoi_t::calc_reverse_delay() const
 						}
 					}
 
-					// Add spacing time.
-					const sint64 spacing_ticks = (welt->ticks_per_world_month * 12u) / (sint64)schedule->get_spacing(); // There is a departure from each spaced stop once every this number of ticks. 12 because spacing is now in 10ths of a fraction of a month.
-					const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
+					// Add spacing time. There is a departure from each spaced stop once every this number of ticks.
+					const sint64 spacing_ticks = (welt->ticks_per_world_month * 12u) / (sint64)schedule->get_spacing();
+					const sint64 spacing_shift = (sint64)future_entry.spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
 
 					// Use earliest departure time (ready to depart exactly at the scheduled departure time?)
 					const sint64 spacing_ticks_remainder = (earliest_departure_time + spacing_shift) % spacing_ticks;
@@ -9652,15 +9653,15 @@ uint32 convoi_t::calc_reverse_delay() const
 
 						// The loading time and reverse delay will be added later
 						etd = tmp_etd - current_loading_time;
-						if (schedule->entries[schedule_entry].reverse == 1)
+						if (future_entry.reverse == 1)
 						{
 							etd -= reverse_delay;
 						}
 					}
 				}
-				else if(schedule->entries[schedule_entry].minimum_loading > 0 && schedule->get_spacing() == 0)
+				else if(future_entry.minimum_loading > 0 && schedule->get_spacing() == 0)
 				{
-					if(schedule->get_current_entry().waiting_time_shift)
+					if(future_entry.waiting_time_shift)
 					{
 						etd += max_waiting_time;
 					}
