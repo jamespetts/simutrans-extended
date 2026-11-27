@@ -156,7 +156,10 @@ local fixture = {
 	curve_arrived = {},
 	// trigger-wait
 	trigger_seen = false,
-	trigger_steps = 0
+	trigger_steps = 0,
+	trigger_arrival_ticks = 0,
+	trigger_wait_ticks = 0,
+	trigger_left = false
 }
 
 
@@ -709,7 +712,22 @@ function observe_single_run()
 // receiver bit is set and no broadcaster sends it, so the convoy must remain in
 // AWAITING_TRIGGER. Before the fix for GitHub issue 701, the first
 // convoi_t::sync_step() after arrival aborted with "Wrong state 27".
+// The trigger-timeout case uses the same fixture with a maximum waiting time:
+// it must leave AWAITING_TRIGGER once that wait has expired and continue to the
+// road end.
+local TRIGGER_TIMEOUT_SHIFT = 8
+
 function setup_trigger_wait(pl)
+{
+	return setup_trigger_case(pl, 0)
+}
+
+function setup_trigger_timeout(pl)
+{
+	return setup_trigger_case(pl, TRIGGER_TIMEOUT_SHIFT)
+}
+
+function setup_trigger_case(pl, wait_shift)
 {
 	local road = way_desc_x.get_available_ways(wt_road, st_flat)[0]
 	if (!check(road != null, "no flat road is available"))
@@ -742,16 +760,16 @@ function setup_trigger_wait(pl)
 	{
 		return false
 	}
-	local stop_entry = make_entry(STOP_POS, 71, 0)
+	local stop_entry = make_entry_wait(STOP_POS, 71, 0, wait_shift)
 	stop_entry.conditional_depart_before_wait = true
 	stop_entry.condition_bitfield_receiver = 1
-	local cnv = make_convoy(pl, desc, [stop_entry, make_entry(ROAD_END, 72, 0)], "trigger-wait")
+	local cnv = make_convoy(pl, desc, [stop_entry, make_entry(ROAD_END, 72, 0)], case_name)
 	if (cnv == null)
 	{
 		return false
 	}
 	fixture.convoys = [cnv]
-	if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start the trigger-wait convoy"))
+	if (!check_tool(fixture.depot.start_convoy(pl, cnv), "start the " + case_name + " convoy"))
 	{
 		return false
 	}
@@ -794,6 +812,66 @@ function observe_trigger_wait()
 		print("RUNTIME CASE " + case_name + ": convoy remained in AWAITING_TRIGGER for " + fixture.trigger_steps + " observations")
 		pass()
 	}
+}
+
+
+// The trigger-timeout case configures a maximum wait and sends no trigger. The
+// convoy must stay in AWAITING_TRIGGER until the wait from its arrival has
+// expired, then leave and continue to the road end.
+function observe_trigger_timeout()
+{
+	local cnv = fixture.convoys[0]
+	if (cnv == null || !cnv.is_valid())
+	{
+		return
+	}
+	local state = cnv.get_state()
+	local now = world.get_time()
+
+	if (!fixture.trigger_seen)
+	{
+		if (state == convoy_state_awaiting_trigger)
+		{
+			fixture.trigger_seen = true
+			fixture.trigger_steps = 0
+			fixture.trigger_arrival_ticks = cnv.get_arrival_time()
+			fixture.trigger_wait_ticks = now.ticks_per_month >> (16 - TRIGGER_TIMEOUT_SHIFT)
+			print("RUNTIME CASE " + case_name + ": convoy is awaiting a trigger at " + pos_text(cnv.get_pos())
+				+ "; arrival " + fixture.trigger_arrival_ticks + ", configured wait " + fixture.trigger_wait_ticks + " ticks")
+			return
+		}
+		local slot = front_slot(cnv)
+		if (slot != null && slot.pos.x > STOP_POS.x)
+		{
+			fail("the convoy passed the trigger stop without entering AWAITING_TRIGGER (state " + state + ")")
+		}
+		return
+	}
+
+	if (!fixture.trigger_left)
+	{
+		if (state == convoy_state_awaiting_trigger)
+		{
+			++fixture.trigger_steps
+			if (fixture.trigger_steps > 20000)
+			{
+				fail("the convoy remained in AWAITING_TRIGGER for " + fixture.trigger_steps + " observations, beyond the configured wait of " + fixture.trigger_wait_ticks + " ticks")
+			}
+			return
+		}
+		local elapsed = now.ticks - fixture.trigger_arrival_ticks
+		if (!check(elapsed >= fixture.trigger_wait_ticks,
+			"the convoy left AWAITING_TRIGGER after " + elapsed + " ticks, before the configured " + fixture.trigger_wait_ticks + " ticks"))
+		{
+			return
+		}
+		print("RUNTIME CASE " + case_name + ": convoy left AWAITING_TRIGGER after " + elapsed
+			+ " ticks (configured " + fixture.trigger_wait_ticks + ") and is in state " + state)
+		fixture.trigger_left = true
+		return
+	}
+
+	observe_single_run()
 }
 
 
@@ -2390,6 +2468,10 @@ function setup()
 	{
 		return setup_trigger_wait(pl)
 	}
+	if (case_name == "trigger-timeout")
+	{
+		return setup_trigger_timeout(pl)
+	}
 	if (case_name == "moving-gap")
 	{
 		return setup_moving_gap(pl)
@@ -2461,6 +2543,10 @@ function observe()
 	else if (case_name == "trigger-wait")
 	{
 		observe_trigger_wait()
+	}
+	else if (case_name == "trigger-timeout")
+	{
+		observe_trigger_timeout()
 	}
 	else if (case_name == "moving-gap")
 	{

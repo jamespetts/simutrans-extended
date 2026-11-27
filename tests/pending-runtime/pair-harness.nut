@@ -287,6 +287,7 @@ function depict_state(state)
 		case convoy_state_loading: return "loading"
 		case convoy_state_shunting: return "shunting"
 		case convoy_state_awaiting_recombination: return "awaiting recombination"
+		case convoy_state_awaiting_trigger: return "awaiting trigger"
 		case convoy_state_layover: return "layover"
 		case convoy_state_can_start: return "can start"
 		case convoy_state_initial: return "initial"
@@ -539,6 +540,22 @@ function is_passenger_cargo_case()
 {
 	local shape = case_shape()
 	return shape == "pair-passenger-through" || shape == "pair-passenger-loose"
+}
+
+
+// The pair-trigger-wait case is the symmetric locomotive swap with the target's
+// pair entry held for a departure trigger. The exchange must run while the
+// target waits, and the target must keep the trigger wait afterwards.
+function is_trigger_pair_case()
+{
+	return case_name == "pair-trigger-wait"
+}
+
+
+function is_symmetric_swap_case()
+{
+	return case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first"
+		|| is_trigger_pair_case()
 }
 
 
@@ -874,7 +891,7 @@ function receiver_order()
 	{
 		return [[fixture.loco_a], [fixture.coach_b]]
 	}
-	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
+	if (is_symmetric_swap_case())
 	{
 		return [[fixture.loco_b], [fixture.coach_a]]
 	}
@@ -913,7 +930,7 @@ function target_order()
 	{
 		return [[fixture.loco_b]]
 	}
-	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
+	if (is_symmetric_swap_case())
 	{
 		return [[fixture.loco_a], [fixture.coach_b]]
 	}
@@ -948,7 +965,7 @@ function receiver_final()
 	{
 		return [fixture.loco_a, fixture.coach_b]
 	}
-	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
+	if (is_symmetric_swap_case())
 	{
 		return [fixture.loco_b, fixture.coach_a]
 	}
@@ -978,7 +995,7 @@ function target_final()
 	{
 		return [fixture.loco_b]
 	}
-	if (case_name == "symmetric-swap" || case_name == "symmetric-swap-target-first")
+	if (is_symmetric_swap_case())
 	{
 		return [fixture.loco_a, fixture.coach_b]
 	}
@@ -1207,6 +1224,17 @@ function commit_receiver_schedule(pl, receiver, target)
 	entries[0].couple_target_is_line_or_cnv = true
 	entries[0].target_id_couple = target.id
 	entries[0].target_unique_entry_couple = TARGET_ENTRY_ID
+	if (is_trigger_pair_case())
+	{
+		// The receiver sends the target's departure trigger when it reaches its
+		// next stop, after the exchange. This proves that the trigger-held
+		// target stays held across the exchange and then proceeds when the
+		// trigger arrives.
+		entries[1].send_trigger = true
+		entries[1].cond_trigger_is_line_or_cnv = true
+		entries[1].target_id_condition_trigger = target.id
+		entries[1].condition_bitfield_broadcaster = 1
+	}
 
 	local schedule = schedule_x(wt_rail, entries)
 	schedule.orders.rawset(RECEIVER_ENTRY_ID, make_order(receiver_order()))
@@ -1221,6 +1249,13 @@ function commit_receiver_schedule(pl, receiver, target)
 	if (!check(back.entries[0].target_id_couple == target.id, "receiver schedule read-back: target id is " + back.entries[0].target_id_couple + ", expected " + target.id)) { return false }
 	if (!check(back.entries[0].target_unique_entry_couple == TARGET_ENTRY_ID, "receiver schedule read-back: target entry is not " + TARGET_ENTRY_ID)) { return false }
 	if (!check(RECEIVER_ENTRY_ID in back.orders, "receiver schedule read-back: no order at entry " + RECEIVER_ENTRY_ID)) { return false }
+	if (is_trigger_pair_case())
+	{
+		if (!check(back.entries[1].send_trigger == true, "receiver schedule read-back: the next entry does not send the target's trigger")) { return false }
+		if (!check(back.entries[1].cond_trigger_is_line_or_cnv == true, "receiver schedule read-back: the trigger target is not a convoy")) { return false }
+		if (!check(back.entries[1].target_id_condition_trigger == target.id, "receiver schedule read-back: trigger target id is " + back.entries[1].target_id_condition_trigger + ", expected " + target.id)) { return false }
+		if (!check(back.entries[1].condition_bitfield_broadcaster == 1, "receiver schedule read-back: trigger broadcaster is " + back.entries[1].condition_bitfield_broadcaster + ", expected 1")) { return false }
+	}
 	return true
 }
 
@@ -1232,6 +1267,15 @@ function commit_target_schedule(pl, receiver, target)
 	entries[0].uncouple_target_is_line_or_cnv = true
 	entries[0].target_id_uncouple = receiver.id
 	entries[0].target_unique_entry_uncouple = RECEIVER_ENTRY_ID
+	if (is_trigger_pair_case())
+	{
+		// The target waits for a departure trigger when it reaches the pair
+		// entry, before it has run its loading pass. The receiver must still be
+		// able to use it as a pair counterpart, and the exchange must not clear
+		// the wait.
+		entries[0].conditional_depart_before_wait = true
+		entries[0].condition_bitfield_receiver = 1
+	}
 
 	local schedule = schedule_x(wt_rail, entries)
 	schedule.orders.rawset(TARGET_ENTRY_ID, make_order(target_order()))
@@ -1246,6 +1290,11 @@ function commit_target_schedule(pl, receiver, target)
 	if (!check(back.entries[0].target_id_uncouple == receiver.id, "target schedule read-back: target id is " + back.entries[0].target_id_uncouple + ", expected " + receiver.id)) { return false }
 	if (!check(back.entries[0].target_unique_entry_uncouple == RECEIVER_ENTRY_ID, "target schedule read-back: target entry is not " + RECEIVER_ENTRY_ID)) { return false }
 	if (!check(TARGET_ENTRY_ID in back.orders, "target schedule read-back: no order at entry " + TARGET_ENTRY_ID)) { return false }
+	if (is_trigger_pair_case())
+	{
+		if (!check(back.entries[0].conditional_depart_before_wait == true, "target schedule read-back: the pair entry does not wait for a trigger before its loading time")) { return false }
+		if (!check(back.entries[0].condition_bitfield_receiver == 1, "target schedule read-back: trigger receiver is " + back.entries[0].condition_bitfield_receiver + ", expected 1")) { return false }
+	}
 	return true
 }
 
@@ -1432,7 +1481,7 @@ function setup()
 	if (!commit_receiver_schedule(pl, receiver, target)) { return false }
 	if (!commit_target_schedule(pl, receiver, target)) { return false }
 
-	if (case_name == "symmetric-swap" || case_name == "one-way-to-receiver" || case_name == "pair-reload" || case_name == "already-at-end-state" || case_name == "conflict-backtrack" || case_name == "unsatisfiable" || case_name == "pool-fallback")
+	if (case_name == "symmetric-swap" || case_name == "one-way-to-receiver" || case_name == "pair-reload" || case_name == "already-at-end-state" || case_name == "conflict-backtrack" || case_name == "unsatisfiable" || case_name == "pool-fallback" || is_trigger_pair_case())
 	{
 		fixture.first_kind = "receiver"
 	}
@@ -1982,6 +2031,13 @@ function detect_exchange()
 		// The shunting delay is a real dwell, so the changed convoy must be
 		// waiting in SHUNTING or LOADING rather than departing at once.
 		if (!check(receiver.get_state() != convoy_state_awaiting_recombination && target.get_state() != convoy_state_awaiting_recombination, "a convoy is still awaiting recombination after the exchange")) { return }
+		if (is_trigger_pair_case())
+		{
+			// The target was held for its trigger when the exchange ran. The
+			// commit must not have cleared that wait.
+			if (!check(target.get_state() == convoy_state_awaiting_trigger, "the trigger-held target is in " + depict_state(target.get_state()) + " after the exchange, expected the trigger wait")) { return }
+			print("RUNTIME CASE " + case_name + ": target convoy remains in AWAITING_TRIGGER after the exchange")
+		}
 		if (case_name == "already-at-end-state")
 		{
 			if (!check(receiver.get_state() != convoy_state_shunting && target.get_state() != convoy_state_shunting, "an already-satisfied pair entered the shunting state; an unchanged consist must not take the shunting delay")) { return }
@@ -2047,6 +2103,14 @@ function detect_advance()
 	// next stop, so a simultaneous observation is not required.
 	local receiver_entry = receiver.get_current_entry_id()
 	local target_entry = target.get_current_entry_id()
+	if (is_trigger_pair_case() && !fixture.receiver_advanced)
+	{
+		// The receiver sends the target's trigger on arrival at its next stop.
+		// Until then the target must remain in the wait that the exchange
+		// preserved.
+		if (!check(target.get_state() == convoy_state_awaiting_trigger,
+			"the target left the trigger wait before the receiver reached its trigger-sending stop; it is in " + depict_state(target.get_state()))) { return }
+	}
 	if (!fixture.receiver_advanced && receiver_entry == RECEIVER_NEXT_ENTRY_ID)
 	{
 		local receiver_ok = fixture.after_reload ? consist_matches_fingerprints(receiver, fixture.reload_expected.receiver) : consist_matches(receiver, receiver_final())

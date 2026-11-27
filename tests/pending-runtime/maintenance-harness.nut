@@ -116,6 +116,10 @@ local DEPOT_ORDER_ANY_CASE = DEPOT_ORDER_CASE || DEPOT_ORDER_EXCLUDE_CASE
 // drives the Target Fleet Size: raise it to dispatch Held Convoys, lower it to
 // withdraw a Deployed Convoy to the depot.
 local TARGET_CASE = ("maintenance_target_case" in getroottable()) && ::maintenance_target_case
+// The service-frequency case runs the same line and depot fixture for two
+// laps and checks that leaving the depot for maintenance does not discard the
+// line's measured round-trip samples.
+local SERVICE_FREQUENCY_CASE = ("maintenance_service_frequency_case" in getroottable()) && ::maintenance_service_frequency_case
 local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
@@ -178,6 +182,9 @@ local fixture = {
 	split_carriage_index = 0,
 	split_overhaul_before = 0,
 	split_maintenance_before = 0,
+	frequency_departures = 0,
+	frequency_at_stop = false,
+	frequency_steps = 0,
 	overhaul_vehicle_index = 0,
 	convoy_id_b = 0,
 	vehicle_count_b = 0,
@@ -464,6 +471,17 @@ function setup()
 	if (SPLIT_UNREACHABLE_CASE)
 	{
 		if (!check(back.entries[2].unique_entry_id == UNREACHABLE_ENTRY_ID, "schedule entry 2 is not the unreachable entry " + UNREACHABLE_ENTRY_ID)) { return false }
+	}
+
+	if (SERVICE_FREQUENCY_CASE)
+	{
+		// The line makes one stop call per lap and a depot visit between laps.
+		// The convoy leaves the depot after each visit, which is the path that
+		// used to discard the line's round-trip sample.
+		local line = create_line_with_schedule(pl, schedule);
+		if (line == null) { return false }
+		fixture.line_id = line.id;
+		if (!check_tool(cnv.set_line(pl, line), "assign the convoy to the service-frequency line")) { return false }
 	}
 
 	if (DEPOT_ORDER_ANY_CASE)
@@ -1124,8 +1142,62 @@ function observe_target_fleet()
 }
 
 
+// Counts stop departures over two laps and then checks the line's measured
+// service frequency. A depot visit between the laps must not clear the sample.
+function observe_service_frequency()
+{
+	local line = line_x(fixture.line_id)
+	local cnv = convoy_x(fixture.convoy_id)
+	if (!line.is_valid() || !cnv.is_valid())
+	{
+		fail("the service-frequency case lost its line or convoy")
+		return
+	}
+	local slots = cnv.get_vehicle_snapshot()
+	if (!check(slots.len() > 0, "the service-frequency convoy has no vehicles")) { return }
+
+	local pos = slots[0].pos
+	local at_stop = pos.y == STOP_POS.y && pos.x >= STOP_POS.x && pos.x <= STOP_POS.x + 1
+	if (at_stop)
+	{
+		fixture.frequency_at_stop = true
+	}
+	else if (fixture.frequency_at_stop)
+	{
+		fixture.frequency_at_stop = false
+		++fixture.frequency_departures
+		print("RUNTIME CASE " + case_name + ": stop departure " + fixture.frequency_departures + " at " + pos)
+	}
+
+	if (fixture.frequency_departures < 2)
+	{
+		++fixture.frequency_steps
+		if (fixture.frequency_steps > TRAVEL_STEP_LIMIT)
+		{
+			fail("the convoy made only " + fixture.frequency_departures + " stop departures within " + TRAVEL_STEP_LIMIT + " observation steps")
+		}
+		return
+	}
+
+	local minimum_lap_ticks = 100
+
+	local frequency = line.get_service_frequency()
+	if (!check(frequency > minimum_lap_ticks, "the line reports a service frequency of " + frequency + " ticks after two stop departures; a measured lap must exceed " + minimum_lap_ticks + " ticks"))
+	{
+		return
+	}
+	print("RUNTIME CASE " + case_name + ": the line reports a service frequency of " + frequency + " ticks after two stop departures")
+	pass()
+}
+
+
 function observe()
 {
+	if (SERVICE_FREQUENCY_CASE)
+	{
+		observe_service_frequency()
+		return
+	}
 	if (TARGET_CASE)
 	{
 		observe_target_fleet()

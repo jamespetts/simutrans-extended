@@ -192,8 +192,12 @@ public:
 	uint16 target_unique_entry_couple;
 
 	/**
-	* maximum waiting time in 1/2^(16-n) parts of a month
-	* (only active if minimum_loading!=0)
+	* Maximum waiting time in 1/2^(16-n) parts of a month. It caps two waits:
+	* the loading wait of check_departure, when the entry also waits for a
+	* minimum load or for a departure time, and the wait for a departure
+	* trigger. The trigger deadline runs from the convoy's arrival at the
+	* entry, and an expired trigger wait does not consume the stored trigger
+	* bits.
 	*/
 	sint8 waiting_time_shift;
 

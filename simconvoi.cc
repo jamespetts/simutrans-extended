@@ -1730,6 +1730,7 @@ bool convoi_t::drive_to()
 	koord3d ziel = schedule->get_current_entry().pos;
 	const koord3d original_destination = ziel;
 	const uint8 original_current_stop = schedule->get_current_stop();
+	const bool original_reverse_schedule = reverse_schedule;
 	bool schedule_advanced = false;
 
 	const bool rail_type = front()->get_waytype() == track_wt || front()->get_waytype() == tram_wt || front()->get_waytype() == narrowgauge_wt || front()->get_waytype() == maglev_wt || front()->get_waytype() == monorail_wt;
@@ -1771,7 +1772,7 @@ bool convoi_t::drive_to()
 				// The convoy must stop at the current route's end.
 				break;
 			}
-			advance_schedule();
+			advance_schedule(true);
 			schedule_advanced = true;
 			schedule_entry = &schedule->entries[schedule->get_current_stop()];
 			// The below does not actually change the stored route: it only checks that the route is valid.
@@ -1780,9 +1781,12 @@ bool convoi_t::drive_to()
 
 		if (schedule_advanced)
 		{
-			// Reset these for now to allow waypoint check below to work.
+			// Reset these for now to allow waypoint check below to work. The
+			// lookahead may have crossed a mirrored schedule end and toggled
+			// the direction, so restore that as well as the cursor.
 			ziel = original_destination;
 			schedule->set_current_stop(original_current_stop);
+			reverse_schedule = original_reverse_schedule;
 		}
 
 		if (update_line)
@@ -2692,13 +2696,30 @@ void convoi_t::step()
 	{
 
 	case AWAITING_TRIGGER:
-		conditional_bitfield_receiver = schedule->get_current_entry().condition_bitfield_receiver;
+	{
+		const schedule_entry_t &trigger_entry = schedule->get_current_entry();
+		conditional_bitfield_receiver = trigger_entry.condition_bitfield_receiver;
 		combined = conditional_bitfield_receiver & conditions_bitfield;
 		is_triggered = conditional_bitfield_receiver == conditions_bitfield || combined == conditional_bitfield_receiver;
 
+		// The entry's maximum waiting time caps the trigger wait as well as the
+		// loading wait. The deadline runs from the arrival. An expired wait
+		// leaves the stored trigger bits unchanged, so a trigger stored for
+		// this stop is not consumed by the timeout.
+		const sint8 waiting_time_shift = trigger_entry.waiting_time_shift;
+		const sint64 now = welt->get_ticks();
+		const bool wait_expired = waiting_time_shift > 0
+			&& arrival_time != WAIT_INFINITE
+			&& now >= arrival_time + (welt->ticks_per_world_month >> (16 - (sint64)waiting_time_shift));
+
+		if (!is_triggered && !wait_expired)
+		{
+			break;
+		}
+
 		if (is_triggered)
 		{
-			if (schedule->get_current_entry().is_flag_set(schedule_entry_t::clear_stored_triggers_on_dep))
+			if (trigger_entry.is_flag_set(schedule_entry_t::clear_stored_triggers_on_dep))
 			{
 				reset_all_triggers();
 			}
@@ -2707,42 +2728,48 @@ void convoi_t::step()
 				// Only clear the triggers actually set.
 				clear_triggered_conditions(conditional_bitfield_receiver);
 			}
+		}
 
-			gr = welt->lookup(get_pos());
-			if (depot_t* dep = gr ? gr->get_depot() : NULL)
+		gr = welt->lookup(get_pos());
+		if (depot_t* dep = gr ? gr->get_depot() : NULL)
+		{
+			if (trigger_entry.is_flag_set(schedule_entry_t::conditional_depart_before_wait))
 			{
-				if (schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait))
-				{
-					state = ENTERING_DEPOT;
-					arrival_time = welt->get_ticks();
-					goto ed;
-				}
-				else
-				{
-					// Depart as on any scheduled departure: advance past the depot entry if it is still the
-					// current one, then route. Leaving directly in LEAVING_DEPOT would drive out on the stale
-					// route into the same depot again, and the convoy would never leave the depot's lists.
-					if (schedule->get_current_entry().pos == get_pos())
-					{
-						advance_schedule();
-					}
-					state = ROUTING_1;
-					wait_lock = 0;
-				}
+				state = ENTERING_DEPOT;
+				arrival_time = welt->get_ticks();
+				goto ed;
 			}
 			else
 			{
-				if (schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait))
+				// Depart as on any scheduled departure: advance past the depot entry if it is still the
+				// current one, then route. Leaving directly in LEAVING_DEPOT would drive out on the stale
+				// route into the same depot again, and the convoy would never leave the depot's lists.
+				if (trigger_entry.pos == get_pos())
 				{
-					arrival_time = welt->get_ticks();
+					advance_schedule();
 				}
-				state = LOADING;
+				state = ROUTING_1;
+				wait_lock = 0;
 			}
 		}
 		else
 		{
-			break;
+			if (trigger_entry.is_flag_set(schedule_entry_t::conditional_depart_before_wait))
+			{
+				arrival_time = welt->get_ticks();
+			}
+			state = LOADING;
+			// commit_paired_exchange records the stop in last_stop_id for both
+			// convoys. When a pair ran while this convoy was held here, the
+			// exchange has already been carried out and must not be resolved a
+			// second time by the recombination pass below.
+			const halthandle_t trigger_halt = haltestelle_t::get_halt(get_pos(), owner);
+			if (trigger_halt.is_bound() && last_stop_id == trigger_halt.get_id())
+			{
+				break;
+			}
 		}
+	}
 
 	case AWAITING_RECOMBINATION:
 	{
@@ -2882,9 +2909,9 @@ void convoi_t::advance_past_current_depot_entry()
 	}
 }
 
-void convoi_t::advance_schedule()
+void convoi_t::advance_schedule(bool lookahead)
 {
-	advance_schedule_internal();
+	advance_schedule_internal(lookahead);
 
 	// Is there a conditional skip order here?
 	// If so, check whether the condition is satisfied and perform the skip.
@@ -2919,7 +2946,7 @@ void convoi_t::advance_schedule()
 			if (!will_visit)
 			{
 				// If no maintenance is required and this is a conditionally skipped depot, skip the depot call
-				advance_schedule_internal();
+				advance_schedule_internal(lookahead);
 				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
 				if (!worker_thread)
 				{
@@ -2933,7 +2960,7 @@ void convoi_t::advance_schedule()
 				// goes to the depot, where it is held. Advance_schedule() can
 				// run on a worker thread, so defer the message to step().
 				defer_message(defer_unaffordable_overhaul_skip, schedule->get_current_entry().pos);
-				advance_schedule_internal();
+				advance_schedule_internal(lookahead);
 				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
 				if (!worker_thread)
 				{
@@ -2946,7 +2973,7 @@ void convoi_t::advance_schedule()
 				// maintenance place. Stay in service and reconsider on the
 				// next pass. Urgent maintenance never reaches this branch:
 				// the test above forces the visit before this point.
-				advance_schedule_internal();
+				advance_schedule_internal(lookahead);
 				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
 				reset_conditional_depot_state();
 			}
@@ -2962,7 +2989,7 @@ void convoi_t::advance_schedule()
 			// would move the turning point of the schedule.
 			if (get_loading_level() == 0 && !schedule->is_reversing_stop(schedule->get_current_stop()))
 			{
-				advance_schedule_internal();
+				advance_schedule_internal(lookahead);
 				skip = schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_skip);
 			}
 			else
@@ -3026,9 +3053,12 @@ void convoi_t::turn_at_skipped_depot()
 	}
 }
 
-void convoi_t::advance_schedule_internal()
+void convoi_t::advance_schedule_internal(bool lookahead)
 {
-	if (schedule->get_current_stop() == 0)
+	// A lookahead advance is temporary: drive_to() restores the cursor, so it
+	// must not record a round-trip sample or it would shorten the measured
+	// cycle. The real departure that follows records the sample.
+	if (!lookahead && schedule->get_current_stop() == 0)
 	{
 		arrival_to_first_stop.add_to_tail(welt->get_ticks());
 	}
@@ -3418,6 +3448,8 @@ void convoi_t::enter_depot(depot_t *dep, uint16 flags)
 		else if (sch->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait) || sch->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_after_wait))
 		{
 			state = AWAITING_TRIGGER;
+			// The trigger wait's maximum duration runs from the arrival.
+			arrival_time = welt->get_ticks();
 		}
 		else
 		{
@@ -3604,6 +3636,8 @@ void convoi_t::ziel_erreicht()
 			if (schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait) || schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_after_wait))
 			{
 				state = AWAITING_TRIGGER;
+				// The trigger wait's maximum duration runs from the arrival.
+				arrival_time = welt->get_ticks();
 			}
 			else
 			{
@@ -8014,14 +8048,19 @@ void convoi_t::set_line(linehandle_t org_line)
 	{
 		return;
 	}
+	const bool same_line = line.is_bound() && line == org_line;
+	const bool schedule_matches = schedule != NULL && schedule->matches(welt, org_line->get_schedule());
 	if(line.is_bound())
 	{
 		unset_line();
-		need_to_reset_average_speed = true;
+		// Re-assigning the same line, as when a line-bound convoy leaves a
+		// depot after maintenance, must not discard the measured round-trip
+		// time. A genuine line change or a schedule change does discard it.
+		need_to_reset_average_speed = !same_line || !schedule_matches;
 	}
 	else
 	{
-		need_to_reset_average_speed = !schedule || !schedule->matches(welt, org_line->get_schedule());
+		need_to_reset_average_speed = !schedule_matches;
 
 		// originally a lineless convoy -> unregister itself from stops as it now belongs to a line
 		unregister_stops();
@@ -13466,16 +13505,19 @@ convoi_t::recombination_target_state_t convoi_t::get_recombination_target_state(
 }
 
 
-// The counterpart convoy waits for this pair when it is in
-// AWAITING_RECOMBINATION with the counterpart entry as its current entry, at
-// this stop, and travelling in the direction the entry specifies.
+// The counterpart convoy waits for this pair when it stands at this stop with
+// the counterpart entry as its current entry and travels in the direction the
+// entry specifies. It is either waiting in AWAITING_RECOMBINATION or held in
+// AWAITING_TRIGGER. A convoy in AWAITING_TRIGGER has not run hat_gehalten()
+// yet, so last_stop_id does not identify this stop for it; its position does.
 bool convoi_t::is_waiting_pair_counterpart(const convoihandle_t &candidate, const schedule_entry_t &counterpart_entry, const schedule_t *counterpart_schedule, bool counterpart_reversed, halthandle_t halt) const
 {
 	if (!candidate.is_bound() || !halt.is_bound() || candidate == self)
 	{
 		return false;
 	}
-	if (candidate->get_state() != AWAITING_RECOMBINATION)
+	const int candidate_state = candidate->get_state();
+	if (candidate_state != AWAITING_RECOMBINATION && candidate_state != AWAITING_TRIGGER)
 	{
 		return false;
 	}
@@ -13488,7 +13530,7 @@ bool convoi_t::is_waiting_pair_counterpart(const convoihandle_t &candidate, cons
 	{
 		return false;
 	}
-	if (candidate->last_stop_id != halt.get_id())
+	if (candidate_state == AWAITING_RECOMBINATION && candidate->last_stop_id != halt.get_id())
 	{
 		return false;
 	}
@@ -13754,16 +13796,24 @@ convoi_t::paired_exchange_state_t convoi_t::resolve_paired_exchange(halthandle_t
 	if (matches > 1)
 	{
 		// Two entries at this stop address this convoy: the pair is ambiguous.
-		pair.failure = pair_failure_invalid_counterpart;
+		pair.failure = pair_failure_ambiguous_counterpart;
 		return paired_invalid;
 	}
 	if (matches == 0)
 	{
 		if (non_reciprocal_at_halt > 0 || reciprocal_elsewhere > 0)
 		{
-			// The counterpart schedule configures an exchange here or elsewhere
-			// but does not reciprocate, or reciprocates at a different stop.
-			pair.failure = pair_failure_invalid_counterpart;
+			if (!is_receiver)
+			{
+				// This entry is a division target. A coupling entry on the
+				// target schedule that does not name this convoy in return, or
+				// names it at another stop, does not make this division a pair;
+				// leave the entry to the ordinary division path.
+				return paired_not_configured;
+			}
+			pair.failure = non_reciprocal_at_halt > 0
+				? pair_failure_counterpart_not_reciprocal
+				: pair_failure_counterpart_elsewhere;
 			return paired_invalid;
 		}
 		return paired_not_configured;
@@ -13807,7 +13857,7 @@ convoi_t::paired_exchange_state_t convoi_t::resolve_paired_exchange(halthandle_t
 	const uint16 counterpart_reference = is_receiver ? counterpart_entry->target_unique_entry_uncouple : counterpart_entry->target_unique_entry_couple;
 	if (counterpart_reference != 0 && counterpart_reference != 65535 && counterpart_reference != entry.unique_entry_id)
 	{
-		pair.failure = pair_failure_invalid_counterpart;
+		pair.failure = pair_failure_counterpart_reference;
 		return paired_invalid;
 	}
 	if (entry.is_flag_set(schedule_entry_t::lay_over) || counterpart_entry->is_flag_set(schedule_entry_t::lay_over))
@@ -13843,7 +13893,15 @@ const char *convoi_t::paired_failure_reason(pair_failure_t failure) const
 		case pair_failure_missing_order:
 			return translator::translate("one of the two schedule entries has no consist order");
 		case pair_failure_invalid_counterpart:
-			return translator::translate("the counterpart schedule entry does not name this convoy in return at this stop");
+			return translator::translate("the counterpart schedule entry does not form a valid pair with this entry");
+		case pair_failure_counterpart_not_reciprocal:
+			return translator::translate("the other convoy's schedule entry at this stop does not name this convoy in return, so the two entries cannot form a pair");
+		case pair_failure_counterpart_elsewhere:
+			return translator::translate("the other convoy's schedule names this convoy at a different stop, not at this stop");
+		case pair_failure_ambiguous_counterpart:
+			return translator::translate("two schedule entries of the other convoy at this stop name this convoy for a paired exchange");
+		case pair_failure_counterpart_reference:
+			return translator::translate("the other convoy's schedule entry names a different entry of this schedule");
 		case pair_failure_waytype:
 			return translator::translate("the two schedules serve different waytypes");
 		case pair_failure_self_target:
@@ -13907,7 +13965,7 @@ void convoi_t::report_coupling_hold(halthandle_t halt, convoihandle_t target, co
 }
 
 
-bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair)
+bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair, bool loading_pass)
 {
 	convoi_t *const convoys[2] = {
 		pair.own_is_receiver ? this : pair.counterpart.get_rep(),
@@ -13926,11 +13984,20 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 	{
 		report_paired_exchange_failure(halt, pair.counterpart, failure);
 		// All-or-nothing: neither consist changes. Release the waiting counterpart
-		// so both convoys continue on their own schedules after this stop.
-		if (pair.counterpart.is_bound() && pair.counterpart->get_state() == AWAITING_RECOMBINATION)
+		// so both convoys continue on their own schedules after this stop. A
+		// counterpart held in AWAITING_TRIGGER keeps that wait, but records the
+		// stop so that releasing it does not attempt the refused pair again.
+		if (pair.counterpart.is_bound())
 		{
-			pair.counterpart->state = LOADING;
-			pair.counterpart->wait_lock = 0;
+			if (pair.counterpart->get_state() == AWAITING_RECOMBINATION)
+			{
+				pair.counterpart->state = LOADING;
+				pair.counterpart->wait_lock = 0;
+			}
+			else if (pair.counterpart->get_state() == AWAITING_TRIGGER && halt.is_bound())
+			{
+				pair.counterpart->last_stop_id = halt.get_id();
+			}
 		}
 		if (state == AWAITING_RECOMBINATION)
 		{
@@ -13939,7 +14006,7 @@ bool convoi_t::execute_paired_exchange(halthandle_t halt, const paired_exchange_
 		return false;
 	}
 
-	commit_paired_exchange(convoys, orders, finals, final_reversed, changed, halt);
+	commit_paired_exchange(convoys, orders, finals, final_reversed, changed, halt, loading_pass);
 	return true;
 }
 
@@ -14054,8 +14121,17 @@ bool convoi_t::solve_paired_exchange(convoi_t *const convoys[2], const consist_o
 }
 
 
-void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const vector_tpl<bool> final_reversed[2], const bool changed[2], halthandle_t halt)
+void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const vector_tpl<bool> final_reversed[2], const bool changed[2], halthandle_t halt, bool loading_pass)
 {
+	// A convoy that is held for its departure trigger keeps that wait: the
+	// exchange changes its vehicles but is not the trigger. Record the state
+	// before any commit step changes it.
+	bool trigger_held[2];
+	for (uint8 side = 0; side < 2; side++)
+	{
+		trigger_held[side] = convoys[side]->get_state() == AWAITING_TRIGGER;
+	}
+
 	// Count the couplings before any vehicle is detached, while every vehicle
 	// still belongs to its source consist. The two sides exchange vehicles as
 	// one shunt, so both changed consists wait for the whole count. An unchanged
@@ -14401,23 +14477,32 @@ void convoi_t::commit_paired_exchange(convoi_t *const convoys[2], const consist_
 		unload_newly_loose_cargo(loose, halt);
 	}
 
-	// A changed convoy waits out the shunting delay. The convoy that did not
-	// execute the exchange is not inside hat_gehalten here, so it waits in
-	// LOADING: its new consist then loads when the delay expires. The executing
-	// convoy's loading pass runs in hat_gehalten immediately after the commit.
-	// Recording the stop in both convoys prevents the exchange from executing
-	// again on this visit.
+	// A changed convoy waits out the shunting delay before loading its new
+	// consist. A convoy that executed the exchange inside hat_gehalten() stays
+	// in SHUNTING because that function loads immediately after the commit.
+	// Every other changed convoy waits in LOADING, so that request_loading()
+	// calls hat_gehalten() when the delay expires. Recording the stop in both
+	// convoys prevents the exchange from executing again on this visit; for a
+	// convoy held in AWAITING_TRIGGER it also tells the trigger path that the
+	// exchange has already run here.
 	const sint32 shunting_ticks = (sint32)shunt_delay_ticks(coupling_operations);
 	for (uint8 side = 0; side < 2; side++)
 	{
 		convoi_t *const cnv = convoys[side];
 		cnv->last_stop_id = halt.get_id();
-		if (!changed[side])
+		if (trigger_held[side])
+		{
+			// The exchange must not clear a departure-trigger wait. The
+			// maximum trigger wait still runs from the arrival.
+			cnv->state = AWAITING_TRIGGER;
+			cnv->wait_lock = 0;
+		}
+		else if (!changed[side])
 		{
 			cnv->state = LOADING;
 			cnv->wait_lock = 0;
 		}
-		else if (cnv == this)
+		else if (cnv == this && loading_pass)
 		{
 			cnv->state = SHUNTING;
 			cnv->wait_lock = shunting_ticks + (sint32)turn_ticks[side];
@@ -14457,10 +14542,19 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 			{
 				report_paired_exchange_failure(halt, pair.counterpart, pair.failure);
 			}
-			if (pair.counterpart.is_bound() && pair.counterpart->get_state() == AWAITING_RECOMBINATION)
+			if (pair.counterpart.is_bound())
 			{
-				pair.counterpart->state = LOADING;
-				pair.counterpart->wait_lock = 0;
+				if (pair.counterpart->get_state() == AWAITING_RECOMBINATION)
+				{
+					pair.counterpart->state = LOADING;
+					pair.counterpart->wait_lock = 0;
+				}
+				else if (pair.counterpart->get_state() == AWAITING_TRIGGER && halt.is_bound())
+				{
+					// Keep the trigger wait, but record the stop so that
+					// releasing the trigger does not retry the refused pair.
+					pair.counterpart->last_stop_id = halt.get_id();
+				}
 			}
 			if (state == AWAITING_RECOMBINATION)
 			{
@@ -14471,7 +14565,7 @@ void convoi_t::process_recombination_at_stop(halthandle_t halt, bool first_run)
 			return;
 
 		case paired_ready:
-			execute_paired_exchange(halt, pair);
+			execute_paired_exchange(halt, pair, first_run);
 			// The exchange committed or was refused; either way the coupling is
 			// resolved and the claim ends.
 			clear_recombination_approach();

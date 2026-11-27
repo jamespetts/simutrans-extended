@@ -2020,7 +2020,11 @@ void schedule_gui_t::update_selection()
 				numimp_spacing.set_value(12);
 			}
 
-			if (schedule->entries[current_stop].minimum_loading > 0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) {
+			const bool maximum_wait_entry = schedule->entries[current_stop].minimum_loading > 0
+				|| schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time)
+				|| schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_before_wait)
+				|| schedule->get_current_entry().is_flag_set(schedule_entry_t::conditional_depart_after_wait);
+			if (schedule->entries[current_stop].minimum_loading > 0 || schedule->get_current_entry().is_flag_set(schedule_entry_t::wait_for_time)) {
 				bt_wait_prev.enable();
 				bt_setdown_only.disable();
 				numimp_spacing.enable();
@@ -2038,7 +2042,14 @@ void schedule_gui_t::update_selection()
 				}
 				bt_wait_next.enable();
 			}
-			if(  (schedule->entries[current_stop].minimum_loading>0 || schedule->entries[current_stop].is_flag_set(schedule_entry_t::wait_for_time)) &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
+			else if (maximum_wait_entry) {
+				// A trigger wait also honours the maximum waiting time. The
+				// value applies here even though the entry does not wait for a
+				// minimum load or a departure time.
+				bt_wait_prev.enable();
+				bt_wait_next.enable();
+			}
+			if(  maximum_wait_entry &&  schedule->entries[current_stop].waiting_time_shift>0  ) {
 				sprintf( str_parts_month, "1/%d",  1<<(16-schedule->entries[current_stop].waiting_time_shift) );
 				sint64 ticks_waiting = welt->ticks_per_world_month >> (16-schedule->get_current_entry().waiting_time_shift);
 				welt->sprintf_ticks(str_parts_month_as_clock, sizeof(str_parts_month_as_clock), ticks_waiting + 1);

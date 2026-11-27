@@ -51,6 +51,16 @@ sint32 line_get_recorded_journey_time(simline_t *line, halthandle_t from, haltha
 	return value > (uint32)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)value;
 }
 
+// Returns the line's measured service frequency in ticks, or 0 when no convoy
+// has completed a round trip yet. This function only reads the recorded
+// round-trip samples.
+sint32 line_get_service_frequency(simline_t *line)
+{
+	if (line == NULL) { return 0; }
+	const sint64 value = line->get_service_frequency();
+	return value > (sint64)SINT32_MAX_VALUE ? SINT32_MAX_VALUE : (sint32)value;
+}
+
 waytype_t line_way_type(simline_t *line)
 {
 	if (line) {
@@ -321,6 +331,17 @@ void export_line(HSQUIRRELVM vm)
 	 * record for the pair
 	 */
 	register_method(vm, &line_get_recorded_journey_time, "get_recorded_journey_time", true);
+
+	/**
+	 * Returns the line's measured service frequency in ticks, or 0 when no
+	 * convoy has completed a round trip yet. This is the value that the line
+	 * management window displays; it is an estimate of the interval between
+	 * successive services.
+	 * @typemask integer()
+	 * @returns the service frequency in ticks, or 0 when no round-trip sample
+	 * exists
+	 */
+	register_method(vm, &line_get_service_frequency, "get_service_frequency", true);
 
 	/**
 	 * @return waytype of the line

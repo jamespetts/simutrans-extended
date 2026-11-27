@@ -673,10 +673,13 @@ private:
 	/**
 	* Advance the schedule cursor.
 	* Also toggles the reverse_schedule flag if necessary.
+	* lookahead suppresses the round-trip sample: drive_to() advances the
+	* schedule temporarily to check the next halt and restores the cursor
+	* afterwards, so that advance is not a departure.
 	* @author yobbobandana
 	*/
-	void advance_schedule();
-	void advance_schedule_internal();
+	void advance_schedule(bool lookahead = false);
+	void advance_schedule_internal(bool lookahead = false);
 
 	/**
 	 * At a stop of a mirrored schedule whose next entries are conditionally skipped depots that
@@ -1998,6 +2001,10 @@ public:
 			pair_failure_both_flags,
 			pair_failure_missing_order,
 			pair_failure_invalid_counterpart,
+			pair_failure_counterpart_not_reciprocal,
+			pair_failure_counterpart_elsewhere,
+			pair_failure_ambiguous_counterpart,
+			pair_failure_counterpart_reference,
 			pair_failure_waytype,
 			pair_failure_self_target,
 			pair_failure_lay_over,
@@ -2022,18 +2029,24 @@ public:
 		// Classify the current entry. A pair is a couple entry whose counterpart
 		// entry at the same stop carries uncouple, or the reverse; the two entries
 		// must name each other and both must have a consist order. Readiness
-		// requires the counterpart convoy to be waiting in AWAITING_RECOMBINATION.
+		// requires the counterpart convoy to be waiting at the stop, either in
+		// AWAITING_RECOMBINATION or held in AWAITING_TRIGGER.
 		paired_exchange_state_t resolve_paired_exchange(halthandle_t halt, paired_exchange_t &pair) const;
 
 		// True when the given convoy waits at the stop for the given counterpart
-		// entry in AWAITING_RECOMBINATION, travelling in the required direction.
+		// entry, travelling in the required direction. A convoy in
+		// AWAITING_RECOMBINATION is identified by the stop recorded in
+		// last_stop_id; a convoy in AWAITING_TRIGGER has not yet run
+		// hat_gehalten() and is identified by its position at the stop instead.
 		bool is_waiting_pair_counterpart(const convoihandle_t &candidate, const schedule_entry_t &counterpart_entry, const schedule_t *counterpart_schedule, bool counterpart_reversed, halthandle_t halt) const;
 
 		// Solve both end-state orders jointly and commit both consists as one
 		// exchange. Returns false and reports once when the pair cannot be carried
 		// out; in that case neither consist is changed and both convoys return to
-		// loading.
-		bool execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair);
+		// loading. loading_pass is true when the call is inside hat_gehalten();
+		// a convoy that executes the exchange outside hat_gehalten() waits in
+		// LOADING so that its new consist loads after the shunting delay.
+		bool execute_paired_exchange(halthandle_t halt, const paired_exchange_t &pair, bool loading_pass);
 
 	public:
 		// The convoy's vehicles in forward order: a reversed consist is
@@ -2071,8 +2084,9 @@ public:
 		// Replace the two consists with the solved forward-oriented final consists.
 		// Applies the chosen per-vehicle orientations and adds their reversal time
 		// to the shunting delay. Only vehicles that become loose stock are
-		// discharged at the stop.
-		void commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const vector_tpl<bool> final_reversed[2], const bool changed[2], halthandle_t halt);
+		// discharged at the stop. A convoy that was held in AWAITING_TRIGGER keeps
+		// that state, so the exchange does not consume its trigger wait.
+		void commit_paired_exchange(convoi_t *const convoys[2], const consist_order_t *const orders[2], const vector_tpl<vehicle_t*> finals[2], const vector_tpl<bool> final_reversed[2], const bool changed[2], halthandle_t halt, bool loading_pass);
 
 		void report_paired_exchange_failure(halthandle_t halt, convoihandle_t counterpart, pair_failure_t failure) const;
 
