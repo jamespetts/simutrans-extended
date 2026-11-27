@@ -17,7 +17,7 @@
 /**
  * Symbols shown at the start of a tooltip line.
  * The renderer resolves each symbol to a theme image. If the theme has no
- * image for the symbol, it draws a small coloured square with a short glyph.
+ * image for the symbol, the line is drawn without a symbol.
  */
 enum tooltip_symbol_t
 {

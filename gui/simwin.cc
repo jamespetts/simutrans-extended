@@ -146,11 +146,25 @@ static void display_win(int win);
 // tooltip data
 static scr_coord_val tooltip_xpos = 0;
 static scr_coord_val tooltip_ypos = 0;
-static const char * tooltip_text = 0;
-static std::string static_tooltip_text;
 static tooltip_t tooltip_data;
 static tooltip_t static_tooltip_data;
 static scr_coord tooltip_anchor = scr_coord::invalid;
+
+
+/**
+ * Replaces the registered tooltip with a single plain text line.
+ * The tail points at the mouse position, which is over the widget that
+ * registered the tooltip.
+ */
+static void set_plain_tooltip(const char *text)
+{
+	tooltip_data.clear();
+	tooltip_anchor = scr_coord::invalid;
+	if(  text != NULL  &&  *text != 0  ) {
+		tooltip_data.add(TOOLTIP_SYMBOL_NONE, text);
+		tooltip_anchor = get_mouse_pos();
+	}
+}
 
 // For timed tooltip with initial delay and finite visible duration.
 // Valid owners are required for timing. Invalid (NULL) owners disable timing.
@@ -1040,7 +1054,7 @@ static bool destroy_framed_win(simwin_t *wins)
 	if(  wl  ) {
 		wl->set_background_dirty();
 	}
-	tooltip_text = 0;
+	tooltip_data.clear();
 	return r;
 }
 
@@ -1913,22 +1927,14 @@ void win_display_flush(double konto)
 		remove_old_win();
 
 		if(env_t::show_tooltips) {
-			const bool has_registered_tooltip = (tooltip_text != NULL && *tooltip_text != 0) || !tooltip_data.empty();
+			const bool has_registered_tooltip = !tooltip_data.empty();
 			if(has_registered_tooltip) {
 				// display tooltip when current owner is invalid or when it is within visible duration
 				uint32 elapsed_time;
 				if(  !tooltip_owner  ||  ((elapsed_time=dr_time()-tooltip_register_time)>env_t::tooltip_delay  &&  elapsed_time<=env_t::tooltip_delay+env_t::tooltip_duration)  ) {
-					if(!tooltip_data.empty()) {
-						scr_coord pos{ tooltip_xpos, tooltip_ypos };
-						const scr_coord anchor = tooltip_anchor != scr_coord::invalid ? tooltip_anchor : pos;
-						tooltip_data.draw(pos, anchor, true);
-					}
-					else {
-						const sint16 width = proportional_string_width(tooltip_text)+7;
-						scr_coord pos{ tooltip_xpos, tooltip_ypos };
-						win_clamp_xywh_position( pos, scr_size( width, (LINESPACE*9)/7 ), true );
-						display_ddd_proportional_clip( pos.x, pos.y, width, 0, env_t::tooltip_color, env_t::tooltip_textcolor, tooltip_text, true);
-					}
+					scr_coord pos{ tooltip_xpos, tooltip_ypos };
+					const scr_coord anchor = tooltip_anchor != scr_coord::invalid ? tooltip_anchor : pos;
+					tooltip_data.draw(pos, anchor, true);
 					if(wl) {
 						wl->set_background_dirty();
 					}
@@ -1941,22 +1947,12 @@ void win_display_flush(double konto)
 					wl->set_background_dirty();
 				}
 			}
-			else if(!static_tooltip_text.empty()) {
-				const sint16 width = proportional_string_width(static_tooltip_text.c_str())+7;
-				scr_coord pos = get_mouse_pos();
-				win_clamp_xywh_position(pos, scr_size(width, (LINESPACE*9)/7), true);
-				display_ddd_proportional_clip( pos.x, pos.y, width, 0, env_t::tooltip_color, env_t::tooltip_textcolor, static_tooltip_text.c_str(), true);
-				if(wl) {
-					wl->set_background_dirty();
-				}
-			}
 			// reset owner and group if no tooltip has been registered
 			if(  !has_registered_tooltip  ) {
 				tooltip_owner = 0;
 				tooltip_group = 0;
 			}
-			// clear tooltip text to avoid sticky tooltips
-			tooltip_text = 0;
+			// clear tooltip data to avoid sticky tooltips
 			tooltip_data.clear();
 			tooltip_anchor = scr_coord::invalid;
 		}
@@ -1990,7 +1986,7 @@ void win_display_flush(double konto)
 	display_color_img( skinverwaltung_t::seasons_icons->get_image_id(wl->get_season()), 2, status_bar_icon_y, 0, false, true );
 	if(  tooltip_check  &&  tooltip_xpos<14  ) {
 		static char const* const seasons[] = { "q2", "q3", "q4", "q1" };
-		tooltip_text = translator::translate(seasons[wl->get_season()]);
+		set_plain_tooltip(translator::translate(seasons[wl->get_season()]));
 		tooltip_check = false;
 	}
 
@@ -2001,7 +1997,7 @@ void win_display_flush(double konto)
 		right_border -= 14;
 		display_color_img( skinverwaltung_t::timelinesymbol->get_image_id(0), right_border, status_bar_icon_y, 0, false, true );
 		if(  tooltip_check  &&  tooltip_xpos>=right_border  ) {
-			tooltip_text = translator::translate("timeline");
+			set_plain_tooltip(translator::translate("timeline"));
 			tooltip_check = false;
 		}
 	}
@@ -2013,11 +2009,11 @@ void win_display_flush(double konto)
 		if(  tooltip_check  &&  tooltip_xpos>=right_border  ) {
 			if (env_t::server)
 			{
-				tooltip_text = translator::translate("Running as a server");
+				set_plain_tooltip(translator::translate("Running as a server"));
 			}
 			else
 			{
-				tooltip_text = translator::translate("Connected with server");
+				set_plain_tooltip(translator::translate("Connected with server"));
 			}
 			tooltip_check = false;
 		}
@@ -2028,7 +2024,7 @@ void win_display_flush(double konto)
 		right_border -= 14;
 		display_color_img( skinverwaltung_t::pausesymbol->get_image_id(0), right_border, status_bar_icon_y, 0, false, true );
 		if(  tooltip_check  &&  tooltip_xpos>=right_border  ) {
-			tooltip_text = translator::translate("GAME PAUSED");
+			set_plain_tooltip(translator::translate("GAME PAUSED"));
 			tooltip_check = false;
 		}
 	}
@@ -2038,7 +2034,7 @@ void win_display_flush(double konto)
 		right_border -= 14;
 		display_color_img( skinverwaltung_t::fastforwardsymbol->get_image_id(0), right_border, status_bar_icon_y, 0, false, true );
 		if(  tooltip_check  &&  tooltip_xpos>=right_border  ) {
-			tooltip_text = translator::translate("Fast forward");
+			set_plain_tooltip(translator::translate("Fast forward"));
 			tooltip_check = false;
 		}
 	}
@@ -2198,17 +2194,9 @@ void win_set_tooltip(scr_coord pos, const char *text, const void *const owner, c
 		return;
 	}
 	// must be set every time as win_display_flush() will reset them
-	tooltip_text = text;
-	tooltip_data.clear();
-	tooltip_anchor = scr_coord::invalid;
+	set_plain_tooltip(text);
 
 	update_tooltip_owner(owner, group);
-
-	if (text) {
-		const scr_size tt_size = scr_size(proportional_string_width(text), LINESPACE + 2);
-		win_clamp_xywh_position(pos, tt_size, true);
-		pos.y += LINESPACE / 2 + 1;
-	}
 
 	tooltip_xpos = pos.x;
 	tooltip_ypos = pos.y;
@@ -2227,7 +2215,6 @@ void win_set_tooltip(scr_coord pos, const tooltip_t &tip, const void *const owne
 	if(inside_event_handling != tooltip_element  ) {
 		return;
 	}
-	tooltip_text = 0;
 	tooltip_data = tip;
 	tooltip_anchor = anchor;
 
@@ -2243,8 +2230,10 @@ void win_set_tooltip(scr_coord pos, const tooltip_t &tip, const void *const owne
  */
 void win_set_static_tooltip(const char *text)
 {
-	static_tooltip_text = text ? text : "";
 	static_tooltip_data.clear();
+	if(  text != NULL  &&  *text != 0  ) {
+		static_tooltip_data.add(TOOLTIP_SYMBOL_NONE, text);
+	}
 }
 
 
@@ -2253,7 +2242,6 @@ void win_set_static_tooltip(const char *text)
  */
 void win_set_static_tooltip(const tooltip_t &tip)
 {
-	static_tooltip_text.clear();
 	static_tooltip_data = tip;
 }
 
