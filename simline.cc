@@ -1683,7 +1683,8 @@ sint64 simline_t::calc_departures_scheduled()
 		}
 	}
 
-	return timed_departure_points_count * (sint64) schedule->get_spacing();
+	// The spacing is departures per year; the line financial history is monthly.
+	return timed_departure_points_count * (sint64) schedule->get_spacing() / 12ll;
 }
 
 void simline_t::propagate_triggers(uint16 triggers, bool trigger_one_only)
