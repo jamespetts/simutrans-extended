@@ -748,9 +748,10 @@ schedule_t* script_api::param<schedule_t*>::get(HSQUIRRELVM vm, SQInteger index)
 
 	sint64 spacing = sched->get_spacing();
 	sint64 rebuilt_spacing = 0;
-	// The schedule GUI's spacing control uses 0..999 convoys per month; the
-	// string parser also accepts only a non-negative decimal. Match that range
-	// rather than inventing a wider, signed one.
+	// The schedule GUI's spacing control uses 0..999 departures per year (12
+	// units per monthly departure); the string parser also accepts only a
+	// non-negative decimal. Match that range rather than inventing a wider,
+	// signed one.
 	if (!read_integer(vm, obj, "spacing", 0, 999, spacing, rebuilt_spacing)) { return NULL; }
 	sched->set_spacing((sint16)rebuilt_spacing);
 
