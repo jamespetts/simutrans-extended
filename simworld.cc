@@ -9656,7 +9656,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 				depot_t *dep = gr ? gr->get_depot() : 0;
 				if(dep) {
 					//cnv->enter_depot(dep);
-					dep->convoi_arrived(cnv->self, false);
+					dep->convoi_arrived(cnv->self, false, true);
 				}
 				else {
 					dbg->error("karte_t::load()", "no depot for convoi, blocks may now be wrongly reserved!");
@@ -9673,7 +9673,7 @@ void karte_t::rdwr_gamestate(loadsave_t *file, loadingscreen_t *ls)
 					grund_t *gr = lookup(cnv->get_pos());
 					depot_t *dep = gr ? gr->get_depot() : NULL;
 					if(  dep  ) {
-						dep->convoi_arrived(cnv->self, 0);
+						dep->convoi_arrived(cnv->self, 0, true);
 						if(  cnv->get_state()==convoi_t::MAINTENANCE  ||  cnv->get_state()==convoi_t::OVERHAUL  ) {
 							// Stepped via depot_t::sync_step (paired with its maintenance-queue entry):
 							// keep out of welt.sync so the countdown runs once per tick.

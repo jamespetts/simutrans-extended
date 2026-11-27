@@ -187,7 +187,10 @@ public:
 	/**
 	 * Parameters to determine layout and behaviour of the depot_frame_t.
 	 */
-	void convoi_arrived(convoihandle_t cnv, uint16 flags);
+	// loading is true when the Convoy is being restored from a savegame. The
+	// player lines are loaded after the Convoys, so the Convoy's line handle
+	// must not be dereferenced on that path.
+	void convoi_arrived(convoihandle_t cnv, uint16 flags, bool loading = false);
 
 	/**
 	 * Opens a new info window for that object.

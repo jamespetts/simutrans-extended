@@ -263,7 +263,7 @@ void depot_t::call_depot_tool( char tool, convoihandle_t cnv, const char *extra,
  * first a convoy reaches the depot during its journey (or on emergency stop)
  * second during loading a convoi is stored in a depot => only store it again
  */
-void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
+void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags, bool loading)
 {
 	if (flags & schedule_entry_t::delete_entry)
 	{
@@ -427,9 +427,11 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 	// The Lead Vehicle stays in the Original Convoy; every other vehicle goes
 	// to the pool with its own maintenance job. A blank order leaves the Convoy
 	// together and is handled by the per-vehicle queue only.
+	// A Convoy loaded from a savegame keeps the order and vehicle state stored
+	// in the file; Decomposition must not run a second time on that path.
 	bool has_depot_order = false;
 	const consist_order_t *depot_order = NULL;
-	if (acnv->get_schedule() != NULL && !acnv->get_schedule()->empty())
+	if (!loading && acnv->get_schedule() != NULL && !acnv->get_schedule()->empty())
 	{
 		const uint16 entry_id = acnv->get_schedule()->get_current_entry().unique_entry_id;
 		if (acnv->get_schedule()->entry_has_consist_order(entry_id))
@@ -562,7 +564,10 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags)
 
 	// The Deployed count has just fallen. If the line is now below its target,
 	// dispatch a Held Convoy or leave the line below target until one is ready.
-	if (acnv->get_line().is_bound())
+	// During loading the line handle is not resolved yet: player lines load
+	// after the Convoys, so the quickstone table has not been sized for the
+	// save's line ids and the handle may fall outside it.
+	if (!loading && acnv->get_line().is_bound())
 	{
 		acnv->get_line()->dispatch_held_convoy();
 	}
@@ -1142,15 +1147,6 @@ void depot_t::rdwr(loadsave_t *file)
 	}
 
 	rdwr_maintenance_queue(file);
-
-	if (file->is_version_ex_atleast(15, 24))
-	{
-		file->rdwr_long(next_maintenance_queue_index);
-	}
-	else if (file->is_loading())
-	{
-		next_maintenance_queue_index = 0;
-	}
 }
 
 void depot_t::rdwr_maintenance_queue(loadsave_t* file)
@@ -1184,6 +1180,15 @@ void depot_t::rdwr_maintenance_queue(loadsave_t* file)
 			}
 		}
 
+	}
+
+	if (file->is_version_ex_atleast(15, 24))
+	{
+		file->rdwr_long(next_maintenance_queue_index);
+	}
+	else if (file->is_loading())
+	{
+		next_maintenance_queue_index = 0;
 	}
 }
 
