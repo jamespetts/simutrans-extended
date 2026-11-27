@@ -52,6 +52,40 @@
 #include "halt_info.h"
 #include "line_color_gui.h"
 
+void schedule_list_gui_t::register_fleet_label(gui_label_t *label)
+{
+	if (label != NULL)
+	{
+		fleet_labels.append(label);
+		fleet_label_colors.append(label->get_color());
+	}
+}
+
+
+gui_label_t *schedule_list_gui_t::new_fleet_label(const char *text)
+{
+	gui_label_t *label = cont_fleet.new_component<gui_label_t>(text);
+	register_fleet_label(label);
+	return label;
+}
+
+
+gui_label_t *schedule_list_gui_t::new_fleet_label_span(const char *text, uint span)
+{
+	gui_label_t *label = cont_fleet.new_component_span<gui_label_t>(text, span);
+	register_fleet_label(label);
+	return label;
+}
+
+
+gui_table_header_t *schedule_list_gui_t::new_fleet_table_header(const char *text, PIXVAL bgcolor, gui_label_t::align_t align, bool border_tl, bool border_br)
+{
+	gui_table_header_t *header = cont_fleet.new_component<gui_table_header_t>(text, bgcolor, align, border_tl, border_br);
+	register_fleet_label(header);
+	return header;
+}
+
+
 uint16 schedule_list_gui_t::livery_scheme_index = 0;
 
 static const char *cost_type[MAX_LINE_COST] =
@@ -475,101 +509,173 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	cont_convoys.add_component(&bt_mode_convois);
 	info_tabs.add_tab(&cont_convoys, translator::translate("Convoys"));
 
-	// Fleet tab: target, automatic policy, fleet summary and depot detail.
+	// Fleet tab: target, fleet status, automatic adjustment, spacing and depot detail.
 	cont_fleet.set_table_layout(1, 0);
 	cont_fleet.set_margin(scr_size(D_H_SPACE, D_V_SPACE), scr_size(D_H_SPACE, D_V_SPACE));
 	cont_fleet.add_table(3, 1)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
 	{
-		cont_fleet.new_component<gui_label_t>("Target consists");
+		fleet_label_target = new_fleet_label("Target consists");
+		fleet_label_target->set_fixed_width(proportional_string_width("Target consists") + 12);
 		numimp_target_consists.init(0, 0, 65535, 1);
 		numimp_target_consists.add_listener(this);
 		cont_fleet.add_component(&numimp_target_consists);
-		bt_set_target.init(button_t::roundbox, "Set", scr_coord(0, 0), D_BUTTON_SIZE);
+		bt_set_target.init(button_t::roundbox, "Apply", scr_coord(0, 0), D_BUTTON_SIZE);
 		bt_set_target.add_listener(this);
 		cont_fleet.add_component(&bt_set_target);
 	}
 	cont_fleet.end_table();
-	cont_fleet.add_component(&lb_fleet_summary);
-	cont_fleet.add_component(&lb_fleet_load);
-	cont_fleet.add_component(&lb_fleet_max);
+
+	const scr_coord_val fleet_status_label_width = max(proportional_string_width("Fleet status"), proportional_string_width("Maximum that can run now")) + 12;
+	const scr_coord_val fleet_count_width = max(proportional_string_width("Consists"), proportional_string_width("9999")) + 8;
+	fleet_status_width = fleet_status_label_width + fleet_count_width + 1;
+	const scr_coord_val fleet_load_label_width = max(
+		max(proportional_string_width("Load factor"), proportional_string_width("Passengers")),
+		max(proportional_string_width("Goods"), proportional_string_width("Used for adjustment"))) + 12;
+	const scr_coord_val fleet_load_month_width = max(proportional_string_width("Last Month"), proportional_string_width("100.0%")) + 8;
+	const scr_coord_val fleet_load_two_month_width = max(proportional_string_width("Last two months"), proportional_string_width("100.0%")) + 8;
+	const scr_coord_val fleet_effect_label_width = max(proportional_string_width("Target consists now"), proportional_string_width("Next change")) + 12;
+	const scr_coord_val fleet_effect_value_width = max(
+		proportional_string_width("Increase threshold must exceed decrease threshold (or both zero)."),
+		proportional_string_width("At 100.0%: no change; the load is between the thresholds.")) + 12;
+
+	cont_fleet.add_table(2, 0)->set_spacing(scr_size(1, 1));
+	{
+		gui_table_header_t *label_header = new_fleet_table_header("Fleet status", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left, true, true);
+		label_header->set_fixed_width(fleet_status_label_width);
+		gui_table_header_t *count_header = new_fleet_table_header("Consists", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::centered, true, true);
+		count_header->set_fixed_width(fleet_count_width);
+		add_fleet_count_row("Deployed", fleet_cell_deployed, false, fleet_status_label_width, fleet_count_width);
+		add_fleet_count_row("Held", fleet_cell_held, true, fleet_status_label_width, fleet_count_width);
+		add_fleet_count_row("Under maintenance", fleet_cell_under, false, fleet_status_label_width, fleet_count_width);
+		add_fleet_count_row("Total assigned", fleet_cell_total, true, fleet_status_label_width, fleet_count_width);
+		add_fleet_count_row("Pool consists available", fleet_cell_pool, false, fleet_status_label_width, fleet_count_width,
+			"Consists that can be formed from the vehicles in the depots on this line's schedule.");
+		add_fleet_count_row("Maximum that can run now", fleet_cell_max, true, fleet_status_label_width, fleet_count_width,
+			"Deployed consists plus held consists plus consists available from the depot pool.");
+		fleet_cell_cost.set_bgcolor(SYSCOL_TD_BACKGROUND);
+		fleet_cell_cost.set_align(gui_label_t::left);
+		fleet_cell_cost.set_border_bottom_right(true);
+		fleet_cell_cost.set_fixed_width(fleet_status_width);
+		register_fleet_label(&fleet_cell_cost);
+		cont_fleet.add_component(&fleet_cell_cost, 2);
+	}
+	cont_fleet.end_table();
 	cont_fleet.new_component<gui_divider_t>();
 
-	bt_fleet_policy.init(button_t::square_state, "Automatic fleet policy");
-	bt_fleet_policy.set_tooltip("The Target Fleet Size follows the line's passenger and goods load factors.");
+	bt_fleet_policy.init(button_t::square_state, "Automatically adjust consists to match demand");
+	bt_fleet_policy.set_tooltip("Automatically adjust the number of consists on the line to match demand. When on, add or remove one consist when the higher of the passenger and goods load factors stays above or below the thresholds in this panel.");
 	bt_fleet_policy.add_listener(this);
 	cont_fleet.add_component(&bt_fleet_policy);
 
-	cont_fleet.add_table(4, 2)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	fleet_load_table = cont_fleet.add_table(3, 0);
+	fleet_load_table->set_spacing(scr_size(1, 1));
 	{
-		cont_fleet.new_component<gui_label_t>("Target min");
-		numimp_fleet_target_min.init(1, 1, 65535, 1);
-		numimp_fleet_target_min.add_listener(this);
-		cont_fleet.add_component(&numimp_fleet_target_min);
-		cont_fleet.new_component<gui_label_t>("Target max");
-		numimp_fleet_target_max.init(0, 0, 65535, 1);
-		numimp_fleet_target_max.add_listener(this);
-		cont_fleet.add_component(&numimp_fleet_target_max);
+		new_fleet_table_header("Load factor", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::left, true, true)->set_fixed_width(fleet_load_label_width);
+		new_fleet_table_header("Last Month", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right, true, true)->set_fixed_width(fleet_load_month_width);
+		new_fleet_table_header("Last two months", SYSCOL_TH_BACKGROUND_TOP, gui_label_t::right, true, true)->set_fixed_width(fleet_load_two_month_width);
+		fleet_label_pax = add_fleet_load_row("Passengers", fleet_cell_pax_last, fleet_cell_pax_two, false,
+			fleet_load_label_width, fleet_load_month_width, fleet_load_two_month_width);
+		fleet_label_goods = add_fleet_load_row("Goods", fleet_cell_goods_last, fleet_cell_goods_two, true,
+			fleet_load_label_width, fleet_load_month_width, fleet_load_two_month_width);
+		fleet_label_used = add_fleet_load_row("Used for adjustment", fleet_cell_load_last, fleet_cell_load_two, false,
+			fleet_load_label_width, fleet_load_month_width, fleet_load_two_month_width,
+			"The higher of the passenger and goods load factors over the last two months. The automatic adjustment uses this value.");
+	}
+	cont_fleet.end_table();
 
-		cont_fleet.new_component<gui_label_t>("Add threshold (0.1%)");
-		numimp_fleet_add_threshold.init(0, 0, 1000, 10);
+	cont_fleet.add_table(4, 6)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	{
+		new_fleet_label_span("Add one consist when load factor is at least", 4)->set_tooltip("A threshold of 0 turns this rule off.");
+		numimp_fleet_add_threshold.init(0, 0, 1000, 10, true, 5, true, 1);
 		numimp_fleet_add_threshold.add_listener(this);
 		cont_fleet.add_component(&numimp_fleet_add_threshold);
-		cont_fleet.new_component<gui_label_t>("Remove threshold (0.1%)");
-		numimp_fleet_remove_threshold.init(0, 0, 1000, 10);
-		numimp_fleet_remove_threshold.add_listener(this);
-		cont_fleet.add_component(&numimp_fleet_remove_threshold);
-
-		cont_fleet.new_component<gui_label_t>("Add months");
+		new_fleet_label("% for");
 		numimp_fleet_add_months.init(0, 0, 255, 1);
 		numimp_fleet_add_months.add_listener(this);
 		cont_fleet.add_component(&numimp_fleet_add_months);
-		cont_fleet.new_component<gui_label_t>("Remove months");
+		new_fleet_label("consecutive months");
+
+		new_fleet_label_span("Remove one consist when load factor is at most", 4)->set_tooltip("A threshold of 0 turns this rule off.");
+		numimp_fleet_remove_threshold.init(0, 0, 1000, 10, true, 5, true, 1);
+		numimp_fleet_remove_threshold.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_remove_threshold);
+		new_fleet_label("% for");
 		numimp_fleet_remove_months.init(0, 0, 255, 1);
 		numimp_fleet_remove_months.add_listener(this);
 		cont_fleet.add_component(&numimp_fleet_remove_months);
+		new_fleet_label("consecutive months");
+
+		new_fleet_label_span("Keep the target between", 4);
+		numimp_fleet_target_min.init(1, 1, 65535, 1);
+		numimp_fleet_target_min.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_target_min);
+		new_fleet_label("and");
+		numimp_fleet_target_max.init(0, 0, 65535, 1);
+		numimp_fleet_target_max.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_target_max);
+		new_fleet_label("consists (maximum 0 = no limit)");
 	}
 	cont_fleet.end_table();
-	bt_set_fleet_policy.init(button_t::roundbox, "Set policy", scr_coord(0, 0), D_BUTTON_SIZE);
+
+	cont_fleet.add_table(2, 0)->set_spacing(scr_size(1, 1));
+	{
+		fleet_label_target_now = add_fleet_table_row("Target consists now", fleet_cell_target_now, true);
+		fleet_label_change = add_fleet_table_row("Next change", fleet_cell_change, false);
+		fleet_label_target_now->set_fixed_width(fleet_effect_label_width);
+		fleet_label_change->set_fixed_width(fleet_effect_label_width);
+		fleet_cell_target_now.set_align(gui_label_t::left);
+		fleet_cell_change.set_align(gui_label_t::left);
+		fleet_cell_target_now.set_fixed_width(fleet_effect_value_width);
+		fleet_cell_change.set_fixed_width(fleet_effect_value_width);
+	}
+	cont_fleet.end_table();
+
+	bt_set_fleet_policy.init(button_t::roundbox, "Apply automatic adjustment", scr_coord(0, 0), D_BUTTON_SIZE);
 	bt_set_fleet_policy.add_listener(this);
 	cont_fleet.add_component(&bt_set_fleet_policy);
 	cont_fleet.new_component<gui_divider_t>();
 
 	// Schedule spacing: the line frequency and the per-stop time shifts.
-	cont_fleet.add_table(4, 1)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	cont_fleet.add_table(3, 2)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
 	{
-		cont_fleet.new_component<gui_label_t>("Spacing (departures/year)")->set_tooltip("The number of departures per year. A step of 12 is one departure per month.");
-		numimp_fleet_spacing.init(0, 0, 999, 12);
+		new_fleet_label("Spacing (departures/month)")->set_tooltip("The number of departures per month. The clock time is the interval between departures. The value is rounded to the nearest whole departure per year when it is set.");
+		numimp_fleet_spacing.init(0, 0, schedule_t::spacing_to_monthly_hundredths(999), 10, true, 5, true, 2);
 		numimp_fleet_spacing.add_listener(this);
 		cont_fleet.add_component(&numimp_fleet_spacing);
+		register_fleet_label(&lb_fleet_spacing);
 		cont_fleet.add_component(&lb_fleet_spacing);
+
+		bt_same_spacing_shift_fleet.init(button_t::square_state, "Use the same shift at every stop");
+		bt_same_spacing_shift_fleet.set_tooltip("When set, one spacing shift applies to every stop. Turn it off to give individual stops their own shift. The shift is a time offset within the departure interval; the default unit is one minute of the 24-hour month.");
+		bt_same_spacing_shift_fleet.add_listener(this);
+		cont_fleet.add_component(&bt_same_spacing_shift_fleet);
+		numimp_fleet_shift.init(0, 0, welt->get_settings().get_spacing_shift_divisor(), 1);
+		numimp_fleet_shift.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_shift);
 		cont_fleet.new_component<gui_empty_t>();
 	}
 	cont_fleet.end_table();
 
-	bt_fleet_spacing_sync.init(button_t::square_state, "Frequency sets the number of consists");
-	bt_fleet_spacing_sync.set_tooltip("When set, the schedule frequency and the measured round-trip time determine the Target Fleet Size. The automatic fleet policy is turned off.");
+	bt_fleet_spacing_sync.init(button_t::square_state, "Schedule frequency sets the number of consists");
+	bt_fleet_spacing_sync.set_tooltip("When set, the schedule frequency and the measured round-trip time determine the target number of consists. The automatic adjustment is turned off.");
 	bt_fleet_spacing_sync.add_listener(this);
 	cont_fleet.add_component(&bt_fleet_spacing_sync);
 
-	cont_fleet.add_table(3, 1)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
-	{
-		bt_same_spacing_shift_fleet.init(button_t::square_state, "Use the same shift at every stop");
-		bt_same_spacing_shift_fleet.set_tooltip("When set, one spacing shift applies to every stop. Turn it off to give individual stops their own shift.");
-		bt_same_spacing_shift_fleet.add_listener(this);
-		cont_fleet.add_component(&bt_same_spacing_shift_fleet);
-
-		cont_fleet.new_component<gui_label_t>("Shift")->set_tooltip("The time shift within the departure interval. The default unit is one minute of the 24-hour month.");
-		numimp_fleet_shift.init(0, 0, welt->get_settings().get_spacing_shift_divisor(), 1);
-		numimp_fleet_shift.add_listener(this);
-		cont_fleet.add_component(&numimp_fleet_shift);
-	}
-	cont_fleet.end_table();
-
 	cont_fleet.add_component(&cont_fleet_spacing_stops);
-	bt_set_fleet_spacing.init(button_t::roundbox, "Set spacing", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_set_fleet_spacing.init(button_t::roundbox, "Apply spacing", scr_coord(0, 0), D_BUTTON_SIZE);
 	bt_set_fleet_spacing.add_listener(this);
 	cont_fleet.add_component(&bt_set_fleet_spacing);
-	cont_fleet.add_component(&lb_fleet_required);
+
+	cont_fleet.add_table(1, 1);
+	{
+		const scr_coord_val required_width = max(
+			proportional_string_width("Requires: 99999 consists"),
+			proportional_string_width("Requires: waiting for timing data")) + 12;
+		lb_fleet_required.set_fixed_width(required_width);
+		register_fleet_label(&lb_fleet_required);
+		cont_fleet.add_component(&lb_fleet_required);
+	}
+	cont_fleet.end_table();
 
 	cont_fleet.new_component<gui_divider_t>();
 	cont_fleet.add_component(&cont_fleet_depots);
@@ -830,7 +936,7 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 			buf.printf("f,%i,%i,%i,%i,%i,%i", line.get_id(),
 				bt_fleet_spacing_sync.pressed ? 1 : 0,
 				same_shift ? 1 : 0,
-				(int)numimp_fleet_spacing.get_value(),
+				schedule_t::monthly_hundredths_to_spacing((sint32)numimp_fleet_spacing.get_value()),
 				(int)numimp_fleet_shift.get_value(),
 				(int)shift_count);
 			for (uint32 i = 0; i < shift_count; i++) {
@@ -943,7 +1049,11 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 	}
 	else if(comp == &info_tabs){
 		selected_convoy_tab = (uint8)info_tabs.get_active_tab_index();
-		if (selected_convoy_tab == 3) {
+		if (selected_convoy_tab == 1) {
+			// Show the line's current values when the Fleet tab is opened.
+			update_fleet_tab(true);
+		}
+		else if (selected_convoy_tab == 3) {
 			cont_haltlist.init();
 		}
 	}
@@ -1095,6 +1205,15 @@ void schedule_list_gui_t::draw(scr_coord pos, scr_size size)
 		strcpy( old_schedule_filter, schedule_filter );
 	}
 
+	if (!line.is_bound() && !fleet_tab_disabled)
+	{
+		set_fleet_tab_enabled(false);
+	}
+	else if (line.is_bound() && fleet_tab_disabled)
+	{
+		set_fleet_tab_enabled(true);
+	}
+
 	gui_frame_t::draw(pos, size);
 
 	if(  line.is_bound()  ) {
@@ -1190,8 +1309,6 @@ void schedule_list_gui_t::display(scr_coord pos)
 		lb_convoy_count.buf().printf(translator::translate(", %d vehicles"), line_total_vehicle_count);
 	}
 	lb_convoy_count.update();
-
-	update_fleet_tab(true);
 
 	// Display service frequency
 	const sint64 service_frequency = line->get_service_frequency();
@@ -1624,11 +1741,191 @@ void schedule_list_gui_t::update_lineinfo(linehandle_t new_line)
 }
 
 
+gui_table_cell_buf_t *schedule_list_gui_t::add_fleet_table_row(const char *label, gui_table_cell_buf_t &value, bool shaded, const char *tooltip)
+{
+	const PIXVAL band = shaded ? SYSCOL_TD_BACKGROUND_SUM : SYSCOL_TD_BACKGROUND;
+	gui_table_cell_buf_t *label_cell = cont_fleet.new_component<gui_table_cell_buf_t>(label, band, gui_label_t::left, true);
+	register_fleet_label(label_cell);
+	if (tooltip != NULL)
+	{
+		label_cell->set_tooltip(tooltip);
+	}
+	value.set_bgcolor(band);
+	value.set_align(gui_label_t::right);
+	value.set_border_bottom_right(true);
+	value.set_min_width(proportional_string_width("8,888"));
+	register_fleet_label(&value);
+	cont_fleet.add_component(&value);
+	return label_cell;
+}
+
+
+gui_table_cell_buf_t *schedule_list_gui_t::add_fleet_load_row(const char *label, gui_table_cell_buf_t &last_month, gui_table_cell_buf_t &two_months, bool shaded, scr_coord_val label_width, scr_coord_val month_width, scr_coord_val two_month_width, const char *tooltip)
+{
+	const PIXVAL band = shaded ? SYSCOL_TD_BACKGROUND_SUM : SYSCOL_TD_BACKGROUND;
+	gui_table_cell_buf_t *label_cell = cont_fleet.new_component<gui_table_cell_buf_t>(label, band, gui_label_t::left, true);
+	label_cell->set_fixed_width(label_width);
+	register_fleet_label(label_cell);
+	if (tooltip != NULL)
+	{
+		label_cell->set_tooltip(tooltip);
+	}
+	last_month.set_bgcolor(band);
+	last_month.set_align(gui_label_t::right);
+	last_month.set_border_bottom_right(true);
+	last_month.set_fixed_width(month_width);
+	register_fleet_label(&last_month);
+	cont_fleet.add_component(&last_month);
+	two_months.set_bgcolor(band);
+	two_months.set_align(gui_label_t::right);
+	two_months.set_border_bottom_right(true);
+	two_months.set_fixed_width(two_month_width);
+	register_fleet_label(&two_months);
+	cont_fleet.add_component(&two_months);
+	return label_cell;
+}
+
+
+void schedule_list_gui_t::add_fleet_count_row(const char *label, gui_table_cell_buf_t &value, bool shaded, scr_coord_val label_width, scr_coord_val value_width, const char *tooltip)
+{
+	const PIXVAL band = shaded ? SYSCOL_TD_BACKGROUND_SUM : SYSCOL_TD_BACKGROUND;
+	gui_table_cell_buf_t *label_cell = cont_fleet.new_component<gui_table_cell_buf_t>(label, band, gui_label_t::left, true);
+	label_cell->set_fixed_width(label_width);
+	register_fleet_label(label_cell);
+	if (tooltip != NULL)
+	{
+		label_cell->set_tooltip(tooltip);
+	}
+	value.set_bgcolor(band);
+	value.set_align(gui_label_t::right);
+	value.set_border_bottom_right(true);
+	value.set_fixed_width(value_width);
+	register_fleet_label(&value);
+	cont_fleet.add_component(&value);
+}
+
+
+void schedule_list_gui_t::set_fleet_tab_enabled(bool enabled)
+{
+	fleet_tab_disabled = !enabled;
+
+	for (uint32 i = 0; i < fleet_labels.get_count(); i++)
+	{
+		fleet_labels[i]->set_color(enabled ? fleet_label_colors[i] : SYSCOL_TEXT_INACTIVE);
+	}
+
+	if (enabled)
+	{
+		update_fleet_tab(true);
+		return;
+	}
+
+	numimp_target_consists.disable();
+	bt_set_target.disable();
+	bt_fleet_policy.disable();
+	numimp_fleet_target_min.disable();
+	numimp_fleet_target_max.disable();
+	numimp_fleet_add_threshold.disable();
+	numimp_fleet_remove_threshold.disable();
+	numimp_fleet_add_months.disable();
+	numimp_fleet_remove_months.disable();
+	bt_set_fleet_policy.disable();
+
+	numimp_fleet_spacing.disable();
+	bt_fleet_spacing_sync.disable();
+	bt_same_spacing_shift_fleet.disable();
+	numimp_fleet_shift.disable();
+	bt_set_fleet_spacing.disable();
+	for (uint32 i = 0; i < fleet_shift_inputs.get_count(); i++)
+	{
+		fleet_shift_inputs[i]->disable();
+	}
+	for (uint32 i = 0; i < fleet_shift_names.get_count(); i++)
+	{
+		fleet_shift_names[i]->set_color(SYSCOL_TEXT_INACTIVE);
+	}
+	for (uint32 i = 0; i < fleet_depot_rows.get_count(); i++)
+	{
+		fleet_depot_rows[i]->set_color(SYSCOL_TEXT_INACTIVE);
+	}
+
+	fleet_cell_deployed.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_deployed.update();
+	fleet_cell_held.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_held.update();
+	fleet_cell_under.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_under.update();
+	fleet_cell_total.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_total.update();
+	fleet_cell_pool.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_pool.update();
+	fleet_cell_max.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_max.update();
+	fleet_cell_cost.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_cost.set_fixed_width(fleet_status_width);
+	fleet_cell_cost.update();
+
+	fleet_load_table->set_visible(true);
+	fleet_label_pax->set_visible(true);
+	fleet_cell_pax_last.set_visible(true);
+	fleet_cell_pax_two.set_visible(true);
+	fleet_label_goods->set_visible(true);
+	fleet_cell_goods_last.set_visible(true);
+	fleet_cell_goods_two.set_visible(true);
+	fleet_label_used->set_visible(true);
+	fleet_cell_load_last.set_visible(true);
+	fleet_cell_load_two.set_visible(true);
+
+	fleet_cell_pax_last.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_pax_last.update();
+	fleet_cell_pax_two.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_pax_two.update();
+	fleet_cell_goods_last.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_goods_last.update();
+	fleet_cell_goods_two.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_goods_two.update();
+	fleet_cell_load_last.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_load_last.update();
+	fleet_cell_load_two.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_load_two.update();
+
+	fleet_cell_target_now.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_target_now.update();
+	fleet_cell_change.buf().printf("%s", translator::translate("n/a"));
+	fleet_cell_change.update();
+
+	lb_fleet_spacing.buf().printf("%s", translator::translate("n/a"));
+	lb_fleet_spacing.update();
+	lb_fleet_required.buf().printf("%s", translator::translate("n/a"));
+	lb_fleet_required.update();
+
+	cont_fleet_spacing_stops.remove_all();
+	fleet_shift_inputs.clear();
+	fleet_shift_names.clear();
+	cont_fleet_depots.remove_all();
+	fleet_depot_rows.clear();
+
+	fleet_controls_line = linehandle_t();
+	fleet_spacing_line = linehandle_t();
+	fleet_spacing_schedule = NULL;
+}
+
+
 void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 {
 	if (!line.is_bound())
 	{
+		fleet_controls_line = linehandle_t();
 		return;
+	}
+
+	// The controls show the selected line's stored values. Loading them only
+	// when the selection changes avoids overwriting values that the player is
+	// editing while convoys change state.
+	if (line.get_id() != fleet_controls_line.get_id())
+	{
+		fleet_controls_line = line;
+		update_controls = true;
 	}
 
 	uint16 deployed = line->count_deployed_convoys();
@@ -1655,6 +1952,7 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 
 	uint16 pool_consists = 0;
 	cont_fleet_depots.remove_all();
+	fleet_depot_rows.clear();
 	cont_fleet_depots.set_table_layout(1, 0);
 	schedule_t *sch = line->get_schedule();
 	for (uint8 i = 0; sch && i < sch->get_count(); i++)
@@ -1718,6 +2016,7 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 			pool_consists += consists;
 		}
 		gui_label_buf_t *row = cont_fleet_depots.new_component<gui_label_buf_t>();
+		fleet_depot_rows.append(row);
 		row->init(has_order ? SYSCOL_TEXT : SYSCOL_BUTTON_TEXT_DISABLED, gui_label_t::left);
 		row->buf().printf("%s: %s, %d under maintenance, %d pool (%d available), up to %d consist(s)",
 			dep->get_name(), translator::translate(has_order ? "order set" : "no order"),
@@ -1733,17 +2032,62 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 	const uint32 pax_two = line->get_load_factor_pax_last_two_months();
 	const uint32 goods_month = line->get_load_factor_goods_last_month();
 	const uint32 goods_two = line->get_load_factor_goods_last_two_months();
-	const uint32 policy_load = max(pax_two, goods_two);
+	const uint32 load = max(pax_two, goods_two);
 
-	lb_fleet_summary.buf().printf(translator::translate("Deployed %d, held %d, under maintenance %d, total %d; held and pool fixed cost %lld per month"),
-		(int)deployed, (int)held, (int)under, (int)line->count_convoys(), (long long)convert_money(monthly_fixed));
-	lb_fleet_summary.update();
-	lb_fleet_load.buf().printf(translator::translate("Passengers %.1f%% last month, %.1f%% two months; goods %.1f%% and %.1f%%; policy uses %.1f%%"),
-		pax_month / 10.0, pax_two / 10.0, goods_month / 10.0, goods_two / 10.0, policy_load / 10.0);
-	lb_fleet_load.update();
-	lb_fleet_max.buf().printf(translator::translate("Maximum consists that can run now: %d (deployed %d + held %d + pool %d)"),
-		(int)(deployed + held + pool_consists), (int)deployed, (int)held, (int)pool_consists);
-	lb_fleet_max.update();
+	const minivec_tpl<uint8> &catg_index = line->get_goods_catg_index();
+	const bool carries_pax = catg_index.is_contained(goods_manager_t::INDEX_PAS);
+	bool carries_goods = false;
+	for (uint8 catg = goods_manager_t::INDEX_NONE; catg < goods_manager_t::get_max_catg_index(); catg++)
+	{
+		if (catg_index.is_contained(catg))
+		{
+			carries_goods = true;
+			break;
+		}
+	}
+	const bool show_used_load = carries_pax && carries_goods;
+
+	fleet_label_pax->set_visible(carries_pax);
+	fleet_cell_pax_last.set_visible(carries_pax);
+	fleet_cell_pax_two.set_visible(carries_pax);
+	fleet_label_goods->set_visible(carries_goods);
+	fleet_cell_goods_last.set_visible(carries_goods);
+	fleet_cell_goods_two.set_visible(carries_goods);
+	fleet_label_used->set_visible(show_used_load);
+	fleet_cell_load_last.set_visible(show_used_load);
+	fleet_cell_load_two.set_visible(show_used_load);
+	fleet_load_table->set_visible(carries_pax || carries_goods);
+
+	fleet_cell_deployed.buf().printf("%d", (int)deployed);
+	fleet_cell_deployed.update();
+	fleet_cell_held.buf().printf("%d", (int)held);
+	fleet_cell_held.update();
+	fleet_cell_under.buf().printf("%d", (int)under);
+	fleet_cell_under.update();
+	fleet_cell_total.buf().printf("%d", (int)line->count_convoys());
+	fleet_cell_total.update();
+	fleet_cell_pool.buf().printf("%d", (int)pool_consists);
+	fleet_cell_pool.update();
+	fleet_cell_max.buf().printf("%d", (int)(deployed + held + pool_consists));
+	fleet_cell_max.update();
+	fleet_cell_cost.buf().printf(translator::translate("Held/pool cost: %lld per month"),
+		(long long)convert_money(monthly_fixed));
+	const scr_coord_val cost_width = max(fleet_status_width, proportional_string_width(fleet_cell_cost.buf().get_str()) + 12);
+	fleet_cell_cost.set_fixed_width(cost_width);
+	fleet_cell_cost.update();
+
+	fleet_cell_pax_last.buf().printf("%.1f%%", pax_month / 10.0);
+	fleet_cell_pax_last.update();
+	fleet_cell_pax_two.buf().printf("%.1f%%", pax_two / 10.0);
+	fleet_cell_pax_two.update();
+	fleet_cell_goods_last.buf().printf("%.1f%%", goods_month / 10.0);
+	fleet_cell_goods_last.update();
+	fleet_cell_goods_two.buf().printf("%.1f%%", goods_two / 10.0);
+	fleet_cell_goods_two.update();
+	fleet_cell_load_last.buf().printf("%.1f%%", max(pax_month, goods_month) / 10.0);
+	fleet_cell_load_last.update();
+	fleet_cell_load_two.buf().printf("%.1f%%", load / 10.0);
+	fleet_cell_load_two.update();
 
 	const uint8 spacing_shift_mode = welt->get_settings().get_spacing_shift_mode();
 	bool has_timed_stops = false;
@@ -1787,16 +2131,17 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 	numimp_fleet_spacing.enable(has_timed_stops);
 	bt_set_fleet_spacing.enable(has_timed_stops);
 
-	numimp_target_consists.enable(!sync);
-	bt_set_target.enable(!sync);
+	const bool automatic_on = bt_fleet_policy.pressed;
+	fleet_label_target->set_color(automatic_on && !sync ? SYSCOL_TEXT : SYSCOL_TEXT_INACTIVE);
+	numimp_target_consists.enable(automatic_on && !sync);
+	bt_set_target.enable(automatic_on && !sync);
 	bt_fleet_policy.enable(!sync);
-	bt_set_fleet_policy.enable(!sync);
-	numimp_fleet_target_min.enable(!sync);
-	numimp_fleet_target_max.enable(!sync);
-	numimp_fleet_add_threshold.enable(!sync);
-	numimp_fleet_remove_threshold.enable(!sync);
-	numimp_fleet_add_months.enable(!sync);
-	numimp_fleet_remove_months.enable(!sync);
+	numimp_fleet_target_min.enable(automatic_on && !sync);
+	numimp_fleet_target_max.enable(automatic_on && !sync);
+	numimp_fleet_add_threshold.enable(automatic_on && !sync);
+	numimp_fleet_remove_threshold.enable(automatic_on && !sync);
+	numimp_fleet_add_months.enable(automatic_on && !sync);
+	numimp_fleet_remove_months.enable(automatic_on && !sync);
 
 	bt_same_spacing_shift_fleet.enable(shift_available && spacing_shift_mode > settings_t::SPACING_SHIFT_PER_LINE);
 	numimp_fleet_shift.enable(shift_available && same_shift);
@@ -1839,18 +2184,16 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 	{
 		if (fleet_required_cache > 0)
 		{
-			lb_fleet_required.buf().printf(translator::translate(sync
-				? "This frequency sets the target to %d consists"
-				: "This frequency implies %d consists"), (int)fleet_required_cache);
+			lb_fleet_required.buf().printf(translator::translate("Requires: %d consists"), (int)fleet_required_cache);
 		}
 		else
 		{
-			lb_fleet_required.buf().printf("%s", translator::translate("Waiting for a measured round-trip time"));
+			lb_fleet_required.buf().printf("%s", translator::translate("Requires: waiting for timing data"));
 		}
 	}
 	else
 	{
-		lb_fleet_required.buf().printf("%s", translator::translate("No timed stops with spacing in this schedule"));
+		lb_fleet_required.buf().printf("%s", translator::translate("Requires: no timed stops"));
 	}
 	lb_fleet_required.update();
 
@@ -1866,7 +2209,7 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 		numimp_fleet_remove_months.set_value(line->get_fleet_remove_months());
 		if (sch != NULL)
 		{
-			numimp_fleet_spacing.set_value(sch->get_spacing());
+			numimp_fleet_spacing.set_value(schedule_t::spacing_to_monthly_hundredths(sch->get_spacing()));
 			numimp_fleet_shift.set_value(first_shift);
 		}
 		if (schedule_changed)
@@ -1881,6 +2224,89 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 			}
 		}
 	}
+
+	const uint16 add_threshold = (uint16)numimp_fleet_add_threshold.get_value();
+	const uint8 add_months = (uint8)numimp_fleet_add_months.get_value();
+	const uint16 remove_threshold = (uint16)numimp_fleet_remove_threshold.get_value();
+	const uint8 remove_months = (uint8)numimp_fleet_remove_months.get_value();
+	const uint16 target = line->get_target_convoy_count();
+	const uint16 lower = (uint16)numimp_fleet_target_min.get_value();
+	const uint16 maximum = (uint16)numimp_fleet_target_max.get_value();
+	const uint16 upper = maximum == 0 ? 65535 : maximum;
+	const bool thresholds_valid = (add_threshold == 0 && remove_threshold == 0) || add_threshold > remove_threshold;
+
+	const bool stored_automatic = line->get_fleet_policy() != 0;
+	bt_set_fleet_policy.enable(!sync && thresholds_valid && (automatic_on || stored_automatic));
+
+	PIXVAL effect_color = SYSCOL_TEXT;
+	if (!automatic_on)
+	{
+		effect_color = SYSCOL_TEXT_INACTIVE;
+	}
+	else if (!thresholds_valid)
+	{
+		effect_color = color_idx_to_rgb(COL_RED);
+	}
+	fleet_label_target_now->set_color(effect_color);
+	fleet_label_change->set_color(effect_color);
+	fleet_cell_target_now.set_color(effect_color);
+	fleet_cell_change.set_color(effect_color);
+
+	if (!automatic_on)
+	{
+		fleet_cell_target_now.buf().printf("%s", translator::translate("n/a"));
+		fleet_cell_change.buf().printf("%s", translator::translate("n/a"));
+	}
+	else if (!thresholds_valid)
+	{
+		fleet_cell_target_now.buf().printf("%d", (int)target);
+		fleet_cell_change.buf().printf("%s", translator::translate("Increase threshold must exceed decrease threshold (or both zero)."));
+	}
+	else
+	{
+		fleet_cell_target_now.buf().printf("%d", (int)target);
+		if (add_threshold == 0 && remove_threshold == 0)
+		{
+			fleet_cell_change.buf().printf(translator::translate("At %.1f%%: no change; both thresholds are zero."), load / 10.0);
+		}
+		else if (add_threshold > 0 && add_months > 0 && load >= add_threshold)
+		{
+			if (target >= upper)
+			{
+				fleet_cell_change.buf().printf(translator::translate("At %.1f%%: already at the maximum of %d consists."),
+					load / 10.0, (int)upper);
+			}
+			else
+			{
+				const uint8 months_above = line->get_fleet_months_above();
+				const uint8 remaining = months_above < add_months ? add_months - months_above : 1;
+				fleet_cell_change.buf().printf(translator::translate("At %.1f%%: rise to %d consists after %d more month(s)."),
+					load / 10.0, (int)target + 1, (int)remaining);
+			}
+		}
+		else if (remove_threshold > 0 && remove_months > 0 && load <= remove_threshold)
+		{
+			if (target <= lower)
+			{
+				fleet_cell_change.buf().printf(translator::translate("At %.1f%%: already at the minimum of %d consists."),
+					load / 10.0, (int)lower);
+			}
+			else
+			{
+				const uint8 months_below = line->get_fleet_months_below();
+				const uint8 remaining = months_below < remove_months ? remove_months - months_below : 1;
+				fleet_cell_change.buf().printf(translator::translate("At %.1f%%: fall to %d consists after %d more month(s)."),
+					load / 10.0, (int)target - 1, (int)remaining);
+			}
+		}
+		else
+		{
+			fleet_cell_change.buf().printf(translator::translate("At %.1f%%: no change; the load is between the thresholds."), load / 10.0);
+		}
+	}
+
+	fleet_cell_target_now.update();
+	fleet_cell_change.update();
 }
 
 
@@ -1888,6 +2314,7 @@ void schedule_list_gui_t::rebuild_fleet_spacing_rows(schedule_t *sch)
 {
 	cont_fleet_spacing_stops.remove_all();
 	fleet_shift_inputs.clear();
+	fleet_shift_names.clear();
 	fleet_shift_entries.clear();
 
 	cont_fleet_spacing_stops.set_table_layout(2, 0);
@@ -1909,6 +2336,7 @@ void schedule_list_gui_t::rebuild_fleet_spacing_rows(schedule_t *sch)
 		schedule_t::gimme_short_stop_name(name->buf(), welt, player, sch, i, 32);
 		name->set_tooltip("The time shift within this stop's departure interval. The default unit is one minute of the 24-hour month.");
 		name->update();
+		fleet_shift_names.append(name);
 
 		gui_numberinput_t *input = cont_fleet_spacing_stops.new_component<gui_numberinput_t>();
 		input->init(entry.spacing_shift, 0, divisor, 1);

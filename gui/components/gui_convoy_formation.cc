@@ -45,7 +45,7 @@ scr_size gui_convoi_images_t::draw_vehicles(scr_coord offset, bool display_image
 			// ownership of every vehicle shows in multi-player consists (as
 			// in the convoy detail window).
 			const player_t *owner = v->get_owner();
-			display_base_img(image, p.x - left + run - x, p.y + get_size().h - bottom - h - y, owner ? owner->get_player_nr() : cnv->get_owner()->get_player_nr(), false, true);
+			display_base_img(image, p.x - left + run - x, p.y - top - h - y, owner ? owner->get_player_nr() : cnv->get_owner()->get_player_nr(), false, true);
 		}
 		run += (w*2)/3;
 	}

@@ -165,8 +165,8 @@ private:
 	// that the line has no target.
 	uint16 target_convoy_count = 0;
 
-	// Automatic Target Fleet Size policy. 0 = off, 1 = automatic. The
-	// thresholds are load factors in tenths of a percent.
+	// Automatic adjustment of the number of consists. 0 = off, 1 = automatic.
+	// The thresholds are load factors in tenths of a percent.
 	uint8 fleet_policy = 0;
 	uint16 fleet_target_min = 1;
 	uint16 fleet_target_max = 0; // 0 means no upper bound.
@@ -243,7 +243,7 @@ public:
 	uint16 get_target_convoy_count() const { return target_convoy_count; }
 	void set_target_convoy_count(uint16 count) { target_convoy_count = count; }
 
-	// The automatic fleet policy and the spacing synchronisation are mutually
+	// The automatic adjustment and the spacing synchronisation are mutually
 	// exclusive. The flags share the saved fleet_policy byte, so adding the
 	// spacing flag does not change the savegame format.
 	static const uint8 fleet_policy_automatic = 1u << 0;
@@ -276,6 +276,8 @@ public:
 	uint16 get_fleet_remove_threshold() const { return fleet_remove_threshold; }
 	uint8 get_fleet_add_months() const { return fleet_add_months; }
 	uint8 get_fleet_remove_months() const { return fleet_remove_months; }
+	uint8 get_fleet_months_above() const { return fleet_months_above; }
+	uint8 get_fleet_months_below() const { return fleet_months_below; }
 	void set_fleet_policy_values(uint8 policy, uint16 target_minimum, uint16 target_maximum,
 		uint16 add_threshold, uint16 remove_threshold, uint8 add_months, uint8 remove_months)
 	{
@@ -297,7 +299,7 @@ public:
 	// round-trip time is available.
 	uint16 calc_required_convoys_for_spacing();
 
-	// Recompute the Target Fleet Size from the spacing and round-trip time,
+	// Recompute the target number of consists from the spacing and round-trip time,
 	// then dispatch or withdraw to match it. No-op unless the spacing
 	// synchronisation is enabled.
 	void sync_spacing_to_fleet();

@@ -13,6 +13,7 @@
 #include "vehicle_detail.h"
 #include "../bauer/goods_manager.h"
 #include "../bauer/vehikelbauer.h"
+#include "../boden/grund.h"
 #include "../dataobj/loadsave.h"
 #include "../display/viewport.h"
 #include "../descriptor/goods_desc.h"
@@ -1747,10 +1748,14 @@ void consist_order_frame_t::init(schedule_gui_t *owner_, uint16 entry_id)
 void consist_order_frame_t::retarget(schedule_gui_t *owner_, uint16 entry_id)
 {
 	schedule_t *new_schedule = owner_->get_edit_schedule();
-	// Waypoint/depot-tile entries have no halt and cannot carry a consist
-	// order: keep showing the current target instead of rebinding to nothing
-	// (update() destroys the window on an unbound halt).
-	if (!haltestelle_t::get_halt(new_schedule->entries[new_schedule->get_current_stop()].pos, player).is_bound()) {
+	// A waypoint entry has neither a halt nor a depot and cannot carry a
+	// consist order: keep showing the current target instead of rebinding to
+	// nothing. A depot entry has no halt but can carry a departure order.
+	const koord3d &entry_pos = new_schedule->entries[new_schedule->get_current_stop()].pos;
+	const grund_t *gr = welt->lookup(entry_pos);
+	const bool can_carry_order = haltestelle_t::get_halt(entry_pos, player).is_bound()
+		|| (gr != NULL && gr->get_depot() != NULL);
+	if (!can_carry_order) {
 		return;
 	}
 	init(owner_, entry_id);
@@ -1801,18 +1806,24 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 		else if (cnv.is_bound()) {
 			new_owner = dynamic_cast<schedule_gui_t*>( win_get_magic( (ptrdiff_t)cnv->get_schedule() ) );
 		}
-		// The entry must still exist in the owner's editing copy, with a halt.
-		halthandle_t entry_halt;
+		// The entry must still exist in the owner's editing copy, and must be
+		// either a halt or a depot that can carry the order.
+		bool entry_can_carry_order = false;
 		if (player  &&  new_owner  &&  new_owner->get_edit_schedule()) {
 			const schedule_t *sch = new_owner->get_edit_schedule();
 			for (uint32 i = 0; i < sch->entries.get_count(); i++) {
 				if (unique_entry_id == sch->entries[i].unique_entry_id) {
-					entry_halt = haltestelle_t::get_halt(sch->entries[i].pos, player);
+					const koord3d& pos = sch->entries[i].pos;
+					entry_can_carry_order = haltestelle_t::get_halt(pos, player).is_bound();
+					if (!entry_can_carry_order) {
+						const grund_t *gr = welt->lookup(pos);
+						entry_can_carry_order = gr != NULL && gr->get_depot() != NULL;
+					}
 					break;
 				}
 			}
 		}
-		if (!entry_halt.is_bound()) {
+		if (!entry_can_carry_order) {
 			dbg->error( "consist_order_frame_t::rdwr", "Could not restore consist order window for entry %d", unique_entry_id );
 			// Leave nothing bound: destroy_win() sends WIN_CLOSE, which would
 			// otherwise write the working copy back into the owner's schedule.
@@ -1843,7 +1854,7 @@ void consist_order_frame_t::rdwr(loadsave_t *file)
 void consist_order_frame_t::init_table()
 {
 	bt_filter_halt_convoy.pressed = false;
-	bt_filter_line_convoy.pressed = true;
+	bt_filter_line_convoy.pressed = halt.is_bound();
 	bt_filter_single_vehicle.pressed = false;
 	cont_convoy_filter.set_visible(false);
 	update();
@@ -2091,11 +2102,13 @@ void consist_order_frame_t::init_table()
 					bt_filter_halt_convoy.init(button_t::square_state, "filter_halt_consist");
 					bt_filter_halt_convoy.set_tooltip(translator::translate("Narrow down to consists that use this stop"));
 					bt_filter_halt_convoy.add_listener(this);
+					bt_filter_halt_convoy.enable(halt.is_bound());
 					cont_convoy_filter.add_component(&bt_filter_halt_convoy);
 
 					bt_filter_line_convoy.init(button_t::square_state, "filter_line_consist");
 					bt_filter_line_convoy.set_tooltip(translator::translate("Narrow down to only consists belonging to this line"));
 					bt_filter_line_convoy.add_listener(this);
+					bt_filter_line_convoy.enable(halt.is_bound());
 					cont_convoy_filter.add_component(&bt_filter_line_convoy);
 
 					bt_filter_single_vehicle.init(button_t::square_state, "filter_single_vehicle_consist");
@@ -2540,8 +2553,11 @@ bool consist_order_frame_t::action_triggered(gui_action_creator_t *comp, value_t
 // NOTE: The execution of consist orders entails, for reversed consists, de-reversing it, adding the new vehicle and then reversing it again.
 void consist_order_frame_t::build_vehicle_list()
 {
-	const bool search_only_halt_convoy = bt_filter_halt_convoy.pressed;
-	const bool search_only_line_convoy = bt_filter_line_convoy.pressed;
+	// The halt filters list lines and consists registered at a halt. A depot
+	// entry has no halt, so those filters cannot apply; the list then contains
+	// the player's vehicles and consists without a halt filter.
+	const bool search_only_halt_convoy = halt.is_bound() && bt_filter_halt_convoy.pressed;
+	const bool search_only_line_convoy = halt.is_bound() && bt_filter_line_convoy.pressed;
 	const bool search_only_appendable_vehicle = bt_connectable_vehicle_filter.pressed;
 
 	own_vehicles.clear();
@@ -3158,11 +3174,20 @@ void consist_order_frame_t::update()
 				break;
 			}
 		}
-		// Destroy on an unbound halt; return at once, as the window is gone
-		// (destroy_win() deletes it outside event handling).
-		if( !halt.is_bound() ) { destroy_win(this); return; }
-
-		lb_halt.buf().append(halt->get_name());
+		if (entry_idx == 255) { destroy_win(this); return; }
+		if( halt.is_bound() ) {
+			lb_halt.buf().append(halt->get_name());
+		}
+		else {
+			// A depot entry has no halt but can carry a departure consist
+			// order. A waypoint has neither a halt nor a depot and cannot
+			// carry an order.
+			const grund_t *gr = welt->lookup(schedule->entries[entry_idx].pos);
+			const depot_t *depot = gr ? gr->get_depot() : NULL;
+			if (depot == NULL) { destroy_win(this); return; }
+			halt_number.init(entry_idx, 0, gui_schedule_entry_number_t::number_style::depot, schedule->entries[entry_idx].pos);
+			lb_halt.buf().append(depot->get_name());
+		}
 	}
 	init_input_value_range();
 	lb_halt.update();

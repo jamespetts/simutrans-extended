@@ -18,11 +18,32 @@
 uint32 log10( uint32 ); // simrandom.h
 
 
+static const sint32 decimal_scales[4] = { 1, 10, 100, 1000 };
+
+
+static void format_fixed_point(char *buffer, sint32 value, uint8 decimals)
+{
+	if (decimals == 0) {
+		sprintf(buffer, "%d", value);
+		return;
+	}
+	const sint32 scale = decimal_scales[decimals];
+	const uint32 absolute = value < 0 ? (uint32)(-value) : (uint32)value;
+	char *out = buffer;
+	if (value < 0) {
+		*out++ = '-';
+	}
+	sprintf(out, "%u.%0*u", absolute / scale, (int)decimals, absolute % scale);
+}
+
+
 char gui_numberinput_t::tooltip[256];
 
 gui_numberinput_t::gui_numberinput_t() :
 	gui_component_t(true)
 {
+	decimals = 0;
+
 	bt_left.set_typ(button_t::repeatarrowleft );
 	bt_left.set_pos( scr_coord(0,2) );
 	bt_left.add_listener(this );
@@ -100,7 +121,15 @@ void gui_numberinput_t::set_value(sint32 new_value)
 		new_value = value;
 	}
 	// To preserve cursor position if text was edited, only set new text if changed (or empty before)
-	if (formatted) {
+	if (decimals > 0) {
+		char formatted_text[20];
+		format_fixed_point(formatted_text, new_value, decimals);
+		if (strcmp(textinp.get_text(), formatted_text) != 0) {
+			strcpy(textbuffer, formatted_text);
+			textinp.set_text(textbuffer, 20);
+		}
+	}
+	else if (formatted) {
 		char formatted_text[20];
 		number_to_string(formatted_text, (double)new_value, 0);
 		if (strcmp(textinp.get_text(), formatted_text) != 0) {
@@ -125,6 +154,37 @@ void gui_numberinput_t::set_value(sint32 new_value)
 
 sint32 gui_numberinput_t::get_text_value()
 {
+	if (decimals > 0) {
+		const char *text = textinp.get_text();
+		sint64 parsed = 0;
+		uint8 fraction_digits = 0;
+		bool negative = false;
+		bool after_point = false;
+		for ( ; *text != 0; text++) {
+			if (*text == '-') {
+				negative = true;
+			}
+			else if (*text >= '0'  &&  *text <= '9') {
+				if (after_point) {
+					if (fraction_digits < decimals) {
+						parsed = parsed * 10 + (*text - '0');
+						fraction_digits++;
+					}
+				}
+				else {
+					parsed = parsed * 10 + (*text - '0');
+				}
+			}
+			else if ((*text == '.' || *text == ',') && !after_point) {
+				after_point = true;
+			}
+		}
+		while (fraction_digits < decimals) {
+			parsed *= 10;
+			fraction_digits++;
+		}
+		return (sint32)(negative ? -parsed : parsed);
+	}
 	if (!formatted) {
 		return (sint32)atol( textinp.get_text() );
 	}
@@ -190,6 +250,9 @@ void gui_numberinput_t::set_limits(sint32 _min, sint32 _max)
 	while (max_abs) {
 		max_numbertext_width += digit_width;
 		max_abs /= 10;
+	}
+	if (decimals > 0) {
+		max_numbertext_width += proportional_string_width(".") + decimals * digit_width;
 	}
 	if (formatted) {
 		// Measure the grouped representation, including separators.
@@ -328,8 +391,9 @@ sint32 gui_numberinput_t::get_prev_value()
 
 
 // all init in one ...
-void gui_numberinput_t::init( sint32 value, sint32 min, sint32 max, sint32 mode, bool wrap,  uint16 digits_, bool tooltip )
+void gui_numberinput_t::init( sint32 value, sint32 min, sint32 max, sint32 mode, bool wrap,  uint16 digits_, bool tooltip, uint8 decimals_ )
 {
+	decimals = decimals_ > 3 ? 3 : decimals_;
 	set_limits( min, max );
 	set_value( value );
 	set_increment_mode( mode );
@@ -386,6 +450,10 @@ bool gui_numberinput_t::infowin_event(const event_t *ev)
 			switch (ev->ev_code) {
 				case '-':
 					call_textinp = min_value <0;
+					break;
+				case '.':
+				case ',':
+					call_textinp = decimals > 0;
 					break;
 				case 1:   // allow Ctrl-A (select all text) to function
 				case 3:   // allow Ctrl-C (copy text to clipboard)
@@ -450,10 +518,16 @@ void gui_numberinput_t::draw(scr_coord offset)
 	bt_right.draw(new_offset);
 
 	if(!no_tooltip  &&  getroffen( get_mouse_pos() - offset )) {
-		if (formatted) {
+		if (formatted || decimals > 0) {
 			char min_buffer[32], max_buffer[32];
-			number_to_string(min_buffer, (double)min_value, 0);
-			number_to_string(max_buffer, (double)max_value, 0);
+			if (decimals > 0) {
+				format_fixed_point(min_buffer, min_value, decimals);
+				format_fixed_point(max_buffer, max_value, decimals);
+			}
+			else {
+				number_to_string(min_buffer, (double)min_value, 0);
+				number_to_string(max_buffer, (double)max_value, 0);
+			}
 			sprintf( tooltip, translator::translate("enter a value between %s and %s"), min_buffer, max_buffer );
 		}
 		else {

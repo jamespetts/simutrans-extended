@@ -327,7 +327,7 @@ public:
 	// Rebind to another schedule window/entry (e.g. the button was pressed in
 	// a second schedule window): saves unsaved edits to the old target first,
 	// then rebuilds the entry-dependent display. Leaves the window untouched
-	// when the new entry has no halt (waypoint/depot tile).
+	// when the new entry is a waypoint, which can carry no consist order.
 	void retarget(schedule_gui_t *owner, uint16 unique_entry_id);
 
 	void draw(scr_coord pos, scr_size size) OVERRIDE;

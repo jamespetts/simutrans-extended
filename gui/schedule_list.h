@@ -67,6 +67,11 @@ private:
 	gui_aligned_container_t cont_fleet_depots;
 	gui_aligned_container_t cont_fleet_spacing_stops;
 	gui_scrollpane_t scroll_fleet;
+	bool fleet_tab_disabled = false;
+	vector_tpl<gui_label_t *> fleet_labels;
+	vector_tpl<PIXVAL> fleet_label_colors;
+	vector_tpl<gui_label_buf_t *> fleet_shift_names;
+	vector_tpl<gui_label_buf_t *> fleet_depot_rows;
 	button_t bt_fleet_policy;
 	gui_numberinput_t numimp_fleet_target_min, numimp_fleet_target_max;
 	gui_numberinput_t numimp_fleet_add_threshold, numimp_fleet_remove_threshold;
@@ -75,10 +80,34 @@ private:
 	button_t bt_fleet_spacing_sync, bt_same_spacing_shift_fleet;
 	gui_numberinput_t numimp_fleet_spacing, numimp_fleet_shift;
 	button_t bt_set_fleet_spacing;
-	gui_label_buf_t lb_fleet_summary, lb_fleet_load, lb_fleet_max;
+	gui_table_cell_buf_t
+		fleet_cell_deployed,
+		fleet_cell_held,
+		fleet_cell_under,
+		fleet_cell_total,
+		fleet_cell_pool,
+		fleet_cell_max,
+		fleet_cell_cost,
+		fleet_cell_pax_last,
+		fleet_cell_pax_two,
+		fleet_cell_goods_last,
+		fleet_cell_goods_two,
+		fleet_cell_load_last,
+		fleet_cell_load_two,
+		fleet_cell_target_now,
+		fleet_cell_change;
+	gui_aligned_container_t *fleet_load_table = NULL;
+	scr_coord_val fleet_status_width = 0;
+	gui_label_t *fleet_label_target = NULL;
+	gui_table_cell_buf_t
+		*fleet_label_pax = NULL,
+		*fleet_label_goods = NULL,
+		*fleet_label_used = NULL,
+		*fleet_label_target_now = NULL,
+		*fleet_label_change = NULL;
 	gui_label_buf_t lb_fleet_spacing, lb_fleet_required;
 	char str_fleet_spacing_clock[32];
-	linehandle_t fleet_spacing_line;
+	linehandle_t fleet_controls_line, fleet_spacing_line;
 	schedule_t *fleet_spacing_schedule = NULL;
 	uint32 fleet_spacing_revision = 0;
 	uint16 fleet_required_cache = 0;
@@ -161,6 +190,14 @@ private:
 
 	void update_lineinfo(linehandle_t new_line);
 	void update_fleet_tab(bool update_controls = false);
+	void set_fleet_tab_enabled(bool enabled);
+	void register_fleet_label(gui_label_t *label);
+	gui_label_t *new_fleet_label(const char *text);
+	gui_label_t *new_fleet_label_span(const char *text, uint span);
+	gui_table_header_t *new_fleet_table_header(const char *text, PIXVAL bgcolor, gui_label_t::align_t align, bool border_tl, bool border_br);
+	gui_table_cell_buf_t *add_fleet_table_row(const char *label, gui_table_cell_buf_t &value, bool shaded, const char *tooltip = NULL);
+	gui_table_cell_buf_t *add_fleet_load_row(const char *label, gui_table_cell_buf_t &last_month, gui_table_cell_buf_t &two_months, bool shaded, scr_coord_val label_width, scr_coord_val month_width, scr_coord_val two_month_width, const char *tooltip = NULL);
+	void add_fleet_count_row(const char *label, gui_table_cell_buf_t &value, bool shaded, scr_coord_val label_width, scr_coord_val value_width, const char *tooltip = NULL);
 
 	linehandle_t line;
 

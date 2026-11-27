@@ -5064,7 +5064,10 @@ The percentage of passengers transported in the region overall
 The percentage of intending passengers making successful journeys in the world overall
 Spacing cnv/month, shift
 Departures/year
-Spacing (departures/year)
+Spacing (departures/month)
+Spacing (departures/month)
+The number of departures per month. The clock time is the interval between departures. The value is rounded to the nearest whole departure per year when it is set.
+The number of departures per month. The clock time is the interval between departures. The value is rounded to the nearest whole departure per year when it is set.
 #-----------------------------
 #-- Signals working methods:--
 drive_by_sight
@@ -6690,7 +6693,7 @@ Time offset
 help_txt_departure_time_shift
 Use the time offset so that services do not all arrive/leave at the same time.
 help_txt_departure_per_month
-Use this to schedule the frequency of services. The editable number is the number of departures per year; the clock time is the frequency.
+Use this to set the interval between departures. The editable number is the number of departures per month; the clock time is the interval between departures. The value is rounded to the nearest whole departure per year when it is set.
 if_this_is_set,_convoy_will_go_into_lay_over_state_at_this_stop
 If this is set, the consist will enter a layover state at this stop.
 if_this_is_set,_this_stop_will_at_all_times_be_considered_a_range_stop
@@ -6719,32 +6722,100 @@ Fleet
 Fleet
 Target consists
 Target consists
-Automatic fleet policy
-Automatic fleet policy
-Target min
-Target min
-Target max
-Target max
-Add threshold (0.1%)
-Add threshold (0.1%)
-Remove threshold (0.1%)
-Remove threshold (0.1%)
-Add months
-Add months
-Remove months
-Remove months
-Set policy
-Set policy
+Automatically adjust consists to match demand
+Automatically adjust consists to match demand
+Automatically adjust the number of consists on the line to match demand. When on, add or remove one consist when the higher of the passenger and goods load factors stays above or below the thresholds in this panel.
+Automatically adjust the number of consists on the line to match demand. When on, add or remove one consist when the higher of the passenger and goods load factors stays above or below the thresholds in this panel.
+Fleet status
+Fleet status
+Consists
+Consists
+Deployed
+Deployed
+Held
+Held
+Under maintenance
+Under maintenance
+Total assigned
+Total assigned
+Pool consists available
+Pool consists available
+Consists that can be formed from the vehicles in the depots on this line's schedule.
+Consists that can be formed from the vehicles in the depots on this line's schedule.
+Maximum that can run now
+Maximum that can run now
+Deployed consists plus held consists plus consists available from the depot pool.
+Deployed consists plus held consists plus consists available from the depot pool.
+Held/pool cost: %lld per month
+Held/pool cost: %lld per month
+Load factor
+Load factor
+Last Month
+Last Month
+Last two months
+Last two months
+Passengers
+Passengers
+Used for adjustment
+Used for adjustment
+The higher of the passenger and goods load factors over the last two months. The automatic adjustment uses this value.
+The higher of the passenger and goods load factors over the last two months. The automatic adjustment uses this value.
+Add one consist when load factor is at least
+Add one consist when load factor is at least
+A threshold of 0 turns this rule off.
+A threshold of 0 turns this rule off.
+% for
+% for
+consecutive months
+consecutive months
+Remove one consist when load factor is at most
+Remove one consist when load factor is at most
+Keep the target between
+Keep the target between
+and
+and
+consists (maximum 0 = no limit)
+consists (maximum 0 = no limit)
+Schedule frequency sets the number of consists
+Schedule frequency sets the number of consists
+Apply
+Apply
+Apply spacing
+Apply spacing
+Requires: %d consists
+Requires: %d consists
+Requires: waiting for timing data
+Requires: waiting for timing data
+Requires: no timed stops
+Requires: no timed stops
+When set, one spacing shift applies to every stop. Turn it off to give individual stops their own shift. The shift is a time offset within the departure interval; the default unit is one minute of the 24-hour month.
+When set, one spacing shift applies to every stop. Turn it off to give individual stops their own shift. The shift is a time offset within the departure interval; the default unit is one minute of the 24-hour month.
+Apply automatic adjustment
+Apply automatic adjustment
+Target consists now
+Target consists now
+Next change
+Next change
+n/a
+n/a
+At %.1f%%: no change; both thresholds are zero.
+At %.1f%%: no change; both thresholds are zero.
+At %.1f%%: already at the maximum of %d consists.
+At %.1f%%: already at the maximum of %d consists.
+At %.1f%%: rise to %d consists after %d more month(s).
+At %.1f%%: rise to %d consists after %d more month(s).
+At %.1f%%: already at the minimum of %d consists.
+At %.1f%%: already at the minimum of %d consists.
+At %.1f%%: fall to %d consists after %d more month(s).
+At %.1f%%: fall to %d consists after %d more month(s).
+At %.1f%%: no change; the load is between the thresholds.
+At %.1f%%: no change; the load is between the thresholds.
+Increase threshold must exceed decrease threshold (or both zero).
+Increase threshold must exceed decrease threshold (or both zero).
 order set
 order set
 no order
 no order
-Deployed %d, held %d, under maintenance %d, total %d; held and pool fixed cost %lld per month
-Deployed %d, held %d, under maintenance %d, total %d; held and pool fixed cost %lld per month
-Passengers %.1f%% last month, %.1f%% two months; goods %.1f%% and %.1f%%; policy uses %.1f%%
-Passengers %.1f%% last month, %.1f%% two months; goods %.1f%% and %.1f%%; policy uses %.1f%%
-Maximum consists that can run now: %d (deployed %d + held %d + pool %d)
-Maximum consists that can run now: %d (deployed %d + held %d + pool %d)
 consist_order
 Modify consist at this stop
 limit_to_same_vehicle

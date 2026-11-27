@@ -17,7 +17,8 @@
 
 
 /**
- * An input field for integer numbers (with arrow buttons for dec/inc)
+ * An input field for numbers (with arrow buttons for dec/inc). By default the
+ * value is an integer; init() can request a fixed number of decimal places.
  */
 class gui_numberinput_t :
 	public gui_action_creator_t,
@@ -54,6 +55,10 @@ private:
 
 	sint32 step_mode;
 
+	// Number of digits shown after the decimal separator. When this is not
+	// zero, value, min_value and max_value are in units of 10^-decimals.
+	uint8 decimals;
+
 	bool wrapping : 1;
 	bool b_enabled : 1;
 	bool no_tooltip : 1;
@@ -75,7 +80,9 @@ public:
 	void set_size(scr_size size) OVERRIDE;
 
 	// all init in one ...
-	void init( sint32 value, sint32 min, sint32 max, sint32 mode = 1, bool wrap = true, uint16 digits = 5, bool tooltip=true);
+	// decimals: digits after the decimal separator. With decimals > 0, the
+	// value, min and max arguments are in units of 10^-decimals.
+	void init( sint32 value, sint32 min, sint32 max, sint32 mode = 1, bool wrap = true, uint16 digits = 5, bool tooltip=true, uint8 decimals=0);
 
 	/**
 	 * sets and get the current value.

@@ -198,6 +198,19 @@ public:
 	inline int get_spacing() const { return spacing; }
 	inline void set_spacing( int s ) { spacing = s; }
 
+	// The spacing is stored as departures per year. The user interface shows
+	// departures per month with two decimal places. These helpers convert
+	// between the stored yearly count and hundredths of a departure per month,
+	// rounding to the nearest unit at each end.
+	static sint32 spacing_to_monthly_hundredths(int yearly_spacing)
+	{
+		return (yearly_spacing * 100 + 6) / 12;
+	}
+	static int monthly_hundredths_to_spacing(sint32 monthly_hundredths)
+	{
+		return (monthly_hundredths * 12 + 50) / 100;
+	}
+
 	virtual ~schedule_t() {}
 
 	/**

@@ -10347,7 +10347,7 @@ bool tool_change_line_t::init( player_t *player )
 			}
 			break;
 
-		case 'n': // set the Target Fleet Size
+		case 'n': // set the target number of consists
 			{
 				if (line.is_bound()) {
 					if (line->is_fleet_spacing_sync()) {
@@ -10373,7 +10373,7 @@ bool tool_change_line_t::init( player_t *player )
 			}
 			break;
 
-		case 'p': // set the automatic Target Fleet Size policy
+		case 'p': // set the automatic adjustment of the number of consists
 			{
 				if (line.is_bound()) {
 					sint32 policy, target_min, target_max, add_threshold, remove_threshold, add_months, remove_months;
@@ -10386,7 +10386,7 @@ bool tool_change_line_t::init( player_t *player )
 						remove_threshold = max(0, min(1000, remove_threshold));
 						add_months = max(0, min(255, add_months));
 						remove_months = max(0, min(255, remove_months));
-						if (add_threshold > remove_threshold) {
+						if (add_threshold > remove_threshold || (add_threshold == 0 && remove_threshold == 0)) {
 							line->set_fleet_policy_values((uint8)policy, (uint16)target_min, (uint16)target_max,
 								(uint16)add_threshold, (uint16)remove_threshold, (uint8)add_months, (uint8)remove_months);
 						}

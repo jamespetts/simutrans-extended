@@ -1090,12 +1090,14 @@ void schedule_gui_t::build_table()
 				{
 					// Spacing
 					cont_settings_1.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
-					lb_spacing.set_text("Spacing (departures/year)");
+					lb_spacing.set_text("Spacing (departures/month)");
 					lb_spacing.set_tooltip(translator::translate("help_txt_departure_per_month"));
 					cont_settings_1.add_component(&lb_spacing);
 
-					// The value is departures per year; the step of 12 is one departure per month.
-					numimp_spacing.init(schedule->get_spacing(), 0, 999, 12);
+					// The stored value is departures per year; the control shows
+					// departures per month in hundredths, stepping by 0.10.
+					numimp_spacing.init(schedule_t::spacing_to_monthly_hundredths(schedule->get_spacing()), 0,
+						schedule_t::spacing_to_monthly_hundredths(999), 10, true, 5, true, 2);
 					numimp_spacing.add_listener(this);
 					cont_settings_1.add_component(&numimp_spacing);
 
@@ -2015,9 +2017,9 @@ void schedule_gui_t::update_selection()
 			else if(!schedule->get_spacing())
 			{
 				// Cannot have wait for time without some spacing.
-				// 12 is one departure per month.
+				// 12 departures per year is one departure per month.
 				schedule->set_spacing(12);
-				numimp_spacing.set_value(12);
+				numimp_spacing.set_value(schedule_t::spacing_to_monthly_hundredths(12));
 			}
 
 			const bool maximum_wait_entry = schedule->entries[current_stop].minimum_loading > 0
@@ -2064,9 +2066,16 @@ void schedule_gui_t::update_selection()
 			bt_setdown_only.enable();
 			bt_discharge_payload.enable();
 
-			// tab2 componets
-			// If a station is found, tab2 will be hidden, so there is no need to disable these.
-			if (tabs.get_count() == 1) tabs.add_tab(&cont_settings_2, translator::translate("entry_setting_2"));
+			// A station shows both the Details tab (entry_setting_1, which
+			// contains the schedule spacing controls) and the Consist
+			// re-formation tab (entry_setting_2). Rebuild the tab set when the
+			// previous entry was a depot or a waypoint.
+			cont_settings_2.set_visible(true);
+			if (tabs.get_count() != 2 || tabs.get_tab(0) != &cont_settings_1 || tabs.get_tab(1) != &cont_settings_2) {
+				tabs.clear();
+				tabs.add_tab(&cont_settings_1, translator::translate("entry_setting_1"));
+				tabs.add_tab(&cont_settings_2, translator::translate("entry_setting_2"));
+			}
 			lb_consist_order_modified.set_visible(schedule->orders.get(schedule->entries[schedule->get_current_stop()].unique_entry_id).get_count());
 			bt_lay_over.enable(halt->can_lay_over());
 			bt_range_stop.enable();
@@ -2125,9 +2134,11 @@ void schedule_gui_t::update_selection()
 			if (is_depot) {
 				entry_no->init(current_stop + 1, 0, gui_schedule_entry_number_t::number_style::depot);
 				// A depot entry shows the Depot Consist Order tab instead of
-				// the stop settings tabs.
-				tabs.clear();
-				tabs.add_tab(&cont_depot_order, translator::translate("depot_order"));
+				// the Details and Consist re-formation tabs.
+				if (tabs.get_count() != 1 || tabs.get_tab(0) != &cont_depot_order) {
+					tabs.clear();
+					tabs.add_tab(&cont_depot_order, translator::translate("depot_order"));
+				}
 				const uint16 entry_id = schedule->entries[schedule->get_current_stop()].unique_entry_id;
 				const bool has_order = schedule->entry_has_consist_order(entry_id)
 					&& schedule->get_consist_order(entry_id).get_count() > 0;
@@ -2138,12 +2149,11 @@ void schedule_gui_t::update_selection()
 			}
 			else {
 				entry_no->init(old_line.is_bound() ? old_line->get_line_color_index() : 255, player->get_player_nr(), gui_schedule_entry_number_t::number_style::waypoint);
-			}
-
-			// tab1 componets
-			if (!is_depot && tabs.get_count() > 1) {
-				tabs.clear();
-				tabs.add_tab(&cont_settings_1, translator::translate("entry_setting_1"));
+				// A waypoint shows only the Details tab.
+				if (tabs.get_count() != 1 || tabs.get_tab(0) != &cont_settings_1) {
+					tabs.clear();
+					tabs.add_tab(&cont_settings_1, translator::translate("entry_setting_1"));
+				}
 			}
 			bt_discharge_payload.disable();
 			bt_setdown_only.disable();
@@ -2441,7 +2451,9 @@ DBG_MESSAGE("schedule_gui_t::action_triggered()","comp=%p combo=%p",comp,&line_s
 			update_selection();
 		}
 		else if (comp == &numimp_spacing) {
-			schedule->set_spacing(p.i);
+			const int spacing = schedule_t::monthly_hundredths_to_spacing(p.i);
+			schedule->set_spacing(spacing);
+			numimp_spacing.set_value(schedule_t::spacing_to_monthly_hundredths(spacing));
 			update_selection();
 		}
 		else if (comp == &numimp_spacing_shift) {
