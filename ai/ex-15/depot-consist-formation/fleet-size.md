@@ -161,6 +161,11 @@ The user decision is to implement automatic adjustment with the feature, not def
 [RECOLLECTION:2026-11-25 user statement]. The line management window's Fleet tab is the control
 surface.
 
+The Fleet tab also has an optional frequency synchronisation: when it is enabled, the line's
+schedule spacing and measured round-trip time determine the target, and the automatic policy is
+turned off. The formula, the per-stop shift controls and the cross-schedule trace are in
+[fleet and schedule-spacing synchronisation](fleet-spacing-sync.md).
+
 ### Load factors
 
 The passenger load factor is `simline_t::get_load_factor_pax_last_month()`,

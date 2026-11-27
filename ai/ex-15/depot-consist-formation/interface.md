@@ -103,7 +103,11 @@ The line management window has a **Fleet** tab immediately after the **Convoys**
    pool Consists from each depot with an order. The estimate is the smallest number of available
    vehicles matching any one slot, capped by the number that the pool can supply; it is a practical
    greedy count, not an optimal packing.
-5. **Diagnostics.** The reasons a Convoy cannot be dispatched or withdrawn, the depot queue position
+5. **Schedule spacing controls.** The line's frequency, the optional frequency-to-fleet
+   synchronisation, the same-shift setting, and one shift input per timed stop. The behaviour,
+   formula and cross-schedule trace are in
+   [fleet and schedule-spacing synchronisation](fleet-spacing-sync.md).
+6. **Diagnostics.** The reasons a Convoy cannot be dispatched or withdrawn, the depot queue position
    and the monthly cost of the current spare capacity are not yet shown. The per-slot depot detail
    and the Convoys tab **Maintenance** column remain [PROPOSED].
 

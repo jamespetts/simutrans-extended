@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 1c8d9cadf; waiting-time estimates @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12); service-frequency computation @ ex-15 @ f74322b648 (2026-11-24)
+verified: ex-15 @ 1c8d9cadf; waiting-time estimates @ ex-15 @ f809a1e55 plus working-tree changes (2026-11-12); service-frequency computation @ ex-15 @ f74322b648 (2026-11-24); schedule-spacing link and save conversion @ ex-15 @ 55c91fcd7b (2026-11-27)
 ---
 # Routing, halts & scheduling
 
@@ -11,6 +11,14 @@ verified: ex-15 @ 1c8d9cadf; waiting-time estimates @ ex-15 @ f809a1e55 plus wor
 - The schedule system (`dataobj/schedule.*`, `schedule_entry.h`) and its GUI (`gui/schedule_gui.cc`) are heavy ex-15 hotspots, alongside `path_explorer.cc` and `simhalt.cc` [CODE].
 - `simhalt.h` is widely included [CODE].
 - The schedule system is under heavy active revision on ex-15 → [ex-15](ex-15.md) registry.
+
+## Schedule spacing
+
+- The timetable frequency mechanism (`schedule_t::spacing`, per-entry `spacing_shift`,
+  departure slots, queue position, timetable projection, service-frequency coupling and
+  save/network format): [schedule-spacing](routing-and-scheduling/schedule-spacing.md). Read
+  it before touching spacing, departure timing at timed stops, or any feature that derives
+  the number of convoys on a line from a service frequency.
 
 ## Halts (haltestelle_t)
 
