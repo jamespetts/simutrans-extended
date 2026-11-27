@@ -213,6 +213,7 @@ void simline_t::set_schedule(schedule_t* schedule)
 		delete this->schedule;
 	}
 	this->schedule = schedule;
+	schedule_revision++;
 	financial_history[0][LINE_DEPARTURES_SCHEDULED] = calc_departures_scheduled();
 }
 
@@ -325,6 +326,11 @@ void simline_t::add_convoy(convoihandle_t cnv, bool from_loading)
 		start_reversed = !start_reversed;
 		cnv->set_reverse_schedule(start_reversed);
 	}
+
+	if (!from_loading && is_fleet_spacing_sync())
+	{
+		sync_spacing_to_fleet();
+	}
 }
 
 
@@ -352,6 +358,11 @@ void simline_t::remove_convoy(convoihandle_t cnv)
 		}
 	}
 	calc_classes_carried();
+
+	if (!welt->is_destroying() && is_fleet_spacing_sync())
+	{
+		sync_spacing_to_fleet();
+	}
 }
 
 
@@ -934,12 +945,13 @@ void simline_t::new_month()
 	}
 
 	adjust_fleet_policy();
+	sync_spacing_to_fleet();
 }
 
 
 void simline_t::adjust_fleet_policy()
 {
-	if (fleet_policy == 0)
+	if (get_fleet_policy() == 0 || is_fleet_spacing_sync())
 	{
 		fleet_months_above = 0;
 		fleet_months_below = 0;
@@ -1639,6 +1651,232 @@ void simline_t::withdraw_excess_convoys()
 		effective--;
 	}
 }
+
+uint16 simline_t::calc_required_convoys_for_spacing()
+{
+	if (schedule == NULL || schedule->get_spacing() <= 0)
+	{
+		return 0;
+	}
+
+	// The measured round-trip time includes the time that spacing holds a Convoy
+	// at its departure slots. Using it directly would make a line with excess
+	// Convoys self-sustaining: more Convoys mean longer waits, a longer measured
+	// round trip, and therefore the same computed requirement. Remove the
+	// spacing wait that the current Convoy count can explain, and keep the
+	// schedule's running-time estimate as a floor.
+	sint64 measured_ticks = 0;
+	uint32 convoys_with_data = 0;
+	uint16 deployed_convoys = 0;
+	for (auto const c : line_managed_convoys)
+	{
+		if (!c.is_bound() || c->get_vehicle_count() == 0
+			|| c->get_state() == convoi_t::INITIAL
+			|| convoi_t::is_inside_depot_state(c->get_state()))
+		{
+			continue;
+		}
+		deployed_convoys++;
+		const sint64 trip = c->get_average_round_trip_time();
+		if (trip > 0)
+		{
+			measured_ticks += trip;
+			convoys_with_data++;
+		}
+	}
+	if (convoys_with_data > 0)
+	{
+		measured_ticks /= convoys_with_data;
+	}
+
+	// Estimate the running time from the schedule's recorded leg times, with the
+	// same distance-and-speed fallback that the service-frequency calculation
+	// uses. This is the floor for the round trip, and the only estimate when no
+	// Convoy has completed a cycle yet.
+	sint64 schedule_running_ticks = 0;
+	const uint8 entry_count = schedule->get_count();
+	if (entry_count > 0)
+	{
+		uint32 speed_kmh = 0;
+		for (auto const c : line_managed_convoys)
+		{
+			if (c.is_bound() && c->get_vehicle_count() > 0)
+			{
+				speed_kmh = speed_to_kmh(c->get_min_top_speed()) >> 1;
+				break;
+			}
+		}
+		if (speed_kmh > 0)
+		{
+			uint32 timing_tenths = 0;
+			const uint8 leg_count = schedule->is_mirrored() ? entry_count - 1 : entry_count;
+			for (uint8 n = 0; n < leg_count; n++)
+			{
+				const koord3d &from = schedule->entries[n].pos;
+				const koord3d &to = schedule->entries[(n + 1) % entry_count].pos;
+				const halthandle_t from_halt = haltestelle_t::get_halt(from, player);
+				const halthandle_t to_halt = haltestelle_t::get_halt(to, player);
+				uint32 average_time = 0;
+				if (from_halt.is_bound() && to_halt.is_bound())
+				{
+					average_time = average_journey_times.get(id_pair(from_halt.get_id(), to_halt.get_id())).get_average();
+				}
+				if (average_time == 0 || average_time == UINT32_MAX_VALUE)
+				{
+					const uint32 distance = shortest_distance(from.get_2d(), to.get_2d());
+					average_time = welt->travel_time_tenths_from_distance(distance, speed_kmh);
+				}
+				timing_tenths += average_time;
+			}
+			if (schedule->is_mirrored())
+			{
+				timing_tenths *= 2;
+			}
+			if (timing_tenths > 0)
+			{
+				schedule_running_ticks = welt->get_seconds_to_ticks((sint64)timing_tenths * 6);
+			}
+		}
+	}
+
+	const sint64 ticks_per_year = (sint64)welt->ticks_per_world_month * 12ll;
+	const sint64 spacing_interval = ticks_per_year / (sint64)schedule->get_spacing();
+	sint64 running_ticks = schedule_running_ticks;
+	if (measured_ticks > 0)
+	{
+		const sint64 spacing_waits = deployed_convoys > 1
+			? (sint64)(deployed_convoys - 1) * spacing_interval
+			: 0ll;
+		const sint64 adjusted = measured_ticks - spacing_waits;
+		if (adjusted > running_ticks)
+		{
+			running_ticks = adjusted;
+		}
+	}
+	if (running_ticks <= 0)
+	{
+		return 0;
+	}
+
+	sint64 required = (running_ticks * (sint64)schedule->get_spacing() + ticks_per_year - 1) / ticks_per_year;
+	if (required < 1)
+	{
+		required = 1;
+	}
+	if (required > 65535)
+	{
+		required = 65535;
+	}
+	return (uint16)required;
+}
+
+
+void simline_t::sync_spacing_to_fleet()
+{
+	if (fleet_sync_active || !is_fleet_spacing_sync() || schedule == NULL || schedule->get_spacing() <= 0)
+	{
+		return;
+	}
+
+	bool has_timed_stop = false;
+	for (uint8 i = 0; i < schedule->get_count(); i++)
+	{
+		if (schedule->entries[i].minimum_loading > 0 || schedule->entries[i].is_flag_set(schedule_entry_t::wait_for_time))
+		{
+			has_timed_stop = true;
+			break;
+		}
+	}
+	if (!has_timed_stop)
+	{
+		return;
+	}
+
+	const uint16 required = calc_required_convoys_for_spacing();
+	if (required == 0)
+	{
+		return;
+	}
+
+	fleet_sync_active = true;
+	target_convoy_count = required;
+	while (count_deployed_convoys() < required && dispatch_held_convoy())
+	{
+	}
+	withdraw_excess_convoys();
+	fleet_sync_active = false;
+}
+
+
+void simline_t::collect_coupled_lines(vector_tpl<linehandle_t> &lines) const
+{
+	lines.clear();
+	if (!self.is_bound())
+	{
+		return;
+	}
+
+	vector_tpl<linehandle_t> pending;
+	pending.append(self);
+	for (uint32 i = 0; i < pending.get_count(); i++)
+	{
+		const linehandle_t current = pending[i];
+		if (!current.is_bound() || current->get_schedule() == NULL)
+		{
+			continue;
+		}
+		const schedule_t *const current_schedule = current->get_schedule();
+		for (uint8 e = 0; e < current_schedule->get_count(); e++)
+		{
+			const schedule_entry_t &entry = current_schedule->entries[e];
+			uint16 target_id = 0;
+			bool target_is_convoy = false;
+			if (entry.is_flag_set(schedule_entry_t::couple))
+			{
+				target_id = entry.target_id_couple;
+				target_is_convoy = entry.is_flag_set(schedule_entry_t::couple_target_is_line_or_cnv);
+			}
+			else if (entry.is_flag_set(schedule_entry_t::uncouple))
+			{
+				target_id = entry.target_id_uncouple;
+				target_is_convoy = entry.is_flag_set(schedule_entry_t::uncouple_target_is_line_or_cnv);
+			}
+			else
+			{
+				continue;
+			}
+			if (target_id == 0)
+			{
+				continue;
+			}
+
+			linehandle_t target;
+			if (target_is_convoy)
+			{
+				convoihandle_t target_convoy;
+				target_convoy.set_id(target_id);
+				if (target_convoy.is_bound())
+				{
+					target = target_convoy->get_line();
+				}
+			}
+			else
+			{
+				target.set_id(target_id);
+			}
+			if (!target.is_bound() || target.get_id() == self.get_id())
+			{
+				continue;
+			}
+			if (!lines.is_contained(target))
+			{
+				lines.append(target);
+				pending.append(target);
+			}
+		}
+	}
+}
+
 
 void simline_t::propogate_livery_scheme()
 {

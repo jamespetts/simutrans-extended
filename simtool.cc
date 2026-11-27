@@ -10328,6 +10328,16 @@ bool tool_change_line_t::init( player_t *player )
 						schedule->finish_editing();
 						line->set_schedule( schedule );
 						simlinemgmt_t::update_line(line);
+						if (line->is_fleet_spacing_sync()) {
+							line->sync_spacing_to_fleet();
+						}
+						vector_tpl<linehandle_t> coupled_lines;
+						line->collect_coupled_lines(coupled_lines);
+						for (auto coupled_line : coupled_lines) {
+							if (coupled_line.is_bound() && coupled_line->is_fleet_spacing_sync()) {
+								coupled_line->sync_spacing_to_fleet();
+							}
+						}
 					}
 					else {
 						// could not read schedule, do not assign
@@ -10340,6 +10350,12 @@ bool tool_change_line_t::init( player_t *player )
 		case 'n': // set the Target Fleet Size
 			{
 				if (line.is_bound()) {
+					if (line->is_fleet_spacing_sync()) {
+						// The spacing frequency determines the target while the
+						// synchronisation is enabled.
+						line->sync_spacing_to_fleet();
+						break;
+					}
 					sint32 target = atoi( p );
 					if (target < 0) {
 						target = 0;
@@ -10374,6 +10390,82 @@ bool tool_change_line_t::init( player_t *player )
 							line->set_fleet_policy_values((uint8)policy, (uint16)target_min, (uint16)target_max,
 								(uint16)add_threshold, (uint16)remove_threshold, (uint8)add_months, (uint8)remove_months);
 						}
+					}
+				}
+			}
+			break;
+
+		case 'f': // set schedule spacing, per-stop shifts and fleet synchronisation
+			{
+				if (!line.is_bound() || line->get_schedule() == NULL) {
+					break;
+				}
+				int sync = 0, same_shift = 0, spacing = 0, line_shift = 0, shift_count = 0;
+				if (sscanf(p, "%d,%d,%d,%d,%d", &sync, &same_shift, &spacing, &line_shift, &shift_count) != 5) {
+					break;
+				}
+				for (int field = 0; field < 5 && *p; field++) {
+					while (*p && *p != ',') {
+						p++;
+					}
+					if (*p == ',') {
+						p++;
+					}
+				}
+
+				schedule_t *const schedule = line->get_schedule()->copy();
+				spacing = max(0, min(32767, spacing));
+				const sint16 divisor = welt->get_settings().get_spacing_shift_divisor();
+				line_shift = max(0, min((int)divisor, line_shift));
+				schedule->set_spacing(spacing);
+
+				// Leave the stored shifts untouched when the setting disables them.
+				if (welt->get_settings().get_spacing_shift_mode() != settings_t::SPACING_SHIFT_DISABLED) {
+					schedule->set_same_spacing_shift(same_shift != 0);
+					if (same_shift) {
+						for (uint8 i = 0; i < schedule->get_count(); i++) {
+							schedule->entries[i].spacing_shift = (sint16)line_shift;
+						}
+					}
+					else {
+						for (int i = 0; i < shift_count; i++) {
+							int entry_index = 0, shift = 0;
+							if (sscanf(p, "%d,%d", &entry_index, &shift) != 2) {
+								break;
+							}
+							if (entry_index >= 0 && entry_index < schedule->get_count()) {
+								schedule->entries[entry_index].spacing_shift = (sint16)max(0, min((int)divisor, shift));
+							}
+							for (int field = 0; field < 2 && *p; field++) {
+								while (*p && *p != ',') {
+									p++;
+								}
+								if (*p == ',') {
+									p++;
+								}
+							}
+						}
+					}
+				}
+
+				bool has_timed_stops = false;
+				for (uint8 i = 0; i < schedule->get_count(); i++) {
+					if (schedule->entries[i].minimum_loading > 0 || schedule->entries[i].is_flag_set(schedule_entry_t::wait_for_time)) {
+						has_timed_stops = true;
+						break;
+					}
+				}
+				line->set_schedule(schedule);
+				line->set_fleet_spacing_sync(sync != 0 && has_timed_stops && spacing > 0);
+				simlinemgmt_t::update_line(line);
+				if (line->is_fleet_spacing_sync()) {
+					line->sync_spacing_to_fleet();
+				}
+				vector_tpl<linehandle_t> coupled_lines;
+				line->collect_coupled_lines(coupled_lines);
+				for (auto coupled_line : coupled_lines) {
+					if (coupled_line.is_bound() && coupled_line->is_fleet_spacing_sync()) {
+						coupled_line->sync_spacing_to_fleet();
 					}
 				}
 			}

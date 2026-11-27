@@ -533,6 +533,45 @@ schedule_list_gui_t::schedule_list_gui_t(player_t *player_) :
 	bt_set_fleet_policy.add_listener(this);
 	cont_fleet.add_component(&bt_set_fleet_policy);
 	cont_fleet.new_component<gui_divider_t>();
+
+	// Schedule spacing: the line frequency and the per-stop time shifts.
+	cont_fleet.add_table(4, 1)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	{
+		cont_fleet.new_component<gui_label_t>("Spacing (departures/year)")->set_tooltip("The number of departures per year. A step of 12 is one departure per month.");
+		numimp_fleet_spacing.init(0, 0, 999, 12);
+		numimp_fleet_spacing.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_spacing);
+		cont_fleet.add_component(&lb_fleet_spacing);
+		cont_fleet.new_component<gui_empty_t>();
+	}
+	cont_fleet.end_table();
+
+	bt_fleet_spacing_sync.init(button_t::square_state, "Frequency sets the number of consists");
+	bt_fleet_spacing_sync.set_tooltip("When set, the schedule frequency and the measured round-trip time determine the Target Fleet Size. The automatic fleet policy is turned off.");
+	bt_fleet_spacing_sync.add_listener(this);
+	cont_fleet.add_component(&bt_fleet_spacing_sync);
+
+	cont_fleet.add_table(3, 1)->set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	{
+		bt_same_spacing_shift_fleet.init(button_t::square_state, "Use the same shift at every stop");
+		bt_same_spacing_shift_fleet.set_tooltip("When set, one spacing shift applies to every stop. Turn it off to give individual stops their own shift.");
+		bt_same_spacing_shift_fleet.add_listener(this);
+		cont_fleet.add_component(&bt_same_spacing_shift_fleet);
+
+		cont_fleet.new_component<gui_label_t>("Shift")->set_tooltip("The time shift within the departure interval. The default unit is one minute of the 24-hour month.");
+		numimp_fleet_shift.init(0, 0, welt->get_settings().get_spacing_shift_divisor(), 1);
+		numimp_fleet_shift.add_listener(this);
+		cont_fleet.add_component(&numimp_fleet_shift);
+	}
+	cont_fleet.end_table();
+
+	cont_fleet.add_component(&cont_fleet_spacing_stops);
+	bt_set_fleet_spacing.init(button_t::roundbox, "Set spacing", scr_coord(0, 0), D_BUTTON_SIZE);
+	bt_set_fleet_spacing.add_listener(this);
+	cont_fleet.add_component(&bt_set_fleet_spacing);
+	cont_fleet.add_component(&lb_fleet_required);
+
+	cont_fleet.new_component<gui_divider_t>();
 	cont_fleet.add_component(&cont_fleet_depots);
 	info_tabs.add_tab(&scroll_fleet, translator::translate("Fleet"));
 
@@ -748,6 +787,10 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 	}
 	else if (comp == &bt_fleet_policy) {
 		bt_fleet_policy.pressed ^= 1;
+		if (bt_fleet_policy.pressed) {
+			bt_fleet_spacing_sync.pressed = false;
+		}
+		update_fleet_tab(false);
 	}
 	else if (comp == &bt_set_fleet_policy) {
 		if (line.is_bound()) {
@@ -764,6 +807,40 @@ bool schedule_list_gui_t::action_triggered( gui_action_creator_t *comp, value_t 
 			tmp_tool->set_default_param(buf);
 			welt->set_tool( tmp_tool, player );
 			delete tmp_tool;
+		}
+	}
+	else if (comp == &bt_fleet_spacing_sync) {
+		bt_fleet_spacing_sync.pressed ^= 1;
+		if (bt_fleet_spacing_sync.pressed) {
+			bt_fleet_policy.pressed = false;
+		}
+		fleet_required_deployed = 0xFFFF;
+		update_fleet_tab(false);
+	}
+	else if (comp == &bt_same_spacing_shift_fleet) {
+		bt_same_spacing_shift_fleet.pressed ^= 1;
+		update_fleet_tab(false);
+	}
+	else if (comp == &bt_set_fleet_spacing) {
+		if (line.is_bound()) {
+			const uint8 spacing_shift_mode = welt->get_settings().get_spacing_shift_mode();
+			const bool same_shift = bt_same_spacing_shift_fleet.pressed || spacing_shift_mode <= settings_t::SPACING_SHIFT_PER_LINE;
+			const uint32 shift_count = same_shift ? 0 : fleet_shift_entries.get_count();
+			cbuffer_t buf;
+			buf.printf("f,%i,%i,%i,%i,%i,%i", line.get_id(),
+				bt_fleet_spacing_sync.pressed ? 1 : 0,
+				same_shift ? 1 : 0,
+				(int)numimp_fleet_spacing.get_value(),
+				(int)numimp_fleet_shift.get_value(),
+				(int)shift_count);
+			for (uint32 i = 0; i < shift_count; i++) {
+				buf.printf(",%i,%i", (int)fleet_shift_entries[i], (int)fleet_shift_inputs[i]->get_value());
+			}
+			tool_t *tmp_tool = create_tool(TOOL_CHANGE_LINE | SIMPLE_TOOL);
+			tmp_tool->set_default_param(buf);
+			welt->set_tool(tmp_tool, player);
+			delete tmp_tool;
+			update_fleet_tab(false);
 		}
 	}
 	else if(comp == &bt_withdraw_line) {
@@ -1668,7 +1745,116 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 		(int)(deployed + held + pool_consists), (int)deployed, (int)held, (int)pool_consists);
 	lb_fleet_max.update();
 
-	if (update_controls)
+	const uint8 spacing_shift_mode = welt->get_settings().get_spacing_shift_mode();
+	bool has_timed_stops = false;
+	if (sch != NULL)
+	{
+		for (uint8 i = 0; i < sch->get_count(); i++)
+		{
+			if (sch->entries[i].minimum_loading > 0 || sch->entries[i].is_flag_set(schedule_entry_t::wait_for_time))
+			{
+				has_timed_stops = true;
+				break;
+			}
+		}
+	}
+
+	const bool schedule_changed = (sch != fleet_spacing_schedule)
+		|| (line.get_id() != fleet_spacing_line.get_id())
+		|| (line->get_schedule_revision() != fleet_spacing_revision);
+	if (schedule_changed)
+	{
+		fleet_spacing_line = line;
+		fleet_spacing_schedule = sch;
+		fleet_spacing_revision = line->get_schedule_revision();
+		rebuild_fleet_spacing_rows(sch);
+	}
+
+	if (update_controls || schedule_changed)
+	{
+		bt_fleet_spacing_sync.pressed = line->is_fleet_spacing_sync() && has_timed_stops
+			&& sch != NULL && sch->get_spacing() > 0;
+		bt_same_spacing_shift_fleet.pressed = sch != NULL
+			&& (sch->is_same_spacing_shift() || spacing_shift_mode <= settings_t::SPACING_SHIFT_PER_LINE);
+	}
+
+	const bool has_frequency = has_timed_stops && sch != NULL && sch->get_spacing() > 0;
+	const bool sync = bt_fleet_spacing_sync.pressed && has_frequency;
+	const bool shift_available = has_frequency && spacing_shift_mode != settings_t::SPACING_SHIFT_DISABLED;
+	const bool same_shift = bt_same_spacing_shift_fleet.pressed;
+
+	bt_fleet_spacing_sync.enable(has_frequency);
+	numimp_fleet_spacing.enable(has_timed_stops);
+	bt_set_fleet_spacing.enable(has_timed_stops);
+
+	numimp_target_consists.enable(!sync);
+	bt_set_target.enable(!sync);
+	bt_fleet_policy.enable(!sync);
+	bt_set_fleet_policy.enable(!sync);
+	numimp_fleet_target_min.enable(!sync);
+	numimp_fleet_target_max.enable(!sync);
+	numimp_fleet_add_threshold.enable(!sync);
+	numimp_fleet_remove_threshold.enable(!sync);
+	numimp_fleet_add_months.enable(!sync);
+	numimp_fleet_remove_months.enable(!sync);
+
+	bt_same_spacing_shift_fleet.enable(shift_available && spacing_shift_mode > settings_t::SPACING_SHIFT_PER_LINE);
+	numimp_fleet_shift.enable(shift_available && same_shift);
+	cont_fleet_spacing_stops.set_visible(shift_available && !same_shift);
+
+	uint16 first_shift = 0;
+	if (sch != NULL)
+	{
+		for (uint8 i = 0; i < sch->get_count(); i++)
+		{
+			if (sch->entries[i].minimum_loading > 0 || sch->entries[i].is_flag_set(schedule_entry_t::wait_for_time))
+			{
+				first_shift = (uint16)sch->entries[i].spacing_shift;
+				break;
+			}
+		}
+	}
+
+	if (sch != NULL)
+	{
+		if (sch->get_spacing() > 0)
+		{
+			welt->sprintf_ticks(str_fleet_spacing_clock, sizeof(str_fleet_spacing_clock), (welt->ticks_per_world_month * 12u) / sch->get_spacing());
+			lb_fleet_spacing.buf().printf("%s", str_fleet_spacing_clock);
+		}
+		else
+		{
+			lb_fleet_spacing.buf().printf("%s", translator::translate("off"));
+		}
+		lb_fleet_spacing.update();
+	}
+
+	if (update_controls || schedule_changed || deployed != fleet_required_deployed)
+	{
+		fleet_required_cache = line->calc_required_convoys_for_spacing();
+		fleet_required_deployed = deployed;
+	}
+
+	if (has_timed_stops && sch != NULL && sch->get_spacing() > 0)
+	{
+		if (fleet_required_cache > 0)
+		{
+			lb_fleet_required.buf().printf(translator::translate(sync
+				? "This frequency sets the target to %d consists"
+				: "This frequency implies %d consists"), (int)fleet_required_cache);
+		}
+		else
+		{
+			lb_fleet_required.buf().printf("%s", translator::translate("Waiting for a measured round-trip time"));
+		}
+	}
+	else
+	{
+		lb_fleet_required.buf().printf("%s", translator::translate("No timed stops with spacing in this schedule"));
+	}
+	lb_fleet_required.update();
+
+	if (update_controls || schedule_changed)
 	{
 		numimp_target_consists.set_value(line->get_target_convoy_count());
 		bt_fleet_policy.pressed = line->get_fleet_policy() != 0;
@@ -1678,6 +1864,57 @@ void schedule_list_gui_t::update_fleet_tab(bool update_controls)
 		numimp_fleet_remove_threshold.set_value(line->get_fleet_remove_threshold());
 		numimp_fleet_add_months.set_value(line->get_fleet_add_months());
 		numimp_fleet_remove_months.set_value(line->get_fleet_remove_months());
+		if (sch != NULL)
+		{
+			numimp_fleet_spacing.set_value(sch->get_spacing());
+			numimp_fleet_shift.set_value(first_shift);
+		}
+		if (schedule_changed)
+		{
+			for (uint32 i = 0; i < fleet_shift_inputs.get_count(); i++)
+			{
+				const uint8 entry = fleet_shift_entries[i];
+				if (sch != NULL && entry < sch->get_count())
+				{
+					fleet_shift_inputs[i]->set_value(sch->entries[entry].spacing_shift);
+				}
+			}
+		}
+	}
+}
+
+
+void schedule_list_gui_t::rebuild_fleet_spacing_rows(schedule_t *sch)
+{
+	cont_fleet_spacing_stops.remove_all();
+	fleet_shift_inputs.clear();
+	fleet_shift_entries.clear();
+
+	cont_fleet_spacing_stops.set_table_layout(2, 0);
+	cont_fleet_spacing_stops.set_spacing(scr_size(D_H_SPACE, D_V_SPACE));
+	if (sch == NULL)
+	{
+		return;
+	}
+
+	const uint16 divisor = welt->get_settings().get_spacing_shift_divisor();
+	for (uint8 i = 0; i < sch->get_count(); i++)
+	{
+		const schedule_entry_t &entry = sch->entries[i];
+		if (entry.minimum_loading == 0 && !entry.is_flag_set(schedule_entry_t::wait_for_time))
+		{
+			continue;
+		}
+		gui_label_buf_t *name = cont_fleet_spacing_stops.new_component<gui_label_buf_t>();
+		schedule_t::gimme_short_stop_name(name->buf(), welt, player, sch, i, 32);
+		name->set_tooltip("The time shift within this stop's departure interval. The default unit is one minute of the 24-hour month.");
+		name->update();
+
+		gui_numberinput_t *input = cont_fleet_spacing_stops.new_component<gui_numberinput_t>();
+		input->init(entry.spacing_shift, 0, divisor, 1);
+		input->add_listener(this);
+		fleet_shift_inputs.append(input);
+		fleet_shift_entries.append(i);
 	}
 }
 

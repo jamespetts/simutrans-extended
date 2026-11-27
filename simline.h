@@ -177,9 +177,17 @@ private:
 	// Consecutive months at or above/below the thresholds.
 	uint8 fleet_months_above = 0;
 	uint8 fleet_months_below = 0;
+	// Guards re-entry through add_convoy/remove_convoy while the synchronisation
+	// dispatches or withdraws Convoys. Transient; not saved.
+	bool fleet_sync_active = false;
 
 	uint8 line_lettercode_style=no_letter_code;
 	uint8 line_color_index=255;
+
+	// Increments whenever the line schedule is replaced. Used by the Fleet tab
+	// to rebuild its per-stop rows even when the allocator reuses the schedule
+	// address. Transient; not saved.
+	uint32 schedule_revision = 0;
 
 	/**
 	* The table of point-to-point average speeds.
@@ -235,8 +243,33 @@ public:
 	uint16 get_target_convoy_count() const { return target_convoy_count; }
 	void set_target_convoy_count(uint16 count) { target_convoy_count = count; }
 
-	uint8 get_fleet_policy() const { return fleet_policy; }
-	void set_fleet_policy(uint8 policy) { fleet_policy = policy; }
+	// The automatic fleet policy and the spacing synchronisation are mutually
+	// exclusive. The flags share the saved fleet_policy byte, so adding the
+	// spacing flag does not change the savegame format.
+	static const uint8 fleet_policy_automatic = 1u << 0;
+	static const uint8 fleet_policy_sync_spacing = 1u << 1;
+
+	uint8 get_fleet_policy() const { return fleet_policy & fleet_policy_automatic; }
+	void set_fleet_policy(uint8 policy)
+	{
+		fleet_policy = (fleet_policy & ~fleet_policy_automatic) | (policy ? fleet_policy_automatic : 0);
+		if (policy)
+		{
+			fleet_policy &= ~fleet_policy_sync_spacing;
+		}
+	}
+	bool is_fleet_spacing_sync() const { return (fleet_policy & fleet_policy_sync_spacing) != 0; }
+	void set_fleet_spacing_sync(bool sync)
+	{
+		if (sync)
+		{
+			fleet_policy = (fleet_policy & ~fleet_policy_automatic) | fleet_policy_sync_spacing;
+		}
+		else
+		{
+			fleet_policy &= ~fleet_policy_sync_spacing;
+		}
+	}
 	uint16 get_fleet_target_min() const { return fleet_target_min; }
 	uint16 get_fleet_target_max() const { return fleet_target_max; }
 	uint16 get_fleet_add_threshold() const { return fleet_add_threshold; }
@@ -246,7 +279,11 @@ public:
 	void set_fleet_policy_values(uint8 policy, uint16 target_minimum, uint16 target_maximum,
 		uint16 add_threshold, uint16 remove_threshold, uint8 add_months, uint8 remove_months)
 	{
-		fleet_policy = policy;
+		fleet_policy = (fleet_policy & ~fleet_policy_automatic) | (policy ? fleet_policy_automatic : 0);
+		if (policy)
+		{
+			fleet_policy &= ~fleet_policy_sync_spacing;
+		}
 		fleet_target_min = target_minimum;
 		fleet_target_max = target_maximum;
 		fleet_add_threshold = add_threshold;
@@ -254,6 +291,21 @@ public:
 		fleet_add_months = add_months;
 		fleet_remove_months = remove_months;
 	}
+
+	// The number of Deployed Convoys implied by the schedule spacing and the
+	// measured round-trip time. Returns 0 when the spacing is zero or no
+	// round-trip time is available.
+	uint16 calc_required_convoys_for_spacing();
+
+	// Recompute the Target Fleet Size from the spacing and round-trip time,
+	// then dispatch or withdraw to match it. No-op unless the spacing
+	// synchronisation is enabled.
+	void sync_spacing_to_fleet();
+
+	// Append every line reachable from this line through couple/uncouple
+	// targets in the schedules. The line itself is not included. The walk
+	// uses saved schedule data only and is bounded by the number of lines.
+	void collect_coupled_lines(vector_tpl<linehandle_t> &lines) const;
 
 	// Start the lowest-id Held Convoy that can find a route, when the target
 	// would allow it. Returns true when a Convoy was started.
@@ -286,6 +338,7 @@ public:
 	 * return the schedule of the line
 	 */
 	schedule_t * get_schedule() const { return schedule; }
+	uint32 get_schedule_revision() const { return schedule_revision; }
 
 	void set_schedule(schedule_t* schedule);
 

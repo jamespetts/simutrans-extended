@@ -569,7 +569,14 @@ void depot_t::convoi_arrived(convoihandle_t acnv, uint16 flags, bool loading)
 	// save's line ids and the handle may fall outside it.
 	if (!loading && acnv->get_line().is_bound())
 	{
-		acnv->get_line()->dispatch_held_convoy();
+		if (acnv->get_line()->is_fleet_spacing_sync())
+		{
+			acnv->get_line()->sync_spacing_to_fleet();
+		}
+		else
+		{
+			acnv->get_line()->dispatch_held_convoy();
+		}
 	}
 
 	DBG_MESSAGE("depot_t::convoi_arrived()", "convoi %d, %p entered depot", acnv.get_id(), acnv.get_rep());

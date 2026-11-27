@@ -65,13 +65,27 @@ private:
 	// Fleet tab
 	gui_aligned_container_t cont_fleet;
 	gui_aligned_container_t cont_fleet_depots;
+	gui_aligned_container_t cont_fleet_spacing_stops;
 	gui_scrollpane_t scroll_fleet;
 	button_t bt_fleet_policy;
 	gui_numberinput_t numimp_fleet_target_min, numimp_fleet_target_max;
 	gui_numberinput_t numimp_fleet_add_threshold, numimp_fleet_remove_threshold;
 	gui_numberinput_t numimp_fleet_add_months, numimp_fleet_remove_months;
 	button_t bt_set_fleet_policy;
+	button_t bt_fleet_spacing_sync, bt_same_spacing_shift_fleet;
+	gui_numberinput_t numimp_fleet_spacing, numimp_fleet_shift;
+	button_t bt_set_fleet_spacing;
 	gui_label_buf_t lb_fleet_summary, lb_fleet_load, lb_fleet_max;
+	gui_label_buf_t lb_fleet_spacing, lb_fleet_required;
+	char str_fleet_spacing_clock[32];
+	linehandle_t fleet_spacing_line;
+	schedule_t *fleet_spacing_schedule = NULL;
+	uint32 fleet_spacing_revision = 0;
+	uint16 fleet_required_cache = 0;
+	uint16 fleet_required_deployed = 0xFFFF;
+	vector_tpl<gui_numberinput_t *> fleet_shift_inputs;
+	vector_tpl<uint8> fleet_shift_entries;
+	void rebuild_fleet_spacing_rows(schedule_t *sch);
 	button_t bt_hw_show_halt_name, bt_hw_divided_class, bt_hw_filter_by_line;
 	button_t sort_order;
 	button_t bt_access_minimap, bt_line_color_editor, bt_replace;
