@@ -2480,7 +2480,7 @@ sint64 way_builder_t::calc_costs() {
 	sint64 costs=0;
 	koord3d offset = koord3d( 0, 0, bautyp & elevated_flag ? welt->get_settings().get_way_height_clearance() : 0 );
 
-	sint32 single_cost = 0;
+	sint64 single_cost = 0;
 	if( bautyp&tunnel_flag ) {
 		assert( tunnel_desc );
 	}
@@ -2516,6 +2516,7 @@ sint64 way_builder_t::calc_costs() {
 		const koord3d pos = route[i] + offset;
 		const grund_t* gr = welt->lookup(pos);
 		if( gr ) {
+			const bool first_way = gr->get_weg_nr(0) == NULL;
 			if( bautyp&tunnel_flag ) {
 				const tunnel_t *tunnel = gr->find<tunnel_t>();
 				assert( tunnel );
@@ -2575,26 +2576,29 @@ sint64 way_builder_t::calc_costs() {
 			single_cost += forge_cost;
 
 			const obj_t* obj = gr->obj_bei(0);
-			if(!upgrading && (obj == NULL || obj->get_owner() == NULL))
+			if(!upgrading && first_way && (obj == NULL || obj->get_owner() != player_builder))
 			{
-				// Only add the cost of the land if this land is not already owned
-				// by either this player or some other player.
+				// Only add the cost of the land if the new way occupies the first
+				// way slot and the land is not already owned by the builder.
 
 				// get_land_value returns a *negative* value.
 				single_cost -= welt->get_land_value(gr->get_pos());
 			}
 
-			// eventually we have to remove trees
-			for(  uint8 i=0;  i<gr->get_top();  i++  ) {
-				obj_t *obj = gr->obj_bei(i);
-				switch(obj->get_typ()) {
-					case obj_t::baum:
-						costs -= welt->get_settings().get_cost_remove_tree();
-						break;
-					case obj_t::groundobj:
-						costs += ((groundobj_t *)obj)->get_desc()->get_value();
-						break;
-					default: break;
+			// Trees are removed only when the new way occupies the first way slot.
+			if(first_way)
+			{
+				for(  uint8 i=0;  i<gr->get_top();  i++  ) {
+					obj_t *obj = gr->obj_bei(i);
+					switch(obj->get_typ()) {
+						case obj_t::baum:
+							costs -= welt->get_settings().get_cost_remove_tree();
+							break;
+						case obj_t::groundobj:
+							costs += ((groundobj_t *)obj)->get_desc()->get_value();
+							break;
+						default: break;
+					}
 				}
 			}
 		}
