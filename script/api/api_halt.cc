@@ -426,20 +426,37 @@ void export_halt(HSQUIRRELVM vm)
 	register_method<bool (haltestelle_t::*)(const goods_desc_t*) const>(vm, &haltestelle_t::is_enabled, "accepts_good", false);
 
 	/**
-	 * Get monthly statistics of number of arrived goods.
+	 * Get a monthly halt statistic.
+	 * @param index one of the halt_stats constants
+	 * @returns array with one entry per stored month (MAX_MONTHS), index [0]
+	 *          corresponds to the current month; an invalid index returns an
+	 *          empty array
+	 */
+	register_method(vm, &get_halt_stat, "get_stat", true);
+	/**
+	 * Get monthly statistics of the number of convoys that arrived at this
+	 * halt. The name is historical; get_convoys reads the same series.
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_halt_stat, "get_arrived", freevariable<sint32>(HALT_CONVOIS_ARRIVED), true);
-// 	/**
-// 	 * Get monthly statistics of number of departed goods.
-// 	 * @returns array, index [0] corresponds to current month
-// 	 */
-// 	register_method_fv(vm, &get_halt_stat, "get_departed", freevariable<sint32>(HALT_DEPARTED), true);
 	/**
-	 * Get monthly statistics of number of waiting goods.
+	 * Get monthly statistics of the total number of cargo units waiting at
+	 * this halt, including passengers, mail and goods.
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_halt_stat, "get_waiting", freevariable<sint32>(HALT_WAITING), true);
+	/**
+	 * Get monthly statistics of the number of visitors who boarded or alighted
+	 * here. Visitors are passengers on a non-commuting trip.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_visitors", freevariable<sint32>(HALT_VISITORS), true);
+	/**
+	 * Get monthly statistics of the number of commuters who boarded or
+	 * alighted here. Commuters are passengers on a commuting trip.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_commuters", freevariable<sint32>(HALT_COMMUTERS), true);
 	/**
 	 * Get monthly statistics of number of happy passengers.
 	 * @returns array, index [0] corresponds to current month
@@ -460,15 +477,44 @@ void export_halt(HSQUIRRELVM vm)
 	 */
 	register_method_fv(vm, &get_halt_stat, "get_noroute", freevariable<sint32>(HALT_NOROUTE), true);
 	/**
+	 * Get monthly statistics of the number of passengers whose estimated
+	 * journey time exceeded their tolerance.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_too_slow", freevariable<sint32>(HALT_TOO_SLOW), true);
+	/**
+	 * Get monthly statistics of the number of passengers who waited longer
+	 * than their tolerance at this halt.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_too_waiting", freevariable<sint32>(HALT_TOO_WAITING), true);
+	/**
 	 * Get monthly statistics of number of convoys that stopped at this station.
 	 * @returns array, index [0] corresponds to current month
 	 */
 	register_method_fv(vm, &get_halt_stat, "get_convoys", freevariable<sint32>(HALT_CONVOIS_ARRIVED), true);
-// 	/**
-// 	 * Get monthly statistics of number of passengers that could walk to their destination.
-// 	 * @returns array, index [0] corresponds to current month
-// 	 */
-// 	register_method_fv(vm, &get_halt_stat, "get_walked", freevariable<sint32>(HALT_WALKED), true);
+	/**
+	 * Get monthly statistics of the mail that started at this halt and
+	 * reached its destination.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_mail_delivered", freevariable<sint32>(HALT_MAIL_DELIVERED), true);
+	/**
+	 * Get monthly statistics of the mail generated at this halt for which no
+	 * route was found.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_mail_noroute", freevariable<sint32>(HALT_MAIL_NOROUTE), true);
+	/**
+	 * Get monthly statistics of the mail handling volume at this halt.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_mail_handling_volume", freevariable<sint32>(HALT_MAIL_HANDLING_VOLUME), true);
+	/**
+	 * Get monthly statistics of the goods handling volume at this halt.
+	 * @returns array, index [0] corresponds to current month
+	 */
+	register_method_fv(vm, &get_halt_stat, "get_goods_handling_volume", freevariable<sint32>(HALT_GOODS_HANDLING_VOLUME), true);
 	/**
 	 * Exports list of convoys that stop at this halt.
 	 * @typemask convoy_list_x()

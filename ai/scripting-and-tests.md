@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14) then 82/82 (2026-11-24); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23); ex-15 @ f41b00399f (2026-11-25, trigger-wait road case); maintenance-withdraw case @ c0fe14eb93 plus working tree (2026-11-25); ex-15 @ 4d9aeccb6e plus working-tree service-frequency and trigger-timeout cases (2026-11-27)
+verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14), 82/82 (2026-11-24), 83/83 and 84/84 (2026-11-27); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23); ex-15 @ f41b00399f (2026-11-25, trigger-wait road case); maintenance-withdraw case @ c0fe14eb93 plus working tree (2026-11-25); ex-15 @ 4d9aeccb6e plus working-tree service-frequency and trigger-timeout cases (2026-11-27); player finance history and halt statistics APIs @ working tree (2026-11-27)
 ---
 # Scripting & tests
 
@@ -37,8 +37,10 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
 - The scenario host executes read-only queries and tool calls. A suspended tool call is resumed
   with its result by `nwc_tool_t::do_command` as described below.
 - The active Squirrel suite completes under `Debug|x64` with `pak128.Britain-Ex`, including the
-  schedule, consist-order, convoy-observation, maintenance-read-model and signalling API tests.
-  [EXECUTION-VERIFIED:2026-11-14, 81 of 81 tests; 2026-11-24, 82 of 82 tests, run with `-nomidi`].
+  schedule, consist-order, convoy-observation, maintenance-read-model, player-finance-history and
+  signalling API tests.
+  [EXECUTION-VERIFIED:2026-11-14, 81 of 81 tests; 2026-11-24, 82 of 82 tests; 2026-11-27, 83 of
+  83 tests then 84 of 84 tests; all run with `-nomidi`].
 - The API was ported from Standard. Extended schedule entries and complete consist orders are
   script-accessible, but other Extended fields remain incomplete, including parts of the
   line/convoy/replacement read model. Use the exported declarations in `script/api/` as the
@@ -195,8 +197,11 @@ described in the read/write split above. The injected packet is ordinary saved h
 - Factory: name, position, production, power, electric/passenger/mail boosts, passenger/mail
   statistics, tile list, halt list, transformer, field count, descriptor, goods
   storage/received/consumed/in transit/delivered/produced.
-- Halt: name, owner, waiting, happy/unhappy/no-route, convoys arrived, line list, convoy list,
-  read-only laid-over convoy list, tile list, factory list, freight to destination, capacity.
+- Halt: name, owner, the full monthly financial-history series (visitors, commuters, waiting
+  cargo units, happy, unhappy, no-route, too-slow and too-waiting passengers, convoys arrived,
+  mail delivered, mail no-route, mail handling volume and goods handling volume) through named
+  getters and `get_stat` with the `halt_stats` constants; line list, convoy list, read-only
+  laid-over convoy list, tile list, factory list, freight to destination, capacity.
   `add_cargo` places a normal cargo packet with an explicit routing and arrival time, and
   `clear_cargo` discards the halt's waiting cargo; both are scenario-setup calls.
 - Line: name, owner, schedule, goods category, capacity, convoy count, revenue, cost, profit,
@@ -219,16 +224,19 @@ described in the read/write split above. The injected packet is ordinary saved h
   the working method of a convoy whose front vehicle derives from `rail_vehicle_t`, or -1 for any
   other convoy. The scenario-only `set_maintenance_distances_for_testing` test hook is described
   with the maintenance read model above.
-- Player: construction, vehicle maintenance, new vehicles, income, infrastructure maintenance,
-  assets, cash, net wealth, profit, operating profit, margin, powerline revenue, transported
-  passengers/mail/goods, convoy count, way tolls, line list, and way-access permissions
-  (`set_allow_access_to`, `allows_access_to`).
+- Player: construction, distance-based vehicle running costs, monthly vehicle maintenance, new
+  vehicles, income, infrastructure maintenance, assets, cash, net wealth, cash-flow profit,
+  operating profit, margin, powerline revenue, transported passengers/mail/goods, convoy count,
+  way tolls, interest, tax, depreciation, loan repayment, tax allowance, secured debt, the soft
+  and hard credit limits, the accrual profit, and generic monthly and yearly history access,
+  plus the line list and way-access permissions (`set_allow_access_to`, `allows_access_to`).
 - Tiles: ground, slope, way, depot, halt, objects, neighbours, climate, height. For rail ways,
   `way_x` exposes `get_reserved_convoi`, `get_reservation_type`, `get_reserved_direction` and
   `can_reserve`, which accepts a convoy and an optional direction.
 - Descriptors: vehicles, buildings, ways, bridges, tunnels, goods, signals, way objects; costs,
-  capacities, availability, intro/retire dates. Vehicle descriptors additionally expose total and
-  overcrowded capacity and minimum/maximum loading times. Signal descriptors expose `get_permissive`,
+  capacities, availability, intro/retire dates. A vehicle descriptor exposes its base sale price,
+  its running cost per km at the current date, its monthly maintenance, its total and overcrowded
+  capacity, and its minimum and maximum loading times. Signal descriptors expose `get_permissive`,
   `get_has_call_on`, `get_has_selective_choose`, `get_working_method`, `get_aspects`,
   `get_normal_danger`, `get_double_block`, `is_station_signal`, `get_max_distance_to_signalbox`,
   `get_signal_group` and `get_allow_underground` (0 = above ground only, 1 = underground only,
@@ -257,6 +265,37 @@ described in the read/write split above. The injected packet is ordinary saved h
   settings, the per-slot `optional` flag and the per-alternative `load_requirement` are preserved.
   Conversion rejects duplicate or dangling identifiers, incompatible categories and other malformed
   data rather than silently discarding data.
+
+### Player finance history
+
+`player_x` exposes both `finance_t` history arrays. `get_common_history(index, monthly)` reads
+the whole-company array, indexed by the `accounting_types_common` constants; it corresponds to
+`finance_t::get_history_com_month` and `finance_t::get_history_com_year`.
+`get_vehicle_history(index, transport_type, monthly)` reads the per-transport-type array, indexed
+by the `accounting_types_vehicles` constants and the `transport_types` constants; it corresponds
+to `finance_t::get_history_veh_month` and `finance_t::get_history_veh_year`. Both return one
+entry per stored month or year (`MAX_PLAYER_HISTORY_MONTHS` or `MAX_PLAYER_HISTORY_YEARS`), with
+index 0 for the current month or year. Money entries are converted to whole credits; counts,
+distances, quantities and percentages are returned as stored. An invalid index or transport type
+returns an empty array.
+
+The accrual profit and loss view in the finance window is reproducible from these series: revenue
+is `atv_revenue_transport`, operating costs are `atv_expenditure`, operating profit is
+`atv_operating_profit`, depreciation is `atc_depreciation`, interest is `atc_interest` and tax is
+`atc_tax`. `get_profit_after_depreciation_and_tax` returns the bottom row, operating profit after
+depreciation, interest and tax. `get_profit` remains the cash-flow profit: it deducts
+construction and vehicle purchase and includes interest, but deducts neither depreciation nor
+tax.
+
+`get_vehicle_maint` reads the distance-based running-cost series (`atv_running_cost`); the name is
+historical. `get_running_costs` reads the same series under an accurate name, and
+`get_vehicle_maintenance` reads the monthly maintenance charge (`atv_vehicle_maintenance`).
+
+Halts, cities and the world keep no company money series. The halt financial history holds usage
+counts (visitors, commuters, waiting cargo, happy/unhappy/no-route/too-slow/too-waiting
+passengers, convoys arrived, mail and goods handling), exposed as described in the Halt entry
+above, and `karte_t::finance_history_month` holds world statistics such as population and factory
+counts. Neither is a company money array.
 
 ## Remaining Standard compatibility gaps
 
@@ -399,7 +438,16 @@ Scripting findings at ex-15 @ c082c94ae: `script/script.cc`, `script/script_load
 `player/simplay.h`, `simmenu.h`, `simmain.cc`, `simtool.cc`, `simtool.h`, `bauer/hausbauer.cc`
 and the build source lists. The signalling API additions are `signalbox_x`, the signal,
 signal-descriptor, convoy, way and vehicle-slot getters, the signal-construction commands, the
-signalbox site-validity and price queries, and the signed object-type parameter handling.
+signalbox site-validity and price queries, and the signed object-type parameter handling. The
+player finance history additions are `player_x::get_common_history`,
+`player_x::get_vehicle_history`, the named accrual getters, the `accounting_types_common`,
+`accounting_types_vehicles` and `transport_types` constant groups in `script/api/api_const.cc`,
+and the descriptor running-cost getter in `script/api/api_obj_desc.cc`; the series themselves are
+`finance_t` in `player/finance.h` and the accrual rows are defined by
+`money_frame_t::get_accrual_value` in `gui/money_frame.cc`. The halt statistics additions are
+`halt_x::get_stat`, the missing named getters and the `halt_stats` constant group in
+`script/api/api_halt.cc` and `script/api/api_const.cc`; the series are `haltestelle_t::book` and
+`haltestelle_t::get_finance_history` in `simhalt.h` and `simhalt.cc`.
 The API breadth is a code inventory; only the explicitly marked tests and fixture outcomes are
 execution-verified. The `-fast_forward` command-line option is in `simmain.cc` (after the world is
 loaded, `args.has_arg("-fast_forward")` calls `karte_t::set_fast_forward(true)`);

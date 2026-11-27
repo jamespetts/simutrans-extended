@@ -10,6 +10,8 @@
 #include "../api_param.h"
 #include "../../obj/simobj.h"
 #include "../../obj/roadsign.h"
+#include "../../simhalt.h"
+#include "../../player/finance.h"
 #include "../../boden/wege/schiene.h"
 #include "../../simconvoi.h"
 #include "../../simmenu.h"
@@ -185,6 +187,158 @@ void export_global_constants(HSQUIRRELVM vm)
 	enum_slot(vm, "st_runway", type_runway);
 	/// tram tracks (here way type has to be wt_tram)
 	enum_slot(vm, "st_tram", type_tram);
+	end_enum();
+
+	/**
+	 * Transport types used to select a per-transport-type finance history
+	 * series for player_x::get_vehicle_history.
+	 */
+	begin_enum("transport_types");
+	/// the sum over every transport type
+	enum_slot(vm, "tt_all", TT_ALL);
+	/// road vehicles
+	enum_slot(vm, "tt_road", TT_ROAD);
+	/// railway
+	enum_slot(vm, "tt_railway", TT_RAILWAY);
+	/// ships
+	enum_slot(vm, "tt_ship", TT_SHIP);
+	/// monorail
+	enum_slot(vm, "tt_monorail", TT_MONORAIL);
+	/// maglev
+	enum_slot(vm, "tt_maglev", TT_MAGLEV);
+	/// trams
+	enum_slot(vm, "tt_tram", TT_TRAM);
+	/// narrow gauge
+	enum_slot(vm, "tt_narrowgauge", TT_NARROWGAUGE);
+	/// aircraft
+	enum_slot(vm, "tt_air", TT_AIR);
+	/// everything that cannot be differentiated, excluding powerlines
+	enum_slot(vm, "tt_other", TT_OTHER);
+	/// powerlines
+	enum_slot(vm, "tt_powerline", TT_POWERLINE);
+	end_enum();
+
+	/**
+	 * Halt financial history series for halt_x::get_stat, named after the
+	 * HALT_ constants in simhalt.h.
+	 */
+	begin_enum("halt_stats");
+	/// visitors boarding or alighting
+	enum_slot(vm, "halt_visitors", HALT_VISITORS);
+	/// commuters boarding or alighting
+	enum_slot(vm, "halt_commuters", HALT_COMMUTERS);
+	/// total cargo units waiting
+	enum_slot(vm, "halt_waiting", HALT_WAITING);
+	/// passengers that found a route and an uncrowded station
+	enum_slot(vm, "halt_happy", HALT_HAPPY);
+	/// passengers that could not start because the station was crowded
+	enum_slot(vm, "halt_unhappy", HALT_UNHAPPY);
+	/// passengers with no route
+	enum_slot(vm, "halt_noroute", HALT_NOROUTE);
+	/// convoys that arrived
+	enum_slot(vm, "halt_convoys_arrived", HALT_CONVOIS_ARRIVED);
+	/// passengers whose estimated journey time exceeded their tolerance
+	enum_slot(vm, "halt_too_slow", HALT_TOO_SLOW);
+	/// passengers who waited longer than their tolerance
+	enum_slot(vm, "halt_too_waiting", HALT_TOO_WAITING);
+	/// mail that reached its destination
+	enum_slot(vm, "halt_mail_delivered", HALT_MAIL_DELIVERED);
+	/// mail with no route
+	enum_slot(vm, "halt_mail_noroute", HALT_MAIL_NOROUTE);
+	/// mail handling volume
+	enum_slot(vm, "halt_mail_handling_volume", HALT_MAIL_HANDLING_VOLUME);
+	/// goods handling volume
+	enum_slot(vm, "halt_goods_handling_volume", HALT_GOODS_HANDLING_VOLUME);
+	end_enum();
+
+	/**
+	 * Whole-company finance history series for player_x::get_common_history,
+	 * named after accounting_type_common.
+	 */
+	begin_enum("accounting_types_common");
+	/// cash
+	enum_slot(vm, "atc_cash", ATC_CASH);
+	/// total cash and assets
+	enum_slot(vm, "atc_net_wealth", ATC_NETWEALTH);
+	/// number of stops
+	enum_slot(vm, "atc_halts", ATC_HALTS);
+	/// scenario completion percentage
+	enum_slot(vm, "atc_scenario_completed", ATC_SCENARIO_COMPLETED);
+	/// interest received and paid
+	enum_slot(vm, "atc_interest", ATC_INTEREST);
+	/// soft credit limit
+	enum_slot(vm, "atc_soft_credit_limit", ATC_SOFT_CREDIT_LIMIT);
+	/// hard credit limit
+	enum_slot(vm, "atc_hard_credit_limit", ATC_HARD_CREDIT_LIMIT);
+	/// corporation tax paid
+	enum_slot(vm, "atc_tax", ATC_TAX);
+	/// principal repaid on term instruments
+	enum_slot(vm, "atc_loan_repayment", ATC_LOAN_REPAYMENT);
+	/// pooled depreciation charge
+	enum_slot(vm, "atc_depreciation", ATC_DEPRECIATION);
+	/// total outstanding secured principal at the month end
+	enum_slot(vm, "atc_secured_debt", ATC_SECURED_DEBT);
+	/// pooled tax allowance for the period
+	enum_slot(vm, "atc_tax_allowance", ATC_TAX_ALLOWANCE);
+	end_enum();
+
+	/**
+	 * Per-transport-type finance history series for
+	 * player_x::get_vehicle_history, named after accounting_type_vehicles.
+	 */
+	begin_enum("accounting_types_vehicles");
+	/// revenue from passenger transport
+	enum_slot(vm, "atv_revenue_passenger", ATV_REVENUE_PASSENGER);
+	/// revenue from mail transport
+	enum_slot(vm, "atv_revenue_mail", ATV_REVENUE_MAIL);
+	/// revenue from goods transport
+	enum_slot(vm, "atv_revenue_goods", ATV_REVENUE_GOOD);
+	/// passenger, mail and goods revenue
+	enum_slot(vm, "atv_revenue_transport", ATV_REVENUE_TRANSPORT);
+	/// tolls received from other players
+	enum_slot(vm, "atv_toll_received", ATV_TOLL_RECEIVED);
+	/// revenue plus tolls received
+	enum_slot(vm, "atv_revenue", ATV_REVENUE);
+	/// distance-based running cost
+	enum_slot(vm, "atv_running_cost", ATV_RUNNING_COST);
+	/// monthly vehicle maintenance charge
+	enum_slot(vm, "atv_vehicle_maintenance", ATV_VEHICLE_MAINTENANCE);
+	/// infrastructure maintenance
+	enum_slot(vm, "atv_infrastructure_maintenance", ATV_INFRASTRUCTURE_MAINTENANCE);
+	/// tolls paid to other players
+	enum_slot(vm, "atv_toll_paid", ATV_TOLL_PAID);
+	/// running cost, vehicle maintenance, infrastructure maintenance and tolls paid
+	enum_slot(vm, "atv_expenditure", ATV_EXPENDITURE);
+	/// revenue less expenditure
+	enum_slot(vm, "atv_operating_profit", ATV_OPERATING_PROFIT);
+	/// payments for new vehicles
+	enum_slot(vm, "atv_new_vehicle", ATV_NEW_VEHICLE);
+	/// construction cost
+	enum_slot(vm, "atv_construction_cost", ATV_CONSTRUCTION_COST);
+	/// operating profit, capital expenditure and interest
+	enum_slot(vm, "atv_profit", ATV_PROFIT);
+	/// tolls paid plus tolls received
+	enum_slot(vm, "atv_way_toll", ATV_WAY_TOLL);
+	/// sale value of the vehicles owned
+	enum_slot(vm, "atv_non_financial_assets", ATV_NON_FINANCIAL_ASSETS);
+	/// operating profit as a percentage of revenue
+	enum_slot(vm, "atv_profit_margin", ATV_PROFIT_MARGIN);
+	/// passenger-distance
+	enum_slot(vm, "atv_transported_passenger", ATV_TRANSPORTED_PASSENGER);
+	/// transported mail
+	enum_slot(vm, "atv_transported_mail", ATV_TRANSPORTED_MAIL);
+	/// payload-distance in tonne km
+	enum_slot(vm, "atv_transported_good", ATV_TRANSPORTED_GOOD);
+	/// travel distance of convoys
+	enum_slot(vm, "atv_convoy_distance", ATV_CONVOY_DISTANCE);
+	/// travel distance of vehicles
+	enum_slot(vm, "atv_vehicle_distance", ATV_VEHICLE_DISTANCE);
+	/// number of convoys
+	enum_slot(vm, "atv_convois", ATV_CONVOIS);
+	/// number of vehicles
+	enum_slot(vm, "atv_vehicles", ATV_VEHICLES);
+	/// way length in units of ten per straight tile
+	enum_slot(vm, "atv_way_length", ATV_WAY_LENGTH);
 	end_enum();
 
 	/**

@@ -393,6 +393,54 @@ function test_halt_build_separate()
 }
 
 
+function test_halt_statistics()
+{
+	local pl = player_x(0)
+	local road_desc = way_desc_x.get_available_ways(wt_road, st_flat)[0]
+	local pax_halt = building_desc_x.get_available_stations(building_desc_x.station, wt_road, good_desc_x.passenger)[0]
+
+	ASSERT_EQUAL(command_x.build_way(pl, coord3d(5, 4, 0), coord3d(3, 4, 0), road_desc, true), null)
+	ASSERT_EQUAL(command_x(tool_build_station).work(pl, coord3d(4, 4, 0), pax_halt.get_name()), null)
+
+	local halt = halt_x.get_halt(coord3d(4, 4, 0), pl)
+	ASSERT_TRUE(halt != null)
+
+	// The halt history holds twelve months; index 0 is the current month.
+	local check_same = function(index, named) {
+		local stat = halt.get_stat(index)
+		ASSERT_EQUAL(stat.len(), 12)
+		ASSERT_EQUAL(named.len(), 12)
+		for (local i = 0; i < stat.len(); i++) {
+			ASSERT_EQUAL(stat[i], named[i])
+		}
+	}
+
+	check_same(halt_visitors, halt.get_visitors())
+	check_same(halt_commuters, halt.get_commuters())
+	check_same(halt_waiting, halt.get_waiting())
+	check_same(halt_happy, halt.get_happy())
+	check_same(halt_unhappy, halt.get_unhappy())
+	check_same(halt_noroute, halt.get_noroute())
+	check_same(halt_convoys_arrived, halt.get_convoys())
+	check_same(halt_too_slow, halt.get_too_slow())
+	check_same(halt_too_waiting, halt.get_too_waiting())
+	check_same(halt_mail_delivered, halt.get_mail_delivered())
+	check_same(halt_mail_noroute, halt.get_mail_noroute())
+	check_same(halt_mail_handling_volume, halt.get_mail_handling_volume())
+	check_same(halt_goods_handling_volume, halt.get_goods_handling_volume())
+
+	// get_arrived is the historical name for the convoys-arrived series.
+	check_same(halt_convoys_arrived, halt.get_arrived())
+
+	// An invalid index returns an empty array.
+	ASSERT_EQUAL(halt.get_stat(-1).len(), 0)
+	ASSERT_EQUAL(halt.get_stat(1000).len(), 0)
+
+	ASSERT_EQUAL(command_x(tool_remove_way).work(pl, coord3d(5, 4, 0), coord3d(3, 4, 0), "" + wt_road), null)
+	RESET_ALL_PLAYER_FUNDS()
+}
+
+
 function test_halt_build_near_factory()
 {
 	local pl = player_x(0)

@@ -9,6 +9,17 @@
  *
  * @section api-trunk Current trunk
  *
+ * - Added player_x::get_common_history and player_x::get_vehicle_history, with the
+ *   accounting_types_common, accounting_types_vehicles and transport_types constant groups
+ * - Added player_x::get_profit_after_depreciation_and_tax and named accrual line getters
+ * - Added player_x::get_vehicle_maintenance for the monthly maintenance charge and
+ *   player_x::get_running_costs as an accurately named alias of player_x::get_vehicle_maint,
+ *   which keeps its historical meaning (the distance-based running cost)
+ * - Added @ref vehicle_desc_x::get_running_cost
+ * - Added halt_x::get_stat and the halt_stats constant group, and the missing named halt
+ *   statistics getters
+ * - Fixed player_x::get_convoys returning its count divided by 100 and player_x::get_margin
+ *   returning an empty array
  * - Added @ref change_climate_at
  * - Added @ref convoy_x::change_schedule
  * - Changed building_desc_x::get_available_stations to accept wt_all

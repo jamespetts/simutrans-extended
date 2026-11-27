@@ -20,42 +20,131 @@
 
 using namespace script_api;
 
-vector_tpl<sint64> const& get_player_stat(player_t *player, sint32 INDEX, sint32 TTYPE, bool monthly)
+/**
+ * Whether a value of accounting_type_common is a money amount.
+ * ATC_HALTS is a count and ATC_SCENARIO_COMPLETED is a percentage.
+ */
+static bool is_money_common(sint32 index)
+{
+	switch (index) {
+		case ATC_HALTS:
+		case ATC_SCENARIO_COMPLETED:
+			return false;
+		default:
+			return true;
+	}
+}
+
+/**
+ * Whether a value of accounting_type_vehicles is a money amount.
+ * The remaining entries are counts, distances, quantities and percentages.
+ */
+static bool is_money_vehicles(sint32 index)
+{
+	switch (index) {
+		case ATV_PROFIT_MARGIN:
+		case ATV_TRANSPORTED_PASSENGER:
+		case ATV_TRANSPORTED_MAIL:
+		case ATV_TRANSPORTED_GOOD:
+		case ATV_CONVOY_DISTANCE:
+		case ATV_VEHICLE_DISTANCE:
+		case ATV_CONVOIS:
+		case ATV_VEHICLES:
+		case ATV_WAY_LENGTH:
+			return false;
+		default:
+			return true;
+	}
+}
+
+/**
+ * Reads one finance history series.
+ * @param common read the whole-company array (indexed by accounting_type_common)
+ *               instead of a per-transport-type array (indexed by accounting_type_vehicles)
+ * @param index the accounting type
+ * @param tt the transport type; ignored when @p common is true
+ * @param monthly true for the monthly series, false for the yearly series
+ */
+static vector_tpl<sint64> const& get_player_history_series(player_t *player, bool common, sint32 index, sint32 tt, bool monthly)
 {
 	static vector_tpl<sint64> v;
 	v.clear();
-	bool atv = false;
-	if (TTYPE<0  ||  TTYPE>=TT_MAX) {
-		if (INDEX<0  ||  INDEX>ATC_MAX) {
+	if (player == NULL) {
+		return v;
+	}
+	if (common) {
+		if (index < 0  ||  index >= ATC_MAX) {
 			return v;
 		}
 	}
-	else {
-		if (INDEX<0  ||  INDEX>ATV_MAX) {
-			return v;
-		}
-		atv = true;
+	else if (index < 0  ||  index >= ATV_MAX  ||  tt < 0  ||  tt >= TT_MAX) {
+		return v;
 	}
-	if (player) {
-		finance_t *finance = player->get_finance();
-		// calculate current month
-		finance->calc_finance_history();
-		uint16 maxi = monthly ? MAX_PLAYER_HISTORY_MONTHS : MAX_PLAYER_HISTORY_YEARS;
-		for(uint16 i = 0; i < maxi; i++) {
-			sint64 m = atv ? ( monthly ? finance->get_history_veh_month((transport_type)TTYPE, i, INDEX) : finance->get_history_veh_year((transport_type)TTYPE, i, INDEX) )
-			               : ( monthly ? finance->get_history_com_month(i, INDEX) : finance->get_history_com_year(i, INDEX) );
-			if (atv) {
-				if (INDEX != ATV_TRANSPORTED_PASSENGER  &&  INDEX != ATV_TRANSPORTED_MAIL  &&  INDEX != ATV_TRANSPORTED_GOOD) {
-					m = convert_money(m);
-				}
+
+	finance_t *finance = player->get_finance();
+	// calculate current month
+	finance->calc_finance_history();
+
+	const uint16 maxi = monthly ? MAX_PLAYER_HISTORY_MONTHS : MAX_PLAYER_HISTORY_YEARS;
+	for (uint16 i = 0; i < maxi; i++) {
+		sint64 m;
+		if (common) {
+			m = monthly ? finance->get_history_com_month(i, index) : finance->get_history_com_year(i, index);
+			if (is_money_common(index)) {
+				m = convert_money(m);
 			}
-			else {
-				if (INDEX != ATC_HALTS) {
-					m = convert_money(m);
-				}
-			}
-			v.append(m);
 		}
+		else {
+			m = monthly ? finance->get_history_veh_month((transport_type)tt, i, index)
+			            : finance->get_history_veh_year((transport_type)tt, i, index);
+			if (is_money_vehicles(index)) {
+				m = convert_money(m);
+			}
+		}
+		v.append(m);
+	}
+	return v;
+}
+
+vector_tpl<sint64> const& get_player_stat(player_t *player, sint32 INDEX, sint32 TTYPE, bool monthly)
+{
+	const bool common = (TTYPE < 0  ||  TTYPE >= TT_MAX);
+	return get_player_history_series(player, common, INDEX, common ? 0 : TTYPE, monthly);
+}
+
+vector_tpl<sint64> const& get_player_common_history(player_t *player, sint32 index, bool monthly)
+{
+	return get_player_history_series(player, true, index, 0, monthly);
+}
+
+vector_tpl<sint64> const& get_player_vehicle_history(player_t *player, sint32 index, sint32 tt, bool monthly)
+{
+	return get_player_history_series(player, false, index, tt, monthly);
+}
+
+vector_tpl<sint64> const& get_player_profit_after_depreciation_and_tax(player_t *player, bool monthly)
+{
+	static vector_tpl<sint64> v;
+	v.clear();
+	if (player == NULL) {
+		return v;
+	}
+
+	finance_t *finance = player->get_finance();
+	// calculate current month
+	finance->calc_finance_history();
+
+	const uint16 maxi = monthly ? MAX_PLAYER_HISTORY_MONTHS : MAX_PLAYER_HISTORY_YEARS;
+	for (uint16 i = 0; i < maxi; i++) {
+		const sint64 operating_profit = monthly ? finance->get_history_veh_month(TT_ALL, i, ATV_OPERATING_PROFIT)
+		                                       : finance->get_history_veh_year(TT_ALL, i, ATV_OPERATING_PROFIT);
+		const sint64 depreciation = monthly ? finance->get_history_com_month(i, ATC_DEPRECIATION)
+		                                   : finance->get_history_com_year(i, ATC_DEPRECIATION);
+		const sint64 interest = monthly ? finance->get_history_com_month(i, ATC_INTEREST)
+		                               : finance->get_history_com_year(i, ATC_INTEREST);
+		const sint64 tax = monthly ? finance->get_history_com_month(i, ATC_TAX)
+		                          : finance->get_history_com_year(i, ATC_TAX);
+		v.append(convert_money(operating_profit + depreciation + interest + tax));
 	}
 	return v;
 }
@@ -192,62 +281,81 @@ void export_player(HSQUIRRELVM vm, bool scenario)
 	register_method(vm, &player_t::allows_access_to, "allows_access_to");
 	/**
 	 * Get monthly statistics of construction costs.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_construction",      freevariable<sint32,sint32,bool>(ATV_CONSTRUCTION_COST, TT_ALL, true), true);
 	/**
-	 * Get monthly statistics of vehicle running costs.
-	 * @returns array, index [0] corresponds to current month
+	 * Get monthly statistics of the distance-based vehicle running cost.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_running_costs",     freevariable<sint32,sint32,bool>(ATV_RUNNING_COST, TT_ALL, true), true);
+	/**
+	 * Get monthly statistics of the distance-based vehicle running cost.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 * @note The name is historical. This series is ATV_RUNNING_COST, not the
+	 *       monthly vehicle maintenance charge; use get_vehicle_maintenance
+	 *       for that series.
+	 * @deprecated Prefer get_running_costs.
 	 */
 	register_method_fv(vm, &get_player_stat, "get_vehicle_maint",     freevariable<sint32,sint32,bool>(ATV_RUNNING_COST, TT_ALL, true), true);
 	/**
+	 * Get monthly statistics of the monthly vehicle maintenance charge,
+	 * including routine maintenance and overhauls.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_vehicle_maintenance", freevariable<sint32,sint32,bool>(ATV_VEHICLE_MAINTENANCE, TT_ALL, true), true);
+	/**
 	 * Get monthly statistics of costs for vehicle purchase.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_new_vehicles",      freevariable<sint32,sint32,bool>(ATV_NEW_VEHICLE, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of income.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_income",            freevariable<sint32,sint32,bool>(ATV_REVENUE_TRANSPORT, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of infrastructure maintenance.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_maintenance",       freevariable<sint32,sint32,bool>(ATV_INFRASTRUCTURE_MAINTENANCE, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of assets.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_assets",            freevariable<sint32,sint32,bool>(ATV_NON_FINANCIAL_ASSETS, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of cash.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_cash",              freevariable<sint32,sint32,bool>(ATC_CASH, -1, true), true);
 	/**
 	 * Get monthly statistics of net wealth.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_net_wealth",        freevariable<sint32,sint32,bool>(ATC_NETWEALTH, -1, true), true);
 	/**
-	 * Get monthly statistics of profit.
-	 * @returns array, index [0] corresponds to current month
+	 * Get monthly statistics of profit. This is the cash-flow profit: it
+	 * deducts construction and vehicle purchase, and includes interest, but
+	 * deducts neither depreciation nor tax.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 * @see get_profit_after_depreciation_and_tax
 	 */
 	register_method_fv(vm, &get_player_stat, "get_profit",            freevariable<sint32,sint32,bool>(ATV_PROFIT, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of operating profit.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_operating_profit",  freevariable<sint32,sint32,bool>(ATV_OPERATING_PROFIT, TT_ALL, true), true);
 	/**
-	 * Get monthly statistics of margin.
-	 * @returns array, index [0] corresponds to current month
+	 * Get monthly statistics of the operating profit margin.
+	 * @returns array, index [0] corresponds to current month, in hundredths
+	 *          of a percent
 	 */
-	register_method_fv(vm, &get_player_stat, "get_margin",            freevariable<sint32,sint32,bool>(ATV_PROFIT_MARGIN, -1, true), true);
+	register_method_fv(vm, &get_player_stat, "get_margin",            freevariable<sint32,sint32,bool>(ATV_PROFIT_MARGIN, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of income from powerlines.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_powerline",         freevariable<sint32,sint32,bool>(ATV_REVENUE, TT_POWERLINE, true), true);
 	/**
@@ -272,9 +380,82 @@ void export_player(HSQUIRRELVM vm, bool scenario)
 	register_method_fv(vm, &get_player_stat, "get_convoys",           freevariable<sint32,sint32,bool>(ATV_CONVOIS, TT_ALL, true), true);
 	/**
 	 * Get monthly statistics of income/loss due to way tolls.
-	 * @returns array, index [0] corresponds to current month
+	 * @returns array, index [0] corresponds to current month, in credits
 	 */
 	register_method_fv(vm, &get_player_stat, "get_way_tolls",         freevariable<sint32,sint32,bool>(ATV_WAY_TOLL, TT_ALL, true), true);
+	/**
+	 * Get monthly statistics of interest received and paid.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_interest",          freevariable<sint32,sint32,bool>(ATC_INTEREST, -1, true), true);
+	/**
+	 * Get monthly statistics of corporation tax paid.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_tax",               freevariable<sint32,sint32,bool>(ATC_TAX, -1, true), true);
+	/**
+	 * Get monthly statistics of the pooled depreciation charge. Depreciation
+	 * has no cash effect and is not included in get_profit.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_depreciation",      freevariable<sint32,sint32,bool>(ATC_DEPRECIATION, -1, true), true);
+	/**
+	 * Get monthly statistics of term-instrument principal repaid.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_loan_repayment",    freevariable<sint32,sint32,bool>(ATC_LOAN_REPAYMENT, -1, true), true);
+	/**
+	 * Get monthly statistics of the pooled tax allowance for the period.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_tax_allowance",     freevariable<sint32,sint32,bool>(ATC_TAX_ALLOWANCE, -1, true), true);
+	/**
+	 * Get monthly statistics of the total outstanding secured principal at
+	 * each month end. get_debt returns the current total.
+	 * @returns array, index [0] corresponds to current month, in credits
+	 */
+	register_method_fv(vm, &get_player_stat, "get_secured_debt",      freevariable<sint32,sint32,bool>(ATC_SECURED_DEBT, -1, true), true);
+	/**
+	 * Get monthly statistics of the soft credit limit, beyond which the
+	 * player cannot spend money.
+	 * @returns array, index [0] corresponds to current month, in credits;
+	 *          the limit is negative
+	 */
+	register_method_fv(vm, &get_player_stat, "get_soft_credit_limit", freevariable<sint32,sint32,bool>(ATC_SOFT_CREDIT_LIMIT, -1, true), true);
+	/**
+	 * Get monthly statistics of the hard credit limit, beyond which the
+	 * player becomes insolvent.
+	 * @returns array, index [0] corresponds to current month, in credits;
+	 *          the limit is negative
+	 */
+	register_method_fv(vm, &get_player_stat, "get_hard_credit_limit", freevariable<sint32,sint32,bool>(ATC_HARD_CREDIT_LIMIT, -1, true), true);
+	/**
+	 * Get the accrual profit: operating profit after depreciation, interest
+	 * and tax. This is the bottom row of the accrual profit and loss view in
+	 * the finance window, and differs from get_profit, which is the
+	 * cash-flow profit.
+	 * @param monthly true for the monthly series, false for the yearly series
+	 * @returns array, index [0] corresponds to the current month or year, in
+	 *          credits
+	 */
+	register_method(vm, &get_player_profit_after_depreciation_and_tax, "get_profit_after_depreciation_and_tax", true);
+	/**
+	 * Get a whole-company finance history series.
+	 * @param index one of the accounting_types_common constants
+	 * @param monthly true for the monthly series, false for the yearly series
+	 * @returns array, index [0] corresponds to the current month or year;
+	 *          money values are in credits
+	 */
+	register_method(vm, &get_player_common_history, "get_common_history", true);
+	/**
+	 * Get a finance history series for one transport type.
+	 * @param index one of the accounting_types_vehicles constants
+	 * @param tt one of the transport_types constants
+	 * @param monthly true for the monthly series, false for the yearly series
+	 * @returns array, index [0] corresponds to the current month or year;
+	 *          money values are in credits
+	 */
+	register_method(vm, &get_player_vehicle_history, "get_vehicle_history", true);
 
 	if (scenario) {
 		/**

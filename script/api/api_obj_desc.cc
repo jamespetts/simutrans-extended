@@ -113,6 +113,11 @@ sint64 get_scaled_maintenance_vehicle(const vehicle_desc_t* desc)
 	return desc ? welt->scale_with_month_length(desc->vehicle_desc_t::get_maintenance()) : 0;
 }
 
+uint32 get_vehicle_running_cost(const vehicle_desc_t* desc)
+{
+	return desc ? desc->get_running_cost(welt) : 0;
+}
+
 sint64 get_scaled_maintenance_building(const building_desc_t* desc)
 {
 	return desc ? welt->scale_with_month_length(desc->get_maintenance()) : 0;
@@ -547,10 +552,11 @@ void export_goods_desc(HSQUIRRELVM vm)
 	register_method(vm, &vehicle_desc_t::get_min_loading_time, "get_min_loading_time");
 	/** @returns maximum loading time in simulation ticks */
 	register_method(vm, &vehicle_desc_t::get_max_loading_time, "get_max_loading_time");
-// 	/**
-// 	 * @returns running cost in 1/100 credits per tile
-// 	 */
-// 	register_method(vm, &vehicle_desc_t::get_running_cost, "get_running_cost");
+	/**
+	 * @returns running cost in 1/100 credits per km, including the
+	 *          obsolescence increase for the current date
+	 */
+	register_method(vm, &get_vehicle_running_cost, "get_running_cost", true);
 	/**
 	 * @returns fixed cost in 1/100 credits per month
 	 */

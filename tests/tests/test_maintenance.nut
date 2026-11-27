@@ -32,10 +32,26 @@ function test_maintenance_vehicle_read_model()
 
 	local vehicle_desc = vehicle_desc_x.get_available_vehicles(wt_road)[0]
 	ASSERT_TRUE(vehicle_desc != null)
+	// The descriptor running cost is exposed in 1/100 credits per km. At
+	// least one road vehicle available at the fixture date has a non-zero
+	// running cost.
+	local has_running_cost = false
+	foreach (desc in vehicle_desc_x.get_available_vehicles(wt_road)) {
+		if (desc.get_running_cost() > 0) {
+			has_running_cost = true
+			break
+		}
+	}
+	ASSERT_TRUE(has_running_cost)
+
+	local convoys_before = pl.get_convoys()[0]
 	ASSERT_TRUE(the_depot.append_vehicle(pl, convoy_x(0), vehicle_desc))
 
 	ASSERT_EQUAL(the_depot.get_convoy_list().len(), 1)
 	local cnv = the_depot.get_convoy_list()[0]
+
+	// The convoy count is a count, not a money amount and not divided by 100.
+	ASSERT_EQUAL(pl.get_convoys()[0], convoys_before + 1)
 
 	// A convoy standing in a depot is in the INITIAL state, for which the
 	// service wait is not defined.
