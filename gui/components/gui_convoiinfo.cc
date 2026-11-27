@@ -134,6 +134,11 @@ void gui_convoiinfo_t::update_label()
 			img_alert.set_tooltip("Waiting for clearance!");
 			img_alert.set_visible(true);
 			break;
+		case convoi_t::AWAITING_TRIGGER:
+			img_alert.set_image(skinverwaltung_t::alerts->get_image_id(3), true);
+			img_alert.set_tooltip("Waiting for a trigger.");
+			img_alert.set_visible(true);
+			break;
 		case convoi_t::WAITING_FOR_CLEARANCE_ONE_MONTH:
 		case convoi_t::CAN_START_ONE_MONTH:
 		case convoi_t::WAITING_FOR_LOADING_THREE_MONTHS:

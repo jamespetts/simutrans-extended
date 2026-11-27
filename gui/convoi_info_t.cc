@@ -475,6 +475,13 @@ void convoi_info_t::update_labels()
 			route_bar.set_state(3);
 			break;
 
+		case convoi_t::AWAITING_TRIGGER:
+
+			speed_label.buf().append(translator::translate("Waiting for a trigger."));
+			speed_label.set_color(COL_CAUTION);
+			route_bar.set_state(1);
+			break;
+
 		case convoi_t::AWAITING_RECOMBINATION:
 
 			speed_label.buf().append(translator::translate("Waiting for a coupling partner."));
