@@ -75,8 +75,7 @@ gui_convoiinfo_t::gui_convoiinfo_t(convoihandle_t cnv, bool show_line_name):
 	}
 	end_table();
 
-	gui_aligned_container_t *formation_table = add_table(2,1);
-	formation_table->set_alignment(ALIGN_TOP);
+	add_table(2,1);
 	{
 		add_component(&formation);
 		new_component<gui_fill_t>();

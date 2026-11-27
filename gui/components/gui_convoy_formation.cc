@@ -24,10 +24,15 @@ scr_size gui_convoi_images_t::get_min_size() const
 scr_size gui_convoi_images_t::draw_vehicles(scr_coord offset, bool display_images) const
 {
 	scr_coord p = offset + get_pos();
-	// Bounding box of all sprites including their offsets. Sprites may extend
-	// left of the run origin or above/below the baseline; get_min_size() must
-	// enclose them, otherwise images paint over neighbouring rows (e.g. the
-	// line label above the convoy preview in the consist copier).
+	// Bounding box of the drawn sprites, including their image offsets:
+	// display_base_img() adds the offsets (x,y) to the position it is given,
+	// so a sprite occupies [run+x, run+x+w] horizontally and [y, y+h]
+	// vertically relative to that position. get_min_size() must return this
+	// box and drawing must place its top-left corner at the component origin,
+	// otherwise images paint over neighbouring rows (e.g. over line_label
+	// above the img_convoy preview in gui/consist_order_gui.h). The offsets
+	// may be positive or negative, so the box bounds are not clamped to the
+	// origin.
 	scr_coord_val run = 0;
 	scr_coord_val left = 0, top = 0, right = 0, bottom = 0;
 	unsigned count = cnv.is_bound() ? cnv->get_vehicle_count() : 0;
@@ -36,16 +41,24 @@ scr_size gui_convoi_images_t::draw_vehicles(scr_coord offset, bool display_image
 		vehicle_t *v = cnv->get_vehicle(i);
 		const image_id image = v->get_loaded_image();
 		display_get_base_image_offset(image, &x, &y, &w, &h );
-		left   = min(left, run - x);
-		top    = min(top, -(h + y));
-		right  = max(right, run - x + w);
-		bottom = max(bottom, -y);
+		if( i == 0 ) {
+			left = x;
+			right = x + w;
+			top = y;
+			bottom = y + h;
+		}
+		else {
+			left   = min(left, run + x);
+			top    = min(top, y);
+			right  = max(right, run + x + w);
+			bottom = max(bottom, y + h);
+		}
 		if (display_images) {
 			// Each vehicle is painted in its own owner's colours, so the
 			// ownership of every vehicle shows in multi-player consists (as
 			// in the convoy detail window).
 			const player_t *owner = v->get_owner();
-			display_base_img(image, p.x - left + run - x, p.y - top - h - y, owner ? owner->get_player_nr() : cnv->get_owner()->get_player_nr(), false, true);
+			display_base_img(image, p.x - left + run, p.y - top, owner ? owner->get_player_nr() : cnv->get_owner()->get_player_nr(), false, true);
 		}
 		run += (w*2)/3;
 	}
