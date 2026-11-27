@@ -2925,6 +2925,37 @@ const char* tool_build_way_t::get_tooltip(const player_t *) const
 }
 
 
+static sint64 tooltip_adjusted_maintenance(const karte_t *welt, sint64 maintenance)
+{
+	return welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(maintenance), buildings);
+}
+
+
+static void tooltip_add_restrictions(tooltip_t &tooltip, const way_constraints_of_way_t &constraints, waytype_t wt)
+{
+	cbuffer_t restrictions;
+	bool any_prohibitive = false;
+	for(sint8 i = 0; i < constraints.get_count(); i ++)
+	{
+		if(constraints.get_prohibitive(i))
+		{
+			if(!any_prohibitive)
+			{
+				restrictions.printf("%s", translator::translate("Restrictions:"));
+			}
+			any_prohibitive = true;
+			char tmpbuf[30];
+			sprintf(tmpbuf, "Prohibitive %i-%i", wt, i);
+			restrictions.printf(" %s", translator::translate(tmpbuf));
+		}
+	}
+	if(any_prohibitive)
+	{
+		tooltip.add(TOOLTIP_SYMBOL_RESTRICTION, restrictions.get_str());
+	}
+}
+
+
 void tool_build_way_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
 {
 	const way_desc_t *desc = get_desc(welt->get_timeline_year_month());
@@ -2945,8 +2976,7 @@ void tool_build_way_t::build_tooltip(tooltip_t &tooltip, const player_t *player)
 	tooltip.add_money(TOOLTIP_SYMBOL_FORGE, translator::translate("Forge cost (standard)"), km_forge_cost, translator::translate("/ km"));
 	tooltip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), km_price + km_forge_cost, translator::translate("/ km"));
 
-	const sint64 adjusted_maint = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(km_maint), buildings);
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), adjusted_maint, translator::translate("/ km / month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, km_maint), translator::translate("/ km / month"));
 
 	tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
 	tooltip.add_value(TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), desc->get_max_axle_load(), translator::translate("t"));
@@ -2957,26 +2987,7 @@ void tool_build_way_t::build_tooltip(tooltip_t &tooltip, const player_t *player)
 	durability.printf("%s: %s", translator::translate("Durability"), durability_string);
 	tooltip.add(TOOLTIP_SYMBOL_DURABILITY, durability.get_str());
 
-	cbuffer_t restrictions;
-	bool any_prohibitive = false;
-	for(sint8 i = 0; i < desc->get_way_constraints().get_count(); i ++)
-	{
-		if(desc->get_way_constraints().get_prohibitive(i))
-		{
-			if(!any_prohibitive)
-			{
-				restrictions.printf("%s", translator::translate("Restrictions:"));
-			}
-			any_prohibitive = true;
-			char tmpbuf[30];
-			sprintf(tmpbuf, "Prohibitive %i-%i", desc->get_wtyp(), i);
-			restrictions.printf(" %s", translator::translate(tmpbuf));
-		}
-	}
-	if(any_prohibitive)
-	{
-		tooltip.add(TOOLTIP_SYMBOL_RESTRICTION, restrictions.get_str());
-	}
+	tooltip_add_restrictions(tooltip, desc->get_way_constraints(), desc->get_wtyp());
 }
 
 // default ways are not initialized synchronously for different clients
@@ -3479,6 +3490,31 @@ const char* tool_build_bridge_t::get_tooltip(const player_t *) const
 	return toolstr;
 }
 
+
+void tool_build_bridge_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	const bridge_desc_t *desc = bridge_builder_t::get_desc(default_param);
+	if(  desc == NULL  ) {
+		return;
+	}
+
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Cost"), desc->get_value(), translator::translate("per tile"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("per tile / month"));
+
+	if(  desc->get_waytype() != powerline_wt  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
+		tooltip.add_value(TOOLTIP_SYMBOL_WEIGHT, translator::translate("Max. weight"), desc->get_max_weight(), translator::translate("t"));
+	}
+	if(  desc->get_max_length() > 0  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Max. length"), desc->get_max_length(), translator::translate("tiles"));
+	}
+	if(  desc->get_max_height() > 0  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Max. height"), desc->get_max_height(), translator::translate("tiles"));
+	}
+	tooltip_add_restrictions(tooltip, desc->get_way_constraints(), desc->get_wtyp());
+}
+
 waytype_t tool_build_bridge_t::get_waytype() const
 {
 	const bridge_desc_t * desc = bridge_builder_t::get_desc(default_param);
@@ -3583,7 +3619,10 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 	koord3d end2 = bridge_builder_t::find_end_pos(player, start, zv, desc, error, bridge_height, false, koord_distance(start, end), is_ctrl_pressed(), is_shift_pressed());
 	assert(end2 == end); (void)end2;
 
-	sint64 costs = 0;
+	sint64 bridge_cost = 0;
+	sint64 way_cost = 0;
+	sint64 tree_cost = 0;
+	sint64 object_cost = 0;
 	// start
 	grund_t *gr = welt->lookup(start);
 
@@ -3610,10 +3649,10 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 			obj_t *obj = gr->obj_bei(i);
 			switch(obj->get_typ()) {
 				case obj_t::baum:
-					costs -= welt->get_settings().get_cost_remove_tree();
+					tree_cost -= welt->get_settings().get_cost_remove_tree();
 					break;
 				case obj_t::groundobj:
-					costs += ((groundobj_t *)obj)->get_desc()->get_value();
+					object_cost += ((groundobj_t *)obj)->get_desc()->get_value();
 					break;
 				default: break;
 			}
@@ -3658,7 +3697,7 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 		}
 		pos = pos + zv;
 	}
-	costs += desc->get_value() * koord_distance(start, pos);
+	bridge_cost += desc->get_value() * koord_distance(start, pos);
 	// end
 	gr = welt->lookup(end);
 
@@ -3680,12 +3719,12 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 		}
 		marked.insert( way );
 		way->mark_image_dirty( way->get_image(), 0 );
-		costs += desc->get_value();
+		bridge_cost += desc->get_value();
 	}
 	else {
 		if (desc->get_waytype() == powerline_wt  ? !gr->find<leitung_t>() : !gr->hat_weg(desc->get_waytype())) {
 			const way_desc_t *way_desc = way_builder_t::weg_search(desc->get_waytype(), desc->get_topspeed(), desc->get_max_weight(), welt->get_timeline_year_month(), type_flat, desc->get_wear_capacity());
-			costs += way_desc->get_value();
+			way_cost += way_desc->get_value();
 		}
 	}
 	// eventually we have to remove trees on end tile
@@ -3694,16 +3733,32 @@ void tool_build_bridge_t::mark_tiles(  player_t *player, const koord3d &start, c
 			obj_t *obj = gr->obj_bei(i);
 			switch(obj->get_typ()) {
 				case obj_t::baum:
-					costs -= welt->get_settings().get_cost_remove_tree();
+					tree_cost -= welt->get_settings().get_cost_remove_tree();
 					break;
 				case obj_t::groundobj:
-					costs += ((groundobj_t *)obj)->get_desc()->get_value();
+					object_cost += ((groundobj_t *)obj)->get_desc()->get_value();
 					break;
 				default: break;
 			}
 		}
 	}
-	win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", costs, (koord_distance(start, pos)+1) * welt->get_settings().get_meters_per_tile()) );
+
+	static tooltip_t drag_tip;
+	drag_tip.clear();
+	drag_tip.add(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Bridge cost estimate"));
+	cbuffer_t length;
+	length.printf(translator::translate("%.2f km (%u tiles)"), (double)((koord_distance(start, pos) + 1) * welt->get_settings().get_meters_per_tile()) / 1000.0, koord_distance(start, pos) + 1);
+	drag_tip.add(TOOLTIP_SYMBOL_DISTANCE, length.get_str());
+	drag_tip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Bridge"), bridge_cost, NULL);
+	if(  way_cost != 0  ) {
+		drag_tip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Way"), way_cost, NULL);
+	}
+	drag_tip.add_money(TOOLTIP_SYMBOL_TREES, translator::translate("Trees"), tree_cost, NULL);
+	if(  object_cost != 0  ) {
+		drag_tip.add_money(TOOLTIP_SYMBOL_NONE, translator::translate("Ground objects"), object_cost, NULL);
+	}
+	drag_tip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), bridge_cost + way_cost + tree_cost + object_cost, NULL);
+	win_set_static_tooltip(drag_tip);
 }
 
 uint8 tool_build_bridge_t::is_valid_pos(  player_t *player, const koord3d &pos, const char *&error, const koord3d &start )
@@ -3906,6 +3961,28 @@ const char* tool_build_tunnel_t::get_tooltip(const player_t *) const
 }
 
 
+void tool_build_tunnel_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	const tunnel_desc_t *desc = tunnel_builder_t::get_desc(default_param);
+	if(  desc == NULL  ) {
+		return;
+	}
+
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Cost"), desc->get_base_price(), translator::translate("/ km"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, desc->get_base_maintenance()), translator::translate("/ km / month"));
+
+	if(  desc->get_waytype() != powerline_wt  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
+		tooltip.add_value(TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), desc->get_max_axle_load(), translator::translate("t"));
+	}
+	if(  desc->get_is_half_height()  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate("Half Height"));
+	}
+	tooltip_add_restrictions(tooltip, desc->get_way_constraints(), desc->get_wtyp());
+}
+
+
 waytype_t tool_build_tunnel_t::get_waytype() const
 {
 	const tunnel_desc_t * desc = tunnel_builder_t::get_desc(default_param);
@@ -4015,7 +4092,10 @@ const char *tool_build_tunnel_t::check_pos( player_t *player, koord3d pos)
 				// first check for building portal only
 				if(  is_ctrl_pressed()  ) {
 					// estimate costs for tunnel portal
-					win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", (-(sint64)desc->get_value())*2, welt->get_settings().get_meters_per_tile() ) );
+					tooltip_t portal_tip;
+					portal_tip.add(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Tunnel portal"));
+					portal_tip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Cost"), (-(sint64)desc->get_value())*2, NULL);
+					win_set_static_tooltip(portal_tip);
 					return NULL;
 				}
 
@@ -4039,7 +4119,17 @@ const char *tool_build_tunnel_t::check_pos( player_t *player, koord3d pos)
 
 				const uint32 distance = koord_distance(pos,end) * welt->get_settings().get_meters_per_tile();
 				const sint64 price = ((-(sint64)desc->get_value()) - way_desc->get_value())*koord_distance(pos, end);
-				win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", price, distance) );
+				tooltip_t drag_tip;
+				drag_tip.add(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Tunnel cost estimate"));
+				cbuffer_t length;
+				length.printf(translator::translate("%.2f km (%u tiles)"), (double)distance / 1000.0, koord_distance(pos, end));
+				drag_tip.add(TOOLTIP_SYMBOL_DISTANCE, length.get_str());
+				drag_tip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Tunnel"), desc->get_value()*koord_distance(pos, end), NULL);
+				if(  way_desc->get_value() != 0  ) {
+					drag_tip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Way"), way_desc->get_value()*koord_distance(pos, end), NULL);
+				}
+				drag_tip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), price, NULL);
+				win_set_static_tooltip(drag_tip);
 				return NULL;
 			}
 		}
@@ -4178,9 +4268,27 @@ void tool_build_tunnel_t::mark_tiles(  player_t *player, const koord3d &start, c
 	welt->lookup_kartenboden(end.get_2d())->clear_flag(grund_t::marked);
 
 	if(  bauigel.get_count()>1  ) {
-		// Set tooltip first (no dummygrounds, if bauigel.calc_casts() is called).
+		// Set tooltip first (no dummygrounds, if bauigel.calc_costs() is called).
 		const uint32 distance = bauigel.get_count() * welt->get_settings().get_meters_per_tile();
-		win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", -bauigel.calc_costs(), distance) );
+		way_cost_breakdown_t breakdown;
+		bauigel.calc_costs(&breakdown);
+		static tooltip_t drag_tip;
+		drag_tip.clear();
+		drag_tip.add(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Tunnel cost estimate"));
+		cbuffer_t length;
+		length.printf(translator::translate("%.2f km (%u tiles)"), (double)distance / 1000.0, bauigel.get_count());
+		drag_tip.add(TOOLTIP_SYMBOL_DISTANCE, length.get_str());
+		drag_tip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Tunnel"), breakdown.structures, NULL);
+		if(  breakdown.way != 0  ) {
+			drag_tip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Way"), breakdown.way, NULL);
+		}
+		if(  breakdown.forge != 0  ) {
+			drag_tip.add_money(TOOLTIP_SYMBOL_FORGE, translator::translate("Forge"), breakdown.forge, NULL);
+		}
+		drag_tip.add_money(TOOLTIP_SYMBOL_LAND, translator::translate("Land"), breakdown.land, NULL);
+		drag_tip.add_money(TOOLTIP_SYMBOL_TREES, translator::translate("Trees"), breakdown.trees, NULL);
+		drag_tip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), breakdown.total, NULL);
+		win_set_static_tooltip(drag_tip);
 
 		// make dummy route from bauigel
 		for(  uint32 j=0;  j<bauigel.get_count();  j++  ) {
@@ -4736,6 +4844,30 @@ const char* tool_build_wayobj_t::get_tooltip(const player_t *) const
 	}
 }
 
+
+void tool_build_wayobj_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	if(  !build  ) {
+		tool_t::build_tooltip(tooltip, player);
+		return;
+	}
+	const way_obj_desc_t *desc = get_desc();
+	if(  desc == NULL  ) {
+		return;
+	}
+
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), desc->get_base_price(), translator::translate("/ km"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, desc->get_base_maintenance()), translator::translate("/ km / month"));
+	if(  desc->is_overhead_line()  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
+	}
+	if(  desc->get_is_tall()  ) {
+		tooltip.add(TOOLTIP_SYMBOL_RESTRICTION, translator::translate("No Low Bridges"));
+	}
+	tooltip_add_restrictions(tooltip, desc->get_way_constraints(), desc->get_waytype());
+}
+
 const way_obj_desc_t *tool_build_wayobj_t::get_desc() const
 {
 	const way_obj_desc_t *desc = default_param ? wayobj_t::find_desc(default_param) : NULL;
@@ -4892,7 +5024,15 @@ void tool_build_wayobj_t::mark_tiles( player_t* player, const koord3d &start, co
 			}
 		}
 		const uint32 distance = verbindung.get_count() * welt->get_settings().get_meters_per_tile();
-		win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", -cost_estimate, distance ) );
+		static tooltip_t drag_tip;
+		drag_tip.clear();
+		drag_tip.add(TOOLTIP_SYMBOL_COST, translator::translate("Way object cost estimate"));
+		cbuffer_t length;
+		length.printf(translator::translate("%.2f km (%u tiles)"), (double)distance / 1000.0, verbindung.get_count());
+		drag_tip.add(TOOLTIP_SYMBOL_DISTANCE, length.get_str());
+		drag_tip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), cost_estimate, NULL);
+		drag_tip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), cost_estimate, NULL);
+		win_set_static_tooltip(drag_tip);
 	}
 }
 
@@ -6210,18 +6350,12 @@ image_id tool_build_station_t::get_icon( player_t * ) const
 }
 
 
-const char* tool_build_station_t::get_tooltip(const player_t *) const
+static bool get_station_tooltip_values(const karte_t *welt, const building_desc_t *desc, sint64 &price, sint64 &maint, uint32 &cap)
 {
-	sint8               dummy;
-	building_desc_t const* desc    = get_desc(dummy);
-	if (desc == NULL) {
-		return "";
-	}
-
-	sint64 price = 0;
-	sint64 maint = 0;
-	uint32 cap = desc->get_capacity(); // This is always correct in the desc object.
-	if(  desc->get_type()==building_desc_t::generic_stop  )
+	price = 0;
+	maint = 0;
+	cap = desc->get_capacity();
+	if(  desc->get_type() == building_desc_t::generic_stop  )
 	{
 		if(desc->get_base_maintenance() != PRICE_MAGIC)
 		{
@@ -6230,7 +6364,6 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 		else
 		{
 			maint = welt->get_settings().get_maint_building() * desc->get_level();
-
 		}
 		if(desc->get_base_price() != PRICE_MAGIC)
 		{
@@ -6260,11 +6393,11 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 				price = welt->get_settings().get_cost_multiply_post() * desc->get_level();
 				break;
 			default:
-				return "Illegal description";
+				return false;
 			}
 		}
 	}
-	else if(desc->get_type()==building_desc_t::generic_extension || desc->get_type()==building_desc_t::dock || desc->get_type()==building_desc_t::flat_dock)
+	else if(  desc->get_type() == building_desc_t::generic_extension  ||  desc->get_type() == building_desc_t::dock  ||  desc->get_type() == building_desc_t::flat_dock  )
 	{
 		if(desc->get_base_maintenance() != PRICE_MAGIC)
 		{
@@ -6274,34 +6407,78 @@ const char* tool_build_station_t::get_tooltip(const player_t *) const
 		{
 			maint = welt->get_settings().get_maint_building() * desc->get_level();
 		}
-
 		if(desc->get_base_price() != PRICE_MAGIC)
 		{
 			price = -desc->get_price();
 		}
+		else if(desc->get_type() == building_desc_t::dock  ||  desc->get_type() == building_desc_t::flat_dock)
+		{
+			price = welt->get_settings().get_cost_multiply_dock() * desc->get_level();
+		}
 		else
 		{
-			if(desc->get_type()==building_desc_t::dock || desc->get_type()==building_desc_t::flat_dock)
-			{
-				price = welt->get_settings().get_cost_multiply_dock() * desc->get_level();
-			}
-			else
-			{
-				price = welt->get_settings().get_cost_multiply_post() * desc->get_level();
-			}
+			price = welt->get_settings().get_cost_multiply_post() * desc->get_level();
 		}
 		const sint16 size_multiplier = desc->get_size().x * desc->get_size().y;
 		price *= size_multiplier;
 		cap *= size_multiplier;
 		maint *= size_multiplier;
 	}
-
 	else
 	{
+		return false;
+	}
+	return true;
+}
+
+
+const char* tool_build_station_t::get_tooltip(const player_t *) const
+{
+	sint8 dummy;
+	const building_desc_t *desc = get_desc(dummy);
+	if(  desc == NULL  ) {
+		return "";
+	}
+	sint64 price = 0;
+	sint64 maint = 0;
+	uint32 cap = 0;
+	if(  !get_station_tooltip_values(welt, desc, price, maint, cap)  ) {
 		return "Illegal description";
 	}
+	return tooltip_with_price_maintenance_level(welt, desc->get_name(), price, maint, cap, desc->get_enabled());
+}
 
-	return tooltip_with_price_maintenance_level( welt, desc->get_name(), price, maint, cap, desc->get_enabled() );
+
+void tool_build_station_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	sint8 dummy;
+	const building_desc_t *desc = get_desc(dummy);
+	if(  desc == NULL  ) {
+		return;
+	}
+	sint64 price = 0;
+	sint64 maint = 0;
+	uint32 cap = 0;
+	if(  !get_station_tooltip_values(welt, desc, price, maint, cap)  ) {
+		return;
+	}
+
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), price, NULL);
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, maint), translator::translate("/ month"));
+
+	if(  desc->get_enabled() & 1  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_PASSENGERS, translator::translate("Passengers"), cap, NULL);
+	}
+	if(  desc->get_enabled() & 2  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_MAIL, translator::translate("Mail"), cap, NULL);
+	}
+	if(  desc->get_enabled() & 4  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_GOODS, translator::translate("Goods"), cap, NULL);
+	}
+	if(  (desc->get_enabled() & 7) == 0  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Storage capacity"), cap, NULL);
+	}
 }
 
 waytype_t tool_build_station_t::get_waytype() const
@@ -6527,6 +6704,36 @@ const char *tool_build_pier_t::get_tooltip(const player_t *) const{
 		return toolstr;
 	}
 	return "Invalid Pier";
+}
+
+
+void tool_build_pier_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	const pier_desc_t *desc = get_desc();
+	if(  desc == NULL  ) {
+		return;
+	}
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), desc->get_value(), translator::translate("per tile"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("per tile / month"));
+	if(  desc->get_topspeed() != 0xFFFF  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
+	}
+	if(  desc->get_max_axle_load() != 0xFFFF  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), desc->get_max_axle_load(), translator::translate("t"));
+	}
+	if(  desc->get_max_altitude()  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Max. height above grade"), desc->get_max_altitude(), translator::translate("tiles"));
+	}
+	if(  desc->get_low_waydeck()  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate("Through Truss"));
+	}
+	if(  desc->get_tooltip_flag_m(0)  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate("(PierTooltipM0)"));
+	}
+	if(  desc->get_tooltip_flag_m(1)  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate("(PierTooltipM1)"));
+	}
 }
 
 bool tool_build_pier_t::init(player_t *){
@@ -6929,6 +7136,23 @@ char const* tool_build_roadsign_t::get_tooltip(player_t const*) const
 	return NULL;
 }
 
+
+void tool_build_roadsign_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	const roadsign_desc_t *desc = roadsign_t::find_desc(default_param);
+	if(  desc == NULL  ) {
+		return;
+	}
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), desc->get_value(), NULL);
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("/ month"));
+	tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Max. speed"), speed_to_kmh(desc->get_max_speed()), translator::translate("km/h"));
+	if(  desc->is_signal()  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_DISTANCE, translator::translate("Max. distance to signalbox"), desc->get_max_distance_to_signalbox(), translator::translate("m"));
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate(roadsign_t::get_working_method_name(desc->get_working_method())));
+	}
+}
+
 void tool_build_roadsign_t::draw_after(scr_coord k, bool dirty) const
 {
 	if(  icon!=IMG_EMPTY  &&  is_selected()  ) {
@@ -7250,7 +7474,7 @@ void tool_build_roadsign_t::mark_tiles( player_t *player, const koord3d &start, 
 	signal_info const& s              = signal[player->get_player_nr()];
 	uint32       const  signal_density = 200 * s.spacing;      // measured in half tiles (straight track count as 2, diagonal as 1, since sqrt(1/2) = 1/2 ;)
 	uint32              next_signal    = signal_density + 100; // to place a sign asap
-	sint32             cost           = 0;
+	sint64             cost           = 0;
 	uint32 distance = 0;
 	directions.clear();
 	// dummy roadsign to get images for preview
@@ -7323,7 +7547,11 @@ void tool_build_roadsign_t::mark_tiles( player_t *player, const koord3d &start, 
 		}
 	}
 	delete dummy_rs;
-	win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", cost, (distance*welt->get_settings().get_meters_per_tile())/200 ) );
+	tooltip_t drag_tip;
+	drag_tip.add(TOOLTIP_SYMBOL_COST, translator::translate("Sign cost estimate"));
+	drag_tip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), cost, NULL);
+	drag_tip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), cost, NULL);
+	win_set_static_tooltip(drag_tip);
 }
 
 const char *tool_build_roadsign_t::do_work( player_t *player, const koord3d &start, const koord3d &end)
@@ -7877,6 +8105,26 @@ char const* tool_signalbox_t::get_tooltip(player_t const*) const
 	return tooltip_with_price_maintenance(welt, tip, price, maintenance);
 }
 
+
+void tool_signalbox_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	sint8 rotation = -1;
+	const building_desc_t *desc = get_desc(rotation);
+	if(  desc == NULL  ) {
+		return;
+	}
+	sint64 maintenance = desc->get_maintenance();
+	if(  maintenance == PRICE_MAGIC  ) {
+		maintenance = desc->get_level() * world()->get_settings().get_maint_building();
+	}
+
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), get_tooltip_price(desc), NULL);
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, maintenance), translator::translate("/ month"));
+	tooltip.add_value(TOOLTIP_SYMBOL_DISTANCE, translator::translate("Radius"), desc->get_radius(), translator::translate("m"));
+	tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Max. signals"), desc->get_capacity(), NULL);
+}
+
 const char* tool_signalbox_t::check_pos(player_t *, koord3d pos)
 {
 	if(grund_t::underground_mode == grund_t::ugm_all  &&  env_t::networkmode)
@@ -8053,6 +8301,33 @@ const char* tool_build_depot_t::get_tooltip(const player_t *) const
 	}
 	const uint16 level =  desc->get_level();
 	return tooltip_with_price_maintenance(welt, tip, price * level, settings.get_maint_building() * level);
+}
+
+
+void tool_build_depot_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	settings_t const &settings = welt->get_settings();
+	const building_desc_t *desc = hausbauer_t::find_tile(default_param, 0)->get_desc();
+	if(  desc == NULL  ) {
+		return;
+	}
+	sint64 price;
+	switch (desc->get_extra()) {
+		case road_wt:        price = settings.get_cost_depot_road(); break;
+		case track_wt:
+		case monorail_wt:
+		case maglev_wt:
+		case narrowgauge_wt:
+		case tram_wt:        price = settings.get_cost_depot_rail(); break;
+		case water_wt:       price = settings.get_cost_depot_ship(); break;
+		case air_wt:         price = settings.get_cost_depot_air(); break;
+		default:             return;
+	}
+	const uint16 level = desc->get_level();
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), price * level, NULL);
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, settings.get_maint_building() * level), translator::translate("/ month"));
+	tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Level"), level, NULL);
 }
 
 waytype_t tool_build_depot_t::get_waytype() const
@@ -8623,6 +8898,23 @@ const char* tool_headquarter_t::get_tooltip(const player_t *player) const
 		return my_toolstr;
 	}
 	return NULL;
+}
+
+
+void tool_headquarter_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	const building_desc_t *desc = next_level(player);
+	if(  desc == NULL  ) {
+		return;
+	}
+	const settings_t &s = welt->get_settings();
+	const char *tip = player->get_headquarters_level() == 0 ? "build HQ" : "upgrade HQ";
+	const sint64 factor = (sint64)desc->get_level() * desc->get_x() * desc->get_y();
+
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(tip));
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), factor * s.get_cost_multiply_headquarter(), NULL);
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, factor * s.get_maint_building()), translator::translate("/ month"));
+	tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Level"), desc->get_level(), NULL);
 }
 
 bool tool_headquarter_t::init( player_t *player )

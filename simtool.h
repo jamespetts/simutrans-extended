@@ -409,6 +409,7 @@ public:
 	}
 	image_id get_icon(player_t*) const OVERRIDE { return grund_t::underground_mode==grund_t::ugm_all ? IMG_EMPTY : icon; }
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	bool is_init_keeps_game_state() const OVERRIDE { return true; }
 	waytype_t get_waytype() const OVERRIDE;
 	bool remove_preview_necessary() const OVERRIDE { return !is_first_click(); }
@@ -445,6 +446,7 @@ private:
 public:
 	tool_build_tunnel_t();
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 	bool is_init_keeps_game_state() const OVERRIDE { return true; }
 	waytype_t get_waytype() const OVERRIDE;
@@ -498,6 +500,7 @@ private:
 public:
 	tool_build_wayobj_t(uint16 const id = TOOL_BUILD_WAYOBJ | GENERAL_TOOL, bool b = true) : two_click_tool_t(id), build(b) {}
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	bool is_selected() const OVERRIDE;
 	bool init(player_t*) OVERRIDE;
 	bool is_init_keeps_game_state() const OVERRIDE { return true; }
@@ -523,6 +526,7 @@ public:
 	tool_build_station_t() : tool_t(TOOL_BUILD_STATION | GENERAL_TOOL) {}
 	image_id get_icon(player_t*) const OVERRIDE;
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	bool init(player_t*) OVERRIDE;
 	char const* check_pos(player_t*, koord3d) OVERRIDE;
 	char const* move(player_t*, uint16 /* buttonstate */, koord3d) OVERRIDE;
@@ -543,6 +547,7 @@ public:
 	tool_build_pier_t() : tool_t(TOOL_BUILD_PIER | GENERAL_TOOL) {}
 	image_id get_icon(player_t *) const override;
 	const char * get_tooltip(const player_t *) const override;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const override;
 	bool init(player_t *) override;
 	char const* check_pos(player_t *, koord3d) override;
 	char const* move(player_t *, uint16, koord3d) override;
@@ -642,6 +647,7 @@ public:
 	tool_build_roadsign_t() : two_click_tool_t(TOOL_BUILD_ROADSIGN | GENERAL_TOOL), desc() {}
 
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	bool init(player_t*) OVERRIDE;
 	bool exit(player_t*) OVERRIDE;
 
@@ -661,6 +667,7 @@ public:
 	tool_build_depot_t() : tool_t(TOOL_BUILD_DEPOT | GENERAL_TOOL) {}
 	image_id get_icon(player_t*) const OVERRIDE;
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	bool init(player_t*) OVERRIDE;
 	char const* work(player_t*, koord3d) OVERRIDE;
 	bool is_init_keeps_game_state() const OVERRIDE { return true; }
@@ -693,6 +700,7 @@ public:
 	const char *check_pos(player_t *, koord3d pos) OVERRIDE;
 	image_id get_icon(player_t*) const OVERRIDE;
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	bool init(player_t*) OVERRIDE;
 	char const* work(player_t*, koord3d) OVERRIDE;
 	bool is_init_keeps_game_state() const OVERRIDE { return true; }
@@ -770,6 +778,7 @@ private:
 public:
 	tool_headquarter_t() : kartenboden_tool_t(TOOL_HEADQUARTER | GENERAL_TOOL) {}
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	bool init(player_t*) OVERRIDE;
 	char const* work(player_t*, koord3d) OVERRIDE;
 	bool is_init_keeps_game_state() const OVERRIDE { return true; }

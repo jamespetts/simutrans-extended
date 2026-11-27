@@ -19,12 +19,13 @@
 #include <stdio.h>
 
 
-#define TOOLTIP_PADDING 4
+#define TOOLTIP_PADDING 6
 #define TOOLTIP_LINE_GAP 1
-#define TOOLTIP_ICON_GAP 4
-#define TOOLTIP_TAIL_WIDTH 12
-#define TOOLTIP_TAIL_HEIGHT 8
-#define TOOLTIP_MAX_WIDTH 380
+#define TOOLTIP_ICON_GAP 5
+#define TOOLTIP_TAIL_WIDTH 14
+#define TOOLTIP_TAIL_LENGTH 10
+#define TOOLTIP_RADIUS 8
+#define TOOLTIP_MAX_WIDTH 420
 
 
 static image_id get_symbol_image(tooltip_symbol_t symbol)
@@ -35,10 +36,10 @@ static image_id get_symbol_image(tooltip_symbol_t symbol)
 		case TOOLTIP_SYMBOL_COST:         desc = skinverwaltung_t::tooltip_cost; break;
 		case TOOLTIP_SYMBOL_FORGE:        desc = skinverwaltung_t::tooltip_forge; break;
 		case TOOLTIP_SYMBOL_MAINTENANCE:  desc = skinverwaltung_t::tooltip_maintenance; break;
-		case TOOLTIP_SYMBOL_SPEED:        desc = skinverwaltung_t::tooltip_speed; break;
+		case TOOLTIP_SYMBOL_SPEED:        desc = skinverwaltung_t::tooltip_speed != NULL ? skinverwaltung_t::tooltip_speed : skinverwaltung_t::fastforwardsymbol; break;
 		case TOOLTIP_SYMBOL_WEIGHT:       desc = skinverwaltung_t::tooltip_weight; break;
 		case TOOLTIP_SYMBOL_DURABILITY:   desc = skinverwaltung_t::tooltip_durability; break;
-		case TOOLTIP_SYMBOL_LAND:         desc = skinverwaltung_t::tooltip_land; break;
+		case TOOLTIP_SYMBOL_LAND:         desc = skinverwaltung_t::tooltip_land != NULL ? skinverwaltung_t::tooltip_land : skinverwaltung_t::intown; break;
 		case TOOLTIP_SYMBOL_TREES:        desc = skinverwaltung_t::tooltip_trees; break;
 		case TOOLTIP_SYMBOL_STRUCTURES:   desc = skinverwaltung_t::tooltip_structures; break;
 		case TOOLTIP_SYMBOL_DISTANCE:     desc = skinverwaltung_t::tooltip_distance != NULL ? skinverwaltung_t::tooltip_distance : skinverwaltung_t::travel_time; break;
@@ -47,37 +48,11 @@ static image_id get_symbol_image(tooltip_symbol_t symbol)
 		case TOOLTIP_SYMBOL_MAIL:         desc = skinverwaltung_t::mail; break;
 		case TOOLTIP_SYMBOL_GOODS:        desc = skinverwaltung_t::goods; break;
 		case TOOLTIP_SYMBOL_POWER:        desc = skinverwaltung_t::electricity; break;
-		case TOOLTIP_SYMBOL_RESTRICTION:  desc = NULL; break;
+		case TOOLTIP_SYMBOL_RESTRICTION:  return skinverwaltung_t::alerts != NULL ? skinverwaltung_t::alerts->get_image_id(2) : IMG_EMPTY;
 		case TOOLTIP_SYMBOL_TOTAL:        desc = skinverwaltung_t::tooltip_total != NULL ? skinverwaltung_t::tooltip_total : skinverwaltung_t::tooltip_cost; break;
 		default: break;
 	}
 	return desc != NULL ? desc->get_image_id(0) : IMG_EMPTY;
-}
-
-
-static const char *get_symbol_glyph(tooltip_symbol_t symbol)
-{
-	switch(symbol)
-	{
-		case TOOLTIP_SYMBOL_COST:         return MONEY_SYMBOL;
-		case TOOLTIP_SYMBOL_FORGE:        return "F";
-		case TOOLTIP_SYMBOL_MAINTENANCE:  return "M";
-		case TOOLTIP_SYMBOL_SPEED:        return "V";
-		case TOOLTIP_SYMBOL_WEIGHT:       return "t";
-		case TOOLTIP_SYMBOL_DURABILITY:   return "D";
-		case TOOLTIP_SYMBOL_LAND:         return "#";
-		case TOOLTIP_SYMBOL_TREES:        return "T";
-		case TOOLTIP_SYMBOL_STRUCTURES:   return "S";
-		case TOOLTIP_SYMBOL_DISTANCE:     return "km";
-		case TOOLTIP_SYMBOL_TIME:         return "h";
-		case TOOLTIP_SYMBOL_PASSENGERS:   return "P";
-		case TOOLTIP_SYMBOL_MAIL:         return "M";
-		case TOOLTIP_SYMBOL_GOODS:        return "G";
-		case TOOLTIP_SYMBOL_POWER:        return "E";
-		case TOOLTIP_SYMBOL_RESTRICTION:  return "!";
-		case TOOLTIP_SYMBOL_TOTAL:        return "=";
-		default: return "";
-	}
 }
 
 
@@ -119,7 +94,6 @@ sint32 tooltip_t::get_icon_width(const tooltip_line_t &line)
 		{
 			return get_image_size(image).w;
 		}
-		return 14;
 	}
 	return 0;
 }
@@ -138,7 +112,6 @@ static sint32 get_icon_height(const tooltip_line_t &line)
 		{
 			return get_image_size(image).h;
 		}
-		return 14;
 	}
 	return 0;
 }
@@ -271,6 +244,10 @@ void tooltip_t::add_value(tooltip_symbol_t symbol, const char *label, sint64 val
 
 void tooltip_t::add_money(tooltip_symbol_t symbol, const char *label, sint64 simucents, const char *unit)
 {
+	if(simucents < 0)
+	{
+		simucents = -simucents;
+	}
 	char money[128];
 	money_to_string(money, (double)simucents / 100.0);
 
@@ -284,6 +261,18 @@ void tooltip_t::add_money(tooltip_symbol_t symbol, const char *label, sint64 sim
 		snprintf(buf, sizeof(buf), "%s: %s", label, money);
 	}
 	add(symbol, buf);
+}
+
+
+static sint32 corner_inset(sint32 row, sint32 height, sint32 radius)
+{
+	const sint32 edge = min(row, height - 1 - row);
+	if(edge >= radius)
+	{
+		return 0;
+	}
+	static const sint32 inset[TOOLTIP_RADIUS] = { 8, 4, 2, 1, 1, 0, 0, 0 };
+	return inset[edge];
 }
 
 
@@ -328,42 +317,89 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 	win_clamp_xywh_position(pos, size, true);
 
 	const PIXVAL body_color = env_t::tooltip_color;
-	const PIXVAL border_color = display_blend_colors(body_color, color_idx_to_rgb(COL_BLACK), 30);
+	const PIXVAL border_color = display_blend_colors(body_color, color_idx_to_rgb(COL_BLACK), 35);
+	const PIXVAL highlight_color = display_blend_colors(body_color, color_idx_to_rgb(COL_WHITE), 25);
+	const PIXVAL shadow_color = display_blend_colors(body_color, color_idx_to_rgb(COL_BLACK), 45);
 	const PIXVAL text_color = env_t::tooltip_textcolor;
 
-	const bool tail_on_top = anchor.y < pos.y;
-	const bool tail_on_bottom = anchor.y >= pos.y + height;
+	enum tail_side_t { TAIL_NONE, TAIL_TOP, TAIL_BOTTOM, TAIL_LEFT, TAIL_RIGHT };
+	tail_side_t tail_side = TAIL_NONE;
+	if(anchor.y < pos.y)
+	{
+		tail_side = TAIL_TOP;
+	}
+	else if(anchor.y >= pos.y + height)
+	{
+		tail_side = TAIL_BOTTOM;
+	}
+	else if(anchor.x < pos.x)
+	{
+		tail_side = TAIL_LEFT;
+	}
+	else if(anchor.x >= pos.x + width)
+	{
+		tail_side = TAIL_RIGHT;
+	}
 
-	// body: fill the interior and draw the four border lines, leaving the
-	// corners open so the outline has a small chamfer.
-	display_fillbox_wh_clip_rgb(pos.x + 1, pos.y + 1, width - 2, height - 2, body_color, dirty);
-	display_fillbox_wh_clip_rgb(pos.x + 1, pos.y, width - 2, 1, border_color, dirty);
-	display_fillbox_wh_clip_rgb(pos.x + 1, pos.y + height - 1, width - 2, 1, border_color, dirty);
-	display_vline_wh_clip_rgb(pos.x, pos.y + 1, height - 2, border_color, dirty);
-	display_vline_wh_clip_rgb(pos.x + width - 1, pos.y + 1, height - 2, border_color, dirty);
+	// A soft shadow one pixel beyond the bottom and right edges.
+	for(sint32 row = TOOLTIP_RADIUS; row < height; row++)
+	{
+		const sint32 inset = corner_inset(row, height, TOOLTIP_RADIUS);
+		display_fillbox_wh_clip_rgb(pos.x + width - inset, pos.y + row + 1, 1, 1, shadow_color, dirty);
+	}
+	for(sint32 col = TOOLTIP_RADIUS; col < width; col++)
+	{
+		display_fillbox_wh_clip_rgb(pos.x + col, pos.y + height, 1, 1, shadow_color, dirty);
+	}
 
-	if(tail_on_top  ||  tail_on_bottom)
+	// Rounded body: the outer pass is the border, the inner pass the fill.
+	for(sint32 row = 0; row < height; row++)
+	{
+		const sint32 inset = corner_inset(row, height, TOOLTIP_RADIUS);
+		display_fillbox_wh_clip_rgb(pos.x + inset, pos.y + row, width - 2 * inset, 1, border_color, dirty);
+	}
+	for(sint32 row = 1; row < height - 1; row++)
+	{
+		const sint32 inset = corner_inset(row, height, TOOLTIP_RADIUS) + 1;
+		display_fillbox_wh_clip_rgb(pos.x + inset, pos.y + row, width - 2 * inset, 1, body_color, dirty);
+	}
+	display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_RADIUS, pos.y + 1, width - 2 * TOOLTIP_RADIUS, 1, highlight_color, dirty);
+
+	if(tail_side == TAIL_TOP  ||  tail_side == TAIL_BOTTOM)
 	{
 		const sint32 half_tail = TOOLTIP_TAIL_WIDTH / 2;
-		const sint32 tail_x = clamp(anchor.x - pos.x, half_tail + 2, width - half_tail - 2);
-		const sint32 base_y = tail_on_top ? pos.y : pos.y + height - 1;
-		const sint32 tip_y = tail_on_top ? base_y - TOOLTIP_TAIL_HEIGHT : base_y + TOOLTIP_TAIL_HEIGHT;
+		const sint32 tail_x = clamp(anchor.x - pos.x, TOOLTIP_RADIUS + half_tail, width - TOOLTIP_RADIUS - half_tail);
+		const sint32 base_y = tail_side == TAIL_TOP ? pos.y : pos.y + height - 1;
+		const sint32 tip_y = tail_side == TAIL_TOP ? base_y - TOOLTIP_TAIL_LENGTH : base_y + TOOLTIP_TAIL_LENGTH;
 
-		// Fill the tail from the tip towards the base.
-		for(sint32 row = 0; row < TOOLTIP_TAIL_HEIGHT; row++)
+		for(sint32 row = 0; row < TOOLTIP_TAIL_LENGTH; row++)
 		{
-			const sint32 row_width = (TOOLTIP_TAIL_WIDTH * (row + 1)) / TOOLTIP_TAIL_HEIGHT;
+			const sint32 row_width = (TOOLTIP_TAIL_WIDTH * (row + 1)) / TOOLTIP_TAIL_LENGTH;
 			const sint32 row_x = tail_x - row_width / 2;
-			const sint32 row_y = tail_on_top ? tip_y + row : base_y + 1 + row;
+			const sint32 row_y = tail_side == TAIL_TOP ? tip_y + row : base_y + 1 + row;
 			display_fillbox_wh_clip_rgb(row_x, row_y, row_width, 1, body_color, dirty);
 		}
-
-		// Draw the two slanted edges.
+		display_fillbox_wh_clip_rgb(tail_x - half_tail, base_y, TOOLTIP_TAIL_WIDTH, 1, body_color, dirty);
 		display_direct_line_rgb(tail_x, tip_y, tail_x - half_tail, base_y, border_color);
 		display_direct_line_rgb(tail_x, tip_y, tail_x + half_tail, base_y, border_color);
+	}
+	else if(tail_side == TAIL_LEFT  ||  tail_side == TAIL_RIGHT)
+	{
+		const sint32 half_tail = TOOLTIP_TAIL_WIDTH / 2;
+		const sint32 tail_y = clamp(anchor.y - pos.y, TOOLTIP_RADIUS + half_tail, height - TOOLTIP_RADIUS - half_tail);
+		const sint32 base_x = tail_side == TAIL_LEFT ? pos.x : pos.x + width - 1;
+		const sint32 tip_x = tail_side == TAIL_LEFT ? base_x - TOOLTIP_TAIL_LENGTH : base_x + TOOLTIP_TAIL_LENGTH;
 
-		// Re-fill the base so the body border segment is hidden behind the tail.
-		display_fillbox_wh_clip_rgb(tail_x - half_tail, base_y, TOOLTIP_TAIL_WIDTH, 1, body_color, dirty);
+		for(sint32 col = 0; col < TOOLTIP_TAIL_LENGTH; col++)
+		{
+			const sint32 col_height = (TOOLTIP_TAIL_WIDTH * (col + 1)) / TOOLTIP_TAIL_LENGTH;
+			const sint32 col_x = tail_side == TAIL_LEFT ? tip_x + col : base_x + 1 + col;
+			const sint32 col_y = tail_y - col_height / 2;
+			display_fillbox_wh_clip_rgb(col_x, col_y, 1, col_height, body_color, dirty);
+		}
+		display_fillbox_wh_clip_rgb(base_x, tail_y - half_tail, 1, TOOLTIP_TAIL_WIDTH, body_color, dirty);
+		display_direct_line_rgb(tip_x, tail_y, base_x, tail_y - half_tail, border_color);
+		display_direct_line_rgb(tip_x, tail_y, base_x, tail_y + half_tail, border_color);
 	}
 
 	sint32 line_y = pos.y + TOOLTIP_PADDING;
@@ -378,12 +414,6 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 		if(image != IMG_EMPTY)
 		{
 			display_color_img(image, pos.x + TOOLTIP_PADDING, line_y + (line_height - icon_size.h) / 2, 0, false, dirty);
-		}
-		else if(line.symbol != TOOLTIP_SYMBOL_NONE)
-		{
-			const PIXVAL glyph_background = display_blend_colors(body_color, color_idx_to_rgb(COL_BLACK), 15);
-			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y + (line_height - 14) / 2, 14, 14, glyph_background, dirty);
-			display_proportional_rgb(pos.x + TOOLTIP_PADDING + 2, line_y + (line_height - LINESPACE) / 2, get_symbol_glyph(line.symbol), ALIGN_LEFT, text_color, dirty);
 		}
 
 		const uint32 wrapped = draw_wrapped_text(text_x, line_y + (line_height - LINESPACE) / 2, line.text.get_str(), text_max_width, text_color, dirty);

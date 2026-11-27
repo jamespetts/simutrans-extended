@@ -312,3 +312,56 @@ name=OpenWindow
 copyright=Ranran
 Image[0]=> button-symbols.0.0
 -------
+
+#################################################################
+# Tooltip symbols
+Obj=menu
+name=TooltipCost
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.0.0
+-------
+Obj=menu
+name=TooltipForge
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.0.1
+-------
+Obj=menu
+name=TooltipMaintenance
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.0.2
+-------
+Obj=menu
+name=TooltipSpeed
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.0.3
+-------
+Obj=menu
+name=TooltipWeight
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.1.0
+-------
+Obj=menu
+name=TooltipDurability
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.1.1
+-------
+Obj=menu
+name=TooltipTrees
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.1.2
+-------
+Obj=menu
+name=TooltipStructures
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.1.3
+-------
+Obj=menu
+name=TooltipTotal
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.2.0
+-------
+Obj=menu
+name=TooltipLand
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.2.1
+-------
