@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail continuity across splits and loose stock); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case); ex-15 @ f41b00399f (2026-11-25, AWAITING_TRIGGER sync-step handling)
+verified: ex-15 @ 6a9e8d963 (2026-11-16, range-stop and replenishment status); ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, recipient eligibility at pickup, shared-contact reservation handoff); ex-15 @ 117c75d17 (2026-11-15, one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); discharge boundary and paired runtime 2026-11-13; script interface ex-15 @ 957d5ced8 plus working-tree changes; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, substitution discharge and 35-case test set); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, optional slots, loaded/empty rules, collection credit and revision 16/17 fields); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule in `convoi_t::match_consist_order`); ex-15 @ 9d2b75ecea (2026-11-20, line-level through-pair recording); ex-15 @ e74fb897d0 (2026-11-20, committed through-pair script accessors and test case); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail continuity across splits and loose stock); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case); ex-15 @ f41b00399f (2026-11-25, AWAITING_TRIGGER sync-step handling); ex-15 @ 4d9aeccb6e plus working-tree maximum-trigger-wait and pair changes (2026-11-27, `waiting_time_shift` trigger cap, counterpart in `AWAITING_TRIGGER`, pair diagnostics)
 ---
 # ex-15 feature status: schedules, consists & re-combination
 
@@ -84,10 +84,14 @@ explorer's treatment of consist orders.
 - **Trigger runtime** — `convoi_t::AWAITING_TRIGGER` state; `convoi_t::sync_step()` treats it as a
   stationary state, while loading and trigger matching run in `convoi_t::step()`; receiver bitfield
   matching in the step logic; `simline_t::propagate_triggers` (with trigger_one_only: earliest-arriving
-  satisfied convoy first); clear_stored_triggers_on_dep handling. GUI sets only the bitfield numbers
-  (inputs select condition numbers 0–15 — the 16 designed conditions) and a line selector.
-  The pending-runtime `trigger-wait` case keeps a convoy in this state and asserts that it remains
-  there.
+  satisfied convoy first); clear_stored_triggers_on_dep handling. `schedule_entry_t::waiting_time_shift`
+  caps the trigger wait as well as the loading wait: the deadline is the convoy's saved `arrival_time`
+  plus `welt->ticks_per_world_month >> (16 - waiting_time_shift)`, and an expired wait proceeds through
+  the same block that runs when the trigger matches, without clearing the stored trigger bits.
+  `AWAITING_RECOMBINATION` has no timeout. GUI sets only the bitfield numbers (inputs select condition
+  numbers 0-15 - the 16 designed conditions) and a line selector. The pending-runtime `trigger-wait`
+  case keeps a convoy in this state and asserts that it remains there; `trigger-timeout` asserts the
+  maximum wait release.
 - **Loading-control flags** (discharge_payload / set_down_only / pick_up_only) — enforced in
   `hat_gehalten`/unload paths and in the path explorer
   [FORUM:https://forum.simutrans.com/index.php/topic,17852.msg202997.html].
@@ -142,9 +146,13 @@ explorer's treatment of consist orders.
   requires that the two entries name each other, lie at the same `haltestelle_t` and use the same
   waytype; it refuses both flags on an entry that names the other side, a self target, `lay_over` on
   either entry, a missing order, an ambiguous match at the stop, and a counterpart entry that does not
-  reciprocate or lies at another stop. A counterpart that is present
-  but not yet waiting, and one that is not at the stop, is awaited:
-  `convoi_t::AWAITING_RECOMBINATION` has no timeout. The file-local `paired_exchange_solver_t` in
+  reciprocate or lies at another stop. A counterpart that stands at the stop in
+  `convoi_t::AWAITING_TRIGGER` is present even though it has not run `convoi_t::hat_gehalten` at
+  this stop; `convoi_t::is_waiting_pair_counterpart` identifies it by its current entry, direction and position
+  instead of `convoi_t::last_stop_id`. The exchange keeps that convoy in `convoi_t::AWAITING_TRIGGER`,
+  so the trigger wait survives the vehicle change. A counterpart that has not reached the stop is
+  awaited: `convoi_t::AWAITING_RECOMBINATION` has no timeout. The file-local
+  `paired_exchange_solver_t` in
   `simconvoi.cc` searches the two entries' consist orders (each order states the required end state
   of its convoy) jointly over the canonical universe of both forward-oriented pre-exchange consists
   and, for the receiver only, the stop's eligible laid-over vehicles. It enforces slot matching,
@@ -161,10 +169,14 @@ explorer's treatment of consist orders.
   reached the target's rear tile under a committed approach, the final consists are laid out on the
   tiles the pre-exchange vehicles occupied (front convoy first, loose stock behind both) with
   `vehicle_t::set_layout_position`; each changed convoy releases its previous reservations before
-  re-reserving. A changed convoy waits out `shunting_time_seconds`; the counterpart waits in
-  `LOADING` under the same lock so that its new consist loads after the delay. Failure is
-  all-or-nothing: neither consist changes, one warning is posted, the counterpart is released from
-  `AWAITING_RECOMBINATION`, and both convoys continue on their own schedules. Before a choose signal
+  re-reserving. A changed convoy waits out the shunting delay. One that performs the exchange inside
+  `convoi_t::hat_gehalten` waits in `SHUNTING`, because that function loads immediately afterwards;
+  one that performs it outside `convoi_t::hat_gehalten` waits in `LOADING` under the same lock, so its
+  new consist loads after the delay. A convoy in `convoi_t::AWAITING_TRIGGER` keeps that state across
+  the commit. Failure is all-or-nothing: neither consist changes and one warning is
+  posted. A counterpart in `AWAITING_RECOMBINATION` is released to `LOADING`; a counterpart in
+  `AWAITING_TRIGGER` keeps that wait and records the stop, so releasing the trigger does not retry the
+  refused pair. Both convoys continue on their own schedules. Before a choose signal
   routes the receiver to the target, `convoi_t::can_approach_coupling_target` runs the same joint
   solver without committing; a failure holds the receiver at the signal, posts
   `convoi_t::report_coupling_hold` and never reaches contact.
@@ -299,7 +311,9 @@ explorer's treatment of consist orders.
   conditional_depart_before/after_wait, cond_trigger_is_line_or_cnv, clear_stored_triggers_on_dep,
   trigger_one_only, couple, uncouple (Line/Consist target modes, convoy-as-target listing, and
   enablement gating that preserves stored values while disarmed); those runtime paths are
-  reachable in play subject to the runtime gaps below. Consist-order window and rule-editor
+  reachable in play subject to the runtime gaps below. The maximum-wait arrows and value are enabled
+  for an entry carrying either conditional_depart flag, even when the entry has no minimum load and
+  no wait_for_time flag. Consist-order window and rule-editor
   persistence is implemented ([gui](../gui.md)); the list-level verdict and the picker's
   facing-neutral connection filter described above are implemented as well. The couple
   target-entry picker and

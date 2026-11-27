@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case); ex-15 @ 4d9aeccb6e plus working-tree trigger-and-pair, maximum-trigger-wait and service-frequency changes (2026-11-27, counterpart in AWAITING_TRIGGER, state preservation, pair diagnostics)
 ---
 # Consist recombination
 
@@ -42,6 +42,8 @@ contact tile.
   `uncouple_target_is_line_or_cnv`; its target unique-entry id names the counterpart entry.
 - **Receiver / target.** In a paired exchange, the convoy whose entry carries `couple` is the
   receiver and the convoy whose entry carries `uncouple` is the target.
+- **Counterpart.** The other convoy or schedule entry of a pair. In a paired exchange, the receiver's
+  counterpart is the target and the target's counterpart is the receiver.
 - **Joining convoy.** The convoy a one-sided receive draws vehicles from.
 - **Mover.** The convoy that travels to the other convoy's contact tile under a committed
   choose-signal approach. The other convoy is the approach target.
@@ -159,15 +161,36 @@ retained portion takes the existing commit state:
 
 A receiver entry (`couple`) and a target entry (`uncouple`) at the same stop, each naming the other,
 form a pair. `convoi_t::resolve_paired_exchange` validates the reciprocity, the halt, the waytype and
-the orders; a present counterpart makes the pair ready, an absent one is waited for in
-`AWAITING_RECOMBINATION`. `convoi_t::execute_paired_exchange` solves both end-state orders jointly and
-`convoi_t::commit_paired_exchange` replaces both consists as one operation. The solver rules are in
-[ex-15/schedule-and-consists](ex-15/schedule-and-consists.md): a canonical universe of both
-forward-oriented consists plus the receiver's eligible laid-over pool, per-slot candidate priority,
-`convoi_t::check_validity()` coupling, power in both results, pairwise-disjoint final consists, the
-Multi-Owner Access Rule, the smallest possible pool draw, and a 16,384 candidate-placement compute
-limit. Failure is all-or-nothing: neither consist changes, one warning is posted, the counterpart is
-released from `AWAITING_RECOMBINATION`, and both convoys continue.
+the orders. A counterpart makes the pair ready when it waits at the stop in either
+`AWAITING_RECOMBINATION` or `AWAITING_TRIGGER`. A counterpart in `AWAITING_TRIGGER` is identified by
+its current schedule entry, its reverse-schedule flag and its position at the halt, because it has not
+yet run `convoi_t::hat_gehalten` at this stop and its `convoi_t::last_stop_id` still names the previous
+stop.
+`convoi_t::execute_paired_exchange` solves both end-state orders jointly and
+`convoi_t::commit_paired_exchange` replaces both consists as one operation. A convoy that waits in
+`AWAITING_TRIGGER` keeps that state across the commit, so the exchange changes its vehicles while its
+departure-trigger wait continues. `convoi_t::execute_paired_exchange` takes a `loading_pass` flag: an
+exchange performed inside `convoi_t::hat_gehalten` leaves a changed convoy in `SHUNTING` because that
+function loads immediately afterwards, while an exchange performed outside `convoi_t::hat_gehalten`
+leaves a changed convoy in `LOADING` for the shunting delay and then loads its new consist. The solver
+rules are in [ex-15/schedule-and-consists](ex-15/schedule-and-consists.md): a canonical universe of
+both forward-oriented consists plus the receiver's eligible laid-over pool, per-slot candidate
+priority, `convoi_t::check_validity()` coupling, power in both results, pairwise-disjoint final
+consists, the Multi-Owner Access Rule, the smallest possible pool draw, and a 16,384
+candidate-placement compute limit. Failure is all-or-nothing: neither consist changes and one warning
+is posted. A counterpart in `AWAITING_RECOMBINATION` is released to `LOADING`. A counterpart in
+`AWAITING_TRIGGER` keeps its wait and records the stop in `convoi_t::last_stop_id`, so releasing the
+trigger does not retry the refused pair. The pair is abandoned; each convoy continues on its own
+schedule when its own departure condition is met.
+
+`convoi_t::resolve_paired_exchange` distinguishes four counterpart schedule-authoring failures: a
+counterpart entry at the same stop that does not name this convoy in return
+(`pair_failure_counterpart_not_reciprocal`), a counterpart that names this convoy at a different stop
+(`pair_failure_counterpart_elsewhere`), two counterpart entries at the stop that both name this convoy
+(`pair_failure_ambiguous_counterpart`), and a counterpart entry that names a different unique entry of
+this schedule (`pair_failure_counterpart_reference`). A target `uncouple` entry whose counterpart
+schedule has a non-reciprocal `couple` entry at the stop, or a reciprocal entry at another stop, runs
+the ordinary division path; the receiver reports the authoring failure.
 
 ## Matching and commit
 
@@ -276,17 +299,20 @@ is powered or `settings_t::get_turntable_reverse_time()` when it is hauled.
 ## States, once-only execution and saved state
 
 An absent counterpart is waited for in `convoi_t::AWAITING_RECOMBINATION`, deliberately without a
-timeout. A direct mutual wait resolves because either convoy's step re-resolves the pair. Longer wait
-cycles are not detected.
+timeout. A counterpart in `convoi_t::AWAITING_TRIGGER` is also accepted; the waiting convoy
+resolves the pair while the counterpart keeps its trigger wait. A direct mutual wait resolves because
+either convoy's step re-resolves the pair. Longer wait cycles are not detected.
 
 The executing convoy records the stop in both convoys' `convoi_t::last_stop_id` for a paired exchange;
 a promoted portion records it in its own. A later loading pass therefore computes `first_run == false`
-and does not execute the operation again. The consists, `last_stop_id`, `arrival_time`, `wait_lock`,
-`reverse_schedule` and vehicle positions are written by the existing `convoi_t` and `vehicle_t` save
-methods, and `AWAITING_RECOMBINATION` is written by `convoi_t::rdwr`. The reciprocal coupling
-approach link (`convoi_t::recombination_approach_partner` and
-`convoi_t::recombination_approach_is_mover`) is saved; the coupling-point offset
-`convoi_t::recombination_contact_steps` is transient and recomputed.
+and does not execute the operation again. For a counterpart in `AWAITING_TRIGGER`, the recorded stop
+also tells the `AWAITING_TRIGGER` branch of `convoi_t::step()` that the pair has already run, so
+releasing the trigger does not resolve the pair a second time. The consists, `last_stop_id`, `arrival_time`,
+`wait_lock`, `reverse_schedule` and vehicle positions are written by the existing `convoi_t` and
+`vehicle_t` save methods, and the convoy state (including `AWAITING_TRIGGER` and
+`AWAITING_RECOMBINATION`) is written by `convoi_t::rdwr`. The reciprocal coupling approach link
+(`convoi_t::recombination_approach_partner` and `convoi_t::recombination_approach_is_mover`) is saved;
+the coupling-point offset `convoi_t::recombination_contact_steps` is transient and recomputed.
 Determinism follows the ordinary convoy rules; see [sync-and-determinism](sync-and-determinism.md)
 and [savegame-versioning](savegame-versioning.md).
 

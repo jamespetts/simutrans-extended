@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 82b143fc38 plus working-tree junction clearance changes; ex-15 @ f41b00399f (2026-11-25, trigger-wait road case and test counts)
+verified: ex-15 @ 82b143fc38 plus working-tree junction clearance changes; ex-15 @ f41b00399f (2026-11-25, trigger-wait road case and test counts); ex-15 @ 4d9aeccb6e plus working-tree trigger-timeout case (2026-11-27, road group 16 cases)
 ---
 # Road vehicle operations: implementation
 
@@ -333,7 +333,7 @@ bytes per halt tile on x64.
 ## Tests
 
 `tests/pending-runtime/road-harness.nut` and `tests/pending-runtime/road-cases/` provide the
-`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains fifteen
+`road` group, run with `PENDING_RUNTIME_GROUPS=road` (or by case name). It contains sixteen
 cases:
 
 - `single-run`: one convoy crosses a straight road to its destination without a false block or
@@ -343,6 +343,10 @@ cases:
   "wait for trigger" option), with no convoy or line sending a matching trigger. It must stay in
   `AWAITING_TRIGGER` for 100 observations without the `convoi_t::sync_step()` abort reported as
   [GitHub issue 701](https://github.com/jamespetts/simutrans-extended/issues/701).
+- `trigger-timeout`: the same through stop with `waiting_time_shift` 8 and no matching trigger. The
+  value gives a maximum wait of 4,096 ticks at the fixture's `ticks_per_world_month`. The convoy must
+  leave `AWAITING_TRIGGER` after that wait and continue to the road end. The 2026-11-27 run observed
+  the release after 4,500 ticks.
 - `moving-gap`: a fast follower catches a slow leader near the end of a 14-tile road. The
   follower starts when the leader is at x = 10, so the remaining route is too short for
   `convoi_t::can_overtake` and the follower must follow. Once both fronts have been on the
@@ -426,8 +430,9 @@ scripts\run-pending-runtime-reload-tests.ps1 -CaseName save-reload-stand
   -Exe simutrans\Simutrans-Extended-Debug.exe
 ```
 
-The fifteen road cases pass with the Debug x64 build and `-nomidi -nosound -fast_forward`
-(45 s with eight jobs in the 2026-11-25 run). The cases do not directly create a one-way dead end,
+The sixteen road cases pass with the MSYS2 SDL3 build and `-nomidi -nosound -fast_forward`; the
+2026-11-27 run covered the full group, including `trigger-timeout`, which left `AWAITING_TRIGGER`
+after 4,500 ticks against the configured 4,096. The cases do not directly create a one-way dead end,
 so the one-way dead-end exception has no dedicated scripted case. The standard Squirrel suite
 passes (82 of 82). The network smoke test passes with 1049 per-step private-car route hashes
 identical between two runs. The `division`, `pair`, `choose` and `ownership` pending-runtime

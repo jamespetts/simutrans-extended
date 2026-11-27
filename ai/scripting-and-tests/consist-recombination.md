@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger/freight H cargo cases, schedule-edit cases, passenger capacity, mail/TPO cases, nested split and three loaded pair reload cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24, delay arithmetic against the runner limits); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, `rear-portion-order`, `departure-reversal` and `departure-reversal-freight` pass; `schedule-edit-divergence` accepts the D packet continuing); earlier cases as cited
+verified: ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, scenario cargo API, injected-cargo cases, through-wagon cases and the collection-loading credit); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, runner parallelism, fast-forward and reload timings); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule and ownership cases); ex-15 @ db8bb34e5a (2026-11-20, pair-reload exchange limit, flash-reload frames per step and observation-limit hold); ex-15 @ e74fb897d0 (2026-11-20, line-level through-pair recording, the `through-pair` case, the two script accessors and the `pickup-reload` re-assertion); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger/freight H cargo cases, schedule-edit cases, passenger capacity, mail/TPO cases, nested split and three loaded pair reload cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24, delay arithmetic against the runner limits); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, `rear-portion-order`, `departure-reversal` and `departure-reversal-freight` pass; `schedule-edit-divergence` accepts the D packet continuing); ex-15 @ 4d9aeccb6e plus working-tree pair-trigger-wait and trigger-timeout cases (2026-11-27, pair group 12 cases, road group 16 cases); earlier cases as cited
 ---
 # Consist recombination scripting and tests
 
@@ -139,13 +139,21 @@ entry's unique id, and has an end-state order. One convoy starts first and must 
 `convoi_t::AWAITING_RECOMBINATION` at its entry; the other then executes the exchange.
 
 The cases cover a symmetric locomotive swap with either convoy started first
-(`symmetric-swap`, `symmetric-swap-target-first`), a one-way transfer that leaves a vehicle as loose
-stock (`one-way-to-receiver`), an already-satisfied pair (`already-at-end-state`), a joint-solver
+(`symmetric-swap`, `symmetric-swap-target-first`), the same swap with the target in
+`AWAITING_TRIGGER` (`pair-trigger-wait`), a one-way transfer that leaves a vehicle as loose stock
+(`one-way-to-receiver`), an already-satisfied pair (`already-at-end-state`), a joint-solver
 backtracking conflict (`conflict-backtrack`), an unsatisfiable pair refused all-or-nothing
 (`unsatisfiable`), and a receiver that collects a coach from the stop's laid-over pool while the
 emptied donor is destroyed (`pool-fallback`). The `already-at-end-state` orders place an optional
 empty slot between the locomotive and the coach, so `paired_exchange_solver_t` must omit that slot
 without moving either mandatory vehicle or charging a shunting delay.
+
+`pair-trigger-wait` gives the target's pair entry `conditional_depart_before_wait` and
+`condition_bitfield_receiver` value 1. Only the receiver's next entry broadcasts that bit. The receiver arrives first and waits in
+`AWAITING_RECOMBINATION`; the target arrives and waits in `AWAITING_TRIGGER`. The receiver resolves the
+pair while the target remains in `AWAITING_TRIGGER`, both final consists match, and the target leaves
+`AWAITING_TRIGGER` only when the receiver broadcasts the trigger at its next stop. The case passed on
+2026-11-27 [EXECUTION-VERIFIED:2026-11-27, MSYS2 SDL3 build].
 
 Four loaded cases use the same pair harness with a loading halt west of the junction and a delivery
 halt beyond the east stop. The freight cases also build consumer industries. The harness injects
@@ -166,7 +174,8 @@ order slots; without it the path explorer does not route a lineless convoy for t
 
 The loose cases start the target first so that the exchange commits before the receiver's deferred
 unload can repair a junction-transfer packet's route. All four cases passed on 2026-11-22
-[EXECUTION-VERIFIED:2026-11-22, Debug x64]; the pair group passed 11/11.
+[EXECUTION-VERIFIED:2026-11-22, Debug x64]. The 12-case pair group passed on 2026-11-27
+[EXECUTION-VERIFIED:2026-11-27, MSYS2 SDL3 build].
 
 ## Choose-signal call-on cases (`choose-cases/`)
 
@@ -683,9 +692,11 @@ deferred-unload fix in `convoi_t::commit_recombined_consist`: it failed before t
 `split_tail` in the leading slot and passes after it. The 16-case division group passed, including
 `departure-reversal` and `departure-reversal-freight`, which were added on the same day and passed
 on the same build; the 15-case pick-up group had 10 passes and the five known fare-rounding
-failures; the 11-case paired
+failures; the paired
 group, the 17-case choose-signal group, the two ownership cases and the 20-case road and
 maintenance groups all passed on the fixed Debug x64 build with `-nomidi`
-[EXECUTION-VERIFIED:2026-11-25, ex-15 @ 1578e7a689 plus working-tree fix]. The planned coverage
-list is the operation-scope record from
+[EXECUTION-VERIFIED:2026-11-25, ex-15 @ 1578e7a689 plus working-tree fix]. The 12-case pair group
+and the 16-case road group passed on 2026-11-27
+[EXECUTION-VERIFIED:2026-11-27, ex-15 @ 4d9aeccb6e plus working-tree pair and trigger changes]. The
+planned coverage list is the operation-scope record from
 [ex-15/recombination-design](../ex-15/recombination-design.md).

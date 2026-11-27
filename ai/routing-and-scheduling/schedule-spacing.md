@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 6c404918c3 (2026-11-27); save conversion @ ex-15 @ 55c91fcd7b (2026-11-27)
+verified: ex-15 @ 6c404918c3 (2026-11-27); save conversion @ ex-15 @ 55c91fcd7b (2026-11-27); ex-15 @ 4d9aeccb6e plus working-tree trigger wait and round-trip timing changes (2026-11-27)
 ---
 # Schedule spacing
 
@@ -92,7 +92,10 @@ stop and before the schedule is advanced.
 5. `go_on_ticks_waiting` is the entry's maximum wait when `waiting_time_shift > 0`, otherwise
    `WAIT_INFINITE`. `go_on_ticks` is `max(earliest_departure_time, min(go_on_ticks_spacing,
    go_on_ticks_waiting))`. If the maximum wait is earlier than the spacing slot, the convoy is
-   `running_late` and leaves at `earliest_departure_time` when it is a timed wait.
+   `running_late` and leaves at `earliest_departure_time` when it is a timed wait. The same
+   `waiting_time_shift` caps the wait in `convoi_t::AWAITING_TRIGGER`; the trigger deadline runs
+   from the convoy's arrival. The trigger wait is documented in
+   [ex-15/schedule-and-consists](../ex-15/schedule-and-consists.md).
 6. If spacing is set but the convoy has no line, the spacing slot is replaced by
    `earliest_departure_time` so that the convoy cannot wait forever.
 
@@ -143,7 +146,12 @@ timed wait and the schedule has spacing.
   the line's convoys that are not in a depot, divides by the total number of line convoys, and
   raises the result to the spacing interval when spacing is non-zero. The spacing interval in
   this method is computed as `ticks_per_world_month * 12 / spacing`, matching
-  `check_departure` and `haltestelle_t::calc_line_interval`.
+  `check_departure` and `haltestelle_t::calc_line_interval`. `convoi_t::get_average_round_trip_time()`
+  samples only real schedule advances from schedule entry 0: the temporary advance that
+  `convoi_t::drive_to()` performs to check the next halt calls `advance_schedule(true)`, which
+  suppresses the recording, and `convoi_t::set_line()` clears the recorded timestamps only when the
+  line or schedule changes, so a depot departure on the same line with an unchanged schedule keeps
+  them.
 - `haltestelle_t::calc_line_interval(line, timing, calls)` divides the line's round-trip time
   by `line->count_convoys()` and by the number of calls at the halt, then raises the interval to
   `ticks_per_world_month * 12 / spacing`. `count_convoys()` includes convoys in depots and held
