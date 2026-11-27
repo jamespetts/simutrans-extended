@@ -541,7 +541,21 @@ void schedule_t::rdwr(loadsave_t *file)
 		file->rdwr_short(sp);
 		if (file->is_loading())
 		{
-			sp = spacing * 12;
+			// The saved value is the whole number of monthly departures; convert it
+			// to twelfths. Clamp before multiplying so a malformed old value cannot
+			// overflow the sint16 member.
+			if (sp < 0)
+			{
+				spacing = 0;
+			}
+			else if (sp > 32767 / 12)
+			{
+				spacing = 32767;
+			}
+			else
+			{
+				spacing = sp * 12;
+			}
 		}
 	}
 	if (file->get_extended_version() >= 15)
