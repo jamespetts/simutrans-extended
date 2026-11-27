@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d6bf8f3e7 (rest); ex-15 @ edd49a130 (scripting note); ex-15 @ 2d592ca226 (2026-11-20, window pinning and display size)
+verified: ex-15 @ b91506c55c
 ---
 # Visual feedback for GUI work
 
@@ -60,11 +60,10 @@ All variables are read in the simmain.cc main loop (`while (!env_t::quit_simutra
   older screenshots drift. The top window is pinned to `(0, 120)` before the clicks; a window
   opened by a click is pinned to the same point before the redraw.
 
-Clicks are processed synchronously before the snapshot in the same loop pass. An earlier
-revision deferred the shot by one extra `interactive()` pass via `continue`; that never
-worked — `interactive()` returns immediately once `quit_month` is reached (and sets
-`env_t::quit_simutrans`, exiting the main loop), and a single NORMAL-mode step never pumps
-GUI events. Do not reintroduce the extra-pass design.
+Clicks are processed synchronously before the snapshot in the same loop pass. Deferring the
+shot by one extra `interactive()` pass via `continue` does not work — `interactive()` returns
+immediately once `quit_month` is reached (and sets `env_t::quit_simutrans`, exiting the main
+loop), and a single NORMAL-mode step never pumps GUI events.
 
 The snapshot rect is computed AFTER `view->display(true)`/`intr_refresh_display(true)`, not
 before: a frame may resize itself during its first draw (e.g. `prices_frame_t` fits to its
@@ -133,10 +132,20 @@ Graphs top tab `(60,25)`; sub-tabs (window-relative, measured in the fitted grap
 Interest-and-tax-rates `(140,40)`, Fuel-prices `(255,40)`, Staff-wages `(330,40)`, used as
 e.g. `"60,25;255,40"`. Keep top-tab clicks a few pixels below the title bar (y≈25): y=18
 grazes the title-bar bottom edge and intermittently hits the `?` help button instead.
-The Prices window now fits its own width and height to the active sub-tab, so a sub-tab
-click must use the coordinates for the post-resize view (fuel at x≈255, not the ~221 of the
-older wide layout) — a stale x can land outside the window and open another dialog. Window
+The Prices window fits its own width and height to the active sub-tab, so a sub-tab
+click must use the coordinates for the fitted view (fuel at x≈255) — a stale x can land
+outside the window and open another dialog. Window
 geometry is theme- and content-dependent; re-derive for other dialogs.
+
+Verified click coordinates for the Line Management window (Pak128.Britain-Ex theme,
+`SIMUTRANS_UI_SHOT_TOOL=3` = `DIALOG_LINEOVERVIEW`, fixture `bb6-apr-2010.sve`): Train tab
+`(82,37)` in the icon strip above the line list (the strip filters lines by transport type;
+which icons appear depends on the ways and vehicles the pakset defines); line-list rows at
+`(150,60)` for the first row and +20 y per further row; the Convoys tab is active when the
+window opens (static `selected_convoy_tab` in gui/schedule_list.cc starts at 0 in each
+process); the display-mode button at `(697,155)` cycles the `gui_convoy_formation_t` modes
+appearance, capacities, formation, one step per click. Row heights follow the convoy preview
+content, so re-derive y coordinates after layout changes.
 
 ## Constraints
 
@@ -152,6 +161,20 @@ geometry is theme- and content-dependent; re-derive for other dialogs.
   capture shows the wrong window, just re-run.
 - `ai\temp\perf\save\Rollmaterial 2018.sve` crashes during load on current ex-15 Profile;
   unresolved — use `bb6-apr-2010.sve` for price-history UI until that is investigated.
+- The dialog-tool hook passes the public player to `init()`. In `bb6-apr-2010.sve` the
+  public player owns no lines, so Line Management opens with an empty line list. The Line
+  Management coordinates above were verified with a local change passing the player owning
+  the most lines to `init()` (a TESTING change under [AGENTS rule 10](../../AGENTS.md);
+  revert it afterwards). Reproducing the populated views requires that local change or a
+  fixture whose public player owns lines.
+- Tool 15 (`DIALOG_LIST_CONVOI`, Vehicle List) opens with an empty convoy-row area when
+  `-until` returns immediately; use the Line Management Convoys tab for convoy-row captures.
+- A capture can occasionally show the loading screen although every `UI-AUTO:` line reports
+  success; re-run.
+- The forced redraw renders one frame, which shows a size-changing component before its
+  measured size feeds back into the layout. To capture the settled layout, add a temporary
+  second `view->display(true)` / `intr_refresh_display(true)` pair before the snapshot
+  (TESTING under [AGENTS rule 10](../../AGENTS.md); revert it afterwards).
 
 ## Open questions
 
