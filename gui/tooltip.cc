@@ -74,6 +74,16 @@ static scr_size get_image_size(image_id image)
 }
 
 
+static void draw_image_at(image_id image, scr_coord_val x, scr_coord_val y, bool dirty)
+{
+	scr_coord_val xoff, yoff, w, h;
+	display_get_image_offset(image, &xoff, &yoff, &w, &h);
+	// display_color_img adds the image's stored x/y offset; subtract it so the
+	// visible sprite lands on the requested position.
+	display_color_img(image, x - xoff, y - yoff, 0, false, dirty);
+}
+
+
 sint32 tooltip_t::get_max_width()
 {
 	const sint32 screen_width = display_get_width() - 2 * D_MARGIN_LEFT;
@@ -85,14 +95,16 @@ sint32 tooltip_t::get_icon_width(const tooltip_line_t &line)
 {
 	if(line.custom_icon != IMG_EMPTY)
 	{
-		return get_image_size(line.custom_icon).w;
+		const sint32 width = get_image_size(line.custom_icon).w;
+		return width > 0 ? width : env_t::iconsize.w;
 	}
 	if(line.symbol != TOOLTIP_SYMBOL_NONE)
 	{
 		const image_id image = get_symbol_image(line.symbol);
 		if(image != IMG_EMPTY)
 		{
-			return get_image_size(image).w;
+			const sint32 width = get_image_size(image).w;
+			return width > 0 ? width : 24;
 		}
 	}
 	return 0;
@@ -103,14 +115,16 @@ static sint32 get_icon_height(const tooltip_line_t &line)
 {
 	if(line.custom_icon != IMG_EMPTY)
 	{
-		return get_image_size(line.custom_icon).h;
+		const sint32 height = get_image_size(line.custom_icon).h;
+		return height > 0 ? height : env_t::iconsize.h;
 	}
 	if(line.symbol != TOOLTIP_SYMBOL_NONE)
 	{
 		const image_id image = get_symbol_image(line.symbol);
 		if(image != IMG_EMPTY)
 		{
-			return get_image_size(image).h;
+			const sint32 height = get_image_size(image).h;
+			return height > 0 ? height : 24;
 		}
 	}
 	return 0;
@@ -285,30 +299,36 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 
 	const sint32 max_width = get_max_width();
 
-	sint32 icon_column = 0;
+	// The title line may carry a toolbar icon much larger than the per-line
+	// symbols. Give it its own text offset so it does not push every other line
+	// to the right.
+	sint32 symbol_column = 0;
 	for(const tooltip_line_t &line : lines)
 	{
-		const sint32 icon_width = get_icon_width(line);
-		if(icon_width > 0)
+		if(line.custom_icon == IMG_EMPTY)
 		{
-			icon_column = max(icon_column, icon_width + TOOLTIP_ICON_GAP);
+			const sint32 icon_width = get_icon_width(line);
+			if(icon_width > 0)
+			{
+				symbol_column = max(symbol_column, icon_width + TOOLTIP_ICON_GAP);
+			}
 		}
 	}
 
-	const sint32 text_max_width = max(40, max_width - 2 * TOOLTIP_PADDING - icon_column);
-
-	sint32 text_width = 0;
+	sint32 content_width = 0;
 	sint32 height = 2 * TOOLTIP_PADDING;
 	for(const tooltip_line_t &line : lines)
 	{
+		const sint32 text_offset = line.custom_icon != IMG_EMPTY ? get_icon_width(line) + TOOLTIP_ICON_GAP : symbol_column;
+		const sint32 text_max_width = max(40, max_width - 2 * TOOLTIP_PADDING - text_offset);
 		const sint32 raw_width = display_calc_proportional_string_len_width(line.text.get_str(), line.text.len());
-		text_width = max(text_width, min(raw_width, text_max_width));
+		content_width = max(content_width, text_offset + min(raw_width, text_max_width));
 		const sint32 wrapped = count_wrapped_lines(line.text.get_str(), text_max_width);
 		const sint32 line_height = max(LINESPACE, get_icon_height(line));
 		height += max(1, wrapped) * line_height + TOOLTIP_LINE_GAP;
 	}
 
-	sint32 width = 2 * TOOLTIP_PADDING + icon_column + text_width;
+	sint32 width = 2 * TOOLTIP_PADDING + content_width;
 	width = max(width, 2 * TOOLTIP_PADDING + 40);
 	width = min(width, max_width);
 	height = max(height, 2 * TOOLTIP_PADDING + LINESPACE);
@@ -403,17 +423,20 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 	}
 
 	sint32 line_y = pos.y + TOOLTIP_PADDING;
-	const sint32 text_x = pos.x + TOOLTIP_PADDING + icon_column;
 
 	for(const tooltip_line_t &line : lines)
 	{
 		const image_id image = get_line_image(line);
 		const scr_size icon_size = get_image_size(image);
-		const sint32 line_height = max(LINESPACE, icon_size.h);
+		const sint32 icon_height = get_icon_height(line);
+		const sint32 line_height = max(LINESPACE, icon_height);
+		const sint32 text_offset = line.custom_icon != IMG_EMPTY ? get_icon_width(line) + TOOLTIP_ICON_GAP : symbol_column;
+		const sint32 text_max_width = max(40, max_width - 2 * TOOLTIP_PADDING - text_offset);
+		const sint32 text_x = pos.x + TOOLTIP_PADDING + text_offset;
 
 		if(image != IMG_EMPTY)
 		{
-			display_color_img(image, pos.x + TOOLTIP_PADDING, line_y + (line_height - icon_size.h) / 2, 0, false, dirty);
+			draw_image_at(image, pos.x + TOOLTIP_PADDING, line_y + (line_height - icon_size.h) / 2, dirty);
 		}
 
 		const uint32 wrapped = draw_wrapped_text(text_x, line_y + (line_height - LINESPACE) / 2, line.text.get_str(), text_max_width, text_color, dirty);
