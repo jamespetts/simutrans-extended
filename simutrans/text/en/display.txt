@@ -63,7 +63,7 @@ Click on the square buttons to select options (the button is indented when the o
 - <em>Traffic density:</em> sets volume of private car traffic displayed in the main game window in <a href="citywindow.txt">urban areas</a>. Note that this setting only alters the number of cars actually visible in the main game window: it does not alter the number of <a href="privatecar.txt">private car</a> trips generated, nor the level of congestion in urban areas, or any other aspect of the simulation itself. 
 </p>
 <p>
-- <em>Convoy tool tips:</em> customises the amount of information displayed about convoys in the main game window.
+- <em>Consist tooltips:</em> customises the amount of information displayed about consists in the main game window.
 </p>
 <p>
 <em>Tip</em>: More options and default values for when Simutrans starts can be changed in the simuconf.tab file, located in /simutrans/config/.
@@ -103,7 +103,7 @@ This section gives information on the status and settings of the pathfinding sys
 <em>Use performance counter:</em> indicates whether the performance counter is used, which is only customisable in simuconf.tab. This is an advanced system setting.
 </p>
 <p>
-<em>Rebuild connexions:</em> (centralised path searching only) the number of lines or convoys without lines that can be processed per step in the currently active phase.
+<em>Rebuild connexions:</em> (centralised path searching only) the number of lines or consists without lines that can be processed per step in the currently active phase.
 </p>
 <p>
 <em>Find eligible halts:</em> (centralised path searching only) the number of stops that can be processed per step in the currently active phase.

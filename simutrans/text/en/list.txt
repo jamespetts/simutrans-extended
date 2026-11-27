@@ -6,7 +6,7 @@
 <strong>Lists</strong> has options to open controls for information about the current status of the game (and also a control to adjust relative income recieved from the transport of different <a href="goods_filter.txt">goods, passengers and mail</a>).
 </p>
 <p>
-Information is available in lists about: <a href="station.txt">stops</a>; <a href="convoiinfo.txt">convoys</a>; <a href="citywindow.txt">urban areas</a>; incomes received from different <a href="goods_filter.txt">goods</a>, passengers and mail; <a href="industry_info.txt">industries</a>; tourist attractions; and <a href="labellist_filter.txt">markers</a>.
+Information is available in lists about: <a href="station.txt">stops</a>; <a href="convoiinfo.txt">consists</a>; <a href="citywindow.txt">urban areas</a>; incomes received from different <a href="goods_filter.txt">goods</a>, passengers and mail; <a href="industry_info.txt">industries</a>; tourist attractions; and <a href="labellist_filter.txt">markers</a>.
 </p>
 <p>
 Click on list-icon at top of the main game window to open <strong>Lists</strong>.<br>

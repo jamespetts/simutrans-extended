@@ -54,8 +54,8 @@ Almost everything in the main game window will give more information when clicke
 - <em>Max. weight</em>: the heaviest vehicle (including load, if any) that may travel on the way;<br>
 - <em>Has a sign or signal</em> if there is a road sign or railway signal on the particular tile;<br>
 - <em>Electrified</em>/<em>Not electrified</em> indicates whether the way is electrified;<br>
-- <em>Convoys passing in the last month</em> indicates the number of <a href="convoiinfo.txt">convoys</a> that have used the way in the most recent month;<br>
-- <em>Reserved by</em> indicates that a convoy (named) has reserved the current block section. This applies to rail type ways only; and<br>
+- <em>Consists passing in the last month</em> indicates the number of <a href="convoiinfo.txt">consists</a> that have used the way in the most recent month;<br>
+- <em>Reserved by</em> indicates that a consist (named) has reserved the current block section. This applies to rail type ways only; and<br>
 In the case of tram tracks constructed on a road, the information is shown twice, first for the road and then for the tram track.
 </p>
 <p>

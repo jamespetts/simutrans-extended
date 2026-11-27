@@ -12,7 +12,7 @@ The order applies from this stop onward, until another schedule entry changes th
 The window opens from the <a href="schedule.txt">Schedule</a> window when a stop is selected and <strong>Modify consist at this stop</strong> is pressed. The button is available for stop entries in both <a href="linemanagement.txt">line</a> and consist schedules.
 </p>
 <p>
-An order set on a line's schedule is used by every consist on that line. An order set on an individual consist's schedule is used only by that consist. Editing an individual consist's schedule also removes it from its line; see <a href="convoiinfo.txt">Convoy Information</a>.
+An order set on a line's schedule is used by every consist on that line. An order set on an individual consist's schedule is used only by that consist. Editing an individual consist's schedule also removes it from its line; see <a href="convoiinfo.txt">Consist Information</a>.
 </p>
 
 <p><strong>The order list</strong></p>
@@ -37,7 +37,7 @@ An order with no slots is discarded when you close the window. A couple or divid
 
 <p><strong>Adding a vehicle from the Vehicle picker</strong></p>
 <p>
-The <strong>Vehicle picker</strong> tab lists vehicle types that are in your own consists, plus vehicle types in consists of companies that grant your company access and to which your company grants access in return. Only vehicles of the same transport type as the schedule are listed.
+The <strong>Vehicle picker</strong> tab lists vehicle types that are in your own consists, plus vehicle types in consists belonging to companies that grant your company access and to which your company grants access in return. Only vehicles of the same transport type as the schedule are listed.
 </p>
 <p>
 <strong>Insert here</strong> creates a new slot at the selected position; <strong>Insert here (alternative)</strong> adds another alternative to an existing slot. The number box sets the position. Selecting a vehicle type in the list and pressing <strong>Add vehicle</strong> adds it to the order.

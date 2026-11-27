@@ -24,7 +24,7 @@ If the <em>factory details</em> checkbox is checked, hovering the mouse cursor o
 On the map (when not using certain legend options): <a href="citywindow.txt">urban areas</a>, attractions and tunnels, appear light grey; rivers and canals appear blue; bridges appear off-white, roads appear dark grey; railways, and tramways appear dark red; monorail tracks appear orange; narrow gauge and maglev railways appear black; runways and taxiways appear dark yellow; <a href="station.txt">stops</a> appear light red; and vehicles appear light yellow.
 </p>
 <p>
-Check the <em>show schedules</em> checkbox to enable a graphical display of a convoy or line's schedule on the map when a schedule is being edited: a light turquoise thin line will link all the points in the currently selected schedule by a straight line.
+Check the <em>show schedules</em> checkbox to enable a graphical display of a consist or line's schedule on the map when a schedule is being edited: a light turquoise thin line will link all the points in the currently selected schedule by a straight line.
 </p>
 <p>
 Check the <em>isometric view</em> checkbox to show the map in the same isometric orientation as the main game window.
@@ -64,7 +64,7 @@ Click <em>show legend</em> to see additional options about what is displayed on 
 <em>Depots:</em> highlights each <a href="depot.txt">depot</a>. Colours indicate the transport type of each depot: shipyards are shown as red; road depots as yellow; railway depots as orange; aircraft hangars as dark orange; narrow gauge railway and magnetic levitation depots as dark blue; and monorail depots as dark red;
 </p>
 <p>
-<em>Convoys:</em> highlights player convoys (assemblages of vehicles) in yellow on the map - these are shown moving;
+<em>Consists:</em> highlights player consists (assemblages of vehicles) in yellow on the map - these are shown moving;
 </p>
 <p>
 <em>Stop status:</em> shows colours to indicate the status of stops in the game, status being how well that the stops are coping with their current traffic level. The colours used here are the same as in the <a href="haltlist.txt">stop list</a>, <a href="station.txt">stop information</a> and <a href="linemanagement.txt">line ,anagement</a> windows, and is the same colour displayed in the colour bar above the name of a stop in the main game window);

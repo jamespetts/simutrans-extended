@@ -22,7 +22,7 @@ Click on a button to select/deselect criteria for filter (button is indented whe
 </p>
 <p><em>Special filter:</em><br>
 - <em>Over capacity</em> allows stops to be filtered by which ones have insufficient capacity to meet demand. This filter can be useful for finding problems in your network.<br>
-- <em>no connection</em> allows stops to be filtered by which ones have no lines or convoys serving them. This filter is useful for finding redundant stops.
+- <em>no connection</em> allows stops to be filtered by which ones have no lines or consists serving them. This filter is useful for finding redundant stops.
 </p>
 <p>
 <em>Goods needed:</em> allows stops to be filtered by the type of items that there is a demand to be transported <em>to</em> those stops. Individual options include:<br>

@@ -53,7 +53,7 @@ Graphic Icons are also used in station list and line management windows:<br>
 <em>Storage capacity:</em> the amount of each item (goods, passengers and mail) tthat the stop can accommodate.
 </p>
 <p>
-<em>Stop picture</em>: is a mini-view of the stop and any visible convoys in the area.<br>
+<em>Stop picture</em>: is a mini-view of the stop and any visible consists in the area.<br>
 Click on the picture to centre the main game window on the stop.
 </p>
 <p>
@@ -90,7 +90,7 @@ Colours of lines on graph correspond to colours of graph-Option buttons:<br>
 - <em>Waiting:</em> indicates the amount of goods and number of passengers at the stop waiting for transport.<br>
 - <em>Arrived:</em> indicates the amount of goods and number of passengers dropped off at the stop by player's transport, either as their final destination, or as an interchange.<br>
 - <em>Departed:</em> indicates the amount of goods and  number of passengers boarding transport at the stop.<br>
-- <em>Convoys:</em> indicates the number of convoys servicing the stop<br>
+- <em>Consists:</em> indicates the number of consists servicing the stop<br>
 </p>
 <p>
 <em>Details:</em> option button opens <a href="station_details.txt">Stop Details</a> that provides further information about the stop.

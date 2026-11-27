@@ -44,7 +44,7 @@ Lines are listed in alphabetical order, with capital letters before lower case l
 Under the <strong>Vehicles</strong> tab are the <a href="loose_vehicles.txt">loose vehicles</a> stored at this stop for <a href="consist_recombination.txt">consist recombination</a>. The tab shows each vehicle's owner, whether it is waiting loaded or empty, and the line or consist that is allowed to collect it. Your own vehicles can be selected here to change the collecting line or consist.
 </p>
 <p>
-<em>Direct routes from here:</em>lists the names of stops that can be reached directly (i.e., without changing/transshipping) by lines and convoys serving this stop. This is lised by the type of items (goods, mail and passnegers) that can be transported from here.<br>
+<em>Direct routes from here:</em>lists the names of stops that can be reached directly (i.e., without changing/transshipping) by lines and consists serving this stop. This is lised by the type of items (goods, mail and passnegers) that can be transported from here.<br>
 Stops are listed are listed in alphabetical order, with capital letters before lower case letters. Click on the small <em>arrow</em> next to the line to go to that stop in the main window.
 </p>
 <p>

@@ -29,8 +29,8 @@ Values (click on name-button to view details on the graph), include:
 - <em>Proceeds</em> - total revenue from the transport of passengers, goods, mail and from <a href="special.txt">electricity transmission</a>.
 </p>
 <p>
-- <em>Operation Costs</em> - total cost incurred by all <a href="convoiinfo.txt">convoys</a> when in transit.<br>
-<em>Tip</em>: The operation cost per kilometre for vehicles can be seen in a <a href="depot.txt">depot</a> and from the convoy information window.
+- <em>Operation Costs</em> - total cost incurred by all <a href="convoiinfo.txt">consists</a> when in transit.<br>
+<em>Tip</em>: The operation cost per kilometre for vehicles can be seen in a <a href="depot.txt">depot</a> and from the consist information window.
 </p>
 <p>
 - <em>Maintenance</em> - total cost incurred maintaining the transportation network.<br>
@@ -62,7 +62,7 @@ Values (click on name-button to view details on the graph), include:
 </p>
 <p>
 - <em>Assets</em> - the value of all company vehicles at the end of the last calendar month.<br>
-<em>Tip</em>: each month, the value of operational vehicles depreciate slightly. The current sale value for vehicles can be seen in the <a href="convoidetail.txt">Convoy Details</a> window, or when the vehicle is in a depot.
+<em>Tip</em>: each month, the value of operational vehicles depreciate slightly. The current sale value for vehicles can be seen in the <a href="convoidetail.txt">Consist Details</a> window, or when the vehicle is in a depot.
 </p>
 <p>
 - <em>Net Wealth</em> - is the account balance plus assets.

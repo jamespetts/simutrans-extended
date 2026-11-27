@@ -320,7 +320,7 @@ max_alternative_destinations_per_job_millionths = 5000
 min_alternative_destinations_per_visitor_demand_millionths = 750
 min_alternative_destinations_per_job_millionths = 2500
 
-# Passengers who can afford to travel in higher class accommodation on a convoy that also has
+# Passengers who can afford to travel in higher class accommodation on a consist that also has
 # lower class accommodation will only spend the extra money if they consider the additional
 # comfort worthwhile. Each passenger's preference for this is randomised on creation. The
 # minimum is the same as the maximum comfortable journey time (i.e., at this minimum level,
@@ -578,7 +578,7 @@ show_month = 8
 # Show the name of depot above own depots
 #show_depot_names = 0
 
-# show a tooltip on convois at several conditions
+# show a tooltip on consists at several conditions
 # 0 no messages
 # 1 (default) only no_route and stuck
 # loading and waiting at signals too
@@ -605,7 +605,7 @@ compass_map_position = 13
 # (1=on, 0=off)
 #pedestrian_info = 0
 
-# If a convoi which you are following enters a tunnel, what to do
+# If a consist which you are following enters a tunnel, what to do
 # 0=do not change view, 1=switch to underground mode and back, 2=switch to sliced underground mode
 #follow_convoi_underground = 2
 
@@ -682,7 +682,7 @@ default_citycar_life = 36
 # (1=on, 0=off)
 townhall_info = 1
 
-# do not show the button to add an inverted schedule for rail based convois
+# do not show the button to add an inverted schedule for rail based consists
 # (1=hide, 0=show anyway)
 hide_rail_return_ticket = 1
 
@@ -758,9 +758,9 @@ show_future_vehicle_information = 1
 # the loss is given in 1/1000th, i.e 300 mean the value will be 70%
 used_vehicle_reduction = 0
 
-# if a convoi runs on a way that belongs to another player, toll may
+# if a consist runs on a way that belongs to another player, toll may
 # be charged. The number given is the percentage of the running cost
-# of the convoi or the way cost (include electrification if needed).
+# of the consist or the way cost (include electrification if needed).
 # (default 0)
 toll_runningcost_percentage = 0
 toll_waycost_percentage = 0
@@ -1111,7 +1111,7 @@ simplified_maintenance = 0
 # same consist that have covered at least this percentage of their own overhaul
 # interval are overhauled in the same visit. This avoids repeated depot visits
 # to overhaul one vehicle at a time. The value can be set per line; this is the
-# default for new lines and for lineless convoys. 0 disables grouping.
+# default for new lines and for lineless consists. 0 disables grouping.
 # Default: 90
 overhaul_grouping_percentage = 90
 

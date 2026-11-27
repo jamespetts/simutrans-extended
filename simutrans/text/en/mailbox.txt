@@ -30,7 +30,7 @@ The rows give options as to the type of messages are displayed. From top to bott
 <em>City News:</em> indicates when an <a href="citywindow.txt">urban area</a> builds a larger town hall (commensurate with population growth). 
 </p>
 <p>
-<em>No Route:</em> indicates when one of your convoys can not find a route to the next destination in its <a href="schedule.txt">schedule</a>.
+<em>No Route:</em> indicates when one of your consists can not find a route to the next destination in its <a href="schedule.txt">schedule</a>.
 </p>
 <p>
 <em>New Industries:</em> indicates when new <a href="industryinfo.txt">industry</a> chains are built. New industries appear consequent on the growth of towns and cities.

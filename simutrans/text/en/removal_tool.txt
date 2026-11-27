@@ -19,7 +19,7 @@ The cost of destroying <a href="inspection_tool.txt">city buildings</a> is shown
 <p>
 Order items are removed from a single ?game-square: pedestrian or private citycar, signals, stop or station-platform, electrification of way, bridge or tunnel, way (track first if on roadway).
 </p>
-<em>Tip:</em> To remove a player vehicle, sell vehicle from <a href="convoidetail.txt">Convoy Details</a>.<br>
+<em>Tip:</em> To remove a player vehicle, sell vehicle from <a href="convoidetail.txt">Consist Details</a>.<br>
 To remove Industry, Attractions and Town Hall switch to public service player first. <it>Please Note:</it> Use of <strong>Removal Tool</strong> on a  Town Hall removes all city buildings from urban area.<br>
 Use <a href="keys.txt">[Ctrl]</a> to use tool on upper level.<br>
 To the destroy/remove tool another players items select to play as other <a href="players.txt">player</a> first.<br>

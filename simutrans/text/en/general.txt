@@ -90,8 +90,8 @@ Game Options</a><br>
 <br>
 - <a href="station.txt">Stop Information</a><br>
 - - <a href="station_details.txt">Stop Details</a><br>
-- <a href="convoiinfo.txt">Convoy/Vehicle Information</a><br>
-- - <a href="convoidetail.txt">Convoy/Vehicle Details</a><br>
+- <a href="convoiinfo.txt">Consist/Vehicle Information</a><br>
+- - <a href="convoidetail.txt">Consist/Vehicle Details</a><br>
 - <a href="citywindow.txt">City ?Information</a><br>
 - <a href="industry_info.txt">Industry Information</a>
 </p>

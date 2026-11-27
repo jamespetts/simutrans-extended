@@ -57,7 +57,7 @@ Details listed for each item include:
 </p>
 <p>
 <em>Category</em> is the category to which each item belongs. With the exception of the <strong>special freight</strong> category, all types of items can be transported in any vehicle designed for any other type of item of that same category: for example, in most paksets, both coal and iron ore can be transported in the same types of vehicles, as both types of item belong to the "bulk" category.<br>
-<em>Tip:</em> The <a href="depot.txt">capacity</a> of vehicles shows the category that a vehicle can transport. Each vehicle can only transport items of one category, and cannot transport multiple types of items of the same category at one time. However, convoys can contain vehicles of different categories and carrying different types at the same time.
+<em>Tip:</em> The <a href="depot.txt">capacity</a> of vehicles shows the category that a vehicle can transport. Each vehicle can only transport items of one category, and cannot transport multiple types of items of the same category at one time. However, consists can contain vehicles of different categories and carrying different types at the same time.
 </p>
 <p>
 <em>Weight</em> is the weight of each item in kilogrammes. This weight is multiplied by the number of items carried on a vehicle and added to the vehicle's total weight, which can reduce the speed at which it travels or accelerates, as well as whether it can pass over a given bridge.<br>
