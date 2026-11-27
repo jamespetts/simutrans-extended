@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: none
+verified: ex-15 @ 4ea2c77073
 ---
 # Depot consist formation: persistence, network and performance
 
@@ -20,7 +20,7 @@ The intended saved fields are:
 | `vehicle_t` | `depot_job_state` | `uint8` | 0 | None, waiting, in progress, complete. Saved in the same block. |
 | `vehicle_t` | `depot_queue_index` | `uint32` | 0 | Position in the depot queue, used to rebuild the queue after a load. |
 | `vehicle_t` | `depot_job_duration` | `sint64` | 0 | Length of the maintenance or overhaul job in ticks. |
-| `depot_t` | `next_maintenance_queue_index` | `uint32` | 0 | Next queue index to allocate. Saved in `depot_t::rdwr()`. |
+| `depot_t` | `next_maintenance_queue_index` | `uint32` | 0 | Next queue index to allocate. Saved in `depot_t::rdwr_maintenance_queue()` with the queue, so every depot load path reads it. |
 | `simline_t` | `target_convoy_count` | `uint16` | 0 | 0 means no target. Saved in `simline_t::rdwr()`. |
 | `simline_t` | `fleet_policy` | `uint8` | 0 | Off or automatic. Saved in `simline_t::rdwr()`. |
 | `simline_t` | `fleet_target_min`, `fleet_target_max` | `uint16` each | 1, 0 | Bounds for the automatic policy; 0 as the upper bound means no upper bound. |
@@ -30,6 +30,15 @@ The intended saved fields are:
 | `simline_t` | `LINE_GOODS_CAPACITY` | new `financial_history` entry | 0 | Freight capacity distance, added to the `MAX_LINE_COST` array. Older saves load zero; the goods load factor is zero until a month of data exists. The passenger denominator remains `LINE_CAPACITY`, which is booked only for passenger vehicles. |
 | `convoi_t` | `replacement_awaiting_formation` | `bool` | false | True after `replace_now()` has bought or sold stock but before the one-shot order departs. Saved in `convoi_t::rdwr()`. |
 | `convoi_t` | `withdrawal_pending` | `bool` | false | True while a Withdrawal is in progress. A Withdrawal uses the existing maintenance-type `convoi_t::go_to_depot()` call, so no separate depot coordinate is stored. |
+
+Depots have two savegame load paths. A depot other than a railway depot is constructed with its
+concrete depot class constructor (for example `new monoraildepot_t(file)`), which calls
+`depot_t::rdwr()`. A railway depot (`obj_t::bahndepot`) is loaded by the special case in
+`objlist_t::laden()` in `dataobj/objlist.cc`, which constructs a `gebaeude_t` and then reads the
+vehicles and the maintenance queue through `bahndepot_t::rdwr_vehicles()` and
+`depot_t::rdwr_maintenance_queue()`. `depot_t::rdwr_maintenance_queue()` serialises
+`under_maintenance` and `next_maintenance_queue_index`, so both paths read the complete depot state
+[CODE]. A new depot field belongs in a method that both paths call.
 
 The replacement order itself is derived from `replace_data_t`, which is already saved. The
 recommendation is to keep `replace_data_t` until the assembled Consist departs and add the
@@ -46,22 +55,27 @@ per-Convoy flag must be cleared on departure, sale or destruction, and the share
 decremented exactly once. A Convoy that is destroyed while the flag is set must release its
 reference like any other replacement Convoy.
 
-The new fields require the next `EX_SAVE_MINOR` revision. `simversion.h` and the revision array in
-`gui/settings_stats.cc` must be updated together [CODE]; see
-[savegame versioning](../../savegame-versioning.md). No `NETWORK_VERSION` change is proposed: the
-depot order travels in the existing schedule string, the line target and policy travel in tool
-commands, and the Withdrawal is a simulation event. The user approved the save revision bump on
-2026-11-25 [RECOLLECTION:2026-11-25 user statement]; the precise field list remains subject to the
-implementation review. This is a change-restricted area under AGENTS.md rule 5.
+All saved fields in the table except `replacement_awaiting_formation` are implemented under
+`EX_SAVE_MINOR` 24; `replacement_awaiting_formation` remains planned. `simversion.h` and the revision
+array in `gui/settings_stats.cc` are updated together [CODE]; see
+[savegame versioning](../../savegame-versioning.md). The depot order travels in the existing
+schedule string, the line target and policy travel in tool commands, and the Withdrawal is a
+simulation event, so `NETWORK_VERSION` is unchanged. Save and network serialisation changes are
+restricted by AGENTS.md rule 5.
 
 Load validation must cover:
 
 - a vehicle with a pending job outside `depot_t::vehicles` (clear or repair);
 - a vehicle in `depot_t::vehicles` with a release time in the past (available);
 - a Convoy with `replacement_awaiting_formation` but no `replace_data_t` (clear the flag);
-- a Held Convoy loaded as an `INITIAL`, line-bound Convoy. `karte_t::load()` calls
-  `depot_t::convoi_arrived(cnv, false)` for it; that call must append it to the depot list without
-  re-running Decomposition;
+- a Held Convoy loaded as an `INITIAL`, line-bound Convoy. While loading,
+  `karte_t::rdwr_gamestate()` calls `depot_t::convoi_arrived(cnv, 0, true)` for it. A true
+  `loading` argument makes the call append the Convoy to the depot list and suppress Decomposition
+  and the post-arrival `simline_t::dispatch_held_convoy()` call, which runs when a Convoy arrives at
+  a depot during play. `karte_t::load()` loads Convoys before `player_t::rdwr()` loads the lines
+  owned by the players, so the `simline_t` object named by the Convoy's line handle does not exist
+  yet. `convoi_t::finish_rd()` revalidates the handle and registers the Convoy on the line after the
+  lines have loaded [CODE];
 - a line target above the number of Convoys the line can physically support (allowed; the line
   stays below target).
 
@@ -71,6 +85,10 @@ Load validation must cover:
   `TOOL_CHANGE_CONVOI 'g'` or `TOOL_CHANGE_LINE 'g'` [CODE `simtool.cc`]. The line target needs a
   new `TOOL_CHANGE_LINE` case and the same commit path. No UI may mutate live state directly
   [CODE]; see [sync and determinism](../../sync-and-determinism.md).
+- Load order: `karte_t::rdwr_gamestate()` loads Convoys before `player_t::rdwr()` loads the lines
+  owned by the players. Code that runs while a Convoy is restored, such as
+  `depot_t::convoi_arrived()`, reads only the Convoy's own saved state; line handles and line state
+  become usable in `convoi_t::finish_rd()` [CODE].
 - Depot Assembly is a simulation event. Every peer must compute it identically at the same sync
   step. The assembly runs in the single-threaded depot step.
 - Do not decide from `depot_t::convois` or `simline_t::line_managed_convoys` order. The first is
