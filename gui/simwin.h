@@ -29,6 +29,7 @@ class scr_coord;
 class loadsave_t;
 class gui_frame_t;
 class gui_component_t;
+class tooltip_t;
 struct event_t;
 
 /* Types for the window */
@@ -236,10 +237,26 @@ void win_load_font(const char *fname, uint8 fontsize);
 void win_set_tooltip(scr_coord pos, const char *text, const void *const owner = NULL, const void *const group = NULL);
 
 /**
+ * Sets a structured tooltip to display.
+ * @param pos placement origin of the bubble
+ * @param tip lines to display
+ * @param owner owner==NULL disables timing (initial delay and visible duration)
+ * @param group group used to reduce the delay when moving within one control group
+ * @param anchor position at which the bubble tail points; scr_coord::invalid uses pos
+ */
+void win_set_tooltip(scr_coord pos, const tooltip_t &tip, const void *const owner = NULL, const void *const group = NULL, scr_coord anchor = scr_coord::invalid);
+
+/**
  * Sets a static tooltip that follows the mouse
  * *MUST* be explicitly unset!
  */
 void win_set_static_tooltip(const char *text);
+
+/**
+ * Sets a structured static tooltip that follows the mouse.
+ * *MUST* be explicitly unset!
+ */
+void win_set_static_tooltip(const tooltip_t &tip);
 
 // shows a modal dialoge (blocks other interaction)
 void modal_dialogue(gui_frame_t* gui, ptrdiff_t magic, karte_t* welt, bool (*quit)(), bool dismissible = false);

@@ -165,6 +165,21 @@ public:
 	static const skin_desc_t *open_window;
 	static const skin_desc_t *search;
 
+	/// @name symbols used at the start of tooltip lines
+	/// @{
+	static const skin_desc_t *tooltip_cost;
+	static const skin_desc_t *tooltip_forge;
+	static const skin_desc_t *tooltip_maintenance;
+	static const skin_desc_t *tooltip_speed;
+	static const skin_desc_t *tooltip_weight;
+	static const skin_desc_t *tooltip_durability;
+	static const skin_desc_t *tooltip_land;
+	static const skin_desc_t *tooltip_trees;
+	static const skin_desc_t *tooltip_structures;
+	static const skin_desc_t *tooltip_distance;
+	static const skin_desc_t *tooltip_total;
+	/// @}
+
 
 	/// @name cursors
 	/// @{

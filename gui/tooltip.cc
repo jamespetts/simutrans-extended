@@ -1,0 +1,392 @@
+/*
+ * This file is part of the Simutrans-Extended project under the Artistic License.
+ * (see LICENSE.txt)
+ */
+
+#include "tooltip.h"
+
+#include "simwin.h"
+#include "gui_theme.h"
+
+#include "../simskin.h"
+#include "../descriptor/skin_desc.h"
+#include "../simcolor.h"
+#include "../dataobj/environment.h"
+#include "../display/simgraph.h"
+#include "../utils/simstring.h"
+#include "../macros.h"
+
+#include <stdio.h>
+
+
+#define TOOLTIP_PADDING 4
+#define TOOLTIP_LINE_GAP 1
+#define TOOLTIP_ICON_GAP 4
+#define TOOLTIP_TAIL_WIDTH 12
+#define TOOLTIP_TAIL_HEIGHT 8
+#define TOOLTIP_MAX_WIDTH 380
+
+
+static image_id get_symbol_image(tooltip_symbol_t symbol)
+{
+	const skin_desc_t *desc = NULL;
+	switch(symbol)
+	{
+		case TOOLTIP_SYMBOL_COST:         desc = skinverwaltung_t::tooltip_cost; break;
+		case TOOLTIP_SYMBOL_FORGE:        desc = skinverwaltung_t::tooltip_forge; break;
+		case TOOLTIP_SYMBOL_MAINTENANCE:  desc = skinverwaltung_t::tooltip_maintenance; break;
+		case TOOLTIP_SYMBOL_SPEED:        desc = skinverwaltung_t::tooltip_speed; break;
+		case TOOLTIP_SYMBOL_WEIGHT:       desc = skinverwaltung_t::tooltip_weight; break;
+		case TOOLTIP_SYMBOL_DURABILITY:   desc = skinverwaltung_t::tooltip_durability; break;
+		case TOOLTIP_SYMBOL_LAND:         desc = skinverwaltung_t::tooltip_land; break;
+		case TOOLTIP_SYMBOL_TREES:        desc = skinverwaltung_t::tooltip_trees; break;
+		case TOOLTIP_SYMBOL_STRUCTURES:   desc = skinverwaltung_t::tooltip_structures; break;
+		case TOOLTIP_SYMBOL_DISTANCE:     desc = skinverwaltung_t::tooltip_distance != NULL ? skinverwaltung_t::tooltip_distance : skinverwaltung_t::travel_time; break;
+		case TOOLTIP_SYMBOL_TIME:         desc = skinverwaltung_t::service_frequency; break;
+		case TOOLTIP_SYMBOL_PASSENGERS:   desc = skinverwaltung_t::passengers; break;
+		case TOOLTIP_SYMBOL_MAIL:         desc = skinverwaltung_t::mail; break;
+		case TOOLTIP_SYMBOL_GOODS:        desc = skinverwaltung_t::goods; break;
+		case TOOLTIP_SYMBOL_POWER:        desc = skinverwaltung_t::electricity; break;
+		case TOOLTIP_SYMBOL_RESTRICTION:  desc = NULL; break;
+		case TOOLTIP_SYMBOL_TOTAL:        desc = skinverwaltung_t::tooltip_total != NULL ? skinverwaltung_t::tooltip_total : skinverwaltung_t::tooltip_cost; break;
+		default: break;
+	}
+	return desc != NULL ? desc->get_image_id(0) : IMG_EMPTY;
+}
+
+
+static const char *get_symbol_glyph(tooltip_symbol_t symbol)
+{
+	switch(symbol)
+	{
+		case TOOLTIP_SYMBOL_COST:         return MONEY_SYMBOL;
+		case TOOLTIP_SYMBOL_FORGE:        return "F";
+		case TOOLTIP_SYMBOL_MAINTENANCE:  return "M";
+		case TOOLTIP_SYMBOL_SPEED:        return "V";
+		case TOOLTIP_SYMBOL_WEIGHT:       return "t";
+		case TOOLTIP_SYMBOL_DURABILITY:   return "D";
+		case TOOLTIP_SYMBOL_LAND:         return "#";
+		case TOOLTIP_SYMBOL_TREES:        return "T";
+		case TOOLTIP_SYMBOL_STRUCTURES:   return "S";
+		case TOOLTIP_SYMBOL_DISTANCE:     return "km";
+		case TOOLTIP_SYMBOL_TIME:         return "h";
+		case TOOLTIP_SYMBOL_PASSENGERS:   return "P";
+		case TOOLTIP_SYMBOL_MAIL:         return "M";
+		case TOOLTIP_SYMBOL_GOODS:        return "G";
+		case TOOLTIP_SYMBOL_POWER:        return "E";
+		case TOOLTIP_SYMBOL_RESTRICTION:  return "!";
+		case TOOLTIP_SYMBOL_TOTAL:        return "=";
+		default: return "";
+	}
+}
+
+
+static image_id get_line_image(const tooltip_line_t &line)
+{
+	return line.custom_icon != IMG_EMPTY ? line.custom_icon : get_symbol_image(line.symbol);
+}
+
+
+static scr_size get_image_size(image_id image)
+{
+	if(image == IMG_EMPTY)
+	{
+		return scr_size(0, 0);
+	}
+	scr_coord_val xoff, yoff, w, h;
+	display_get_image_offset(image, &xoff, &yoff, &w, &h);
+	return scr_size(w, h);
+}
+
+
+sint32 tooltip_t::get_max_width()
+{
+	const sint32 screen_width = display_get_width() - 2 * D_MARGIN_LEFT;
+	return max(160, min(screen_width, TOOLTIP_MAX_WIDTH));
+}
+
+
+sint32 tooltip_t::get_icon_width(const tooltip_line_t &line)
+{
+	if(line.custom_icon != IMG_EMPTY)
+	{
+		return get_image_size(line.custom_icon).w;
+	}
+	if(line.symbol != TOOLTIP_SYMBOL_NONE)
+	{
+		const image_id image = get_symbol_image(line.symbol);
+		if(image != IMG_EMPTY)
+		{
+			return get_image_size(image).w;
+		}
+		return 14;
+	}
+	return 0;
+}
+
+
+static sint32 get_icon_height(const tooltip_line_t &line)
+{
+	if(line.custom_icon != IMG_EMPTY)
+	{
+		return get_image_size(line.custom_icon).h;
+	}
+	if(line.symbol != TOOLTIP_SYMBOL_NONE)
+	{
+		const image_id image = get_symbol_image(line.symbol);
+		if(image != IMG_EMPTY)
+		{
+			return get_image_size(image).h;
+		}
+		return 14;
+	}
+	return 0;
+}
+
+
+sint32 tooltip_t::count_wrapped_lines(const char *text, sint32 max_width)
+{
+	if(text == NULL  ||  *text == 0  ||  max_width <= 0)
+	{
+		return 0;
+	}
+
+	sint32 line_count = 1;
+	sint32 line_width = 0;
+	const char *p = text;
+	const sint32 space_width = display_calc_proportional_string_len_width(" ", 1);
+
+	while(*p != 0)
+	{
+		while(*p == ' ')
+		{
+			p++;
+		}
+		const char *word_start = p;
+		while(*p != 0  &&  *p != ' ')
+		{
+			p++;
+		}
+		const size_t word_len = (size_t)(p - word_start);
+		if(word_len == 0)
+		{
+			break;
+		}
+		const sint32 word_width = display_calc_proportional_string_len_width(word_start, word_len);
+		if(line_width > 0  &&  line_width + space_width + word_width > max_width)
+		{
+			line_count++;
+			line_width = word_width;
+		}
+		else
+		{
+			line_width += (line_width > 0 ? space_width : 0) + word_width;
+		}
+	}
+	return line_count;
+}
+
+
+static uint32 draw_wrapped_text(scr_coord_val x, scr_coord_val y, const char *text, sint32 max_width, PIXVAL color, bool dirty)
+{
+	if(text == NULL  ||  *text == 0  ||  max_width <= 0)
+	{
+		return 0;
+	}
+
+	cbuffer_t line;
+	sint32 line_width = 0;
+	uint32 line_count = 1;
+	const char *p = text;
+	const sint32 space_width = display_calc_proportional_string_len_width(" ", 1);
+
+	while(*p != 0)
+	{
+		while(*p == ' ')
+		{
+			p++;
+		}
+		const char *word_start = p;
+		while(*p != 0  &&  *p != ' ')
+		{
+			p++;
+		}
+		const size_t word_len = (size_t)(p - word_start);
+		if(word_len == 0)
+		{
+			break;
+		}
+		const sint32 word_width = display_calc_proportional_string_len_width(word_start, word_len);
+		if(line_width > 0  &&  line_width + space_width + word_width > max_width)
+		{
+			display_text_proportional_len_clip_rgb(x, y, line.get_str(), ALIGN_LEFT | DT_CLIP, color, dirty, line.len());
+			line.clear();
+			line_width = 0;
+			line_count++;
+			y += LINESPACE;
+		}
+		if(line.len() > 0)
+		{
+			line.append(" ", 1);
+			line_width += space_width;
+		}
+		line.append(word_start, word_len);
+		line_width += word_width;
+	}
+
+	if(line.len() > 0)
+	{
+		display_text_proportional_len_clip_rgb(x, y, line.get_str(), ALIGN_LEFT | DT_CLIP, color, dirty, line.len());
+	}
+	return line_count;
+}
+
+
+void tooltip_t::add(tooltip_symbol_t symbol, const char *text)
+{
+	lines.append(tooltip_line_t(symbol, IMG_EMPTY, text));
+}
+
+
+void tooltip_t::add_icon(image_id icon, const char *text)
+{
+	lines.append(tooltip_line_t(TOOLTIP_SYMBOL_NONE, icon, text));
+}
+
+
+void tooltip_t::add_value(tooltip_symbol_t symbol, const char *label, sint64 value, const char *unit)
+{
+	char buf[256];
+	if(unit != NULL  &&  *unit != 0)
+	{
+		snprintf(buf, sizeof(buf), "%s: %lld %s", label, (long long)value, unit);
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "%s: %lld", label, (long long)value);
+	}
+	add(symbol, buf);
+}
+
+
+void tooltip_t::add_money(tooltip_symbol_t symbol, const char *label, sint64 simucents, const char *unit)
+{
+	char money[128];
+	money_to_string(money, (double)simucents / 100.0);
+
+	char buf[256];
+	if(unit != NULL  &&  *unit != 0)
+	{
+		snprintf(buf, sizeof(buf), "%s: %s %s", label, money, unit);
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "%s: %s", label, money);
+	}
+	add(symbol, buf);
+}
+
+
+void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
+{
+	if(lines.empty())
+	{
+		return;
+	}
+
+	const sint32 max_width = get_max_width();
+
+	sint32 icon_column = 0;
+	for(const tooltip_line_t &line : lines)
+	{
+		const sint32 icon_width = get_icon_width(line);
+		if(icon_width > 0)
+		{
+			icon_column = max(icon_column, icon_width + TOOLTIP_ICON_GAP);
+		}
+	}
+
+	const sint32 text_max_width = max(40, max_width - 2 * TOOLTIP_PADDING - icon_column);
+
+	sint32 text_width = 0;
+	sint32 height = 2 * TOOLTIP_PADDING;
+	for(const tooltip_line_t &line : lines)
+	{
+		const sint32 raw_width = display_calc_proportional_string_len_width(line.text.get_str(), line.text.len());
+		text_width = max(text_width, min(raw_width, text_max_width));
+		const sint32 wrapped = count_wrapped_lines(line.text.get_str(), text_max_width);
+		const sint32 line_height = max(LINESPACE, get_icon_height(line));
+		height += max(1, wrapped) * line_height + TOOLTIP_LINE_GAP;
+	}
+
+	sint32 width = 2 * TOOLTIP_PADDING + icon_column + text_width;
+	width = max(width, 2 * TOOLTIP_PADDING + 40);
+	width = min(width, max_width);
+	height = max(height, 2 * TOOLTIP_PADDING + LINESPACE);
+
+	scr_size size(width, height);
+	win_clamp_xywh_position(pos, size, true);
+
+	const PIXVAL body_color = env_t::tooltip_color;
+	const PIXVAL border_color = display_blend_colors(body_color, color_idx_to_rgb(COL_BLACK), 30);
+	const PIXVAL text_color = env_t::tooltip_textcolor;
+
+	const bool tail_on_top = anchor.y < pos.y;
+	const bool tail_on_bottom = anchor.y >= pos.y + height;
+
+	// body: fill the interior and draw the four border lines, leaving the
+	// corners open so the outline has a small chamfer.
+	display_fillbox_wh_clip_rgb(pos.x + 1, pos.y + 1, width - 2, height - 2, body_color, dirty);
+	display_fillbox_wh_clip_rgb(pos.x + 1, pos.y, width - 2, 1, border_color, dirty);
+	display_fillbox_wh_clip_rgb(pos.x + 1, pos.y + height - 1, width - 2, 1, border_color, dirty);
+	display_vline_wh_clip_rgb(pos.x, pos.y + 1, height - 2, border_color, dirty);
+	display_vline_wh_clip_rgb(pos.x + width - 1, pos.y + 1, height - 2, border_color, dirty);
+
+	if(tail_on_top  ||  tail_on_bottom)
+	{
+		const sint32 half_tail = TOOLTIP_TAIL_WIDTH / 2;
+		const sint32 tail_x = clamp(anchor.x - pos.x, half_tail + 2, width - half_tail - 2);
+		const sint32 base_y = tail_on_top ? pos.y : pos.y + height - 1;
+		const sint32 tip_y = tail_on_top ? base_y - TOOLTIP_TAIL_HEIGHT : base_y + TOOLTIP_TAIL_HEIGHT;
+
+		// Fill the tail from the tip towards the base.
+		for(sint32 row = 0; row < TOOLTIP_TAIL_HEIGHT; row++)
+		{
+			const sint32 row_width = (TOOLTIP_TAIL_WIDTH * (row + 1)) / TOOLTIP_TAIL_HEIGHT;
+			const sint32 row_x = tail_x - row_width / 2;
+			const sint32 row_y = tail_on_top ? tip_y + row : base_y + 1 + row;
+			display_fillbox_wh_clip_rgb(row_x, row_y, row_width, 1, body_color, dirty);
+		}
+
+		// Draw the two slanted edges.
+		display_direct_line_rgb(tail_x, tip_y, tail_x - half_tail, base_y, border_color);
+		display_direct_line_rgb(tail_x, tip_y, tail_x + half_tail, base_y, border_color);
+
+		// Re-fill the base so the body border segment is hidden behind the tail.
+		display_fillbox_wh_clip_rgb(tail_x - half_tail, base_y, TOOLTIP_TAIL_WIDTH, 1, body_color, dirty);
+	}
+
+	sint32 line_y = pos.y + TOOLTIP_PADDING;
+	const sint32 text_x = pos.x + TOOLTIP_PADDING + icon_column;
+
+	for(const tooltip_line_t &line : lines)
+	{
+		const image_id image = get_line_image(line);
+		const scr_size icon_size = get_image_size(image);
+		const sint32 line_height = max(LINESPACE, icon_size.h);
+
+		if(image != IMG_EMPTY)
+		{
+			display_color_img(image, pos.x + TOOLTIP_PADDING, line_y + (line_height - icon_size.h) / 2, 0, false, dirty);
+		}
+		else if(line.symbol != TOOLTIP_SYMBOL_NONE)
+		{
+			const PIXVAL glyph_background = display_blend_colors(body_color, color_idx_to_rgb(COL_BLACK), 15);
+			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y + (line_height - 14) / 2, 14, 14, glyph_background, dirty);
+			display_proportional_rgb(pos.x + TOOLTIP_PADDING + 2, line_y + (line_height - LINESPACE) / 2, get_symbol_glyph(line.symbol), ALIGN_LEFT, text_color, dirty);
+		}
+
+		const uint32 wrapped = draw_wrapped_text(text_x, line_y + (line_height - LINESPACE) / 2, line.text.get_str(), text_max_width, text_color, dirty);
+		line_y += max(1, (sint32)wrapped) * line_height + TOOLTIP_LINE_GAP;
+	}
+}

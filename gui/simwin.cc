@@ -41,6 +41,7 @@
 #include "help_frame.h"
 #include "messagebox.h"
 #include "gui_frame.h"
+#include "tooltip.h"
 
 // needed to restore/save them
 #include "tool_selector.h"
@@ -147,6 +148,9 @@ static scr_coord_val tooltip_xpos = 0;
 static scr_coord_val tooltip_ypos = 0;
 static const char * tooltip_text = 0;
 static std::string static_tooltip_text;
+static tooltip_t tooltip_data;
+static tooltip_t static_tooltip_data;
+static scr_coord tooltip_anchor = scr_coord::invalid;
 
 // For timed tooltip with initial delay and finite visible duration.
 // Valid owners are required for timing. Invalid (NULL) owners disable timing.
@@ -1909,18 +1913,32 @@ void win_display_flush(double konto)
 		remove_old_win();
 
 		if(env_t::show_tooltips) {
-			// check if there is a tooltip to display
-			if(  tooltip_text  &&  *tooltip_text  ) {
+			const bool has_registered_tooltip = (tooltip_text != NULL && *tooltip_text != 0) || !tooltip_data.empty();
+			if(has_registered_tooltip) {
 				// display tooltip when current owner is invalid or when it is within visible duration
 				uint32 elapsed_time;
 				if(  !tooltip_owner  ||  ((elapsed_time=dr_time()-tooltip_register_time)>env_t::tooltip_delay  &&  elapsed_time<=env_t::tooltip_delay+env_t::tooltip_duration)  ) {
-					const sint16 width = proportional_string_width(tooltip_text)+7;
-					scr_coord pos{ tooltip_xpos, tooltip_ypos };
-					win_clamp_xywh_position( pos, scr_size( width, (LINESPACE*9)/7 ), true );
-					display_ddd_proportional_clip( pos.x, pos.y, width, 0, env_t::tooltip_color, env_t::tooltip_textcolor, tooltip_text, true);
+					if(!tooltip_data.empty()) {
+						scr_coord pos{ tooltip_xpos, tooltip_ypos };
+						const scr_coord anchor = tooltip_anchor != scr_coord::invalid ? tooltip_anchor : pos;
+						tooltip_data.draw(pos, anchor, true);
+					}
+					else {
+						const sint16 width = proportional_string_width(tooltip_text)+7;
+						scr_coord pos{ tooltip_xpos, tooltip_ypos };
+						win_clamp_xywh_position( pos, scr_size( width, (LINESPACE*9)/7 ), true );
+						display_ddd_proportional_clip( pos.x, pos.y, width, 0, env_t::tooltip_color, env_t::tooltip_textcolor, tooltip_text, true);
+					}
 					if(wl) {
 						wl->set_background_dirty();
 					}
+				}
+			}
+			else if(!static_tooltip_data.empty()) {
+				const scr_coord mouse_pos = get_mouse_pos();
+				static_tooltip_data.draw(mouse_pos, mouse_pos, true);
+				if(wl) {
+					wl->set_background_dirty();
 				}
 			}
 			else if(!static_tooltip_text.empty()) {
@@ -1933,12 +1951,14 @@ void win_display_flush(double konto)
 				}
 			}
 			// reset owner and group if no tooltip has been registered
-			if(  !tooltip_text  ) {
+			if(  !has_registered_tooltip  ) {
 				tooltip_owner = 0;
 				tooltip_group = 0;
 			}
 			// clear tooltip text to avoid sticky tooltips
 			tooltip_text = 0;
+			tooltip_data.clear();
+			tooltip_anchor = scr_coord::invalid;
 		}
 
 		POP_CLIP();
@@ -2131,20 +2151,8 @@ void win_load_font(const char *fname, uint8 fontsize)
 }
 
 
-/**
- * Sets the tooltip to display.
- * Has to be called from within gui_frame_t::draw
- * @param owner : owner==NULL disables timing (initial delay and visible duration)
- */
-void win_set_tooltip(scr_coord pos, const char *text, const void *const owner, const void *const group)
+static void update_tooltip_owner(const void *const owner, const void *const group)
 {
-	// check whether the right window will set the tooltip
-	if(inside_event_handling != tooltip_element  ) {
-		return;
-	}
-	// must be set every time as win_display_flush() will reset them
-	tooltip_text = text;
-
 	// update ownership if changed
 	if(  owner!=tooltip_owner  ) {
 		tooltip_owner = owner;
@@ -2175,6 +2183,26 @@ void win_set_tooltip(scr_coord pos, const char *text, const void *const owner, c
 			tooltip_group = 0;
 		}
 	}
+}
+
+
+/**
+ * Sets the tooltip to display.
+ * Has to be called from within gui_frame_t::draw
+ * @param owner : owner==NULL disables timing (initial delay and visible duration)
+ */
+void win_set_tooltip(scr_coord pos, const char *text, const void *const owner, const void *const group)
+{
+	// check whether the right window will set the tooltip
+	if(inside_event_handling != tooltip_element  ) {
+		return;
+	}
+	// must be set every time as win_display_flush() will reset them
+	tooltip_text = text;
+	tooltip_data.clear();
+	tooltip_anchor = scr_coord::invalid;
+
+	update_tooltip_owner(owner, group);
 
 	if (text) {
 		const scr_size tt_size = scr_size(proportional_string_width(text), LINESPACE + 2);
@@ -2188,12 +2216,47 @@ void win_set_tooltip(scr_coord pos, const char *text, const void *const owner, c
 
 
 /**
+ * Sets the structured tooltip to display.
+ * Has to be called from within gui_frame_t::draw.
+ * @param owner : owner==NULL disables timing (initial delay and visible duration)
+ * @param anchor : position at which the bubble tail points; scr_coord::invalid uses pos
+ */
+void win_set_tooltip(scr_coord pos, const tooltip_t &tip, const void *const owner, const void *const group, scr_coord anchor)
+{
+	// check whether the right window will set the tooltip
+	if(inside_event_handling != tooltip_element  ) {
+		return;
+	}
+	tooltip_text = 0;
+	tooltip_data = tip;
+	tooltip_anchor = anchor;
+
+	update_tooltip_owner(owner, group);
+
+	tooltip_xpos = pos.x;
+	tooltip_ypos = pos.y;
+}
+
+
+/**
  * Sets the tooltip to display.
  */
 void win_set_static_tooltip(const char *text)
 {
 	static_tooltip_text = text ? text : "";
+	static_tooltip_data.clear();
 }
+
+
+/**
+ * Sets the structured tooltip that follows the mouse.
+ */
+void win_set_static_tooltip(const tooltip_t &tip)
+{
+	static_tooltip_text.clear();
+	static_tooltip_data = tip;
+}
+
 
 
 // shows a modal dialoge

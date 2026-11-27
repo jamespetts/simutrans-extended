@@ -229,6 +229,7 @@ target_sources(simutrans-extended PRIVATE
 	gui/themeselector.cc
 	gui/times_history_container.cc
 	gui/tool_selector.cc
+	gui/tooltip.cc
 	gui/trafficlight_info.cc
 	gui/vehiclelist_frame.cc
 	gui/vehicle_class_manager.cc

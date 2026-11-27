@@ -11,6 +11,7 @@
 #include "simevent.h"
 #include "simworld.h"
 #include "gui/simwin.h"
+#include "gui/tooltip.h"
 #include "player/simplay.h"
 #include "simmenu.h"
 #include "simtool.h"
@@ -1062,6 +1063,15 @@ void tool_t::draw_after(scr_coord pos, bool dirty) const
 	image_id id = get_icon( welt->get_active_player() );
 	if(  id!=IMG_EMPTY  &&  is_selected()  ) {
 		display_img_blend( id, pos.x, pos.y, TRANSPARENT50_FLAG|OUTLINE_FLAG|color_idx_to_rgb(COL_BLACK), false, dirty );
+	}
+}
+
+
+void tool_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	const char *text = get_tooltip(player);
+	if(  text != NULL  &&  *text != 0  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, text);
 	}
 }
 

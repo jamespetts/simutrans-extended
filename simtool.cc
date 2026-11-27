@@ -15,6 +15,7 @@
 #include "simmesg.h"
 #include "simconvoi.h"
 #include "gui/simwin.h"
+#include "gui/tooltip.h"
 #include "display/viewport.h"
 #include "display/simgraph.h"
 
@@ -2923,6 +2924,61 @@ const char* tool_build_way_t::get_tooltip(const player_t *) const
 	return toolstr;
 }
 
+
+void tool_build_way_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	const way_desc_t *desc = get_desc(welt->get_timeline_year_month());
+	if(  desc == NULL  ) {
+		return;
+	}
+
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
+
+	const sint64 tile_price = desc->get_value();
+	const sint64 km_price = (tile_price * 1000ll) / welt->get_settings().get_meters_per_tile();
+	const sint64 tile_forge_cost = welt->get_settings().get_forge_cost(desc->get_waytype());
+	const sint64 km_forge_cost = (tile_forge_cost * 1000ll) / welt->get_settings().get_meters_per_tile();
+	const sint64 tile_maint = desc->get_maintenance();
+	const sint64 km_maint = (tile_maint * 1000ll) / welt->get_settings().get_meters_per_tile();
+
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Way cost"), km_price, translator::translate("/ km"));
+	tooltip.add_money(TOOLTIP_SYMBOL_FORGE, translator::translate("Forge cost (standard)"), km_forge_cost, translator::translate("/ km"));
+	tooltip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), km_price + km_forge_cost, translator::translate("/ km"));
+
+	const sint64 adjusted_maint = welt->get_inflation_adjusted_price(welt->get_timeline_year_month(), welt->calc_adjusted_monthly_figure(km_maint), buildings);
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), adjusted_maint, translator::translate("/ km / month"));
+
+	tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
+	tooltip.add_value(TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), desc->get_max_axle_load(), translator::translate("t"));
+
+	char durability_string[32];
+	number_to_string(durability_string, (double)desc->get_wear_capacity() / 10000.0, 4);
+	cbuffer_t durability;
+	durability.printf("%s: %s", translator::translate("Durability"), durability_string);
+	tooltip.add(TOOLTIP_SYMBOL_DURABILITY, durability.get_str());
+
+	cbuffer_t restrictions;
+	bool any_prohibitive = false;
+	for(sint8 i = 0; i < desc->get_way_constraints().get_count(); i ++)
+	{
+		if(desc->get_way_constraints().get_prohibitive(i))
+		{
+			if(!any_prohibitive)
+			{
+				restrictions.printf("%s", translator::translate("Restrictions:"));
+			}
+			any_prohibitive = true;
+			char tmpbuf[30];
+			sprintf(tmpbuf, "Prohibitive %i-%i", desc->get_wtyp(), i);
+			restrictions.printf(" %s", translator::translate(tmpbuf));
+		}
+	}
+	if(any_prohibitive)
+	{
+		tooltip.add(TOOLTIP_SYMBOL_RESTRICTION, restrictions.get_str());
+	}
+}
+
 // default ways are not initialized synchronously for different clients
 // always return the name of a way, never the string containing the waytype
 const char* tool_build_way_t::get_default_param(player_t *player) const
@@ -3252,9 +3308,31 @@ void tool_build_way_t::mark_tiles(  player_t *player, const koord3d &start, cons
 	uint8 offset = (desc->get_styp() == type_elevated  &&  desc->get_wtyp() != air_wt) ? welt->get_settings().get_way_height_clearance() : 0;
 
 	if(  bauigel.get_count()>1  ) {
-		// Set tooltip first (no dummygrounds, if bauigel.calc_casts() is called).
+		// Set tooltip first (no dummygrounds, if bauigel.calc_costs() is called).
 		const uint32 distance = bauigel.get_count() * welt->get_settings().get_meters_per_tile();
-		win_set_static_tooltip( tooltip_with_price_and_distance("Building costs estimates", -bauigel.calc_costs(), distance) );
+		way_cost_breakdown_t breakdown;
+		bauigel.calc_costs(&breakdown);
+		static tooltip_t drag_tip;
+		drag_tip.clear();
+		drag_tip.add(TOOLTIP_SYMBOL_COST, translator::translate("Building cost estimate"));
+		cbuffer_t length;
+		length.printf(translator::translate("%.2f km (%u tiles)"), (double)distance / 1000.0, bauigel.get_count());
+		drag_tip.add(TOOLTIP_SYMBOL_DISTANCE, length.get_str());
+		drag_tip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Way cost"), breakdown.way, NULL);
+		drag_tip.add_money(TOOLTIP_SYMBOL_FORGE, translator::translate("Forge cost"), breakdown.forge, NULL);
+		drag_tip.add_money(TOOLTIP_SYMBOL_LAND, translator::translate("Land"), breakdown.land, NULL);
+		drag_tip.add_money(TOOLTIP_SYMBOL_TREES, translator::translate("Trees"), breakdown.trees, NULL);
+		if(  breakdown.objects != 0  ) {
+			drag_tip.add_money(TOOLTIP_SYMBOL_NONE, translator::translate("Ground objects"), breakdown.objects, NULL);
+		}
+		if(  breakdown.terraforming != 0  ) {
+			drag_tip.add_money(TOOLTIP_SYMBOL_NONE, translator::translate("Terraforming"), breakdown.terraforming, NULL);
+		}
+		if(  breakdown.structures != 0  ) {
+			drag_tip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Structures"), breakdown.structures, NULL);
+		}
+		drag_tip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), breakdown.total, NULL);
+		win_set_static_tooltip(drag_tip);
 
 		// make dummy route from bauigel
 		for(  uint32 j=0;  j<bauigel.get_count();  j++   ) {

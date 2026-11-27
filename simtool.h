@@ -363,6 +363,7 @@ public:
 	}
 	image_id get_icon(player_t*) const OVERRIDE;
 	char const* get_tooltip(player_t const*) const OVERRIDE;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const OVERRIDE;
 	char const* get_default_param(player_t*) const OVERRIDE;
 	bool is_selected() const OVERRIDE;
 	void rdwr_custom_data(memory_rw_t*) OVERRIDE;

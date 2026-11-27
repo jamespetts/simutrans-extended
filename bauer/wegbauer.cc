@@ -2469,7 +2469,12 @@ void way_builder_t::build_tunnel_and_bridges()
 /*
  * returns the amount needed to built this way
  */
-sint64 way_builder_t::calc_costs() {
+sint64 way_builder_t::calc_costs(way_cost_breakdown_t *breakdown) {
+	if(breakdown)
+	{
+		*breakdown = way_cost_breakdown_t();
+	}
+
 	if(desc->is_mothballed())
 	{
 		// It is free to mothball a way. No other calculations are needed, as mothballed types
@@ -2499,12 +2504,22 @@ sint64 way_builder_t::calc_costs() {
 		// change slope of from
 		if (from_slope != from->get_grund_hang()) {
 			if (last_terraformed != i) {
-				costs -= welt->get_settings().get_cost_set_slope();
+				const sint64 slope_cost = welt->get_settings().get_cost_set_slope();
+				costs -= slope_cost;
+				if(breakdown)
+				{
+					breakdown->terraforming -= slope_cost;
+				}
 			}
 		}
 		// change slope of to
 		if (to_slope != to->get_grund_hang()) {
-			costs -= welt->get_settings().get_cost_set_slope();
+			const sint64 slope_cost = welt->get_settings().get_cost_set_slope();
+			costs -= slope_cost;
+			if(breakdown)
+			{
+				breakdown->terraforming -= slope_cost;
+			}
 			last_terraformed = i+1; // do not pay twice for terraforming one tile
 		}
 	}
@@ -2512,6 +2527,10 @@ sint64 way_builder_t::calc_costs() {
 	for(uint32 i=0; i<get_count(); i++) {
 		sint64 replace_cost = 0;
 		bool upgrading = false;
+		sint64 tile_way = 0;
+		sint64 tile_forge = 0;
+		sint64 tile_land = 0;
+		sint64 tile_structures = 0;
 
 		const koord3d pos = route[i] + offset;
 		const grund_t* gr = welt->lookup(pos);
@@ -2524,9 +2543,11 @@ sint64 way_builder_t::calc_costs() {
 					continue; // Nothing to pay on this tile.
 				}
 				single_cost = tunnel_builder_t::get_total_cost(pos, tunnel_desc);
+				tile_structures = single_cost;
 			}
 			else {
 				single_cost = desc->get_value();
+				tile_way = single_cost;
 				if(  desc->get_wtyp() != powerline_wt  ) {
 					if (weg_t const* const weg = gr->get_weg(desc->get_wtyp())) {
 						replace_cost = weg->get_desc()->get_upgrade_group() == desc->get_upgrade_group() ? desc->get_way_only_cost() : desc->get_value();
@@ -2573,6 +2594,7 @@ sint64 way_builder_t::calc_costs() {
 				}
 			}
 
+			tile_forge = forge_cost;
 			single_cost += forge_cost;
 
 			const obj_t* obj = gr->obj_bei(0);
@@ -2582,7 +2604,9 @@ sint64 way_builder_t::calc_costs() {
 				// way slot and the land is not already owned by the builder.
 
 				// get_land_value returns a *negative* value.
-				single_cost -= welt->get_land_value(gr->get_pos());
+				const sint64 land_cost = -welt->get_land_value(gr->get_pos());
+				single_cost += land_cost;
+				tile_land = land_cost;
 			}
 
 			// Trees are removed only when the new way occupies the first way slot.
@@ -2592,11 +2616,25 @@ sint64 way_builder_t::calc_costs() {
 					obj_t *obj = gr->obj_bei(i);
 					switch(obj->get_typ()) {
 						case obj_t::baum:
-							costs -= welt->get_settings().get_cost_remove_tree();
+						{
+							const sint64 tree_cost = -welt->get_settings().get_cost_remove_tree();
+							costs += tree_cost;
+							if(breakdown)
+							{
+								breakdown->trees += tree_cost;
+							}
 							break;
+						}
 						case obj_t::groundobj:
-							costs += ((groundobj_t *)obj)->get_desc()->get_value();
+						{
+							const sint64 object_cost = ((groundobj_t *)obj)->get_desc()->get_value();
+							costs += object_cost;
+							if(breakdown)
+							{
+								breakdown->objects += object_cost;
+							}
 							break;
+						}
 						default: break;
 					}
 				}
@@ -2604,20 +2642,50 @@ sint64 way_builder_t::calc_costs() {
 		}
 		if(upgrading)
 		{
-			costs += replace_cost;
+			const sint64 contribution = replace_cost;
+			costs += contribution;
+			if(breakdown)
+			{
+				breakdown->way += contribution;
+			}
 		}
 		else if(!gr)
 		{
 			// No ground
 			if(bautyp&tunnel_flag){
-				costs += tunnel_builder_t::get_total_cost(pos, tunnel_desc);
+				const sint64 structure_cost = tunnel_builder_t::get_total_cost(pos, tunnel_desc);
+				costs += structure_cost;
+				if(breakdown)
+				{
+					breakdown->structures += structure_cost;
+				}
 			}else{
-				costs += (welt->get_settings().get_forge_cost(desc->get_waytype()) + desc->get_value());
+				const sint64 forge_cost = welt->get_settings().get_forge_cost(desc->get_waytype());
+				const sint64 way_cost = desc->get_value();
+				costs += forge_cost + way_cost;
+				if(breakdown)
+				{
+					breakdown->forge += forge_cost;
+					breakdown->way += way_cost;
+				}
 			}
 		}
 		else
 		{
-			costs += max(replace_cost, single_cost);
+			const sint64 contribution = replace_cost > single_cost ? replace_cost : single_cost;
+			costs += contribution;
+			if(breakdown)
+			{
+				breakdown->way += tile_way;
+				breakdown->forge += tile_forge;
+				breakdown->land += tile_land;
+				breakdown->structures += tile_structures;
+				const sint64 accounted = tile_way + tile_forge + tile_land + tile_structures;
+				if(contribution != accounted)
+				{
+					breakdown->way += contribution - accounted;
+				}
+			}
 		}
 
 		// last tile cannot be start of tunnel/bridge
@@ -2638,18 +2706,33 @@ sint64 way_builder_t::calc_costs() {
 				}
 				if(start->get_grund_hang()==0  ||  start->get_grund_hang()==slope_type(zv*(-1))) {
 					// bridge
-					costs += bridge_desc->get_value()*(sint64)(koord_distance(route[i], route[i+1])+1);
+					const sint64 structure_cost = bridge_desc->get_value()*(sint64)(koord_distance(route[i], route[i+1])+1);
+					costs += structure_cost;
+					if(breakdown)
+					{
+						breakdown->structures += structure_cost;
+					}
 					continue;
 				}
 				else {
 					// tunnel
-					costs += tunnel_desc->get_value()*(sint64)(koord_distance(route[i], route[i+1])+1);
+					const sint64 structure_cost = tunnel_desc->get_value()*(sint64)(koord_distance(route[i], route[i+1])+1);
+					costs += structure_cost;
+					if(breakdown)
+					{
+						breakdown->structures += structure_cost;
+					}
 					continue;
 				}
 			}
 		}
 	}
 
+	if(breakdown)
+	{
+		breakdown->total = costs;
+		assert(breakdown->way + breakdown->forge + breakdown->land + breakdown->trees + breakdown->objects + breakdown->terraforming + breakdown->structures == costs);
+	}
 	DBG_MESSAGE("way_builder_t::calc_costs()","construction estimate: %f",costs/100.0);
 	return costs;
 }

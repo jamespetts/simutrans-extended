@@ -25,6 +25,34 @@ class strasse_t;
 
 
 /**
+ * Breakdown of way_builder_t::calc_costs.
+ * All amounts are positive charges in Simucents.
+ */
+struct way_cost_breakdown_t
+{
+	way_cost_breakdown_t() :
+		way(0),
+		forge(0),
+		land(0),
+		trees(0),
+		objects(0),
+		terraforming(0),
+		structures(0),
+		total(0)
+	{}
+
+	sint64 way;          ///< way price, or the upgrade replacement charge
+	sint64 forge;        ///< forge cost, after the parallel-way discount
+	sint64 land;         ///< land purchase value
+	sint64 trees;        ///< tree removal
+	sint64 objects;      ///< ground object removal
+	sint64 terraforming; ///< slope changes
+	sint64 structures;   ///< bridges and tunnels
+	sint64 total;        ///< sum of the fields above
+};
+
+
+/**
  * way building class with its own route finding
  */
 class way_builder_t
@@ -277,8 +305,9 @@ public:
 	bool calc_route(const vector_tpl<koord3d> &start3d, const vector_tpl<koord3d> &ziel);
 
 	/* returns the amount needed to built this way
-	*/
-	sint64 calc_costs();
+	 * @param breakdown if not NULL, receives the individual cost components
+	 */
+	sint64 calc_costs(way_cost_breakdown_t *breakdown = NULL);
 
 	bool check_crossing(const koord zv, const grund_t *bd,waytype_t wtyp, const player_t *player) const;
 	bool check_powerline(const koord zv, const grund_t *bd) const;

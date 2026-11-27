@@ -499,6 +499,7 @@ SOURCES += gui/city_info.cc
 SOURCES += gui/station_building_select.cc
 SOURCES += gui/themeselector.cc
 SOURCES += gui/tool_selector
+SOURCES += gui/tooltip.cc
 SOURCES += gui/trafficlight_info.cc
 SOURCES += gui/vehiclelist_frame.cc
 SOURCES += gui/obj_info.cc

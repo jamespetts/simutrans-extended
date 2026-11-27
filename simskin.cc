@@ -89,6 +89,18 @@ const skin_desc_t* skinverwaltung_t::refuel             = NULL;
 const skin_desc_t* skinverwaltung_t::ignore_choose      = NULL;
 const skin_desc_t* skinverwaltung_t::staff_cost         = NULL;
 
+const skin_desc_t* skinverwaltung_t::tooltip_cost       = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_forge      = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_maintenance = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_speed      = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_weight     = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_durability = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_land       = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_trees      = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_structures = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_distance   = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_total      = NULL;
+
 // cursors
 const skin_desc_t* skinverwaltung_t::cursor_general     = NULL; // new cursors
 const skin_desc_t* skinverwaltung_t::bauigelsymbol      = NULL;
@@ -144,6 +156,18 @@ static special_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	{ &skinverwaltung_t::reverse_arrows,     "ReverseArrows"  },
 	{ &skinverwaltung_t::search,             "Search"         },
 	{ &skinverwaltung_t::open_window,        "OpenWindow"     },
+
+	{ &skinverwaltung_t::tooltip_cost,       "TooltipCost"      },
+	{ &skinverwaltung_t::tooltip_forge,      "TooltipForge"     },
+	{ &skinverwaltung_t::tooltip_maintenance,"TooltipMaintenance" },
+	{ &skinverwaltung_t::tooltip_speed,      "TooltipSpeed"     },
+	{ &skinverwaltung_t::tooltip_weight,     "TooltipWeight"    },
+	{ &skinverwaltung_t::tooltip_durability, "TooltipDurability" },
+	{ &skinverwaltung_t::tooltip_land,       "TooltipLand"      },
+	{ &skinverwaltung_t::tooltip_trees,      "TooltipTrees"     },
+	{ &skinverwaltung_t::tooltip_structures, "TooltipStructures" },
+	{ &skinverwaltung_t::tooltip_distance,   "TooltipDistance"  },
+	{ &skinverwaltung_t::tooltip_total,      "TooltipTotal"     },
 
 	{ &skinverwaltung_t::layover,            "Layover"        },
 	{ &skinverwaltung_t::refuel,             "Refuel"         },

@@ -16,6 +16,7 @@
 #include "gui_frame.h"
 #include "simwin.h"
 #include "tool_selector.h"
+#include "tooltip.h"
 
 #define MIN_WIDTH (80)
 
@@ -385,8 +386,15 @@ void tool_selector_t::draw(scr_coord pos, scr_size sz)
 			if(  xdiff>=0  &&  xdiff<tool_icon_width  &&  ydiff>=0  ) {
 				const int tipnr = xdiff+(tool_icon_width*ydiff)+tool_icon_disp_start;
 				if(  tipnr < (int)tool_icon_disp_end  ) {
-					const char* tipstr = tools[tipnr].tool->get_tooltip(welt->get_active_player());
-					win_set_tooltip(mouse_pos + TOOLTIP_MOUSE_OFFSET, tipstr, tools[tipnr].tool, this);
+					tooltip_t tip;
+					tools[tipnr].tool->build_tooltip(tip, welt->get_active_player());
+					scr_coord tip_pos = mouse_pos + TOOLTIP_MOUSE_OFFSET;
+					if(  env_t::menupos == MENU_TOP  ) {
+						// Keep the bubble below the toolbar; the toolbar draws above
+						// windows and would clip the top of the bubble.
+						tip_pos.y = max(tip_pos.y, pos.y + sz.h + D_TITLEBAR_HEIGHT + TOOLTIP_MOUSE_OFFSET_Y);
+					}
+					win_set_tooltip(tip_pos, tip, tools[tipnr].tool, this, mouse_pos);
 				}
 			}
 		}

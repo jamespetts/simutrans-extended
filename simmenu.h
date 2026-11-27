@@ -29,6 +29,7 @@ class toolbar_t;
 class memory_rw_t;
 class karte_ptr_t;
 class zeiger_t;
+class tooltip_t;
 
 enum {
 	// general tools
@@ -330,6 +331,12 @@ public:
 	virtual void draw_after(scr_coord pos, bool dirty) const;
 
 	virtual const char *get_tooltip(const player_t *) const { return NULL; }
+
+	/**
+	 * Adds the lines of this tool's tooltip.
+	 * The default implementation adds get_tooltip(player) as one line.
+	 */
+	virtual void build_tooltip(tooltip_t &tooltip, const player_t *player) const;
 
 	/**
 	 * @return true if this tool operates over the grid, not the map tiles.
