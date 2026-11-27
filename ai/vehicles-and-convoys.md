@@ -1,10 +1,19 @@
 ---
 status: draft
-verified: ex-15 @ bdfdc8311 (odometer passage); other content ex-15 @ 1c8d9cadf plus working tree (2026-11-14); convoi_t::destroy teardown and depot-list removal @ c0fe14eb93 plus working tree (2026-11-25)
+verified: ex-15 @ bdfdc8311 (odometer passage); other content ex-15 @ 1c8d9cadf plus working tree (2026-11-14); convoi_t::destroy teardown and depot-list removal @ c0fe14eb93 plus working tree (2026-11-25); consist terminology @ 9f0c02daf0 plus working tree (2026-11-27)
 ---
 # Vehicles, consists & convoys
 
 **Covers:** vehicle/, bauer/vehikelbauer.*, convoy.cc/h + convoihandle_t.h, simconvoi.*, simdepot.*, simline.* + linehandle_t.h, simlinemgmt.*, dataobj/consist_order_t.* (ex-15 only), gui/consist_order_gui.*, gui/components/gui_convoy_assembler.* (→ [gui](gui.md)), descriptor/vehicle_desc.*, descriptor/writer/vehicle_writer.cc, descriptor/reader/vehicle_reader.cc.
+
+## Terminology
+
+**Consist** is the user-interface term for the object represented by `convoi_t`: the coupled
+formation of vehicles that moves as one unit, with its schedule, line membership, name and state.
+**Convoy** is the historic name for the same object, retained in the C++ identifiers, file names
+and this knowledge base. The ordered list of vehicles is the Consist's vehicle sequence; a
+**Consist Order** is the ordered vehicle slots a schedule entry requires. Definitions:
+[glossary](glossary.md).
 
 ## Initial facts
 

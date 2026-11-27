@@ -141,7 +141,7 @@ Verified click coordinates for the Line Management window (Pak128.Britain-Ex the
 `SIMUTRANS_UI_SHOT_TOOL=3` = `DIALOG_LINEOVERVIEW`, fixture `bb6-apr-2010.sve`): Train tab
 `(82,37)` in the icon strip above the line list (the strip filters lines by transport type;
 which icons appear depends on the ways and vehicles the pakset defines); line-list rows at
-`(150,60)` for the first row and +20 y per further row; the Convoys tab is active when the
+`(150,60)` for the first row and +20 y per further row; the Consists tab is active when the
 window opens (static `selected_convoy_tab` in gui/schedule_list.cc starts at 0 in each
 process); the display-mode button at `(697,155)` cycles the `gui_convoy_formation_t` modes
 appearance, capacities, formation, one step per click. Row heights follow the convoy preview
@@ -168,7 +168,7 @@ content, so re-derive y coordinates after layout changes.
   revert it afterwards). Reproducing the populated views requires that local change or a
   fixture whose public player owns lines.
 - Tool 15 (`DIALOG_LIST_CONVOI`, Vehicle List) opens with an empty convoy-row area when
-  `-until` returns immediately; use the Line Management Convoys tab for convoy-row captures.
+  `-until` returns immediately; use the Line Management Consists tab for convoy-row captures.
 - A capture can occasionally show the loading screen although every `UI-AUTO:` line reports
   success; re-run.
 - The forced redraw renders one frame, which shows a size-changing component before its

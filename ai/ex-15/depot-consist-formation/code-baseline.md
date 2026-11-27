@@ -244,7 +244,7 @@ checked-out tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
   [CODE `simtool.cc`; `script/api/api_line.cc`].
 - `schedule_list_gui_t` has a **Fleet** tab with the target and policy controls, the fleet summary,
   load factors, the maximum-consists estimate and one row per scheduled depot [CODE
-  `gui/schedule_list.cc`]. The Convoys tab **Maintenance** column is not implemented.
+  `gui/schedule_list.cc`]. The Consists tab **Maintenance** column is not implemented.
 
 ## Reuse map
 

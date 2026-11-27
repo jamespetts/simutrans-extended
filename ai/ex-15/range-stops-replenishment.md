@@ -16,7 +16,8 @@ vocabulary is defined in the [glossary](../glossary.md).
 
 ## Terms
 
-- **Convoy** is the Simutrans object represented by `convoi_t`.
+- **Convoy** is the historic and code name for the object represented by `convoi_t`;
+  the user interface calls it a **Consist**.
 - **Range** is the maximum distance a vehicle can travel before it must be
   replenished, expressed by `vehicle_desc_t::get_range()` in kilometres.
 - **Replenishment** is refuelling or otherwise restoring the vehicle's range. Its

@@ -30,8 +30,9 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
   freeplay settings.
 - **Availability** is the percentage of its working life for which a vehicle is
   available for transport service rather than being maintained.
-- **Convoy** is the Simutrans name for a consist: the coupled vehicles represented
-  by `convoi_t`.
+- **Convoy** is the historic and code name for a **Consist**: the coupled formation
+  of vehicles represented by `convoi_t`. The user interface calls the object a
+  Consist.
 - **Livery** is a vehicle's configured paint scheme.
 - **Livery scheme** is a named set of liveries with introduction and retirement
   dates, represented by `livery_scheme_t`.

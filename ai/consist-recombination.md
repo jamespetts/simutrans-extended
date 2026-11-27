@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case); ex-15 @ 4d9aeccb6e plus working-tree trigger-and-pair, maximum-trigger-wait and service-frequency changes (2026-11-27, counterpart in AWAITING_TRIGGER, state preservation, pair diagnostics)
+verified: ex-15 @ 2debf73ed (2026-11-15, consist-order check, facing-neutral picking and failure warning); ex-15 @ 71f192a65 (2026-11-15, contact point carried behind the rear vehicle); ex-15 @ b501f13f3 (2026-11-15, choose-signal resolvability pre-check, shared-contact reservation handoff and pool-donor destruction); ex-15 @ 117c75d17 (2026-11-15, coupling-point assertions and one-sided receive layout); ex-15 @ ed6d940be (2026-11-15, shared contact tile and paired layout); ex-15 @ 0692167b6 (2026-11-15, choose-signal call-on core and scripted cases); ex-15 @ 97029f453 (2026-11-14, remainder); paired reload fixture @ fa85a59b8; ex-15 @ 03bf5306e (2026-11-16, committed-target hold corrected and both scripted cases); ex-15 @ 9fdefa153 (2026-11-16, orientation choice, reversal delay, facing case and substitution discharge); ex-15 @ bf157b7a7 plus working-tree pick-up goods package (2026-11-17, discharge boundary, through-wagon model, recipient model, optional slots and loading credit); ex-15 @ 93da398e6 (2026-11-18, Multi-Owner Access Rule at assembly); ex-15 @ 57435c9cb1 plus working-tree passenger loose-unload fix (2026-11-22, passenger and mail loose-stock unload and runtime cases); ex-15 @ 6998ff08e1 plus working-tree per-operation shunting delay (2026-11-24); ex-15 @ 1578e7a689 plus working-tree standing-order and deferred-unload fix (2026-11-25, rear-portion-order case); ex-15 @ 4d9aeccb6e plus working-tree trigger-and-pair, maximum-trigger-wait and service-frequency changes (2026-11-27, counterpart in AWAITING_TRIGGER, state preservation, pair diagnostics); consist terminology @ 9f0c02daf0 plus working tree (2026-11-27)
 ---
 # Consist recombination
 
@@ -24,8 +24,10 @@ contact tile.
 
 ## Terms
 
-- **Consist.** The ordered list of vehicles a convoy runs with. The project intends to replace the
-  term "convoy" with "consist" in the UI by the completion of work on version 15 (ex-15).
+- **Consist.** The coupled formation of vehicles that moves as one unit, represented by
+  `convoi_t`. The ordered list of its vehicles is its vehicle sequence. The user interface uses
+  "consist" for the object; the code and this document use "Convoy" for the same object.
+  Definitions: [glossary](glossary.md).
 - **Consist recombination.** Any operation that changes the vehicles in one or more consists at a
   stop: a locomotive change, a multiple unit splitting or joining, a passenger carriage attached or
   detached for a later service, a pick-up goods train dropping or collecting loose wagons, or an
@@ -386,9 +388,6 @@ scripted case: it covers a target that starts departing after the choose signal 
 but before the mover's first recombination pass. The mechanism and the window are in
 [reservation-handoff](consist-recombination/reservation-handoff.md#the-transfer-window); whether the
 branch is a defensive case is the open design question.
-
-Should the term "convoy"/"convoi" be phased out entirely in the code and this knowledge base as well
-as the UI?
 
 ## Provenance
 

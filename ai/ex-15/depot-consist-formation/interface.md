@@ -5,7 +5,7 @@ verified: none
 # Depot consist formation: interface
 
 Parent: [depot consist formation](../depot-consist-formation.md). This document defines the
-Recipient, sale and per-line depot limit controls, the Fleet tab, the Convoys tab Maintenance
+Recipient, sale and per-line depot limit controls, the Fleet tab, the Consists tab Maintenance
 column, and the interface design process. Tags: `[CODE]` is verified against the checked-out
 tree; `[PROPOSED]` is planned behaviour; `[OPEN]` is unresolved.
 
@@ -81,7 +81,7 @@ depot's departure consist, not a stop-level recombination [PROPOSED for the fina
 
 ### Fleet tab
 
-The line management window has a **Fleet** tab immediately after the **Convoys** tab [CODE
+The line management window has a **Fleet** tab immediately after the **Consists** tab [CODE
 `gui/schedule_list.cc`]. It shows, from top to bottom:
 
 1. **Target and policy controls.** The Target Fleet Size number and a **Set** button; the automatic
@@ -109,11 +109,11 @@ The line management window has a **Fleet** tab immediately after the **Convoys**
    [fleet and schedule-spacing synchronisation](fleet-spacing-sync.md).
 6. **Diagnostics.** The reasons a Convoy cannot be dispatched or withdrawn, the depot queue position
    and the monthly cost of the current spare capacity are not yet shown. The per-slot depot detail
-   and the Convoys tab **Maintenance** column remain [PROPOSED].
+   and the Consists tab **Maintenance** column remain [PROPOSED].
 
-### Convoys tab
+### Consists tab
 
-The existing **Convoys** tab gains a **Maintenance** column [PROPOSED]. For each `convoi_t` on the
+The existing **Consists** tab gains a **Maintenance** column [PROPOSED]. For each `convoi_t` on the
 line it shows the compact state and, where relevant, the remaining work:
 
 - `DEPLOYED`;
@@ -146,7 +146,7 @@ behaviour. The new controls are opt-in. The schedule window's depot entry shows 
 
 ### UI design process
 
-The detail of the Fleet and Convoys tabs, the depot pool view and the diagnostics is a separate UI
+The detail of the Fleet and Consists tabs, the depot pool view and the diagnostics is a separate UI
 design task [RECOLLECTION:2026-11-25 user instruction]. It is to be done last, by a subagent, to a
 high standard. The subagent should treat this document as the information architecture and produce:
 

@@ -1,6 +1,6 @@
 ---
 status: reviewed
-verified: master @ 84b8345a4
+verified: master @ 84b8345a4; ex-15 @ 9f0c02daf0 plus working tree (2026-11-27, consist terminology)
 ---
 # Translations & texts
 
@@ -49,6 +49,18 @@ Basic doc for the common task: adding, changing or debugging user-facing text. F
 - Savegames referencing removed/renamed pakset objects are repaired through the pakset's `compat.tab` (`translator::compatibility_name`). → [translator internals](translations/translator-internals.md)
 - Hard cap of 40 languages (`langs[40]`, dataobj/translator.cc); extra `.tab` files are skipped with a warning.
 - `simutrans/text/` content differs between branches like any source file; check the checked-out branch's state per task.
+
+## Consist terminology
+
+The English user interface calls the object represented by `convoi_t` a **Consist**. The `.tab`
+keys retain the historic term "convoy"/"convoi" so that existing translations stay valid;
+`simutrans/text/en.tab` maps those keys to English values that use "consist". Definitions:
+[glossary](glossary.md).
+
+Other languages do not necessarily distinguish a coupled formation of vehicles from a group of
+independent vehicles travelling together. A translation pass must choose the correct term for each
+language and must not apply the English replacement mechanically. Each language's existing entries
+remain keyed to the historic term, so their current text is valid until that pass reviews it.
 
 ## Open questions
 

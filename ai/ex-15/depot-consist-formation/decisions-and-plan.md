@@ -51,7 +51,7 @@ The code baseline is in [code-baseline](code-baseline.md).
    [fleet-size](fleet-size.md#choosing-which-convoy-to-withdraw).
 5. **Automatic fleet adjustment.** The passenger load-factor guard is fixed (done). A goods load
    factor is to be added. Automatic adjustment is in scope for this feature, not deferred. The line
-   management window gains a **Fleet** tab after the **Convoys** tab. The goods load factor uses a
+   management window gains a **Fleet** tab after the **Consists** tab. The goods load factor uses a
    new `LINE_GOODS_CAPACITY` line counter; the line chart gains a **Freight capacity** curve with
    its own colour and translation entry. The policy uses the last two complete months, not a
    per-line window setting. Accepted [RECOLLECTION:2026-11-25 user statement].
@@ -59,7 +59,7 @@ The code baseline is in [code-baseline](code-baseline.md).
    loading, the depots served by the line, and for each depot the matching vehicles currently loose
    or under maintenance. Depots without a Depot Consist Order are greyed out with an explanatory
    mouseover; Convoys under maintenance at those depots are still listed under them. The tab states
-   the maximum number of Consists that can run at present from the available vehicles. The Convoys
+   the maximum number of Consists that can run at present from the available vehicles. The Consists
    tab gains a **Maintenance** column showing each Convoy's maintenance state. Accepted.
 7. **Replacement precedence.** The replacement order takes priority over a schedule order on the
    same visit. The player is warned in the replacement window, and the depot reports that the
@@ -163,7 +163,7 @@ work.
 9. **Persistence, network and performance.** Save and load mid-assembly and mid-withdrawal, join a
    loopback client mid-assembly, verify two-process determinism, and add the dirty-flag and
    wake-up scheduling.
-10. **Interface design.** The Fleet tab, the Convoys tab Maintenance column and the depot pool view
+10. **Interface design.** The Fleet tab, the Consists tab Maintenance column and the depot pool view
     are designed by a subagent after the data model and controls exist. The subagent works to the
     information architecture in [interface](interface.md) and [fleet-size](fleet-size.md) and to a
     high visual and interaction standard.
@@ -185,7 +185,7 @@ When the design is implemented, these documents need changes:
   create a dedicated feature test document at `ai/scripting-and-tests/depot-consist-formation.md`
   when the first cases exist.
 - [gui](../../gui.md): record the schedule, depot and line controls, including the Fleet tab and the
-  Convoys tab Maintenance column.
+  Consists tab Maintenance column.
 - [ex-15](../../ex-15.md) and [index](../../index.md): update the status registry and retrieval
   keys.
 

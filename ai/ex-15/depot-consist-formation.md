@@ -29,6 +29,11 @@ two-locomotive fixture is the next test addition.
 
 ## Terms
 
+The user interface calls a `convoi_t` a **Consist**. This design document uses **Convoy** for the
+same object and **Consist** for its ordered vehicle list, because the design decisions below
+distinguish the object from the sequence of vehicles it runs with. The canonical definitions are in
+[glossary](../glossary.md); there, the ordered list is the **vehicle sequence**.
+
 - **Consist** is the ordered list of vehicles in a `convoi_t`, from the front of the Convoy to the
   rear in the direction of travel.
 - **Convoy** is the `convoi_t` object that owns a Consist, a schedule, a line membership and
