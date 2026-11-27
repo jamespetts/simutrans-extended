@@ -405,10 +405,9 @@ private:
 	bool same_spacing_shift;
 
 	/*
-	* The number of convoys per month, now in 12ths:
-	* e.g., if this number is 12, there will be 1
-	* departure per game month (12/12 = 1) per
-	* timed stop in this schedule.
+	* The number of departures per year. One departure per month is 12,
+	* so a value of 12 gives one departure per game month at each timed
+	* stop in this schedule.
 	*/
 	sint16 spacing;
 };

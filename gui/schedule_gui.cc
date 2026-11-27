@@ -1090,11 +1090,11 @@ void schedule_gui_t::build_table()
 				{
 					// Spacing
 					cont_settings_1.new_component<gui_margin_t>(D_CHECKBOX_WIDTH<<1);
-					lb_spacing.set_text("Spacing cnv/month");
+					lb_spacing.set_text("Spacing (departures/year)");
 					lb_spacing.set_tooltip(translator::translate("help_txt_departure_per_month"));
 					cont_settings_1.add_component(&lb_spacing);
 
-					// UI TODO: Make it clearer to the player that this is set in increments of 12ths of a fraction of a month.
+					// The value is departures per year; the step of 12 is one departure per month.
 					numimp_spacing.init(schedule->get_spacing(), 0, 999, 12);
 					numimp_spacing.add_listener(this);
 					cont_settings_1.add_component(&numimp_spacing);
@@ -2015,7 +2015,7 @@ void schedule_gui_t::update_selection()
 			else if(!schedule->get_spacing())
 			{
 				// Cannot have wait for time without some spacing.
-				// 12 because the spacing is in 12ths of a fraction of a month.
+				// 12 is one departure per month.
 				schedule->set_spacing(12);
 				numimp_spacing.set_value(12);
 			}

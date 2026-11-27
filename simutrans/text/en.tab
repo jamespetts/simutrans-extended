@@ -5064,6 +5064,7 @@ The percentage of passengers transported in the region overall
 The percentage of intending passengers making successful journeys in the world overall
 Spacing cnv/month, shift
 Departures/year
+Spacing (departures/year)
 #-----------------------------
 #-- Signals working methods:--
 drive_by_sight

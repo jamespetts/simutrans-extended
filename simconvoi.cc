@@ -10439,8 +10439,8 @@ void convoi_t::check_departure(halthandle_t halt)
 
 			if(line.is_bound() && schedule->get_spacing() && line->count_convoys())
 			{
-				// Departures/year
-				const sint64 spacing = (welt->ticks_per_world_month * 12u) / (sint64)schedule->get_spacing(); // *12 because the spacing setting is now in 12ths of a fraction of a month.
+				// The spacing is departures per year, so the yearly tick count is the interval numerator.
+				const sint64 spacing = (welt->ticks_per_world_month * 12u) / (sint64)schedule->get_spacing();
 				const sint64 spacing_shift = (sint64)schedule->get_current_entry().spacing_shift * welt->ticks_per_world_month / (sint64)welt->get_settings().get_spacing_shift_divisor();
 				const sint64 wait_from_ticks = ((now + reversing_time - spacing_shift) / spacing) * spacing + spacing_shift; // remember, it is integer division
 				sint64 queue_pos = halt.is_bound() ? halt->get_queue_pos(self) : 1ll;
