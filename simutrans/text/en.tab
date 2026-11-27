@@ -3343,7 +3343,7 @@ green
 %d buildings\n
 %d buildings
 %d convois
-%d convoys
+%d consists
 %d Einzelfahrzeuge im Depot
 %d vehicles stored here.
 %i km/h (max. %ikm/h)
@@ -3381,7 +3381,7 @@ green
 (in depot)
 (in depot)
 1 convoi
-One convoy
+One consist
 1 Einzelfahrzeug im Depot
 One vehicle stored here.
 1center
@@ -3735,23 +3735,23 @@ Author: %s
 Construction_Btn
 Construction costs
 convoi %d of %d
-Convoy %d of %d
+Consist %d of %d
 Convoi has been sent\nto the nearest depot\nof appropriate type.\n%s\n
 %s has been sent to the nearest depot of the appropriate type.\n
 Convoi is sold when all wagons are empty.
 The vehicle will be sold as soon as it is completely empty.
 Convoi is sent to depot when all wagons are empty.
-The convoy will be sent to the nearest depot as soon as it is completely empty.
+The consist will be sent to the nearest depot as soon as it is completely empty.
 convoi passed last month:
 Passed here last month:
 Convois: %d\nProfit: %s
 Vehicles: %d\nProfit: %s
 Convoys
-Convoys
+Consists
 Copy Convoi
-Copy convoy
+Copy consist
 Copy the selected convoi and its schedule or line
-Copy the selected convoy and its schedule or line
+Copy the selected consist and its schedule or line
 Create a new line based on this schedule
 Create a new line based on this schedule
 curlist_title
@@ -3789,9 +3789,9 @@ Details
 Die Bruecke ist nicht frei!\n
 The bridge is not free
 Diese Zusammenstellung kann nicht fahren!\n
-Cannot start: either the vehicles are not properly assembled, or the convoy has not enough power.
+Cannot start: either the vehicles are not properly assembled, or the consist has not enough power.
 Cannot start: no cab at the front of the convoy.
-Cannot start: no cab at the front of the convoy.
+Cannot start: no cab at the front of the consist.
 diesel
 diesel
 Direkt erreichbare Haltestellen
@@ -3871,7 +3871,7 @@ Industry list
 follow me
 Follow me
 Follow the convoi on the map.
-Follow the convoy on the map
+Follow the consist on the map
 Forest
 Forest
 Found new city
@@ -4197,7 +4197,7 @@ New Map
 Neue Welt
 Create a New Game
 new convoi
-New convoy
+New consist
 New factory chain\nfor %s near\n%s built with\n%i factories.
 A new industry chain for %s near %s has been built with %i industries.
 New Line
@@ -4209,9 +4209,9 @@ A new %s is now available:\n%s\n
 New Vehicles
 New Vehicles
 no convois
-No convoys
+No consists
 No goods are loaded onto this convoi.
-This convoy will only unload, not load, at stops.
+This consist will only unload, not load, at stops.
 no goods waiting
 no goods waiting
 no load
@@ -4401,7 +4401,7 @@ remove runways
 Reliefkarte
 Map
 Remove vehicle from map. Use with care!
-Sell the whole convoy immediately. Use with care: this cannot be undone.
+Sell the whole consist immediately. Use with care: this cannot be undone.
 residential house
 Residential house\n
 Restore natural slope
@@ -4443,7 +4443,7 @@ Sell the selected vehicle(s).
 sended
 Sent
 Sends the convoi to the last depot it departed from!
-Sends the convoy to the last depot from which it departed
+Sends the consist to the last depot from which it departed
 September
 September
 SEP_FRACTION
@@ -5023,7 +5023,7 @@ Net wealth low
 No. of Consumers
 Number of consumer industries
 Vehicle %s cannot choose because stop too short!
-Convoy %s is too long for its next stop.
+Consist %s is too long for its next stop.
 nMax. weight:
 nMax. total weight:
 Game info
@@ -5481,9 +5481,9 @@ Comfort penalty at the tolerable limit
 income_pr_km_(when_full):
 Income per km (when full):
 tpo_income_pr_km_(full_convoy):
-Traveling post office income per km (full convoy):
+Traveling post office income per km (full consist):
 catering_income_pr_km_(full_convoy):
-Catering income per km (full convoy):
+Catering income per km (full consist):
 see_and_change_the_class_assignments
 See and change the prices
 unlimited
@@ -5543,7 +5543,7 @@ additional upgrades
 reassign_classes
 Reassign prices
 line_no_convoys
-This line has no convoys assigned to it
+This line has no consists assigned to it
 line_loss_making
 This line made a loss last month
 line_nothing_moved
@@ -5587,7 +5587,7 @@ Timing data
 view_journey_times_history_of_this_line
 View journey timing data of this line.
 view_journey_times_history_of_this_convoy
-View journey timing data of this convoy.
+View journey timing data of this consist.
 no_time_entry
 ----
 stations
@@ -5605,7 +5605,7 @@ Normal unidirectional order:
 line_times_history
 Line timing data: 
 convoy_times_history
-Convoy timing data: 
+Consist timing data: 
 more_units
 more units
 distance
@@ -5777,7 +5777,7 @@ Powered vehicle
 helptxt_unpowered_vehicle
 Unpowered vehicle
 Select vehicles to make up a convoy
-Select vehicles to make up a convoy
+Select vehicles to make up a consist
 Vehicle bar shape legend:
 Legend:
 cd_spec_tab
@@ -5839,7 +5839,7 @@ Stop coverage
 Show the distance to the nearest station
 Show the distance to the nearest station
 Show convoys
-Show convoys
+Show consists
 map_btn_building_level
 Density
 cl_txt_mode
@@ -6083,11 +6083,11 @@ Tooltip
 Money message
 Revenue just earned
 The line name or convoy name is displayed above the convoy.
-The line name or convoy name is displayed above the convoy.
+The line name or consist name is displayed above the consist.
 A loading rate bar is displayed above the convoy.
-A bar is displayed above the convoy showing how full that it is.
+A bar is displayed above the consist showing how full that it is.
 Income display displayed when convoy arrives at the stop.
-The amount of revenue that this convoy has just earned is shown whenever it arrives at a stop.
+The amount of revenue that this consist has just earned is shown whenever it arrives at a stop.
 Divided by class
 Divided by class
 Waiting bars are displayed separately for each class.
@@ -6101,13 +6101,13 @@ Divided by category of goods
 Divided by goods
 Divided by type of goods
 Select the behavior of the camera when the following convoy enters the tunnel.
-Select the behavior of the camera when a convoy being followed convoy enters a tunnel.
+Select the behavior of the camera when a consist being followed enters a tunnel.
 do nothing
 Do nothing
 waytype
 Transport mode
 convoys stored
-Convoys stored
+Consists stored
 vehicles stored
 Vehicles stored
 Vacant slot
@@ -6571,7 +6571,7 @@ Only available as an upgrade
 cannot upgrade
 Cannot upgrade
 Only this convoy
-Only this convoy
+Only this consist
 (Max. comfortable journey time: 
 Max. comfortable journey time: 
 switch_spec_display_mode
@@ -6649,9 +6649,9 @@ No consist found
 select_line_or_cnv_first
 Select line or consist...
 if_this_is_set,_convoys_will_wait_until_this_condition_is_broadcasted_by_another_convoy_The_convoy_holding_here_is_the_receiver:_it_departs_once_a_sender_broadcasts_this_number_to_its_line._Waiting_and_sending_are_armed_separately_at_each_stop.
-If this is set, convoys will wait until this condition is broadcasted by another convoy. The convoy holding here is the receiver: it departs once a sender broadcasts this number to its line. Waiting and sending are armed separately at each stop.
+If this is set, consists will wait until this condition is broadcasted by another consist. The consist holding here is the receiver: it departs once a sender broadcasts this number to its line. Waiting and sending are armed separately at each stop.
 if_this_is_set,_convoy_will_broadcast_this_condition_to_other_convoys_at_this_station_when_arriving_The_convoy_arriving_here_is_the_sender:_the_target_line_below_is_notified._Waiting_and_sending_are_armed_separately_at_each_stop.
-If this is set, the convoy will broadcast this condition to other convoys at this station when arriving. The convoy arriving here is the sender: the target line below is notified. Waiting and sending are armed separately at each stop.
+If this is set, the consist will broadcast this condition to other consists at this station when arriving. The consist arriving here is the sender: the target line below is notified. Waiting and sending are armed separately at each stop.
 Send trigger on arrival
 Send trigger on arrival
 If this is set, the consist broadcasts its condition number to the target line or consist when arriving at this stop.
@@ -6939,9 +6939,9 @@ Show route
 replace_line_convoys
 Replace vehicles
 helptxt_replace_all_convoys_of_this_line
-Replace all convoys in this line, no matter the type, with a specified type of convoy
+Replace all consists in this line, no matter the type, with a specified type of consist
 multiline_helptext_replace_all_line_convoys
-Replace all convoys in this line
+Replace all consists in this line
 error_text_invalid_replace_cycle
 Invalid replacement cycle
 line_has_multiple_traction_types
@@ -7028,8 +7028,6 @@ car_age_in_month
 Age (months)
 can_upgrade
 Upgradeable
-convoy_value
-Whole convoy
 Car no.
 Vehicle no.
 Rated speed
@@ -7039,11 +7037,11 @@ Max. tractive effort:
 cargo_list_by_catg
 Sort by category
 cargo_list_by_route
-Sort by line/convoy
+Sort by line/consist
 Show route
-Show chosen line/convoy
+Show chosen line/consist
 Shows the line or convoy where the cargo is waiting
-Shows the line or convoy for which the cargo is waiting. Note that other lines/convoys may be used where this is optimum at the time of boarding/loading.
+Shows the line or consist for which the cargo is waiting. Note that other lines/consists may be used where this is optimum at the time of boarding/loading.
 Show transfer (in)
 Show transfers (in)
 Shows cargos heading to the platform to depart from this stop
@@ -7169,14 +7167,106 @@ staff_type_5_description
 staff_type_6_description
 staff_type_6_description
 Convoy %s: the coupling target of the consist order at %s no longer exists; the order is not being carried out.
-Convoy %s: the coupling target of the consist order at %s no longer exists; the order is not being carried out.
+Consist %s: the coupling target of the consist order at %s no longer exists; the order is not being carried out.
 Convoy %s cannot continue with its present vehicles: sending it to a depot.
-Convoy %s cannot continue with its present vehicles: sending it to a depot.
+Consist %s cannot continue with its present vehicles: sending it to a depot.
 Consist orders have been changed after the deletion of %s:
 Consist orders have been changed after the deletion of %s:
 Line %s has no convoys left: consist orders referring to it cannot be carried out.
-Line %s has no convoys left: consist orders referring to it cannot be carried out.
+Line %s has no consists left: consist orders referring to it cannot be carried out.
 Couple orders with no coupling target selected have been removed from these stops:
 Couple orders with no coupling target selected have been removed from these stops:
 Waiting for a coupling partner.
 Waiting for a coupling partner.
+# Consist terminology.
+# The keys are the original strings used by the code. The values are the English
+# text displayed in the user interface. Keep the keys unchanged: the other
+# language tables use them as lookup keys.
+Automatically replace this convoy.
+Automatically replace this consist.
+Convoy %s cannot afford the overhaul and is held in the depot.
+Consist %s cannot afford the overhaul and is held in the depot.
+Convoy %s cannot afford the overhaul; the depot visit is skipped.
+Consist %s cannot afford the overhaul; the depot visit is skipped.
+Convoy %s cannot reach the coupling target platform from this choose signal; check station geometry and one-way signs.
+Consist %s cannot reach the coupling target platform from this choose signal; check station geometry and one-way signs.
+Convoy %s: the convoy is waiting at the choose signal because the coupling with %s at %s cannot be completed: %s.
+Consist %s: the consist is waiting at the choose signal because the coupling with %s at %s cannot be completed: %s.
+Convoy %s: the paired exchange with %s at %s is not carried out because %s.
+Consist %s: the paired exchange with %s at %s is not carried out because %s.
+Convoy %s: the vehicles listed in the consist order for %s cannot be formed into a train, so the convoy is left as it is.
+Consist %s: the vehicles listed in the consist order for %s cannot be formed into a train, so the consist is left as it is.
+Convoy already deleted!
+Consist already deleted!
+Convoy ID
+Consist ID
+Convoy running costs per km
+Consist running costs per km
+Convoy tooltips
+Consist tooltips
+Convoys run empty and go to the next depot on their schedule, where they are held.
+Consists run empty and go to the next depot on their schedule, where they are held.
+Current convoy:
+Current consist:
+If this is set, choose signals will be ignored while this convoy is heading to this destination.
+If this is set, choose signals will be ignored while this consist is heading to this destination.
+If this is set, convoys will wait until one of the specified times before departing, the specified times being fractions of a month.
+If this is set, consists will wait until one of the specified times before departing, the specified times being fractions of a month.
+Lineless convoys serving this stop
+Lineless consists serving this stop
+Mark for replacing. The convoy will replace when manually sent to depot
+Mark for replacing. The consist will replace when manually sent to depot
+No route and no depot for convoy %s: convoy has been sold!
+No route and no depot for consist %s: consist has been sold!
+No route to depot for convoy %s: teleported to depot!
+No route to depot for consist %s: teleported to depot!
+No valid convoy selected!
+No valid consist selected!
+Open the convoy detail window
+Open the consist detail window
+Scrap all vehicles in the convoy.
+Scrap all vehicles in the consist.
+Sell the convoy for %s
+Sell the consist for %s
+Send convoy to depot, replace and restart it automatically
+Send consist to depot, replace and restart it automatically
+Send convoy to depot, replace it and stay there
+Send consist to depot, replace it and stay there
+Send the convoy to its home depot for replacing rather than the nearest depot.
+Send the consist to its home depot for replacing rather than the nearest depot.
+Shows the convoy unique ID
+Shows the consist unique ID
+switch the convoy loading bar display mode
+switch the consist loading bar display mode
+switch the convoy nameplate display mode
+switch the consist nameplate display mode
+The convoy has been sent\nto its home depot.\n%s\n
+The consist has been sent\nto its home depot.\n%s\n
+The convoy runs empty and goes to the next depot on its schedule, where it is held.
+The consist runs empty and goes to the next depot on its schedule, where it is held.
+the entry targets its own line or convoy
+the entry targets its own line or consist
+The number of convoys that have serviced this stop
+The number of consists that have serviced this stop
+The number of times convoy arrived at this stop last month
+The number of times a consist arrived at this stop last month
+the other convoy
+the other consist
+the other convoy's schedule entry at this stop does not name this convoy in return, so the two entries cannot form a pair
+the other consist's schedule entry at this stop does not name this consist in return, so the two entries cannot form a pair
+the other convoy's schedule entry names a different entry of this schedule
+the other consist's schedule entry names a different entry of this schedule
+the other convoy's schedule names this convoy at a different stop, not at this stop
+the other consist's schedule names this consist at a different stop, not at this stop
+The total number of convoys in the region
+The total number of consists in the region
+This line/convoy needs electrification
+This line/consist needs electrification
+This line/convoy needs refueling at the stop.
+This line/consist needs refueling at the stop.
+two schedule entries of the other convoy at this stop name this convoy for a paired exchange
+two schedule entries of the other consist at this stop name this consist for a paired exchange
+When adding convoys to the line, every second convoy will follow it in the reverse direction.
+When adding consists to the line, every second consist will follow it in the reverse direction.
+Convoy
+Consist

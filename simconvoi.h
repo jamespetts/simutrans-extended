@@ -55,7 +55,9 @@ class replace_data_t;
 class departure_point_t;
 
 /**
- * Base class for all vehicle consists. Convoys can be referenced by handles, see halthandle_t.
+ * Base class for all vehicle consists. Convoys are referenced by convoihandle_t.
+ * The user interface calls a convoi_t a consist; the class name and the rest of
+ * the code retain the historic term convoy.
  */
 class convoi_t : public sync_steppable, public overtaker_t, public lazy_convoy_t
 {

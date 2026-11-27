@@ -84,14 +84,12 @@ void consist_list_t::refresh()
 }
 
 
-// Consist-copier list rows: identical to convoy rows except the empty-list
-// placeholder, which reads "Consist not found" here instead of the shared
-// "convoy not found" text used by the depot and line windows.
+// Consist-copier list rows: identical to convoy rows. The empty-list
+// placeholder uses the shared translation key in convoy_scrollitem_t.
 class consist_scrollitem_t : public convoy_scrollitem_t
 {
 public:
 	consist_scrollitem_t(convoihandle_t c = convoihandle_t(), bool auto_text_color = false) : convoy_scrollitem_t(c, auto_text_color) { }
-	char const* get_text() const OVERRIDE;
 
 	// Sort state of the copier list: criterion (convoi_frame_t::sort_mode_t)
 	// and direction. Static like the other sort settings in this window, so
@@ -104,13 +102,6 @@ public:
 
 int consist_scrollitem_t::sort_mode = convoi_frame_t::by_name;
 bool consist_scrollitem_t::sortreverse = false;
-
-
-char const* consist_scrollitem_t::get_text() const
-{
-	const convoihandle_t cnv = get_convoy();
-	return cnv.is_bound() ? cnv->get_name() : "Consist not found";
-}
 
 
 bool consist_scrollitem_t::compare(const gui_component_t *aa, const gui_component_t *bb)

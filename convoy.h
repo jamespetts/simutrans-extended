@@ -9,6 +9,10 @@
 
 /* convoy_t: common collection of properties of a convoi_t and a couple of vehicles which are going to become a convoy_t.
  * While convoi_t is involved in game play, convoy_t is the entity that physically models the convoy.
+ *
+ * The user interface calls a convoi_t a consist. The C++ identifiers and file
+ * names retain the historic term convoy. A consist order is the ordered list of
+ * vehicle slots that a schedule entry requires.
  */
 /*******************************************************************************
 

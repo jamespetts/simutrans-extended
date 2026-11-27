@@ -2,6 +2,10 @@
 * (see licence.txt)
 *
 * @author: jamespetts, February 2018
+*
+* A consist order is the ordered list of vehicle slots that a schedule entry
+* requires. The user interface calls the running object a consist; the code
+* retains the historic term convoy for the convoi_t object.
 */
 
 #ifndef DATAOBJ_CONSIST_ORDER_T_H

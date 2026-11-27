@@ -7,15 +7,16 @@
 #include "../simconvoi.h"
 #include "../simmenu.h"
 #include "../simworld.h"
+#include "../dataobj/translator.h"
 #include "../utils/cbuffer_t.h"
 
 
 const char* convoy_scrollitem_t::get_text() const
 {
-	// Lowercase key: translator keys match byte-exactly including case, and
-	// en.tab carries "convoy not found" -> "No consist found" (user-approved
-	// consist terminology). A capital key would bypass it and show raw text.
-	return cnv.is_bound() ? cnv->get_name() : "convoy not found";
+	// gui_scrolled_list_t draws get_text() without translating it, so the
+	// empty-list placeholder is translated here. The key retains the historic
+	// term; en.tab carries "convoy not found" -> "No consist found".
+	return cnv.is_bound() ? cnv->get_name() : translator::translate("convoy not found");
 }
 
 
