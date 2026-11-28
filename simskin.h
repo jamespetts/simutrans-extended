@@ -176,6 +176,7 @@ public:
 	static const skin_desc_t *tooltip_land;
 	static const skin_desc_t *tooltip_trees;
 	static const skin_desc_t *tooltip_structures;
+	static const skin_desc_t *tooltip_restriction;
 	static const skin_desc_t *tooltip_distance;
 	static const skin_desc_t *tooltip_total;
 	/// @}

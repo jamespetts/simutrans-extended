@@ -48,7 +48,11 @@ static image_id get_symbol_image(tooltip_symbol_t symbol)
 		case TOOLTIP_SYMBOL_MAIL:         desc = skinverwaltung_t::mail; break;
 		case TOOLTIP_SYMBOL_GOODS:        desc = skinverwaltung_t::goods; break;
 		case TOOLTIP_SYMBOL_POWER:        desc = skinverwaltung_t::electricity; break;
-		case TOOLTIP_SYMBOL_RESTRICTION:  return skinverwaltung_t::alerts != NULL ? skinverwaltung_t::alerts->get_image_id(2) : IMG_EMPTY;
+		case TOOLTIP_SYMBOL_RESTRICTION:
+			if(skinverwaltung_t::tooltip_restriction != NULL) {
+				return skinverwaltung_t::tooltip_restriction->get_image_id(0);
+			}
+			return skinverwaltung_t::alerts != NULL ? skinverwaltung_t::alerts->get_image_id(2) : IMG_EMPTY;
 		case TOOLTIP_SYMBOL_TOTAL:        desc = skinverwaltung_t::tooltip_total != NULL ? skinverwaltung_t::tooltip_total : skinverwaltung_t::tooltip_cost; break;
 		default: break;
 	}

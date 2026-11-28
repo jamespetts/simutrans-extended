@@ -456,3 +456,8 @@ name=TooltipLand
 copyright=Simutrans-Extended
 Image[0]=> tooltip-symbols.2.1
 -------
+Obj=menu
+name=TooltipRestriction
+copyright=Simutrans-Extended
+Image[0]=> tooltip-symbols.2.2
+-------

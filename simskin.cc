@@ -98,6 +98,7 @@ const skin_desc_t* skinverwaltung_t::tooltip_durability = NULL;
 const skin_desc_t* skinverwaltung_t::tooltip_land       = NULL;
 const skin_desc_t* skinverwaltung_t::tooltip_trees      = NULL;
 const skin_desc_t* skinverwaltung_t::tooltip_structures = NULL;
+const skin_desc_t* skinverwaltung_t::tooltip_restriction = NULL;
 const skin_desc_t* skinverwaltung_t::tooltip_distance   = NULL;
 const skin_desc_t* skinverwaltung_t::tooltip_total      = NULL;
 
@@ -166,6 +167,7 @@ static special_obj_tpl<skin_desc_t> const menu_objekte[] = {
 	{ &skinverwaltung_t::tooltip_land,       "TooltipLand"      },
 	{ &skinverwaltung_t::tooltip_trees,      "TooltipTrees"     },
 	{ &skinverwaltung_t::tooltip_structures, "TooltipStructures" },
+	{ &skinverwaltung_t::tooltip_restriction, "TooltipRestriction" },
 	{ &skinverwaltung_t::tooltip_distance,   "TooltipDistance"  },
 	{ &skinverwaltung_t::tooltip_total,      "TooltipTotal"     },
 
