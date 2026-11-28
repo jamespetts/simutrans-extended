@@ -9,8 +9,8 @@ name=Modern
 # show tooltips (default 1=show)
 show_tooltips = 1
 
-# tooltip background color (+-1 around this index is used), taken from player-color table
-tooltip_background_color = 4
+# tooltip background color (RGB value or player-color index)
+tooltip_background_color = #D6ECF7
 
 # tooltip text color (240=black, 215=white)
 tooltip_text_color = 240
