@@ -22,6 +22,7 @@
 #define TOOLTIP_PADDING 6
 #define TOOLTIP_LINE_GAP 3
 #define TOOLTIP_GROUP_GAP 6
+#define TOOLTIP_TOTAL_GAP_AFTER 12
 #define TOOLTIP_INDENT 24
 #define TOOLTIP_ICON_GAP 5
 #define TOOLTIP_TAIL_WIDTH 14
@@ -325,8 +326,9 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 
 	sint32 content_width = 0;
 	sint32 height = 2 * TOOLTIP_PADDING;
-	for(const tooltip_line_t &line : lines)
+	for(uint32 i = 0; i < lines.get_count(); i++)
 	{
+		const tooltip_line_t &line = lines[i];
 		const sint32 text_offset = (line.custom_icon != IMG_EMPTY ? get_icon_width(line) + TOOLTIP_ICON_GAP : symbol_column) + line.indent * TOOLTIP_INDENT;
 		const sint32 text_max_width = max(40, max_width - 2 * TOOLTIP_PADDING - text_offset);
 		const sint32 raw_width = display_calc_proportional_string_len_width(line.text.get_str(), line.text.len());
@@ -338,9 +340,13 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 			height += TOOLTIP_GROUP_GAP;
 		}
 		height += max(1, wrapped) * line_height + TOOLTIP_LINE_GAP;
-		if(line.title  ||  line.total)
+		if(line.title)
 		{
 			height += TOOLTIP_GROUP_GAP;
+		}
+		else if(line.total  &&  i + 1 < lines.get_count())
+		{
+			height += TOOLTIP_TOTAL_GAP_AFTER;
 		}
 	}
 
@@ -441,8 +447,9 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 
 	sint32 line_y = pos.y + TOOLTIP_PADDING;
 
-	for(const tooltip_line_t &line : lines)
+	for(uint32 i = 0; i < lines.get_count(); i++)
 	{
+		const tooltip_line_t &line = lines[i];
 		const sint32 indent = line.indent * TOOLTIP_INDENT;
 		const sint32 half_rule_width = (width - 2 * TOOLTIP_PADDING) / 2;
 		if(line.total)
@@ -474,7 +481,9 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 		else if(line.total)
 		{
 			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y + 1, half_rule_width, 1, rule_color, dirty);
-			line_y += TOOLTIP_GROUP_GAP;
+			if(  i + 1 < lines.get_count()  ) {
+				line_y += TOOLTIP_TOTAL_GAP_AFTER;
+			}
 		}
 	}
 }
