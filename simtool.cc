@@ -2931,6 +2931,21 @@ static sint64 tooltip_adjusted_maintenance(const karte_t *welt, sint64 maintenan
 }
 
 
+/**
+ * Label for the maintenance line of a structured tooltip.
+ * Falls back to the Maintenance key when the active language has no
+ * tooltip_maint translation.
+ */
+static const char *tooltip_maintenance_label()
+{
+	const char *text = translator::translate("tooltip_maint");
+	if(  strcmp(text, "tooltip_maint") == 0  ) {
+		return translator::translate("Maintenance");
+	}
+	return text;
+}
+
+
 static void tooltip_add_restrictions(tooltip_t &tooltip, const way_constraints_of_way_t &constraints, waytype_t wt)
 {
 	cbuffer_t restrictions;
@@ -2995,7 +3010,7 @@ void tool_build_way_t::build_tooltip(tooltip_t &tooltip, const player_t *player)
 	tooltip.add_money(TOOLTIP_SYMBOL_FORGE, translator::translate("Forge cost (standard)"), km_forge_cost, translator::translate("/ km")).indent = 1;
 	tooltip.add_money(TOOLTIP_SYMBOL_TOTAL, translator::translate("Total"), km_price + km_forge_cost, translator::translate("/ km")).total = true;
 
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, km_maint), translator::translate("/ km / month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, km_maint), translator::translate("/ km / month"));
 
 	tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
 	tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), desc->get_max_axle_load(), translator::translate("t"));
@@ -3519,7 +3534,7 @@ void tool_build_bridge_t::build_tooltip(tooltip_t &tooltip, const player_t *play
 
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Cost"), desc->get_value(), translator::translate("per tile"));
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("per tile / month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("per tile / month"));
 
 	if(  desc->get_waytype() != powerline_wt  ) {
 		tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
@@ -3989,7 +4004,7 @@ void tool_build_tunnel_t::build_tooltip(tooltip_t &tooltip, const player_t *play
 
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_STRUCTURES, translator::translate("Cost"), desc->get_base_price(), translator::translate("/ km"));
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, desc->get_base_maintenance()), translator::translate("/ km / month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, desc->get_base_maintenance()), translator::translate("/ km / month"));
 
 	if(  desc->get_waytype() != powerline_wt  ) {
 		tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
@@ -4877,7 +4892,7 @@ void tool_build_wayobj_t::build_tooltip(tooltip_t &tooltip, const player_t *play
 
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), desc->get_base_price(), translator::translate("/ km"));
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, desc->get_base_maintenance()), translator::translate("/ km / month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, desc->get_base_maintenance()), translator::translate("/ km / month"));
 	if(  desc->is_overhead_line()  ) {
 		tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
 	}
@@ -6484,7 +6499,7 @@ void tool_build_station_t::build_tooltip(tooltip_t &tooltip, const player_t *pla
 
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), price, NULL);
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, maint), translator::translate("/ month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, maint), translator::translate("/ month"));
 
 	if(  desc->get_enabled() & 1  ) {
 		tooltip.add_value(TOOLTIP_SYMBOL_PASSENGERS, translator::translate("Passengers"), cap, NULL);
@@ -6734,7 +6749,7 @@ void tool_build_pier_t::build_tooltip(tooltip_t &tooltip, const player_t *player
 	}
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), desc->get_value(), translator::translate("per tile"));
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("per tile / month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("per tile / month"));
 	tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), desc->get_topspeed(), translator::translate("km/h"));
 	tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), desc->get_max_axle_load(), translator::translate("t"));
 	if(  desc->get_max_altitude()  ) {
@@ -6959,7 +6974,7 @@ void tool_build_pier_auto_t::build_tooltip(tooltip_t &tooltip, const player_t *p
 	title.printf("%s %s", translator::translate(tdesc->get_name()), translator::translate("elevated support"));
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), title.get_str()).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), tdesc->get_value(), translator::translate("per tile apprx."));
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, tdesc->get_maintenance()), translator::translate("per tile / month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, tdesc->get_maintenance()), translator::translate("per tile / month"));
 	tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), tdesc->get_topspeed(), translator::translate("km/h"));
 	tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), tdesc->get_max_axle_load(), translator::translate("t"));
 	if(  tdesc->get_max_altitude()  ) {
@@ -7198,7 +7213,7 @@ void tool_build_roadsign_t::build_tooltip(tooltip_t &tooltip, const player_t *pl
 	}
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), desc->get_value(), NULL);
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("/ month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, desc->get_maintenance()), translator::translate("/ month"));
 	tooltip_add_limited_value(tooltip, TOOLTIP_SYMBOL_SPEED, translator::translate("Max. speed"), speed_to_kmh(desc->get_max_speed()), translator::translate("km/h"));
 	if(  desc->is_signal()  ) {
 		tooltip.add_value(TOOLTIP_SYMBOL_DISTANCE, translator::translate("Max. distance to signalbox"), desc->get_max_distance_to_signalbox(), translator::translate("m"));
@@ -8173,7 +8188,7 @@ void tool_signalbox_t::build_tooltip(tooltip_t &tooltip, const player_t *player)
 
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), get_tooltip_price(desc), NULL);
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, maintenance), translator::translate("/ month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, maintenance), translator::translate("/ month"));
 	tooltip.add_value(TOOLTIP_SYMBOL_DISTANCE, translator::translate("Radius"), desc->get_radius(), translator::translate("m"));
 	tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Max. signals"), desc->get_capacity(), NULL);
 }
@@ -8379,7 +8394,7 @@ void tool_build_depot_t::build_tooltip(tooltip_t &tooltip, const player_t *playe
 	const uint16 level = desc->get_level();
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name())).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), price * level, NULL);
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, settings.get_maint_building() * level), translator::translate("/ month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, settings.get_maint_building() * level), translator::translate("/ month"));
 }
 
 waytype_t tool_build_depot_t::get_waytype() const
@@ -8965,7 +8980,7 @@ void tool_headquarter_t::build_tooltip(tooltip_t &tooltip, const player_t *playe
 
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(tip)).title = true;
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), factor * s.get_cost_multiply_headquarter(), NULL);
-	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("tooltip_maint"), tooltip_adjusted_maintenance(welt, factor * s.get_maint_building()), translator::translate("/ month"));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, tooltip_maintenance_label(), tooltip_adjusted_maintenance(welt, factor * s.get_maint_building()), translator::translate("/ month"));
 	tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Level"), desc->get_level(), NULL);
 }
 
