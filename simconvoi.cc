@@ -3007,18 +3007,27 @@ void convoi_t::turn_at_skipped_depot()
 		return;
 	}
 
-	const uint8 count = schedule->get_count();
+	// A mirrored schedule is traversed as its expanded sequence: the same
+	// entry is visited once in each direction. This scan may therefore have to
+	// walk both legs before it returns to the current entry.
+	const uint16 count = (uint16)(schedule->get_count() * 2 - 2);
 	const uint8 current = schedule->get_current_stop();
 	uint8 index = current;
 	bool rev = reverse_schedule;
 	bool used_early_decision = false;
-	for (uint8 i = 0; i < count; i++)
+	for (uint16 i = 0; i < count; i++)
 	{
 		schedule->increment_index(&index, &rev);
 		if (index == current)
 		{
 			// Every entry up to the turning point is skipped: this stop is the end of the schedule.
 			reverse_schedule = rev;
+			// The skipped conditional depots have been passed for the maintenance
+			// decision, as they would have been by advance_schedule(). The next
+			// halt evaluates the next visit; without this reset the decision made
+			// before the turn would remain in force forever because the skipped
+			// depot entry is never reached.
+			reset_conditional_depot_state();
 			return;
 		}
 
@@ -9610,14 +9619,18 @@ uint32 convoi_t::calc_reverse_delay() const
 
 		// Estimate arrival and departure times at and from the subsequent stops on the schedule.
 		bool rev = reverse_schedule;
-		const uint8 count = schedule->is_mirrored() ? schedule->get_count() * 2 : schedule->get_count();
+		// A mirrored schedule is traversed as its expanded sequence: the two
+		// ends are visited once per cycle, not twice.
+		const uint16 count = schedule->is_mirrored()
+			? (uint16)(schedule->get_count() * 2 - 2)
+			: (uint16)schedule->get_count();
 		sint64 journey_time_ticks = 0;
 		sint64 eta = time;
 		sint64 etd = eta;
 		vector_tpl<uint16> halts_already_processed;
 		const uint32 reverse_delay = calc_reverse_delay();
 		schedule->increment_index_until_next_halt(front()->get_owner(), &schedule_entry, &rev);
-		for(uint8 i = 0; i < count; i++)
+		for(uint16 i = 0; i < count; i++)
 		{
 			uint32 journey_time_tenths_minutes = (uint32)journey_times_between_schedule_points.get(departure_point).get_average();
 			if(journey_time_tenths_minutes == 0)
@@ -10113,7 +10126,12 @@ void convoi_t::clear_estimated_times()
 	halthandle_t halt;
 	uint8 entry = schedule->get_current_stop();
 	bool rev = reverse_schedule;
-	for(int i = 0; i < schedule->get_count(); i++)
+	// A mirrored schedule is traversed as its expanded sequence, so one cycle
+	// covers both legs, not one pass over the stored entries.
+	const int count = schedule->is_mirrored()
+		? (int)(schedule->get_count() * 2 - 2)
+		: (int)schedule->get_count();
+	for(int i = 0; i < count; i++)
 	{
 		halt = haltestelle_t::get_halt(schedule->entries[entry].pos, owner);
 
@@ -10408,8 +10426,12 @@ bool convoi_t::is_last_halt_before_depot() const
 	}
 	uint8 index = schedule->get_current_stop();
 	bool reverse = reverse_schedule;
-	const uint8 count = schedule->get_count();
-	for (uint8 i = 0; i < count; i++)
+	// A mirrored schedule is traversed as its expanded sequence, so the next
+	// depot may lie on the return leg beyond one pass over the stored entries.
+	const uint16 count = schedule->is_mirrored()
+		? (uint16)(schedule->get_count() * 2 - 2)
+		: (uint16)schedule->get_count();
+	for (uint16 i = 0; i < count; i++)
 	{
 		schedule->increment_index(&index, &reverse);
 		const schedule_entry_t &entry = schedule->entries[index];

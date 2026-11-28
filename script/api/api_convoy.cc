@@ -121,6 +121,23 @@ bool convoy_set_maintenance_distances_for_testing(convoi_t *cnv, sint32 index, u
 	return true;
 }
 
+// Scenario-only test hook. Makes routine maintenance due now, using either the
+// kilometre interval or the months-based interval that the descriptor and
+// settings select. urgent selects the overdue threshold. Returns true when the
+// convoy and vehicle exist, the call is allowed, and the current date permits
+// the chosen interval to be set.
+bool convoy_set_maintenance_due_for_testing(convoi_t *cnv, sint32 index, bool urgent)
+{
+	if (cnv == NULL || index < 0 || (uint32)index >= cnv->get_vehicle_count() || !script_may_change_vehicle_maintenance()) {
+		return false;
+	}
+	vehicle_t *v = cnv->get_vehicle((uint16)index);
+	if (v == NULL) {
+		return false;
+	}
+	return v->set_maintenance_due_for_testing(urgent);
+}
+
 // Returns the value that
 // convoi_t::get_average_journey_times_this_convoy_only() holds for the pair
 // (from, to), in tenths of minutes, or -1 if the table holds no such pair.
@@ -688,6 +705,18 @@ void export_convoy(HSQUIRRELVM vm, bool scenario)
 		 * @ingroup scen_only
 		 */
 		register_method(vm, &convoy_set_maintenance_distances_for_testing, "set_maintenance_distances_for_testing", true);
+		/**
+		 * Scenario-only test hook. Makes routine maintenance due now, using the
+		 * descriptor's kilometre interval when it has one and the saved
+		 * last_maintenance_month otherwise.
+		 * The call is refused in a network game while a client is connected.
+		 * @param index position in the convoy, 0 = front
+		 * @param urgent true to use the overdue threshold that diverts the convoy
+		 * @returns true on success
+		 * @note Only available in scenario mode.
+		 * @ingroup scen_only
+		 */
+		register_method(vm, &convoy_set_maintenance_due_for_testing, "set_maintenance_due_for_testing", true);
 	}
 	/**
 	 * @returns the convoy's livery scheme index

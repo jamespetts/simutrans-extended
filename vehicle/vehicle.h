@@ -983,6 +983,13 @@ public:
 		km_since_last_overhaul = km_overhaul;
 	}
 
+	// Scenario-only test hook: makes routine maintenance due now, using the
+	// descriptor's kilometre interval when it has one and the saved
+	// last_maintenance_month otherwise. urgent selects the overdue threshold
+	// that diverts the convoy to a depot. Returns false when the vehicle cannot
+	// be made due with the configured interval.
+	bool set_maintenance_due_for_testing(bool urgent);
+
 	virtual uint8 get_availability() const;
 
 	void replenish();

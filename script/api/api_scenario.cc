@@ -9,10 +9,12 @@
 
 #include "../api_class.h"
 #include "../api_function.h"
+#include "../../dataobj/environment.h"
 #include "../../dataobj/koord.h"
 #include "../../dataobj/koord3d.h"
 #include "../../dataobj/scenario.h"
 #include "../../dataobj/translator.h"
+#include "../../network/network_socket_list.h"
 #include "../../utils/simstring.h"
 
 #include "../../simintr.h"
@@ -21,6 +23,25 @@
 using namespace script_api;
 
 static char buf[40];
+
+
+// Scenario-only test hook. Simplified maintenance suppresses every
+// convoi_t::is_maintenance_needed() result, so a case that exercises the
+// conditional-depot decision must be able to turn it off. The setting is saved
+// world state; each scenario runs in its own process, and the hook is not
+// exposed in normal play.
+static bool set_simplified_maintenance_for_testing(bool value)
+{
+	// The setting is saved world state. A scenario runs on the server only, but
+	// a connected client would not receive this direct mutation as a command.
+	if (env_t::networkmode
+		&& (socket_list_t::get_connected_clients() != 0 || socket_list_t::get_playing_clients() != 0))
+	{
+		return false;
+	}
+	welt->get_settings().set_simplified_maintenance(value);
+	return true;
+}
 
 
 static plainstring double_to_string(double f, sint32 decimals)
@@ -161,6 +182,18 @@ void export_scenario(HSQUIRRELVM vm)
 	 * @ingroup scen_only
 	 */
 	register_method(vm, &scenario_t::load_language_file, "load_language_file");
+
+	/**
+	 * Scenario-only test hook. Enables or disables simplified maintenance for
+	 * the running world. A case that exercises the conditional-depot decision
+	 * needs the setting off, because simplified maintenance suppresses every
+	 * convoi_t::is_maintenance_needed() result.
+	 * @param value true to enable simplified maintenance
+	 * @returns true
+	 * @note Only available in scenario mode.
+	 * @ingroup scen_only
+	 */
+	register_method(vm, &set_simplified_maintenance_for_testing, "set_simplified_maintenance_for_testing");
 
 	/**
 	 * Table with methods to forbid and allow tools.

@@ -736,7 +736,11 @@ private:
 	// contain more than one; the later ones keep the late decision in
 	// convoi_t::advance_schedule(). Tracking a specific depot would need a
 	// schedule-index byte. Whether that is worth the memory is an open
-	// question (see ai/ex-15/depot-maintenance.md).
+	// question (see ai/ex-15/depot-maintenance.md). When
+	// convoi_t::turn_at_skipped_depot() turns a mirrored schedule early
+	// because the conditional depots ahead will be skipped, it resets this
+	// state: the depot entries are not reached, so this reset is the
+	// equivalent of the skip reset in convoi_t::advance_schedule().
 	bool conditional_depot_present:1;
 	bool conditional_depot_decided:1;
 	bool conditional_depot_visit:1;

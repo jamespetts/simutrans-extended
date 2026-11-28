@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14), 82/82 (2026-11-24), 83/83 and 84/84 (2026-11-27); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23); ex-15 @ f41b00399f (2026-11-25, trigger-wait road case); maintenance-withdraw case @ c0fe14eb93 plus working tree (2026-11-25); ex-15 @ 4d9aeccb6e plus working-tree service-frequency and trigger-timeout cases (2026-11-27); player finance history and halt statistics APIs @ working tree (2026-11-27)
+verified: ex-15 @ d921be1fa0 (2026-11-24, maintenance-test API, test hook and overhaul case); maintenance cash rounding tolerance and split/cross-convoy cases @ efe5757b13 (2026-11-25); maintenance-due and simplified-maintenance scenario hooks plus mirror case @ 427ce77f8d plus working tree (2026-11-28); ex-15 @ 97029f453 (2026-11-14, scripting remainder); ex-15 @ 0692167b6 (2026-11-15, signalling API additions in the inventory); ex-15 @ bf157b7a7 plus working-tree pick-up goods API (2026-11-17, scenario cargo API and snapshot fields); ex-15 @ dafe7031e plus working-tree test tooling (2026-11-18, suite options and timings); test-harness facts as cited; suite count 81/81 (2026-11-14), 82/82 (2026-11-24), 83/83 and 84/84 (2026-11-27); ex-15 @ a201bf056d plus working-tree crossroads road case (2026-11-23); ex-15 @ f41b00399f (2026-11-25, trigger-wait road case); maintenance-withdraw case @ c0fe14eb93 plus working tree (2026-11-25); ex-15 @ 4d9aeccb6e plus working-tree service-frequency and trigger-timeout cases (2026-11-27); player finance history and halt statistics APIs @ working tree (2026-11-27)
 ---
 # Scripting & tests
 
@@ -61,6 +61,16 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   would not travel as a network command.
   `vehicle_desc_x.get_starting_availability()` and
   `vehicle_desc_x.get_minimum_availability()` expose the descriptor availability bounds.
+  `convoy_x.set_maintenance_due_for_testing(index, urgent)` is a scenario-only
+  hook that makes routine maintenance due now. It uses the descriptor's
+  kilometre interval when it has one and the saved `last_maintenance_month`
+  otherwise; `urgent` selects the overdue threshold. It refuses in the same
+  network circumstances as the distance hook. The scenario-only global
+  `set_simplified_maintenance_for_testing(value)` toggles
+  `settings_t::simplified_maintenance`; pre-15 saves load with that setting
+  forced true, and it suppresses every `convoi_t::is_maintenance_needed()`
+  result, so a case that exercises the conditional-depot decision must turn it
+  off.
   The pending-runtime `maintenance-dwell` case uses these fields. It sets the `reverse`
   field of its depot schedule entry to 1; without that value the case's convoy passed the
   depot tile and looped between the stop and the depot instead of entering it. The
@@ -93,7 +103,15 @@ gui/scenario_frame/scenario_info (→ [gui](gui.md)).
   one Deployed Convoy is withdrawn to the depot and held. The
   `maintenance-withdraw` case withdraws a Convoy while it is in the maintenance
   queue and asserts that the Convoy is held in INITIAL and stays in the depot's
-  convoy list [EXECUTION-VERIFIED:2026-11-26].
+  convoy list [EXECUTION-VERIFIED:2026-11-26]. The `mirror` case uses a
+  Mirrored Schedule (defined in [depot-maintenance](ex-15/depot-maintenance.md#terms))
+  with a conditional depot at the first entry and four ordinary stops. It
+  injects passengers at the far turning point so the convoy calls at the
+  ordinary stops, makes maintenance due at the first return-leg stop after the
+  turning-point decision, and asserts that the convoy visits the conditional
+  depot after `convoi_t::turn_at_skipped_depot()` turns the convoy early at the
+  last halt. It passes with the early-turn reset and fails without it
+  [EXECUTION-VERIFIED:2026-11-28].
 - The `service-frequency` pending-runtime case runs the maintenance line for two laps, so the
   convoy leaves a stop and then leaves the depot between the laps. It asserts that
   `simline_t::get_service_frequency` reports a positive lap time after the second stop departure,

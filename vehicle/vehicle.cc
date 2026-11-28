@@ -4197,6 +4197,27 @@ bool vehicle_t::is_maintenance_needed() const
 	return km_since_last_maintenance > desc->get_maintenance_interval_km();
 }
 
+bool vehicle_t::set_maintenance_due_for_testing(bool urgent)
+{
+	if (desc->get_maintenance_interval_km() == 0)
+	{
+		const uint32 interval = urgent
+			? welt->get_settings().get_extended_maintenance_interval_months()
+			: welt->get_settings().get_maintenance_interval_months();
+		const uint32 current_month = welt->get_current_month();
+		if (current_month <= interval)
+		{
+			return false;
+		}
+		last_maintenance_month = current_month - interval - 1;
+		return true;
+	}
+
+	const uint32 interval = desc->get_maintenance_interval_km();
+	km_since_last_maintenance = urgent ? (interval * 3) / 2 + 1 : interval + 1;
+	return true;
+}
+
 bool vehicle_t::is_maintenance_urgently_needed() const
 {
 	if (desc->get_maintenance_interval_km() == 0)

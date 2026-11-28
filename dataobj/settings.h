@@ -1561,6 +1561,7 @@ public:
 	uint32 get_auto_connect_industries_and_attractions_by_road() const { return auto_connect_industries_and_attractions_by_road; }
 
 	bool get_simplified_maintenance() const { return simplified_maintenance; }
+	void set_simplified_maintenance(bool value) { simplified_maintenance = value; }
 
 	uint8 get_overhaul_grouping_percentage() const { return overhaul_grouping_percentage; }
 	void set_overhaul_grouping_percentage(uint8 value) { overhaul_grouping_percentage = value > 100 ? 100 : value; }

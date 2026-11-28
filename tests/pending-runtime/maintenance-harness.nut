@@ -120,6 +120,13 @@ local TARGET_CASE = ("maintenance_target_case" in getroottable()) && ::maintenan
 // laps and checks that leaving the depot for maintenance does not discard the
 // line's measured round-trip samples.
 local SERVICE_FREQUENCY_CASE = ("maintenance_service_frequency_case" in getroottable()) && ::maintenance_service_frequency_case
+// The mirror case uses a mirrored schedule with a conditional depot at the
+// first entry. The depot is skipped on the first pass, the vehicle is made due
+// for routine maintenance after the last turn decision, and the convoy must
+// still visit the depot on the next approach. A missing reset after the early
+// turn at the last halt before the depot would leave the skip decision in
+// force forever.
+local MIRROR_CASE = ("maintenance_mirror_case" in getroottable()) && ::maintenance_mirror_case
 local WAYTYPE = RAIL_CASE ? wt_rail : wt_road
 
 // The runner's stall watchdog uses log growth. Engine per-step logging is
@@ -135,6 +142,18 @@ local STOP_ENTRY_ID = 11
 local DEPOT_ENTRY_ID = 12
 local UNREACHABLE_POS = coord3d(2, 10, 0)
 local UNREACHABLE_ENTRY_ID = 13
+
+// The mirror fixture uses a longer line so that the convoy has four ordinary
+// stops between the conditional depot and the far turning point.
+local MIRROR_WAY_END_POS = coord3d(14, 2, 0)
+local MIRROR_STOP_A_POS = coord3d(4, 2, 0)
+local MIRROR_STOP_B_POS = coord3d(7, 2, 0)
+local MIRROR_STOP_C_POS = coord3d(10, 2, 0)
+local MIRROR_STOP_D_POS = coord3d(13, 2, 0)
+local MIRROR_A_ENTRY_ID = 21
+local MIRROR_B_ENTRY_ID = 22
+local MIRROR_C_ENTRY_ID = 23
+local MIRROR_D_ENTRY_ID = 24
 
 // schedule_entry_t::maintain_or_overhaul. A depot schedule entry carries the
 // visit flags in minimum_loading (the schedule_entry_x.load field).
@@ -194,7 +213,17 @@ local fixture = {
 	withdraw_steps = 0,
 	withdraw_cleared_steps = 0,
 	order_descs = [],
-	target_phase = 0
+	target_phase = 0,
+	mirror_ready = false,
+	mirror_due_set = false,
+	mirror_due_km = 0,
+	mirror_a_inbound = 0,
+	mirror_at_a = false,
+	mirror_b_passes = 0,
+	mirror_at_b = false,
+	mirror_at_d = false,
+	mirror_d_cargo_injected = false,
+	mirror_steps = 0
 }
 
 
@@ -384,19 +413,90 @@ function create_line_with_schedule(pl, schedule)
 }
 
 
+// The mirror fixture: a conditional depot at the first entry of a mirrored
+// schedule, four ordinary stops, and the far turning point at the last stop.
+// The convoy starts in the depot. The depot entry is skipped on the first
+// departure; the case later makes the vehicle due for routine maintenance on
+// the outbound leg, after the early decision for that pass has been taken.
+function setup_mirror(pl, depot)
+{
+	// The fixture save predates the full-maintenance savegame version, so the
+	// loader forces simplified maintenance on. The case needs
+	// convoi_t::is_maintenance_needed() to respond to the vehicle state.
+	if (!check(set_simplified_maintenance_for_testing(false), "disable simplified maintenance for the mirror case")) { return false }
+
+	local station = building_desc_x.get_available_stations(building_desc_x.station, WAYTYPE, good_desc_x.passenger)[0]
+	if (!check(station != null, "no station available for waytype " + WAYTYPE)) { return false }
+	foreach (pos in [MIRROR_STOP_A_POS, MIRROR_STOP_B_POS, MIRROR_STOP_C_POS, MIRROR_STOP_D_POS])
+	{
+		if (!check_tool(command_x(tool_build_station).work(pl, pos, station.get_name()), "build the mirror stop at " + pos)) { return false }
+	}
+
+	local descs = select_vehicle()
+	if (!check(descs != null && descs.len() > 0, "no suitable vehicle is available for waytype " + WAYTYPE)) { return false }
+
+	local before = convoy_ids()
+	if (!check_tool(depot.append_vehicle(pl, convoy_x(0), descs[0]), "put the leading vehicle in the depot")) { return false }
+	local cnv = find_new_convoy(before)
+	if (!check(cnv != null, "the convoy was not found after adding its leading vehicle")) { return false }
+	fixture.convoy_id = cnv.id
+
+	for (local i = 1; i < descs.len(); i++)
+	{
+		if (!check_tool(depot.append_vehicle(pl, cnv, descs[i]), "append vehicle " + i + " to the convoy")) { return false }
+	}
+	fixture.vehicle_count = cnv.get_vehicles().len()
+	if (!check(fixture.vehicle_count >= descs.len(), "the convoy has " + fixture.vehicle_count + " vehicles after appending " + descs.len())) { return false }
+
+	local depot_entry = make_entry(DEPOT_POS, DEPOT_ENTRY_ID)
+	depot_entry.conditional_skip = true
+	depot_entry.load = DEPOT_FLAG_MAINTAIN_OR_OVERHAUL
+	depot_entry.reverse = 1
+
+	local entries = [
+		depot_entry,
+		make_entry(MIRROR_STOP_A_POS, MIRROR_A_ENTRY_ID),
+		make_entry(MIRROR_STOP_B_POS, MIRROR_B_ENTRY_ID),
+		make_entry(MIRROR_STOP_C_POS, MIRROR_C_ENTRY_ID),
+		make_entry(MIRROR_STOP_D_POS, MIRROR_D_ENTRY_ID)
+	]
+	local schedule = schedule_x(WAYTYPE, entries)
+	schedule.mirrored = true
+	if (!check_tool(cnv.change_schedule(pl, schedule), "commit the mirrored convoy schedule")) { return false }
+
+	local back = cnv.get_schedule()
+	if (!check(back != null && back.entries.len() == 5, "the committed mirrored schedule has " + (back == null ? 0 : back.entries.len()) + " entries, expected 5")) { return false }
+	if (!check(back.mirrored == true, "the committed schedule is not mirrored")) { return false }
+	if (!check(back.entries[0].conditional_skip == true, "the depot entry is not conditionally skipped")) { return false }
+	if (!check(back.entries[0].unique_entry_id == DEPOT_ENTRY_ID, "schedule entry 0 is not the depot entry " + DEPOT_ENTRY_ID)) { return false }
+	if (!check(back.entries[1].unique_entry_id == MIRROR_A_ENTRY_ID, "schedule entry 1 is not stop A entry " + MIRROR_A_ENTRY_ID)) { return false }
+	if (!check(back.entries[4].unique_entry_id == MIRROR_D_ENTRY_ID, "schedule entry 4 is not stop D entry " + MIRROR_D_ENTRY_ID)) { return false }
+
+	if (!check_tool(depot.start_convoy(pl, cnv), "start the mirrored convoy")) { return false }
+	fixture.stage = "mirror"
+	return true
+}
+
+
 function setup()
 {
 	local pl = player_x(0)
 	local way = way_desc_x.get_available_ways(WAYTYPE, st_flat)[0]
 	if (!check(way != null, "no way available for waytype " + WAYTYPE)) { return false }
 
-	if (!check_tool(command_x.build_way(pl, DEPOT_POS, WAY_END_POS, way, false), "build the line")) { return false }
+	local way_end = MIRROR_CASE ? MIRROR_WAY_END_POS : WAY_END_POS
+	if (!check_tool(command_x.build_way(pl, DEPOT_POS, way_end, way, false), "build the line")) { return false }
 	local depot_desc = depot_desc_for(WAYTYPE)
 	if (!check(depot_desc != null, "no depot available for waytype " + WAYTYPE)) { return false }
 	if (!check_tool(command_x.build_depot(pl, DEPOT_POS, depot_desc), "build the depot")) { return false }
 	local depot = depot_x(DEPOT_POS.x, DEPOT_POS.y, DEPOT_POS.z)
 	if (!check(depot.is_valid(), "the depot at " + DEPOT_POS + " is not valid after building it")) { return false }
 	fixture.depot = depot
+
+	if (MIRROR_CASE)
+	{
+		return setup_mirror(pl, depot)
+	}
 
 	local station = building_desc_x.get_available_stations(building_desc_x.station, WAYTYPE, good_desc_x.passenger)[0]
 	if (!check(station != null, "no station available for waytype " + WAYTYPE)) { return false }
@@ -1191,8 +1291,177 @@ function observe_service_frequency()
 }
 
 
+// Injects passengers at a mirror-fixture stop. The packet's next transfer is
+// its destination, so it stays aboard until that stop. The mirror case uses
+// this to keep the convoy non-empty through the return leg and make it call at
+// the ordinary stops.
+function inject_mirror_passengers(pos, destination_pos, amount)
+{
+	local halt = halt_x.get_halt(pos, player_x(0))
+	local destination = halt_x.get_halt(destination_pos, player_x(0))
+	if (!check(halt != null && destination != null, "no halt at " + pos + " or " + destination_pos + " for passenger injection")) { return false }
+	return check_tool(halt.add_cargo(good_desc_x.passenger, amount, destination, destination, world.get_time().ticks, halt, coord(destination_pos.x, destination_pos.y), 0), "inject " + amount + " passengers at " + pos)
+}
+
+
+// The mirror case: the convoy first skips the conditional depot and turns at
+// the last halt before it. Once the vehicle is made due for routine
+// maintenance after the turning-point decision, the decision taken before that
+// turn must be discarded so that the next approach evaluates the visit afresh.
+// The visit is detected by the maintenance odometer reset, which is independent
+// of whether the visit's dwell is observable at the vehicle's availability.
+function observe_mirror()
+{
+	local cnv = convoy_x(fixture.convoy_id)
+	if (!cnv.is_valid())
+	{
+		fail("the mirrored convoy " + fixture.convoy_id + " disappeared")
+		return
+	}
+	local slots = cnv.get_vehicle_snapshot()
+	if (!check(slots.len() > 0, "the mirrored convoy has no vehicles")) { return }
+
+	if (!fixture.mirror_ready)
+	{
+		// Wait for the second outbound approach to stop B. By then the convoy
+		// has completed a lap and booked some distance, so the maintenance
+		// odometer reset is distinguishable from the initial zero.
+		local at_b_outbound = cnv.get_current_entry_id() == MIRROR_B_ENTRY_ID && !cnv.is_reverse_schedule()
+		if (at_b_outbound)
+		{
+			if (!fixture.mirror_at_b)
+			{
+				fixture.mirror_at_b = true
+				++fixture.mirror_b_passes
+				print("RUNTIME CASE " + case_name + ": convoy reached the outbound approach to stop B (pass " + fixture.mirror_b_passes + ")")
+			}
+		}
+		else
+		{
+			fixture.mirror_at_b = false
+		}
+
+		if (!at_b_outbound || fixture.mirror_b_passes < 2)
+		{
+			++fixture.mirror_steps
+			if (fixture.mirror_steps > TRAVEL_STEP_LIMIT)
+			{
+				fail("the mirrored convoy did not reach the outbound stop B twice within " + TRAVEL_STEP_LIMIT + " observation steps")
+			}
+			return
+		}
+
+		fixture.mirror_ready = true
+		fixture.mirror_steps = 0
+		print("RUNTIME CASE " + case_name + ": the convoy has completed a lap; waiting for the turning point")
+		return
+	}
+
+	if (!fixture.mirror_due_set)
+	{
+		// Put a passenger packet at the far turning point. It is carried back
+		// to stop A, so the convoy is non-empty when it reaches A on the return
+		// leg and calls there; that call is where the early turn is taken.
+		local at_d_outbound = cnv.get_current_entry_id() == MIRROR_D_ENTRY_ID && !cnv.is_reverse_schedule()
+		if (at_d_outbound)
+		{
+			if (!fixture.mirror_at_d)
+			{
+				fixture.mirror_at_d = true
+				if (!inject_mirror_passengers(MIRROR_STOP_D_POS, MIRROR_STOP_A_POS, 20)) { return }
+				fixture.mirror_d_cargo_injected = true
+				print("RUNTIME CASE " + case_name + ": injected passengers at the turning point for stop A")
+			}
+		}
+		else
+		{
+			fixture.mirror_at_d = false
+		}
+
+		// Make maintenance due at stop C on the return leg, after the turning
+		// point has taken its decision to skip. The early turn then happens at
+		// A with the old skip decision; the reset there must let the next halt
+		// decide again.
+		if (cnv.get_current_entry_id() == MIRROR_C_ENTRY_ID && cnv.is_reverse_schedule())
+		{
+			if (!check(fixture.mirror_d_cargo_injected, "the convoy reached stop C on the return leg before the turning-point passengers were injected")) { return }
+			if (!check(!cnv.needs_maintenance(), "the vehicle was already due for maintenance before the case made it due")) { return }
+			if (!check(cnv.set_maintenance_due_for_testing(0, false), "make routine maintenance due with the scenario-only test hook")) { return }
+			if (!check(cnv.needs_maintenance(), "the vehicle does not report maintenance as due after the test hook")) { return }
+			if (!check(!cnv.needs_maintenance_urgently(), "the vehicle reports urgent maintenance after the test hook; the case needs a non-urgent due state")) { return }
+
+			fixture.mirror_due_set = true
+			fixture.mirror_due_km = slots[0].km_since_last_maintenance
+			if (!check(fixture.mirror_due_km > 0, "the vehicle has booked no distance after a lap, so the maintenance odometer reset cannot identify the depot visit")) { return }
+			fixture.mirror_steps = 0
+			print("RUNTIME CASE " + case_name + ": made routine maintenance due at stop C on the return leg with " + fixture.mirror_due_km + " km since the last maintenance")
+			return
+		}
+
+		++fixture.mirror_steps
+		if (fixture.mirror_steps > TRAVEL_STEP_LIMIT)
+		{
+			fail("the mirrored convoy did not reach stop C on the return leg within " + TRAVEL_STEP_LIMIT + " observation steps")
+		}
+		return
+	}
+
+	local at_a_inbound = cnv.get_current_entry_id() == MIRROR_A_ENTRY_ID && cnv.is_reverse_schedule()
+	if (at_a_inbound)
+	{
+		if (!fixture.mirror_at_a)
+		{
+			fixture.mirror_at_a = true
+			++fixture.mirror_a_inbound
+			print("RUNTIME CASE " + case_name + ": convoy reached the approach to stop A on the return leg (pass " + fixture.mirror_a_inbound + ")")
+		}
+	}
+	else
+	{
+		fixture.mirror_at_a = false
+	}
+
+	// A visit is either an observable MAINTENANCE/OVERHAUL state or the vehicle
+	// at the depot with the maintenance odometer reset. The odometer was
+	// nonzero when the test made maintenance due, so a zero value at the depot
+	// proves the visit; a convoy that merely passes the depot entry while
+	// skipping it keeps the nonzero counter.
+	local at_depot = slots[0].pos.x == DEPOT_POS.x && slots[0].pos.y == DEPOT_POS.y && slots[0].pos.z == DEPOT_POS.z && slots[0].km_since_last_maintenance == 0
+	if (cnv.get_state() == convoy_state_maintenance || cnv.get_state() == convoy_state_overhaul || at_depot)
+	{
+		if (!check(!cnv.needs_maintenance_urgently(), "the convoy visited the depot only after becoming urgently due for maintenance; the case did not establish the early-decision reset")) { return }
+		if (!check(fixture.mirror_a_inbound >= 1, "the convoy visited the conditional depot without passing stop A on the return leg")) { return }
+		print("RUNTIME CASE " + case_name + ": the conditional depot was visited after " + fixture.mirror_a_inbound + " return pass(es); km since the last maintenance reset to " + slots[0].km_since_last_maintenance)
+		pass()
+		return
+	}
+
+	if (cnv.needs_maintenance_urgently())
+	{
+		fail("the convoy became urgently due for maintenance before visiting the conditional depot; the early-turn decision was not reset")
+		return
+	}
+
+	++fixture.mirror_steps
+	if (fixture.mirror_a_inbound > 2)
+	{
+		fail("the convoy passed stop A on the return leg " + fixture.mirror_a_inbound + " times without visiting the conditional depot")
+		return
+	}
+	if (fixture.mirror_steps > TRAVEL_STEP_LIMIT)
+	{
+		fail("the convoy did not visit the conditional depot within " + TRAVEL_STEP_LIMIT + " observation steps")
+	}
+}
+
+
 function observe()
 {
+	if (MIRROR_CASE)
+	{
+		observe_mirror()
+		return
+	}
 	if (SERVICE_FREQUENCY_CASE)
 	{
 		observe_service_frequency()

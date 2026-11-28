@@ -1,6 +1,6 @@
 ---
 status: draft
-verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24); efe5757b13 (2026-11-25, per-line depot limit, consist overhaul grouping, simplified-maintenance wear bypass and purchase-price compensation, replacement delay, automatic release of maintained vehicles, cross-convoy combination, sync-list fix); maintenance-queue lifecycle and withdrawal case @ c0fe14eb93 plus working tree (2026-11-25)
+verified: ex-15 @ 8ad14f9615 (2026-11-24, maintenance article and status, revenue classification, cargo policy, 2016 depot-visit intent, early decision and last-halt discharge); livery fallback @ 6656e7dce0 (2026-11-24); maintenance test hook and overhaul runtime case @ d921be1fa0 (2026-11-24); efe5757b13 (2026-11-25, per-line depot limit, consist overhaul grouping, simplified-maintenance wear bypass and purchase-price compensation, replacement delay, automatic release of maintained vehicles, cross-convoy combination, sync-list fix); maintenance-queue lifecycle and withdrawal case @ c0fe14eb93 plus working tree (2026-11-25); mirrored conditional-depot early-turn reset and expanded-cycle iteration @ 427ce77f8d plus working tree (2026-11-28)
 ---
 # ex-15 depot maintenance and vehicle availability
 
@@ -44,6 +44,11 @@ Replacement scheduling is also separate: see the vehicle-replacer section in
 - **Overhaul grouping percentage** is the fraction of its own overhaul interval that a
   vehicle must have covered to join an overhaul visit caused by another vehicle in the same
   convoy. It is stored per line and as a global setting.
+- **Mirrored Schedule** is a schedule whose entries are traversed forward to the
+  last entry and then backward to the first, so every intermediate stop is
+  visited once in each direction per cycle. The **Expanded Sequence** is the
+  sequence of visits with the return leg listed separately; the compact
+  schedule stores each stop once.
 - **Routine maintenance** is the periodic depot work derived from availability.
 - **Overhaul** is the less frequent major work that resets the `km_since_last_overhaul` or
   takeoff (flight cycle) counters, resets availability to its starting value and can apply an automatic upgrade.
@@ -380,6 +385,18 @@ The early decision is implemented:
   and for a later conditional depot that the state does not track.
 - The state is saved as one byte under Extended save revision 22. Older saves start
   undecided and evaluate at the next halt.
+- A Mirrored Schedule is treated as its Expanded Sequence. When
+  `convoi_t::turn_at_skipped_depot()` turns the convoy early because the
+  conditional depot entries ahead will be skipped, it calls
+  `convoi_t::reset_conditional_depot_state()` before returning. The skipped
+  depot entry is never reached, so this reset is the equivalent of the skip
+  reset in `convoi_t::advance_schedule()`; the next halt evaluates the next
+  visit. The scan in `convoi_t::turn_at_skipped_depot()` and the walks in
+  `convoi_t::is_last_halt_before_depot()`, `convoi_t::clear_estimated_times()`
+  and `convoi_t::book_departure_time()` use the full expanded cycle length
+  (`2 * entry count - 2`), so a depot or halt on the return leg is reached. This
+  makes a Mirrored Schedule behave like an explicit schedule that lists the
+  return leg as separate entries.
 
 The decision covers only the next conditional depot. A schedule may contain more
 than one; later entries keep the late decision in
@@ -455,9 +472,6 @@ price fallback, so a wear-adjusted formula is not required now.
 - Does the 90% grouping rule produce the intended number of overhauls in a mixed
   consist? The rule is implemented, but no runtime case sets two vehicles at
   different distances.
-- A mirrored schedule that reverses at a stop keeps the early decision taken in
-  the incoming direction; whether that needs a reset on the direction change is
-  not yet verified.
 - The scheduled-depot edge cases in the Open questions section of
   [schedule-and-consists](schedule-and-consists.md) remain separate defects.
 
