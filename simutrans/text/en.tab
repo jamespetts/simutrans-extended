@@ -4121,7 +4121,7 @@ Message Centre
 Mailbox Options
 Message Centre Options
 Maintenance
-Maintenance
+Inf. maintenance
 Manufactured:
 Manufactured:
 Map roughness
@@ -7270,3 +7270,5 @@ When adding convoys to the line, every second convoy will follow it in the rever
 When adding consists to the line, every second consist will follow it in the reverse direction.
 Convoy
 Consist
+tooltip_maint
+Maintenance
