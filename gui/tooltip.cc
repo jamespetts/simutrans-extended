@@ -22,7 +22,7 @@
 #define TOOLTIP_PADDING 6
 #define TOOLTIP_LINE_GAP 3
 #define TOOLTIP_GROUP_GAP 6
-#define TOOLTIP_INDENT 12
+#define TOOLTIP_INDENT 24
 #define TOOLTIP_ICON_GAP 5
 #define TOOLTIP_TAIL_WIDTH 14
 #define TOOLTIP_TAIL_LENGTH 10
@@ -338,7 +338,7 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 			height += TOOLTIP_GROUP_GAP;
 		}
 		height += max(1, wrapped) * line_height + TOOLTIP_LINE_GAP;
-		if(line.title)
+		if(line.title  ||  line.total)
 		{
 			height += TOOLTIP_GROUP_GAP;
 		}
@@ -444,10 +444,11 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 	for(const tooltip_line_t &line : lines)
 	{
 		const sint32 indent = line.indent * TOOLTIP_INDENT;
+		const sint32 half_rule_width = (width - 2 * TOOLTIP_PADDING) / 2;
 		if(line.total)
 		{
 			line_y += TOOLTIP_GROUP_GAP;
-			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y - TOOLTIP_GROUP_GAP / 2, width - 2 * TOOLTIP_PADDING, 1, rule_color, dirty);
+			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y - TOOLTIP_GROUP_GAP / 2, half_rule_width, 1, rule_color, dirty);
 		}
 
 		const image_id image = get_line_image(line);
@@ -468,6 +469,11 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 		if(line.title)
 		{
 			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y + 1, width - 2 * TOOLTIP_PADDING, 1, rule_color, dirty);
+			line_y += TOOLTIP_GROUP_GAP;
+		}
+		else if(line.total)
+		{
+			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y + 1, half_rule_width, 1, rule_color, dirty);
 			line_y += TOOLTIP_GROUP_GAP;
 		}
 	}
