@@ -583,6 +583,7 @@ public:
 
 	const pier_desc_t* get_desc() const {return desc;}
 	char const* get_tooltip(player_t const*) const override;
+	void build_tooltip(tooltip_t &tooltip, const player_t *player) const override;
 	bool init(player_t *) override;
 	bool exit(player_t *const player) override;
 	void draw_after(scr_coord, bool dirty) const override;

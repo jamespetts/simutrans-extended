@@ -6923,6 +6923,48 @@ const char* tool_build_pier_auto_t::get_tooltip(const player_t *) const{
 	return "Invalid Pier";
 }
 
+
+void tool_build_pier_auto_t::build_tooltip(tooltip_t &tooltip, const player_t *player) const
+{
+	if(  default_param == NULL  ) {
+		return;
+	}
+	char name[256] = "";
+	uint32 i;
+	for(i = 0; default_param[i] != 0  &&  default_param[i] != ','; i++) {
+		name[i] = default_param[i];
+	}
+	name[i] = 0;
+	const pier_desc_t *tdesc = pier_builder_t::get_desc(name);
+	if(  tdesc == NULL  ) {
+		return;
+	}
+
+	cbuffer_t title;
+	title.printf("%s %s", translator::translate(tdesc->get_name()), translator::translate("elevated support"));
+	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), title.get_str());
+	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), tdesc->get_value(), translator::translate("per tile apprx."));
+	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, tdesc->get_maintenance()), translator::translate("per tile / month"));
+	if(  tdesc->get_topspeed() != 0xFFFF  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_SPEED, translator::translate("Speed"), tdesc->get_topspeed(), translator::translate("km/h"));
+	}
+	if(  tdesc->get_max_axle_load() != 0xFFFF  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_WEIGHT, translator::translate("Axle load"), tdesc->get_max_axle_load(), translator::translate("t"));
+	}
+	if(  tdesc->get_max_altitude()  ) {
+		tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Max. height above grade"), tdesc->get_max_altitude(), translator::translate("tiles"));
+	}
+	if(  tdesc->get_low_waydeck()  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate("Through Truss"));
+	}
+	if(  tdesc->get_tooltip_flag_a(0)  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate("(PierTooltipA0)"));
+	}
+	if(  tdesc->get_tooltip_flag_a(1)  ) {
+		tooltip.add(TOOLTIP_SYMBOL_NONE, translator::translate("(PierTooltipA1)"));
+	}
+}
+
 void tool_build_pier_auto_t::draw_after(scr_coord k, bool dirty) const{
 	if( icon !=IMG_EMPTY && is_selected()) {
 		display_img_blend( icon, k.x, k.y, TRANSPARENT50_FLAG|OUTLINE_FLAG|color_idx_to_rgb(COL_BLACK), false, dirty );
@@ -8327,7 +8369,6 @@ void tool_build_depot_t::build_tooltip(tooltip_t &tooltip, const player_t *playe
 	tooltip.add_icon(get_icon(const_cast<player_t *>(player)), translator::translate(desc->get_name()));
 	tooltip.add_money(TOOLTIP_SYMBOL_COST, translator::translate("Cost"), price * level, NULL);
 	tooltip.add_money(TOOLTIP_SYMBOL_MAINTENANCE, translator::translate("Maintenance"), tooltip_adjusted_maintenance(welt, settings.get_maint_building() * level), translator::translate("/ month"));
-	tooltip.add_value(TOOLTIP_SYMBOL_NONE, translator::translate("Level"), level, NULL);
 }
 
 waytype_t tool_build_depot_t::get_waytype() const
