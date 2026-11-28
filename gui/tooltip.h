@@ -44,17 +44,26 @@ enum tooltip_symbol_t
 
 struct tooltip_line_t
 {
-	tooltip_line_t() : symbol(TOOLTIP_SYMBOL_NONE), custom_icon(IMG_EMPTY) {}
+	tooltip_line_t() : symbol(TOOLTIP_SYMBOL_NONE), custom_icon(IMG_EMPTY), indent(0), title(false), total(false) {}
 	tooltip_line_t(tooltip_symbol_t symbol_, image_id custom_icon_, const char *text_) :
 		symbol(symbol_),
 		custom_icon(custom_icon_),
-		text(text_)
+		text(text_),
+		indent(0),
+		title(false),
+		total(false)
 	{}
 
 	tooltip_symbol_t symbol;
 	/// Used instead of the symbol image when not IMG_EMPTY.
 	image_id custom_icon;
 	cbuffer_t text;
+	/// Indentation level; the renderer multiplies this by the indent width.
+	uint8 indent;
+	/// Draws the line as a title with a separator below it.
+	bool title;
+	/// Draws a separator above the line, for a total that follows its components.
+	bool total;
 };
 
 
@@ -75,10 +84,10 @@ public:
 	void clear() { lines.clear(); }
 	bool empty() const { return lines.empty(); }
 
-	void add(tooltip_symbol_t symbol, const char *text);
-	void add_icon(image_id icon, const char *text);
-	void add_value(tooltip_symbol_t symbol, const char *label, sint64 value, const char *unit);
-	void add_money(tooltip_symbol_t symbol, const char *label, sint64 simucents, const char *unit);
+	tooltip_line_t &add(tooltip_symbol_t symbol, const char *text);
+	tooltip_line_t &add_icon(image_id icon, const char *text);
+	tooltip_line_t &add_value(tooltip_symbol_t symbol, const char *label, sint64 value, const char *unit);
+	tooltip_line_t &add_money(tooltip_symbol_t symbol, const char *label, sint64 simucents, const char *unit);
 
 	/**
 	 * Draws the bubble at @p pos, clamped to the screen. The tail points at

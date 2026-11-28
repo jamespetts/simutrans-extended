@@ -20,7 +20,9 @@
 
 
 #define TOOLTIP_PADDING 6
-#define TOOLTIP_LINE_GAP 1
+#define TOOLTIP_LINE_GAP 3
+#define TOOLTIP_GROUP_GAP 6
+#define TOOLTIP_INDENT 12
 #define TOOLTIP_ICON_GAP 5
 #define TOOLTIP_TAIL_WIDTH 14
 #define TOOLTIP_TAIL_LENGTH 10
@@ -233,19 +235,21 @@ static uint32 draw_wrapped_text(scr_coord_val x, scr_coord_val y, const char *te
 }
 
 
-void tooltip_t::add(tooltip_symbol_t symbol, const char *text)
+tooltip_line_t &tooltip_t::add(tooltip_symbol_t symbol, const char *text)
 {
 	lines.append(tooltip_line_t(symbol, IMG_EMPTY, text));
+	return lines.back();
 }
 
 
-void tooltip_t::add_icon(image_id icon, const char *text)
+tooltip_line_t &tooltip_t::add_icon(image_id icon, const char *text)
 {
 	lines.append(tooltip_line_t(TOOLTIP_SYMBOL_NONE, icon, text));
+	return lines.back();
 }
 
 
-void tooltip_t::add_value(tooltip_symbol_t symbol, const char *label, sint64 value, const char *unit)
+tooltip_line_t &tooltip_t::add_value(tooltip_symbol_t symbol, const char *label, sint64 value, const char *unit)
 {
 	char buf[256];
 	if(unit != NULL  &&  *unit != 0)
@@ -256,11 +260,11 @@ void tooltip_t::add_value(tooltip_symbol_t symbol, const char *label, sint64 val
 	{
 		snprintf(buf, sizeof(buf), "%s: %lld", label, (long long)value);
 	}
-	add(symbol, buf);
+	return add(symbol, buf);
 }
 
 
-void tooltip_t::add_money(tooltip_symbol_t symbol, const char *label, sint64 simucents, const char *unit)
+tooltip_line_t &tooltip_t::add_money(tooltip_symbol_t symbol, const char *label, sint64 simucents, const char *unit)
 {
 	if(simucents < 0)
 	{
@@ -278,7 +282,7 @@ void tooltip_t::add_money(tooltip_symbol_t symbol, const char *label, sint64 sim
 	{
 		snprintf(buf, sizeof(buf), "%s: %s", label, money);
 	}
-	add(symbol, buf);
+	return add(symbol, buf);
 }
 
 
@@ -323,13 +327,21 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 	sint32 height = 2 * TOOLTIP_PADDING;
 	for(const tooltip_line_t &line : lines)
 	{
-		const sint32 text_offset = line.custom_icon != IMG_EMPTY ? get_icon_width(line) + TOOLTIP_ICON_GAP : symbol_column;
+		const sint32 text_offset = (line.custom_icon != IMG_EMPTY ? get_icon_width(line) + TOOLTIP_ICON_GAP : symbol_column) + line.indent * TOOLTIP_INDENT;
 		const sint32 text_max_width = max(40, max_width - 2 * TOOLTIP_PADDING - text_offset);
 		const sint32 raw_width = display_calc_proportional_string_len_width(line.text.get_str(), line.text.len());
 		content_width = max(content_width, text_offset + min(raw_width, text_max_width));
 		const sint32 wrapped = count_wrapped_lines(line.text.get_str(), text_max_width);
 		const sint32 line_height = max(LINESPACE, get_icon_height(line));
+		if(line.total)
+		{
+			height += TOOLTIP_GROUP_GAP;
+		}
 		height += max(1, wrapped) * line_height + TOOLTIP_LINE_GAP;
+		if(line.title)
+		{
+			height += TOOLTIP_GROUP_GAP;
+		}
 	}
 
 	sint32 width = 2 * TOOLTIP_PADDING + content_width;
@@ -345,6 +357,7 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 	const PIXVAL highlight_color = display_blend_colors(body_color, color_idx_to_rgb(COL_WHITE), 25);
 	const PIXVAL shadow_color = display_blend_colors(body_color, color_idx_to_rgb(COL_BLACK), 45);
 	const PIXVAL text_color = env_t::tooltip_textcolor;
+	const PIXVAL rule_color = display_blend_colors(body_color, text_color, 50);
 
 	enum tail_side_t { TAIL_NONE, TAIL_TOP, TAIL_BOTTOM, TAIL_LEFT, TAIL_RIGHT };
 	tail_side_t tail_side = TAIL_NONE;
@@ -430,20 +443,32 @@ void tooltip_t::draw(scr_coord pos, scr_coord anchor, bool dirty) const
 
 	for(const tooltip_line_t &line : lines)
 	{
+		const sint32 indent = line.indent * TOOLTIP_INDENT;
+		if(line.total)
+		{
+			line_y += TOOLTIP_GROUP_GAP;
+			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y - TOOLTIP_GROUP_GAP / 2, width - 2 * TOOLTIP_PADDING, 1, rule_color, dirty);
+		}
+
 		const image_id image = get_line_image(line);
 		const scr_size icon_size = get_image_size(image);
 		const sint32 icon_height = get_icon_height(line);
 		const sint32 line_height = max(LINESPACE, icon_height);
-		const sint32 text_offset = line.custom_icon != IMG_EMPTY ? get_icon_width(line) + TOOLTIP_ICON_GAP : symbol_column;
+		const sint32 text_offset = (line.custom_icon != IMG_EMPTY ? get_icon_width(line) + TOOLTIP_ICON_GAP : symbol_column) + indent;
 		const sint32 text_max_width = max(40, max_width - 2 * TOOLTIP_PADDING - text_offset);
 		const sint32 text_x = pos.x + TOOLTIP_PADDING + text_offset;
 
 		if(image != IMG_EMPTY)
 		{
-			draw_image_at(image, pos.x + TOOLTIP_PADDING, line_y + (line_height - icon_size.h) / 2, dirty);
+			draw_image_at(image, pos.x + TOOLTIP_PADDING + indent, line_y + (line_height - icon_size.h) / 2, dirty);
 		}
 
 		const uint32 wrapped = draw_wrapped_text(text_x, line_y + (line_height - LINESPACE) / 2, line.text.get_str(), text_max_width, text_color, dirty);
 		line_y += max(1, (sint32)wrapped) * line_height + TOOLTIP_LINE_GAP;
+		if(line.title)
+		{
+			display_fillbox_wh_clip_rgb(pos.x + TOOLTIP_PADDING, line_y + 1, width - 2 * TOOLTIP_PADDING, 1, rule_color, dirty);
+			line_y += TOOLTIP_GROUP_GAP;
+		}
 	}
 }
